@@ -1,9 +1,9 @@
-1: import streamlit as st
-2: import pandas as pd
-3: st.set_page_config(page_title="Agora B2B - Partenariats Universités", layout="wide")
-4: 
-5: @st.cache_data
-6: def load_data():
+import streamlit as st
+import pandas as pd
+st.set_page_config(page_title="Agora B2B - Partenariats Universités", layout="wide")
+
+@st.cache_data
+def load_data():
 
         {"Ville": "Londres", "Pays": "Royaume-Uni", "Université": "London Higher", "Nom": "Jolanta Edwards", "Poste": "Directrice de la stratégie", "Email": "enquiry@londonhigher.ac.uk", "Téléphone": "+44 207 419 5650", "Site": "https://www.londonhigher.ac.uk/contact/", "Thématique": "Généraliste, Innovation", "Taille": 80000},
         {"Ville": "Tokyo", "Pays": "Japon", "Université": "University of Tokyo", "Nom": "Kenji Kobayashi", "Poste": "Professeur, Faculty of Agriculture", "Email": "daigakuin.s@gs.mail.u-tokyo.ac.jp", "Téléphone": "+81 3 5841 6009", "Site": "https://www.u-tokyo.ac.jp/en/general/contact.html", "Thématique": "Recherche, Sciences", "Taille": 30000},
