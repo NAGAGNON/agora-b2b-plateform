@@ -8,7 +8,6 @@ import plotly.graph_objects as go
 
 st.set_page_config(page_title="Agora B2B Pro", layout="wide")
 
-# Image neutre si jamais le lien Unsplash ne fonctionne pas
 FALLBACK_IMG = "https://upload.wikimedia.org/wikipedia/commons/6/65/No-Image-Placeholder.svg"
 
 @st.cache_data
@@ -45,22 +44,36 @@ def load_data():
 
 df = load_data()
 
-# KPI simulés
-np.random.seed(42)
-nb_universites = df[df['Type'] == "Université"].shape[0]
-nb_entreprises = df[df['Type'] == "Entreprise"].shape[0]
-actifs = df[df['Statut'] == "Actif"].shape[0]
-moyens = df[df['Statut'] == "Moyen"].shape[0]
-inactifs = df[df['Statut'] == "Inactif"].shape[0]
-collaborations = np.random.randint(30, 100)
-taux_retention = round(np.random.uniform(0.70, 0.97), 2)
-revenu_premium = np.random.randint(7000, 30000)
-taux_satisfaction = round(np.random.uniform(0.75, 0.97), 2)
+# --- UI HEADER (plus d'image, tout centré pro) ---
+st.markdown("<h1 style='text-align: center; color: #004080;'>Agora B2B Plateforme Pro</h1>", unsafe_allow_html=True)
+st.markdown("<h3 style='text-align: center;'>Mise en relation Universités & Entreprises</h3>", unsafe_allow_html=True)
+st.write("")  # espace
 
-# Filtres dynamiques
-def show_matching_form(type_sel):
+menu = st.radio("Navigation :", ["Universités", "Entreprises", "Dashboard KPI"], horizontal=True)
+
+# --- MATCHING SCORING ---
+def match_score(row, type_sel, pays, taille, theme, statut_ref="Actif"):
+    score = 0
+    # Pays exact = 40 pts, sinon 0
+    score += 40 if row["Pays"] == pays else 0
+    # Taille : score linéaire, max 30 pts si delta 0, min 0 pts si delta > 50k
+    delta = abs(row["Taille"] - taille)
+    score += max(0, 30 - int(delta / 2000))  # perte de 1 pt par 2000 étudiants d'écart
+    # Thématique : +30 pts si 1 thématique commune, +60 pts si 2+, 0 sinon
+    th_row = [x.strip() for x in row["Thématique"].split(",")]
+    nb_common = len(set(th_row).intersection(set(theme)))
+    score += 60 if nb_common > 1 else (30 if nb_common == 1 else 0)
+    # Statut bonus/malus
+    if row["Statut"] == "Actif":
+        score += 10
+    elif row["Statut"] == "Moyen":
+        score -= 5
+    elif row["Statut"] == "Inactif":
+        score -= 10
+    return max(0, min(100, score))  # normalisation
+
+def show_matching_score(type_sel):
     st.markdown(f"### Critères de recherche pour une {type_sel.lower()}")
-
     nom = st.text_input("Nom de la structure")
     taille = st.slider("Taille de la structure", 1000, 100000, 30000, 1000)
     pays = st.selectbox("Pays souhaité pour les partenaires", sorted(df['Pays'].unique()))
@@ -69,48 +82,44 @@ def show_matching_form(type_sel):
     nb_part = st.slider("Nombre de partenaires recherchés", 1, 10, 3)
 
     if st.button("Trouver les partenaires adaptés"):
-        # Matching par taille +/- 20%, pays, au moins 1 thématique commune, statut actif ou moyen
-        dff = df[(df['Type'] != type_sel) &
-                 (df['Pays'] == pays) &
-                 (df['Taille'].between(int(taille*0.8), int(taille*1.2))) &
-                 (df['Statut'].isin(["Actif", "Moyen"]))]
-        if theme:
-            dff = dff[dff['Thématique'].apply(lambda x: any(t in x for t in theme))]
-        dff = dff.head(nb_part)
-        if dff.empty:
-            st.warning("Aucun partenaire correspondant n'a été trouvé, essayez d'élargir vos critères.")
-        else:
-            st.success(f"{len(dff)} partenaires adaptés trouvés :")
-            for idx, row in dff.iterrows():
-                cc1, cc2 = st.columns([1,7])
-                with cc1:
-                    st.markdown(f"<div style='margin-top: 40px;'><span style='color:{row['Statut_color']};font-size:38px;'>&#9679;</span></div>", unsafe_allow_html=True)
-                with cc2:
-                    st.markdown(f"<h4>{row['Nom']} ({row['Ville']}, {row['Pays']})</h4>", unsafe_allow_html=True)
-                    try:
-                        response = requests.get(row["Image"], timeout=3)
-                        img = Image.open(BytesIO(response.content))
-                        st.image(img, width=280)
-                    except Exception:
-                        st.image(FALLBACK_IMG, width=120)
-                    st.markdown(f"<b>Thématique :</b> {row['Thématique']}", unsafe_allow_html=True)
-                    st.markdown(f"<b>Statut :</b> <span style='color:{row['Statut_color']}'>{row['Statut']}</span>", unsafe_allow_html=True)
-                    st.markdown("---")
+        # On sélectionne tous les autres (entreprise/université opposé)
+        candidates = df[df['Type'] != type_sel].copy()
+        candidates["Score"] = candidates.apply(
+            lambda row: match_score(row, type_sel, pays, taille, theme), axis=1
+        )
+        candidates = candidates.sort_values("Score", ascending=False).head(nb_part)
+        st.markdown("#### Résultat de votre recherche (score de correspondance : 100 = partenaire parfait)")
+        for idx, row in candidates.iterrows():
+            score_color = "green" if row["Score"] >= 80 else "orange" if row["Score"] >= 60 else "red"
+            cc1, cc2 = st.columns([1,7])
+            with cc1:
+                st.markdown(f"<div style='margin-top: 38px;'><span style='color:{row['Statut_color']};font-size:36px;'>&#9679;</span></div>", unsafe_allow_html=True)
+                st.markdown(f"<b style='color:{score_color};font-size:24px;'>{row['Score']}%</b>", unsafe_allow_html=True)
+            with cc2:
+                st.markdown(f"<h4>{row['Nom']} ({row['Ville']}, {row['Pays']})</h4>", unsafe_allow_html=True)
+                try:
+                    response = requests.get(row["Image"], timeout=3)
+                    img = Image.open(BytesIO(response.content))
+                    st.image(img, width=220)
+                except Exception:
+                    st.image(FALLBACK_IMG, width=120)
+                st.markdown(f"<b>Thématique :</b> {row['Thématique']}", unsafe_allow_html=True)
+                st.markdown(f"<b>Statut :</b> <span style='color:{row['Statut_color']}'>{row['Statut']}</span>", unsafe_allow_html=True)
+                st.markdown("---")
+        if len(candidates) == 0 or candidates["Score"].max() < 60:
+            st.warning("Aucun partenaire parfaitement adapté, mais voici les plus proches selon vos critères.")
 
-# UI
-col0, col1, col2 = st.columns([2,2,2])
-with col1:
-    try:
-        st.image("https://images.unsplash.com/photo-1506744038136-46273834b3fb", width=120)
-    except:
-        st.image(FALLBACK_IMG, width=120)
-st.markdown("<h1 style='text-align: center; color: #004080;'>Agora B2B Plateforme Pro</h1>", unsafe_allow_html=True)
-st.markdown("<h3 style='text-align: center;'>Mise en relation Universités & Entreprises</h3>", unsafe_allow_html=True)
-
-menu = st.radio("Navigation :", ["Universités", "Entreprises", "Dashboard KPI"], horizontal=True)
-
-# ---------- DASHBOARD KPI -----------
-if menu == "Dashboard KPI":
+# ---------- DASHBOARD KPI ----------
+def show_dashboard():
+    nb_universites = df[df['Type'] == "Université"].shape[0]
+    nb_entreprises = df[df['Type'] == "Entreprise"].shape[0]
+    actifs = df[df['Statut'] == "Actif"].shape[0]
+    moyens = df[df['Statut'] == "Moyen"].shape[0]
+    inactifs = df[df['Statut'] == "Inactif"].shape[0]
+    collaborations = np.random.randint(30, 100)
+    revenu_premium = np.random.randint(7000, 30000)
+    taux_retention = round(np.random.uniform(0.70, 0.97), 2)
+    taux_satisfaction = round(np.random.uniform(0.75, 0.97), 2)
     st.markdown("<h2 style='color:#004080;'>📊 Dashboard KPI (live)</h2>", unsafe_allow_html=True)
     kpi1, kpi2, kpi3, kpi4, kpi5, kpi6 = st.columns(6)
     kpi1.metric("Universités", nb_universites)
@@ -138,14 +147,14 @@ if menu == "Dashboard KPI":
         st.plotly_chart(fig2, use_container_width=True)
     st.success("Dashboard live : tous les KPI stratégiques pour piloter la plateforme en un coup d'œil.")
 
-# --------- UNIVERSITÉ ---------
+# ----------- ROUTER -----------
+if menu == "Dashboard KPI":
+    show_dashboard()
 elif menu == "Universités":
     st.markdown("#### Recherche intelligente de partenaires pour Universités")
-    show_matching_form("Université")
-
-# --------- ENTREPRISES ---------
+    show_matching_score("Université")
 elif menu == "Entreprises":
     st.markdown("#### Recherche intelligente de partenaires pour Entreprises")
-    show_matching_form("Entreprise")
+    show_matching_score("Entreprise")
 
-st.caption("Prototype avancé Agora B2B Pro – Matching dynamique, images, statuts, dashboard. Version personnalisable.")
+st.caption("Prototype avancé Agora B2B Pro – Matching dynamique, scoring, statuts, dashboard. Version personnalisable.")
