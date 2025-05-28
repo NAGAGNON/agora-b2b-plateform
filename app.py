@@ -20,7 +20,7 @@ def load_data():
 
 df = load_data()
 
-st.set_page_config(page_title="Agora B2B - Partenariats Universités", layout="wide")
+
 st.title("🌍 Agora B2B Global Born – Mise en relation universitaire")
 
 mode = st.radio("Comment souhaitez-vous utiliser la plateforme ?", ["Connexion en invité", "Créer/Accéder à mon compte (simulation)"])
