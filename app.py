@@ -1,247 +1,119 @@
 import streamlit as st
 import pandas as pd
-from PIL import Image
-import requests
-from io import BytesIO
 
-# ------- DESIGN : CSS POUR TOUT LE STYLE -------
+# CONFIGURATION DE LA PAGE STREAMLIT (doit toujours être en tout début de script)
+st.set_page_config(
+    page_title="Agora B2B Plateforme Pro",
+    page_icon=":globe_with_meridians:",
+    layout="wide"
+)
+
+# ====================== DONNÉES D'EXEMPLE ======================
+def load_data():
+    data = [
+        {"Nom": "London Higher", "Pays": "Royaume-Uni", "Taille": 80000, "Thématique": "Généraliste", "Statut": "Actif", "Score": 92},
+        {"Nom": "University of Tokyo", "Pays": "Japon", "Taille": 60000, "Thématique": "Généraliste", "Statut": "Moyen", "Score": 84},
+        {"Nom": "LMU Munich", "Pays": "Allemagne", "Taille": 45000, "Thématique": "Management", "Statut": "Inactif", "Score": 73},
+        {"Nom": "University of Melbourne", "Pays": "Australie", "Taille": 52000, "Thématique": "Sciences", "Statut": "Actif", "Score": 91},
+        {"Nom": "Université de Montréal", "Pays": "Canada", "Taille": 70000, "Thématique": "Généraliste", "Statut": "Moyen", "Score": 78},
+        {"Nom": "Université Paris 1", "Pays": "France", "Taille": 65000, "Thématique": "Généraliste", "Statut": "Actif", "Score": 87},
+    ]
+    return pd.DataFrame(data)
+
+df = load_data()
+
+# ====================== STYLE CSS ======================
 st.markdown("""
     <style>
-    body {background: #f7f8fa;}
-    .main {background-color: #f7f8fa;}
-    header {visibility: hidden;}
-    .block-container {
-        padding-top: 1rem !important;
-        padding-bottom: 1rem !important;
-    }
-    .navbar {
-        background: linear-gradient(90deg, #02142b 60%, #2479C6 100%);
-        color: white;
-        padding: 15px 30px 15px 40px;
-        font-size: 1.2rem;
-        margin-bottom: 40px;
-        border-radius: 0 0 25px 25px;
-        display: flex; align-items: center;
-        justify-content: space-between;
-    }
-    .navbar-title {
-        font-family: 'Segoe UI', sans-serif; font-weight:700;
-        font-size: 2rem;
-        letter-spacing: .5px;
-    }
-    .navbar-link {
-        color: white;
-        margin-left: 2rem;
-        text-decoration: none;
-        font-weight: bold;
-        font-size: 1.1rem;
-        transition: color 0.2s;
-    }
-    .navbar-link:hover {
-        color: #F9E79F;
-    }
-    .kpi-box {
-        background: #e9f4ff; border-radius:18px; padding: 24px; margin-bottom:30px;
-        box-shadow: 0 1px 6px #02142b15;
-    }
-    .result-card {
-        background: white; border-radius: 18px; margin-bottom: 30px;
-        box-shadow: 0 2px 16px #02142b10;
-        padding: 28px 22px;
-        display: flex; align-items: center;
-    }
-    .img-card {
-        border-radius: 15px; margin-right: 26px;
-        border: 1px solid #eee; width: 160px; height: 90px; object-fit: cover;
-    }
-    .score {
-        font-weight: 900; font-size: 2rem; color: #1BC47D; margin-bottom: 7px;
-    }
-    .dot {
-        height: 15px; width: 15px; border-radius:50%; display:inline-block;
-        margin-right: 6px; vertical-align: middle;
-    }
-    .dot-actif {background: #1BC47D;}
-    .dot-moyen {background: #F7CA18;}
-    .dot-inactif {background: #D8334A;}
-    .tag {
-        display: inline-block;
-        background: #e0e7ff;
-        color: #02142b;
-        font-size: 1rem;
-        border-radius: 8px;
-        padding: 2px 10px;
-        margin-right: 5px;
-    }
+    .big-title {font-size: 2.8em; color: #223A5E; font-weight: 900; text-align:center; margin-bottom: 0.3em;}
+    .subtitle {font-size: 1.3em; color: #EC2027; text-align:center; margin-bottom: 1.5em;}
+    .crit {background: #f4f7fa; padding:1.5em; border-radius:16px; box-shadow:0 3px 8px #00000018; margin-bottom:1.5em;}
+    .score {font-weight:bold; color:#008C48;}
+    .tag-actif {background:#6fda44;padding:0.2em 1em;border-radius:9px;color:white;}
+    .tag-moyen {background:#ffc107;padding:0.2em 1em;border-radius:9px;color:white;}
+    .tag-inactif {background:#ec2027;padding:0.2em 1em;border-radius:9px;color:white;}
     </style>
 """, unsafe_allow_html=True)
 
-# -------- BARRE DE NAVIGATION ---------
-st.markdown("""
-<div class="navbar">
-    <span class="navbar-title">Agora B2B Plateforme Pro</span>
-    <span>
-        <a class="navbar-link" href="#universite">Universités</a>
-        <a class="navbar-link" href="#entreprise">Entreprises</a>
-        <a class="navbar-link" href="#kpi">Dashboard KPI</a>
-    </span>
-</div>
-""", unsafe_allow_html=True)
+# ====================== HEADER ======================
+st.markdown('<div class="big-title">Agora B2B Plateforme Pro</div>', unsafe_allow_html=True)
+st.markdown('<div class="subtitle">Mise en relation Universités & Entreprises</div>', unsafe_allow_html=True)
 
-# -------- DATA D'EXEMPLE ---------
-universites = [
-    {
-        "Nom": "University of Oxford",
-        "Ville": "Oxford",
-        "Pays": "Royaume-Uni",
-        "Thématique": "Généraliste, Recherche",
-        "Taille": 25000,
-        "Statut": "Actif",
-        "Score": 97,
-        "Image": "https://images.unsplash.com/photo-1506744038136-46273834b3fb?fit=crop&w=500&q=80"  # campus UK
-    },
-    {
-        "Nom": "Harvard University",
-        "Ville": "Cambridge",
-        "Pays": "États-Unis",
-        "Thématique": "Sciences, Ingénierie",
-        "Taille": 33000,
-        "Statut": "Moyen",
-        "Score": 83,
-        "Image": "https://images.unsplash.com/photo-1464983953574-0892a716854b?fit=crop&w=500&q=80" # campus US
-    },
-    {
-        "Nom": "Université de Tokyo",
-        "Ville": "Tokyo",
-        "Pays": "Japon",
-        "Thématique": "Tech, Recherche",
-        "Taille": 27000,
-        "Statut": "Inactif",
-        "Score": 69,
-        "Image": "https://images.unsplash.com/photo-1519125323398-675f0ddb6308?fit=crop&w=500&q=80" # campus Asie
-    },
-]
+# ====================== SÉLECTION DU MODE ======================
+mode = st.radio("👤 Sélectionne ton type de structure :", ("Université", "Entreprise", "Dashboard KPI"), horizontal=True)
 
-entreprises = [
-    {
-        "Nom": "SAP",
-        "Ville": "Walldorf",
-        "Pays": "Allemagne",
-        "Thématique": "Logiciel, Tech",
-        "Taille": 100000,
-        "Statut": "Actif",
-        "Score": 92,
-        "Image": "https://images.unsplash.com/photo-1465101046530-73398c7f28ca?fit=crop&w=500&q=80" # bureaux modernes
-    },
-    {
-        "Nom": "Tata Consultancy",
-        "Ville": "Mumbai",
-        "Pays": "Inde",
-        "Thématique": "Conseil, IT",
-        "Taille": 60000,
-        "Statut": "Moyen",
-        "Score": 74,
-        "Image": "https://images.unsplash.com/photo-1466018885580-22a4b0c3b2a7?fit=crop&w=500&q=80"
-    },
-    {
-        "Nom": "Accenture",
-        "Ville": "Paris",
-        "Pays": "France",
-        "Thématique": "Conseil, Stratégie",
-        "Taille": 40000,
-        "Statut": "Inactif",
-        "Score": 63,
-        "Image": "https://images.unsplash.com/photo-1519125323398-675f0ddb6308?fit=crop&w=500&q=80"
-    }
-]
+if mode == "Université":
+    st.markdown('<div class="crit"><b>Recherche intelligente de partenaires pour Universités</b></div>', unsafe_allow_html=True)
+    nom_univ = st.text_input("Nom de la structure")
+    taille = st.slider("Taille de la structure", 1000, 100000, 20000)
+    pays = st.selectbox("Pays souhaité pour les partenaires", df["Pays"].unique())
+    thematiques = st.multiselect("Thématiques recherchées", df["Thématique"].unique())
+    statut = st.selectbox("Niveau d’activité minimum du partenaire", ["Actif", "Moyen", "Inactif"])
+    n_part = st.slider("Nombre de partenaires recherchés", 1, 5, 2)
+    
+    if st.button("Trouver mes partenaires idéaux"):
+        results = df[
+            (df["Pays"] == pays) &
+            (df["Taille"] >= taille-15000) &
+            (df["Taille"] <= taille+15000) &
+            (df["Thématique"].isin(thematiques) if thematiques else True) &
+            (df["Statut"].isin([statut, "Actif"]))
+        ].sort_values("Score", ascending=False).head(n_part)
+        
+        if results.empty:
+            st.warning("Aucune université ne correspond à vos critères.")
+        else:
+            st.subheader("🔎 Résultats des universités recommandées")
+            for idx, row in results.iterrows():
+                tag = {
+                    "Actif": "tag-actif",
+                    "Moyen": "tag-moyen",
+                    "Inactif": "tag-inactif"
+                }[row.Statut]
+                st.markdown(
+                    f"""<div style="padding:1em 0;">
+                    <span class="{tag}">{row.Statut}</span>
+                    <b style="font-size:1.1em;margin-left:0.5em;">{row.Nom}</b>
+                    <span style="margin-left:1em;">({row.Pays} - {row.Thématique})</span>
+                    <span class="score" style="margin-left:1em;">Score : {row.Score}</span>
+                    </div>""",
+                    unsafe_allow_html=True
+                )
+elif mode == "Entreprise":
+    st.markdown('<div class="crit"><b>Recherche intelligente de partenaires pour Entreprises</b></div>', unsafe_allow_html=True)
+    nom_entr = st.text_input("Nom de la société")
+    secteur = st.selectbox("Secteur d'activité", ["Tech", "Industrie", "Finance", "Santé", "Autre"])
+    pays = st.selectbox("Pays cible", df["Pays"].unique())
+    n_part = st.slider("Nombre de partenaires universitaires recherchés", 1, 5, 2)
+    if st.button("Trouver des universités partenaires"):
+        results = df[df["Pays"] == pays].sort_values("Score", ascending=False).head(n_part)
+        if results.empty:
+            st.warning("Aucune université trouvée pour ce pays.")
+        else:
+            st.subheader("🔎 Universités partenaires recommandées")
+            for idx, row in results.iterrows():
+                tag = {
+                    "Actif": "tag-actif",
+                    "Moyen": "tag-moyen",
+                    "Inactif": "tag-inactif"
+                }[row.Statut]
+                st.markdown(
+                    f"""<div style="padding:1em 0;">
+                    <span class="{tag}">{row.Statut}</span>
+                    <b style="font-size:1.1em;margin-left:0.5em;">{row.Nom}</b>
+                    <span style="margin-left:1em;">({row.Pays} - {row.Thématique})</span>
+                    <span class="score" style="margin-left:1em;">Score : {row.Score}</span>
+                    </div>""",
+                    unsafe_allow_html=True
+                )
 
-def statut_color(stat):
-    if stat == "Actif": return "dot dot-actif"
-    elif stat == "Moyen": return "dot dot-moyen"
-    else: return "dot dot-inactif"
+else:  # Dashboard KPI
+    st.markdown('<div class="crit"><b>Dashboard KPI (Version Pro)</b></div>', unsafe_allow_html=True)
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Universités Actives", df[df["Statut"] == "Actif"].shape[0])
+    col2.metric("Universités Moyennes", df[df["Statut"] == "Moyen"].shape[0])
+    col3.metric("Universités Inactives", df[df["Statut"] == "Inactif"].shape[0])
+    st.bar_chart(df.set_index("Nom")["Score"])
 
-# ----------- TABS -----------
-
-tab = st.radio("Navigation :", ["Universités", "Entreprises", "Dashboard KPI"], horizontal=True)
-
-if tab == "Universités":
-    st.markdown("<h2 id='universite'>Recherche intelligente de partenaires pour Universités</h2>", unsafe_allow_html=True)
-    nom = st.text_input("Nom de la structure")
-    taille = st.slider("Taille de la structure", 1000, 50000, 22000)
-    pays = st.selectbox("Pays souhaité pour les partenaires", sorted({u["Pays"] for u in universites}))
-    thematiques = st.multiselect("Thématiques recherchées", ["Généraliste", "Recherche", "Sciences", "Ingénierie", "Tech"])
-    nb_partenaires = st.slider("Nombre de partenaires recherchés", 1, 5, 3)
-    st.write("---")
-    st.markdown("### Résultat de recherche :")
-    # Simule le matching en triant par score et pays
-    results = [u for u in universites if u["Pays"] == pays][:nb_partenaires]
-    if results:
-        for res in results:
-            st.markdown(
-                f"""
-                <div class="result-card">
-                    <img class="img-card" src="{res['Image']}" alt="campus"/>
-                    <div>
-                        <span class="{statut_color(res['Statut'])}"></span>
-                        <span class="score">{res['Score']}%</span>
-                        <b>{res['Nom']} ({res['Ville']}, {res['Pays']})</b><br>
-                        <span class="tag">{res['Thématique']}</span>
-                        <br>
-                        <b>Statut :</b> {res['Statut']}
-                    </div>
-                </div>
-                """, unsafe_allow_html=True
-            )
-    else:
-        st.info("Aucun partenaire correspondant. Essayez un autre pays ou critère.")
-
-elif tab == "Entreprises":
-    st.markdown("<h2 id='entreprise'>Recherche intelligente de partenaires pour Entreprises</h2>", unsafe_allow_html=True)
-    nom = st.text_input("Nom de l'entreprise")
-    taille = st.slider("Taille de l'entreprise", 50, 120000, 2000)
-    pays = st.selectbox("Pays souhaité pour les partenaires", sorted({e["Pays"] for e in entreprises}))
-    thematiques = st.multiselect("Thématiques recherchées", ["Tech", "Logiciel", "Conseil", "IT", "Stratégie"])
-    nb_partenaires = st.slider("Nombre de partenaires recherchés", 1, 5, 2)
-    st.write("---")
-    st.markdown("### Résultat de recherche :")
-    # Simule le matching en triant par score et pays
-    results = [e for e in entreprises if e["Pays"] == pays][:nb_partenaires]
-    if results:
-        for res in results:
-            st.markdown(
-                f"""
-                <div class="result-card">
-                    <img class="img-card" src="{res['Image']}" alt="entreprise"/>
-                    <div>
-                        <span class="{statut_color(res['Statut'])}"></span>
-                        <span class="score">{res['Score']}%</span>
-                        <b>{res['Nom']} ({res['Ville']}, {res['Pays']})</b><br>
-                        <span class="tag">{res['Thématique']}</span>
-                        <br>
-                        <b>Statut :</b> {res['Statut']}
-                    </div>
-                </div>
-                """, unsafe_allow_html=True
-            )
-    else:
-        st.info("Aucun partenaire correspondant. Essayez un autre pays ou critère.")
-
-elif tab == "Dashboard KPI":
-    st.markdown("<h2 id='kpi'>Dashboard KPI (démo)</h2>", unsafe_allow_html=True)
-    st.markdown("""
-        <div class="kpi-box">
-            <b>Nombre de partenariats actifs :</b> <span style="font-size:2rem; color:#1BC47D;">38</span><br>
-            <b>Taux de satisfaction :</b> <span style="font-size:2rem; color:#2479C6;">93%</span><br>
-            <b>Universités connectées :</b> <span style="font-size:2rem; color:#D8334A;">12</span>
-        </div>
-    """, unsafe_allow_html=True)
-    st.info("Ce dashboard peut intégrer vos KPI dynamiquement (Graphiques, historiques, etc).")
-
-# --------- FOOTER ---------
-st.markdown("""
-    <hr style="margin-top:45px;">
-    <div style="text-align:center;color:#aaa;font-size:14px;padding-bottom:22px">
-    © 2024 Agora B2B - Plateforme de mise en relation Universités & Entreprises. <br>
-    <a href='#' style='color:#2479C6;'>Contact</a> | <a href='#' style='color:#2479C6;'>Mentions légales</a>
-    </div>
-""", unsafe_allow_html=True)
+st.markdown("---")
+st.markdown('<div style="text-align:center;color:#888;">© 2024 Agora B2B Plateforme — Prototype UI & Data Demo</div>', unsafe_allow_html=True)
