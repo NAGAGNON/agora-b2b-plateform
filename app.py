@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-
+st.set_page_config(page_title="Agora B2B - Partenariats Universités", layout="wide")
 @st.cache_data
 def load_data():
     data = [
