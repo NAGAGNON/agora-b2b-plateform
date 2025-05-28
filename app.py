@@ -1,9 +1,9 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
 from PIL import Image
 import requests
 from io import BytesIO
+import numpy as np
 import plotly.graph_objects as go
 
 st.set_page_config(page_title="Agora B2B Pro", layout="wide")
@@ -13,103 +13,103 @@ FALLBACK_IMG = "https://upload.wikimedia.org/wikipedia/commons/6/65/No-Image-Pla
 @st.cache_data
 def load_data():
     images = [
-        "https://images.unsplash.com/photo-1506744038136-46273834b3fb",
-        "https://images.unsplash.com/photo-1464983953574-0892a716854b",
-        "https://images.unsplash.com/photo-1503676382389-4809596d5290",
-        "https://images.unsplash.com/photo-1465101046530-73398c7f28ca",
-        "https://images.unsplash.com/photo-1515378791036-0648a3ef77b2",
-        "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61",
-        "https://images.unsplash.com/photo-1432888498266-38ffec3eaf0a",
-        "https://images.unsplash.com/photo-1466301588502-22a4b0c3b2a7",
-        "https://images.unsplash.com/photo-1496307653780-42ee777d4842",
-        "https://images.unsplash.com/photo-1519125323398-675f0ddb6308"
+        # Vraies images de campus ou logos (à changer pour les tiennes)
+        "https://www.ox.ac.uk/sites/files/oxford/styles/ow_medium_feature/s3/field/field_image_main/radcliffe-camera-oxford.jpg",  # Oxford
+        "https://upload.wikimedia.org/wikipedia/commons/8/8d/Sorbonne_Université.jpg",  # Sorbonne
+        "https://www.mit.edu/files/images/mit-main-building.jpg",  # MIT
+        "https://upload.wikimedia.org/wikipedia/commons/7/7f/SAP_Walldorf.jpg",  # SAP
+        "https://upload.wikimedia.org/wikipedia/commons/7/77/Tata_Consultancy_Services_Mumbai_Campus.jpg"  # Tata Consultancy
     ]
     data = [
-        {"Type": "Université", "Nom": "London Higher", "Ville": "Londres", "Pays": "Royaume-Uni", "Thématique": "Généraliste, Innovation", "Taille": 60000, "Statut": "Actif", "Statut_color": "green", "Image": images[0]},
-        {"Type": "Université", "Nom": "University of Tokyo", "Ville": "Tokyo", "Pays": "Japon", "Thématique": "Recherche, Sciences", "Taille": 80000, "Statut": "Moyen", "Statut_color": "yellow", "Image": images[1]},
-        {"Type": "Université", "Nom": "Seoul Metropolitan Office of Education", "Ville": "Séoul", "Pays": "Corée du Sud", "Thématique": "Management, Education", "Taille": 30000, "Statut": "Inactif", "Statut_color": "red", "Image": images[2]},
-        {"Type": "Université", "Nom": "LMU Munich", "Ville": "Munich", "Pays": "Allemagne", "Thématique": "Généraliste, Recherche", "Taille": 45000, "Statut": "Actif", "Statut_color": "green", "Image": images[3]},
-        {"Type": "Université", "Nom": "University of Melbourne", "Ville": "Melbourne", "Pays": "Australie", "Thématique": "Innovation, Sciences", "Taille": 52000, "Statut": "Actif", "Statut_color": "green", "Image": images[4]},
-        {"Type": "Université", "Nom": "Ministère de l'Enseignement supérieur du Québec", "Ville": "Montréal", "Pays": "Canada", "Thématique": "Politiques publiques, Education", "Taille": 25000, "Statut": "Moyen", "Statut_color": "yellow", "Image": images[5]},
-        {"Type": "Université", "Nom": "Massachusetts Dept. of Higher Education", "Ville": "Boston", "Pays": "États-Unis", "Thématique": "Politiques publiques, Sciences", "Taille": 67000, "Statut": "Inactif", "Statut_color": "red", "Image": images[6]},
-        {"Type": "Université", "Nom": "Ministère de l'Éducation nationale", "Ville": "Paris", "Pays": "France", "Thématique": "Education, Gouvernance", "Taille": 50000, "Statut": "Actif", "Statut_color": "green", "Image": images[7]},
-        {"Type": "Université", "Nom": "University of Amsterdam", "Ville": "Amsterdam", "Pays": "Pays-Bas", "Thématique": "Sciences, Recherche", "Taille": 42000, "Statut": "Moyen", "Statut_color": "yellow", "Image": images[8]},
-        {"Type": "Université", "Nom": "Ministry of Education Singapore", "Ville": "Singapour", "Pays": "Singapour", "Thématique": "Education, Management", "Taille": 51000, "Statut": "Actif", "Statut_color": "green", "Image": images[9]},
-        # Entreprises
-        {"Type": "Entreprise", "Nom": "Capgemini", "Ville": "Paris", "Pays": "France", "Thématique": "Conseil, Tech", "Taille": 40000, "Statut": "Moyen", "Statut_color": "yellow", "Image": images[7]},
-        {"Type": "Entreprise", "Nom": "SAP", "Ville": "Walldorf", "Pays": "Allemagne", "Thématique": "Tech, Logiciel", "Taille": 85000, "Statut": "Actif", "Statut_color": "green", "Image": images[3]},
-        {"Type": "Entreprise", "Nom": "Tata Consultancy", "Ville": "Mumbai", "Pays": "Inde", "Thématique": "Tech, Conseil", "Taille": 85000, "Statut": "Inactif", "Statut_color": "red", "Image": images[1]},
+        {"Type": "Université", "Nom": "University of Oxford", "Ville": "Oxford", "Pays": "Royaume-Uni", "Thématique": "Généraliste, Recherche", "Taille": 24000, "Statut": "Actif", "Statut_color": "green", "Image": images[0]},
+        {"Type": "Université", "Nom": "Sorbonne Université", "Ville": "Paris", "Pays": "France", "Thématique": "Généraliste", "Taille": 53000, "Statut": "Moyen", "Statut_color": "yellow", "Image": images[1]},
+        {"Type": "Université", "Nom": "MIT", "Ville": "Cambridge", "Pays": "États-Unis", "Thématique": "Tech, Recherche", "Taille": 12000, "Statut": "Actif", "Statut_color": "green", "Image": images[2]},
+        {"Type": "Entreprise", "Nom": "SAP", "Ville": "Walldorf", "Pays": "Allemagne", "Thématique": "Logiciel, Tech", "Taille": 105000, "Statut": "Actif", "Statut_color": "green", "Image": images[3]},
+        {"Type": "Entreprise", "Nom": "Tata Consultancy", "Ville": "Mumbai", "Pays": "Inde", "Thématique": "Tech, Conseil", "Taille": 400000, "Statut": "Inactif", "Statut_color": "red", "Image": images[4]}
     ]
     return pd.DataFrame(data)
 
 df = load_data()
 
-# --- UI HEADER (plus d'image, tout centré pro) ---
-st.markdown("<h1 style='text-align: center; color: #004080;'>Agora B2B Plateforme Pro</h1>", unsafe_allow_html=True)
-st.markdown("<h3 style='text-align: center;'>Mise en relation Universités & Entreprises</h3>", unsafe_allow_html=True)
+# ----- DESIGN GLOBAL -----
+st.markdown("""
+<style>
+.main-title {font-size: 2.7em; color: #d32f2f; font-weight: 900; text-align: center; letter-spacing: 1px;}
+.sub-title {font-size: 1.3em; color: #004080; text-align: center; margin-bottom: 1em;}
+.form-zone {background: #f8f9fa; padding: 1.2em 2em 0.7em 2em; border-radius: 16px; margin-bottom: 1.5em; box-shadow: 0 4px 16px rgba(200,40,40,0.08);}
+.card {background: #fff; border-radius: 15px; box-shadow: 0 2px 18px rgba(0,0,0,0.10); margin-bottom: 20px; padding: 16px;}
+.card img {border-radius: 12px; border: 1px solid #f3f3f3; margin-bottom: 12px;}
+.score-box {font-size: 2em; font-weight: 800; color: #004080; margin-right: 12px;}
+.score-green {color: #388e3c;}
+.score-orange {color: #fbc02d;}
+.score-red {color: #d32f2f;}
+.cta-btn {background: #d32f2f; color: #fff; border-radius: 7px; padding: 10px 28px; border: none; font-size: 1.12em;}
+.cta-btn:hover {background: #a82727;}
+</style>
+""", unsafe_allow_html=True)
+
+st.markdown('<div class="main-title">Agora B2B Plateforme Pro</div>', unsafe_allow_html=True)
+st.markdown('<div class="sub-title">Mise en relation Universités & Entreprises dans le monde</div>', unsafe_allow_html=True)
 st.write("")  # espace
 
 menu = st.radio("Navigation :", ["Universités", "Entreprises", "Dashboard KPI"], horizontal=True)
 
-# --- MATCHING SCORING ---
-def match_score(row, type_sel, pays, taille, theme, statut_ref="Actif"):
+def match_score(row, type_sel, pays, taille, theme):
     score = 0
-    # Pays exact = 40 pts, sinon 0
     score += 40 if row["Pays"] == pays else 0
-    # Taille : score linéaire, max 30 pts si delta 0, min 0 pts si delta > 50k
     delta = abs(row["Taille"] - taille)
-    score += max(0, 30 - int(delta / 2000))  # perte de 1 pt par 2000 étudiants d'écart
-    # Thématique : +30 pts si 1 thématique commune, +60 pts si 2+, 0 sinon
+    score += max(0, 30 - int(delta / 2000))
     th_row = [x.strip() for x in row["Thématique"].split(",")]
     nb_common = len(set(th_row).intersection(set(theme)))
     score += 60 if nb_common > 1 else (30 if nb_common == 1 else 0)
-    # Statut bonus/malus
     if row["Statut"] == "Actif":
         score += 10
     elif row["Statut"] == "Moyen":
         score -= 5
     elif row["Statut"] == "Inactif":
         score -= 10
-    return max(0, min(100, score))  # normalisation
+    return max(0, min(100, score))
 
 def show_matching_score(type_sel):
-    st.markdown(f"### Critères de recherche pour une {type_sel.lower()}")
-    nom = st.text_input("Nom de la structure")
-    taille = st.slider("Taille de la structure", 1000, 100000, 30000, 1000)
-    pays = st.selectbox("Pays souhaité pour les partenaires", sorted(df['Pays'].unique()))
-    theme_opts = sorted(set([t.strip() for x in df['Thématique'].unique() for t in x.split(",")]))
-    theme = st.multiselect("Thématiques recherchées", theme_opts)
-    nb_part = st.slider("Nombre de partenaires recherchés", 1, 10, 3)
+    with st.container():
+        st.markdown('<div class="form-zone">', unsafe_allow_html=True)
+        st.markdown(f"#### Critères de recherche pour une {type_sel.lower()}")
+        nom = st.text_input("Nom de la structure")
+        taille = st.slider("Taille de la structure", 1000, 500000, 30000, 1000)
+        pays = st.selectbox("Pays souhaité pour les partenaires", sorted(df['Pays'].unique()))
+        theme_opts = sorted(set([t.strip() for x in df['Thématique'].unique() for t in x.split(",")]))
+        theme = st.multiselect("Thématiques recherchées", theme_opts)
+        nb_part = st.slider("Nombre de partenaires recherchés", 1, 5, 3)
+        submit = st.button("Trouver les partenaires adaptés", key=type_sel)
+        st.markdown('</div>', unsafe_allow_html=True)
 
-    if st.button("Trouver les partenaires adaptés"):
-        # On sélectionne tous les autres (entreprise/université opposé)
+    if submit:
         candidates = df[df['Type'] != type_sel].copy()
         candidates["Score"] = candidates.apply(
             lambda row: match_score(row, type_sel, pays, taille, theme), axis=1
         )
         candidates = candidates.sort_values("Score", ascending=False).head(nb_part)
-        st.markdown("#### Résultat de votre recherche (score de correspondance : 100 = partenaire parfait)")
+        st.markdown("<br><b>Résultat de votre recherche</b> :", unsafe_allow_html=True)
         for idx, row in candidates.iterrows():
-            score_color = "green" if row["Score"] >= 80 else "orange" if row["Score"] >= 60 else "red"
-            cc1, cc2 = st.columns([1,7])
-            with cc1:
-                st.markdown(f"<div style='margin-top: 38px;'><span style='color:{row['Statut_color']};font-size:36px;'>&#9679;</span></div>", unsafe_allow_html=True)
-                st.markdown(f"<b style='color:{score_color};font-size:24px;'>{row['Score']}%</b>", unsafe_allow_html=True)
-            with cc2:
-                st.markdown(f"<h4>{row['Nom']} ({row['Ville']}, {row['Pays']})</h4>", unsafe_allow_html=True)
+            score_color = "score-green" if row["Score"] >= 80 else "score-orange" if row["Score"] >= 60 else "score-red"
+            st.markdown(f'<div class="card">', unsafe_allow_html=True)
+            cols = st.columns([1,6])
+            with cols[0]:
+                st.markdown(f'<span class="score-box {score_color}">{row["Score"]}%</span>', unsafe_allow_html=True)
+            with cols[1]:
+                st.markdown(f"<h4>{row['Nom']} <span style='font-size: 0.8em;'>({row['Ville']}, {row['Pays']})</span></h4>", unsafe_allow_html=True)
                 try:
-                    response = requests.get(row["Image"], timeout=3)
+                    response = requests.get(row["Image"], timeout=4)
                     img = Image.open(BytesIO(response.content))
-                    st.image(img, width=220)
+                    st.image(img, width=320)
                 except Exception:
-                    st.image(FALLBACK_IMG, width=120)
-                st.markdown(f"<b>Thématique :</b> {row['Thématique']}", unsafe_allow_html=True)
-                st.markdown(f"<b>Statut :</b> <span style='color:{row['Statut_color']}'>{row['Statut']}</span>", unsafe_allow_html=True)
-                st.markdown("---")
+                    st.image(FALLBACK_IMG, width=150)
+                st.markdown(f"<b>Thématique :</b> {row['Thématique']}<br><b>Statut :</b> <span style='color:{row['Statut_color']}'>{row['Statut']}</span>", unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
         if len(candidates) == 0 or candidates["Score"].max() < 60:
             st.warning("Aucun partenaire parfaitement adapté, mais voici les plus proches selon vos critères.")
 
-# ---------- DASHBOARD KPI ----------
+# KPI Dashboard — même logique (ou à améliorer plus tard)
 def show_dashboard():
     nb_universites = df[df['Type'] == "Université"].shape[0]
     nb_entreprises = df[df['Type'] == "Entreprise"].shape[0]
@@ -151,10 +151,10 @@ def show_dashboard():
 if menu == "Dashboard KPI":
     show_dashboard()
 elif menu == "Universités":
-    st.markdown("#### Recherche intelligente de partenaires pour Universités")
+    st.markdown('<div style="margin-top:18px;margin-bottom:6px;"><b>Recherche intelligente de partenaires pour Universités</b></div>', unsafe_allow_html=True)
     show_matching_score("Université")
 elif menu == "Entreprises":
-    st.markdown("#### Recherche intelligente de partenaires pour Entreprises")
+    st.markdown('<div style="margin-top:18px;margin-bottom:6px;"><b>Recherche intelligente de partenaires pour Entreprises</b></div>', unsafe_allow_html=True)
     show_matching_score("Entreprise")
 
 st.caption("Prototype avancé Agora B2B Pro – Matching dynamique, scoring, statuts, dashboard. Version personnalisable.")
