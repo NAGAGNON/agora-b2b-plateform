@@ -13,25 +13,27 @@ FALLBACK_IMG = "https://upload.wikimedia.org/wikipedia/commons/6/65/No-Image-Pla
 @st.cache_data
 def load_data():
     images = [
-        # Vraies images de campus ou logos (à changer pour les tiennes)
-        "https://www.ox.ac.uk/sites/files/oxford/styles/ow_medium_feature/s3/field/field_image_main/radcliffe-camera-oxford.jpg",  # Oxford
+        # Images de vrais campus ou logos (pas de photos génériques)
+        "https://upload.wikimedia.org/wikipedia/commons/7/74/Radcliffe_Camera%2C_Oxford_-_Oct_2006.jpg",  # Oxford
         "https://upload.wikimedia.org/wikipedia/commons/8/8d/Sorbonne_Université.jpg",  # Sorbonne
-        "https://www.mit.edu/files/images/mit-main-building.jpg",  # MIT
+        "https://web.mit.edu/assets/images/visit-mit.jpg",  # MIT
         "https://upload.wikimedia.org/wikipedia/commons/7/7f/SAP_Walldorf.jpg",  # SAP
-        "https://upload.wikimedia.org/wikipedia/commons/7/77/Tata_Consultancy_Services_Mumbai_Campus.jpg"  # Tata Consultancy
+        "https://upload.wikimedia.org/wikipedia/commons/7/77/Tata_Consultancy_Services_Mumbai_Campus.jpg",  # Tata Consultancy
+        "https://upload.wikimedia.org/wikipedia/commons/c/c2/Logo_Capgemini.png",  # Capgemini (logo)
     ]
     data = [
         {"Type": "Université", "Nom": "University of Oxford", "Ville": "Oxford", "Pays": "Royaume-Uni", "Thématique": "Généraliste, Recherche", "Taille": 24000, "Statut": "Actif", "Statut_color": "green", "Image": images[0]},
         {"Type": "Université", "Nom": "Sorbonne Université", "Ville": "Paris", "Pays": "France", "Thématique": "Généraliste", "Taille": 53000, "Statut": "Moyen", "Statut_color": "yellow", "Image": images[1]},
         {"Type": "Université", "Nom": "MIT", "Ville": "Cambridge", "Pays": "États-Unis", "Thématique": "Tech, Recherche", "Taille": 12000, "Statut": "Actif", "Statut_color": "green", "Image": images[2]},
         {"Type": "Entreprise", "Nom": "SAP", "Ville": "Walldorf", "Pays": "Allemagne", "Thématique": "Logiciel, Tech", "Taille": 105000, "Statut": "Actif", "Statut_color": "green", "Image": images[3]},
-        {"Type": "Entreprise", "Nom": "Tata Consultancy", "Ville": "Mumbai", "Pays": "Inde", "Thématique": "Tech, Conseil", "Taille": 400000, "Statut": "Inactif", "Statut_color": "red", "Image": images[4]}
+        {"Type": "Entreprise", "Nom": "Tata Consultancy", "Ville": "Mumbai", "Pays": "Inde", "Thématique": "Tech, Conseil", "Taille": 400000, "Statut": "Inactif", "Statut_color": "red", "Image": images[4]},
+        {"Type": "Entreprise", "Nom": "Capgemini", "Ville": "Paris", "Pays": "France", "Thématique": "Conseil, Tech", "Taille": 40000, "Statut": "Moyen", "Statut_color": "yellow", "Image": images[5]},
     ]
     return pd.DataFrame(data)
 
 df = load_data()
 
-# ----- DESIGN GLOBAL -----
+# --- DESIGN GLOBAL ---
 st.markdown("""
 <style>
 .main-title {font-size: 2.7em; color: #d32f2f; font-weight: 900; text-align: center; letter-spacing: 1px;}
@@ -109,7 +111,7 @@ def show_matching_score(type_sel):
         if len(candidates) == 0 or candidates["Score"].max() < 60:
             st.warning("Aucun partenaire parfaitement adapté, mais voici les plus proches selon vos critères.")
 
-# KPI Dashboard — même logique (ou à améliorer plus tard)
+# KPI Dashboard — même logique
 def show_dashboard():
     nb_universites = df[df['Type'] == "Université"].shape[0]
     nb_entreprises = df[df['Type'] == "Entreprise"].shape[0]
