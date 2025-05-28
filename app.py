@@ -10,7 +10,6 @@ st.set_page_config(page_title="Agora B2B Pro", layout="wide")
 
 @st.cache_data
 def load_data():
-    # Images libres de droits (exemples - tu peux remplacer les liens par d'autres)
     images = [
         "https://images.unsplash.com/photo-1506744038136-46273834b3fb",  # Université UK
         "https://images.unsplash.com/photo-1464983953574-0892a716854b",  # Université JP
