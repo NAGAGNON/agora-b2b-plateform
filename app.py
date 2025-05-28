@@ -12,31 +12,41 @@ FALLBACK_IMG = "https://upload.wikimedia.org/wikipedia/commons/6/65/No-Image-Pla
 
 @st.cache_data
 def load_data():
-    images = [
-        # Images de vrais campus ou logos (pas de photos génériques)
-        "https://upload.wikimedia.org/wikipedia/commons/7/74/Radcliffe_Camera%2C_Oxford_-_Oct_2006.jpg",  # Oxford
-        "https://upload.wikimedia.org/wikipedia/commons/8/8d/Sorbonne_Université.jpg",  # Sorbonne
-        "https://web.mit.edu/assets/images/visit-mit.jpg",  # MIT
-        "https://upload.wikimedia.org/wikipedia/commons/7/7f/SAP_Walldorf.jpg",  # SAP
-        "https://upload.wikimedia.org/wikipedia/commons/7/77/Tata_Consultancy_Services_Mumbai_Campus.jpg",  # Tata Consultancy
-        "https://upload.wikimedia.org/wikipedia/commons/c/c2/Logo_Capgemini.png",  # Capgemini (logo)
-    ]
     data = [
-        {"Type": "Université", "Nom": "University of Oxford", "Ville": "Oxford", "Pays": "Royaume-Uni", "Thématique": "Généraliste, Recherche", "Taille": 24000, "Statut": "Actif", "Statut_color": "green", "Image": images[0]},
-        {"Type": "Université", "Nom": "Sorbonne Université", "Ville": "Paris", "Pays": "France", "Thématique": "Généraliste", "Taille": 53000, "Statut": "Moyen", "Statut_color": "yellow", "Image": images[1]},
-        {"Type": "Université", "Nom": "MIT", "Ville": "Cambridge", "Pays": "États-Unis", "Thématique": "Tech, Recherche", "Taille": 12000, "Statut": "Actif", "Statut_color": "green", "Image": images[2]},
-        {"Type": "Entreprise", "Nom": "SAP", "Ville": "Walldorf", "Pays": "Allemagne", "Thématique": "Logiciel, Tech", "Taille": 105000, "Statut": "Actif", "Statut_color": "green", "Image": images[3]},
-        {"Type": "Entreprise", "Nom": "Tata Consultancy", "Ville": "Mumbai", "Pays": "Inde", "Thématique": "Tech, Conseil", "Taille": 400000, "Statut": "Inactif", "Statut_color": "red", "Image": images[4]},
-        {"Type": "Entreprise", "Nom": "Capgemini", "Ville": "Paris", "Pays": "France", "Thématique": "Conseil, Tech", "Taille": 40000, "Statut": "Moyen", "Statut_color": "yellow", "Image": images[5]},
+        # Universités (images logos réels ou photos de campus, liens OK)
+        {"Type": "Université", "Nom": "University of Oxford", "Ville": "Oxford", "Pays": "Royaume-Uni",
+         "Thématique": "Généraliste, Recherche", "Taille": 24000, "Statut": "Actif", "Statut_color": "green",
+         "Image": "https://upload.wikimedia.org/wikipedia/commons/7/74/Radcliffe_Camera%2C_Oxford_-_Oct_2006.jpg",
+         "Email": "contact@ox.ac.uk", "Site": "https://www.ox.ac.uk/", "Tel": "+44 1865 270000", "Adresse": "University of Oxford, Oxford, Royaume-Uni"},
+        {"Type": "Université", "Nom": "Sorbonne Université", "Ville": "Paris", "Pays": "France",
+         "Thématique": "Généraliste", "Taille": 53000, "Statut": "Moyen", "Statut_color": "yellow",
+         "Image": "https://www.sorbonne-universite.fr/themes/custom/su_theme/images/logo_sorbonne_universite.svg",
+         "Email": "info@sorbonne-universite.fr", "Site": "https://www.sorbonne-universite.fr/", "Tel": "+33 1 44 27 44 27", "Adresse": "21 Rue de l'École de Médecine, 75006 Paris, France"},
+        {"Type": "Université", "Nom": "MIT", "Ville": "Cambridge", "Pays": "États-Unis",
+         "Thématique": "Tech, Recherche", "Taille": 12000, "Statut": "Actif", "Statut_color": "green",
+         "Image": "https://upload.wikimedia.org/wikipedia/commons/0/0c/MIT_logo.svg",
+         "Email": "admissions@mit.edu", "Site": "http://web.mit.edu/", "Tel": "+1 617-253-1000", "Adresse": "77 Massachusetts Ave, Cambridge, MA 02139, USA"},
+        # Entreprises
+        {"Type": "Entreprise", "Nom": "SAP", "Ville": "Walldorf", "Pays": "Allemagne",
+         "Thématique": "Logiciel, Tech", "Taille": 105000, "Statut": "Actif", "Statut_color": "green",
+         "Image": "https://upload.wikimedia.org/wikipedia/commons/5/59/SAP_2011_logo.svg",
+         "Email": "contact@sap.com", "Site": "https://www.sap.com/", "Tel": "+49 6227 747474", "Adresse": "Dietmar-Hopp-Allee 16, 69190 Walldorf, Germany"},
+        {"Type": "Entreprise", "Nom": "Tata Consultancy", "Ville": "Mumbai", "Pays": "Inde",
+         "Thématique": "Tech, Conseil", "Taille": 400000, "Statut": "Inactif", "Statut_color": "red",
+         "Image": "https://upload.wikimedia.org/wikipedia/commons/f/f3/Tata_Consultancy_Services_Logo.svg",
+         "Email": "contact.tcs@tcs.com", "Site": "https://www.tcs.com/", "Tel": "+91 22 6778 9999", "Adresse": "TCS House, Mumbai, Inde"},
+        {"Type": "Entreprise", "Nom": "Capgemini", "Ville": "Paris", "Pays": "France",
+         "Thématique": "Conseil, Tech", "Taille": 40000, "Statut": "Moyen", "Statut_color": "yellow",
+         "Image": "https://upload.wikimedia.org/wikipedia/commons/c/c2/Logo_Capgemini.png",
+         "Email": "contact.fr@capgemini.com", "Site": "https://www.capgemini.com/fr-fr/", "Tel": "+33 1 47 54 50 00", "Adresse": "11 rue de Tilsitt, 75017 Paris, France"},
     ]
     return pd.DataFrame(data)
 
 df = load_data()
 
-# --- DESIGN GLOBAL ---
 st.markdown("""
 <style>
-.main-title {font-size: 2.7em; color: #d32f2f; font-weight: 900; text-align: center; letter-spacing: 1px;}
+.main-title {font-size: 2.7em; color: #d32f2f; font-weight: 900; text-align: center;}
 .sub-title {font-size: 1.3em; color: #004080; text-align: center; margin-bottom: 1em;}
 .form-zone {background: #f8f9fa; padding: 1.2em 2em 0.7em 2em; border-radius: 16px; margin-bottom: 1.5em; box-shadow: 0 4px 16px rgba(200,40,40,0.08);}
 .card {background: #fff; border-radius: 15px; box-shadow: 0 2px 18px rgba(0,0,0,0.10); margin-bottom: 20px; padding: 16px;}
@@ -47,12 +57,12 @@ st.markdown("""
 .score-red {color: #d32f2f;}
 .cta-btn {background: #d32f2f; color: #fff; border-radius: 7px; padding: 10px 28px; border: none; font-size: 1.12em;}
 .cta-btn:hover {background: #a82727;}
+a.contact-link {color: #004080; font-weight:bold; text-decoration:underline;}
 </style>
 """, unsafe_allow_html=True)
 
 st.markdown('<div class="main-title">Agora B2B Plateforme Pro</div>', unsafe_allow_html=True)
 st.markdown('<div class="sub-title">Mise en relation Universités & Entreprises dans le monde</div>', unsafe_allow_html=True)
-st.write("")  # espace
 
 menu = st.radio("Navigation :", ["Universités", "Entreprises", "Dashboard KPI"], horizontal=True)
 
@@ -76,7 +86,6 @@ def show_matching_score(type_sel):
     with st.container():
         st.markdown('<div class="form-zone">', unsafe_allow_html=True)
         st.markdown(f"#### Critères de recherche pour une {type_sel.lower()}")
-        nom = st.text_input("Nom de la structure")
         taille = st.slider("Taille de la structure", 1000, 500000, 30000, 1000)
         pays = st.selectbox("Pays souhaité pour les partenaires", sorted(df['Pays'].unique()))
         theme_opts = sorted(set([t.strip() for x in df['Thématique'].unique() for t in x.split(",")]))
@@ -85,6 +94,7 @@ def show_matching_score(type_sel):
         submit = st.button("Trouver les partenaires adaptés", key=type_sel)
         st.markdown('</div>', unsafe_allow_html=True)
 
+    # Fonctionnalité : affichage "fiche contact"
     if submit:
         candidates = df[df['Type'] != type_sel].copy()
         candidates["Score"] = candidates.apply(
@@ -99,19 +109,33 @@ def show_matching_score(type_sel):
             with cols[0]:
                 st.markdown(f'<span class="score-box {score_color}">{row["Score"]}%</span>', unsafe_allow_html=True)
             with cols[1]:
-                st.markdown(f"<h4>{row['Nom']} <span style='font-size: 0.8em;'>({row['Ville']}, {row['Pays']})</span></h4>", unsafe_allow_html=True)
+                # Clique sur le nom ouvre la fiche contact
+                if st.button(row['Nom'], key=row['Nom'] + "_btn"):
+                    st.session_state['contact'] = row['Nom']
+                st.markdown(f"<h4 style='display:inline'>{row['Nom']} <span style='font-size: 0.8em;'>({row['Ville']}, {row['Pays']})</span></h4>", unsafe_allow_html=True)
                 try:
                     response = requests.get(row["Image"], timeout=4)
                     img = Image.open(BytesIO(response.content))
-                    st.image(img, width=320)
+                    st.image(img, width=160)
                 except Exception:
-                    st.image(FALLBACK_IMG, width=150)
+                    st.image(FALLBACK_IMG, width=120)
                 st.markdown(f"<b>Thématique :</b> {row['Thématique']}<br><b>Statut :</b> <span style='color:{row['Statut_color']}'>{row['Statut']}</span>", unsafe_allow_html=True)
             st.markdown('</div>', unsafe_allow_html=True)
         if len(candidates) == 0 or candidates["Score"].max() < 60:
             st.warning("Aucun partenaire parfaitement adapté, mais voici les plus proches selon vos critères.")
 
-# KPI Dashboard — même logique
+        # Pop-up fiche contact (latérale)
+        if 'contact' in st.session_state:
+            selected = candidates[candidates['Nom'] == st.session_state['contact']].iloc[0]
+            st.sidebar.markdown(f"### Fiche Contact – {selected['Nom']}")
+            st.sidebar.image(selected["Image"], width=140)
+            st.sidebar.markdown(f"- *Adresse* : {selected['Adresse']}")
+            st.sidebar.markdown(f"- *Téléphone* : {selected['Tel']}")
+            st.sidebar.markdown(f"- *Email* : [{selected['Email']}](mailto:{selected['Email']})")
+            st.sidebar.markdown(f"- *Site web* : [Site officiel]({selected['Site']})")
+            st.sidebar.markdown("---")
+            st.sidebar.button("Fermer la fiche", on_click=lambda: st.session_state.pop('contact'))
+
 def show_dashboard():
     nb_universites = df[df['Type'] == "Université"].shape[0]
     nb_entreprises = df[df['Type'] == "Entreprise"].shape[0]
@@ -149,7 +173,6 @@ def show_dashboard():
         st.plotly_chart(fig2, use_container_width=True)
     st.success("Dashboard live : tous les KPI stratégiques pour piloter la plateforme en un coup d'œil.")
 
-# ----------- ROUTER -----------
 if menu == "Dashboard KPI":
     show_dashboard()
 elif menu == "Universités":
