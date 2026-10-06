@@ -1,0 +1,17 @@
+Type,Nom,Ville,Pays,Thématique,Taille,Statut,Statut_color,Email,Site,Tel,Adresse,Image
+Université,University of Oxford,Oxford,Royaume-Uni,"Généraliste, Recherche",24000,Actif,green,contact@ox.ac.uk,https://www.ox.ac.uk/,+44 1865 270000,"University of Oxford, Oxford, Royaume-Uni",https://upload.wikimedia.org/wikipedia/commons/7/74/Radcliffe_Camera%2C_Oxford_-_Oct_2006.jpg
+Université,Sorbonne Université,Paris,France,Généraliste,53000,Moyen,yellow,info@sorbonne-universite.fr,https://www.sorbonne-universite.fr/,+33 1 44 27 44 27,"21 Rue de l'École de Médecine, 75006 Paris, France",https://www.sorbonne-universite.fr/themes/custom/su_theme/images/logo_sorbonne_universite.svg
+Université,MIT,Cambridge,États-Unis,"Tech, Recherche",12000,Actif,green,admissions@mit.edu,http://web.mit.edu/,+1 617-253-1000,"77 Massachusetts Ave, Cambridge, MA 02139, USA",https://upload.wikimedia.org/wikipedia/commons/0/0c/MIT_logo.svg
+Entreprise,SAP,Walldorf,Allemagne,"Logiciel, Tech",105000,Actif,green,contact@sap.com,https://www.sap.com/,+49 6227 747474,"Dietmar-Hopp-Allee 16, 69190 Walldorf, Germany",https://upload.wikimedia.org/wikipedia/commons/5/59/SAP_2011_logo.svg
+Entreprise,Tata Consultancy,Mumbai,Inde,"Tech, Conseil",400000,Inactif,red,contact.tcs@tcs.com,https://www.tcs.com/,+91 22 6778 9999,"TCS House, Mumbai, Inde",https://upload.wikimedia.org/wikipedia/commons/f/f3/Tata_Consultancy_Services_Logo.svg
+Entreprise,Capgemini,Paris,France,"Conseil, Tech",40000,Moyen,yellow,contact.fr@capgemini.com,https://www.capgemini.com/fr-fr/,+33 1 47 54 50 00,"11 rue de Tilsitt, 75017 Paris, France",https://upload.wikimedia.org/wikipedia/commons/c/c2/Logo_Capgemini.png
+Université,ETH Zurich,Zurich,Suisse,"Tech, Recherche",23000,Actif,green,contact@ethz.ch,https://ethz.ch/,+41 44 632 11 11,"Rämistrasse 101, 8092 Zurich, Suisse",
+Université,Université de Montréal,Montréal,Canada,"Généraliste, Santé",67000,Actif,green,info@umontreal.ca,https://www.umontreal.ca/,+1 514-343-6111,"2900 Bd Édouard-Montpetit, Montréal, Canada",
+Université,Université Cheikh Anta Diop,Dakar,Sénégal,"Généraliste, Santé",80000,Moyen,yellow,contact@ucad.edu.sn,https://www.ucad.sn/,+221 33 824 69 81,"Avenue Cheikh Anta Diop, Dakar, Sénégal",
+Université,Technische Universität München,Munich,Allemagne,"Tech, Ingénierie",50000,Actif,green,info@tum.de,https://www.tum.de/,+49 89 289 01,"Arcisstraße 21, 80333 München, Allemagne",
+Université,IIT Bombay,Mumbai,Inde,"Tech, Ingénierie",11000,Moyen,yellow,contact@iitb.ac.in,https://www.iitb.ac.in/,+91 22 2572 2545,"Powai, Mumbai, Inde",
+Entreprise,Siemens,Munich,Allemagne,"Ingénierie, Tech",300000,Actif,green,contact@siemens.com,https://www.siemens.com/,+49 89 636 00,"Werner-von-Siemens-Str. 1, Munich, Allemagne",
+Entreprise,Sanofi,Paris,France,"Santé, Recherche",90000,Actif,green,contact@sanofi.com,https://www.sanofi.com/,+33 1 53 77 40 00,"46 avenue de la Grande Armée, 75017 Paris, France",
+Entreprise,Orange,Paris,France,"Tech, Télécoms",130000,Moyen,yellow,contact@orange.com,https://www.orange.com/,+33 1 44 44 22 22,"111 quai du Président Roosevelt, Issy-les-Moulineaux, France",
+Entreprise,Google,Mountain View,États-Unis,"Tech, Recherche",180000,Actif,green,press@google.com,https://about.google/,+1 650-253-0000,"1600 Amphitheatre Pkwy, Mountain View, CA, USA",
+Entreprise,Sonatel,Dakar,Sénégal,"Télécoms, Tech",1700,Moyen,yellow,contact@sonatel.sn,https://www.sonatel.com/,+221 33 839 12 12,"64 Voie de Dégagement Nord, Dakar, Sénégal",
