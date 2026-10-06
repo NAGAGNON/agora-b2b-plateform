@@ -38,6 +38,20 @@ Mention affichée sur chaque fiche : « Source : BOAMP — Direction de l'inform
 
 Chaque exécution est journalisée (**Administration → Synchronisations**) : lues, créées, mises à jour, inchangées, doublons rattachés, ignorées, expirées, erreurs, durée.
 
+## Vérification sur données réelles (6 octobre 2026)
+
+Mesures réalisées par `npm run sources:check` (GitHub Actions) sur les API réelles, puis rejeu d'un échantillon à travers le pipeline complet :
+
+| | BOAMP | TED |
+|---|---|---|
+| Avis lus (Bretagne, 21 derniers jours) | 200 | 200 (filtre NUTS côté serveur) |
+| Exploitables | 200 (100 %) | 200 (100 %) |
+| Avec date limite | 100 % | 77 % (les autres n'en publient pas dans les champs structurés) |
+| Classés dans un secteur | 94 % | 97 % |
+| Échantillon rejoué | 29 avis → 29 opportunités | 30 avis → 15 nouvelles + **15 rattachées à l'avis BOAMP correspondant** |
+
+Corrections apportées grâce à ces mesures : filtrage géographique TED côté serveur (9 → 200 avis utiles), lecture des dates TED au format `AAAA-MM-JJ+fuseau`, date limite de candidature des procédures restreintes, 5 secteurs ajoutés, rapprochement des acheteurs aux intitulés différents.
+
 ## Sources évaluées, non intégrées
 
 | Source | Raison | Suite possible |
