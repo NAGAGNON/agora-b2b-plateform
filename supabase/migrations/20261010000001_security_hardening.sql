@@ -47,3 +47,11 @@ insert into public.external_sources (code, name, base_url, description, license,
    'https://www.data.gouv.fr/datasets/donnees-essentielles-de-la-commande-publique-consolidees-format-tabulaire/', 'DRAFT', 'API', 'manual', false,
    'Réutilisable, mais ce ne sont pas des opportunités ouvertes : réservé à une future fonction « acheteurs actifs / historique des marchés ».')
 on conflict (code) do nothing;
+
+-- APProch : correspondance des champs vérifiée sur l'API réelle (6 octobre 2026).
+-- Projets d'achats PRÉVISIONNELS, souvent sans lien vers une consultation ni nom
+-- d'acheteur : source maintenue inactive, en validation.
+update public.external_sources set
+  config = jsonb_set(config, '{fieldMap}', '{"id": "code", "title": "libelle", "description": "description", "deadline": "date_cible_de_remise_des_offres", "published": "date_previsionnelle_de_publication", "department": "departement_s_d_execution_du_marche", "cpv": "code_s_cpv", "url": "lien_vers_la_consultation"}'::jsonb),
+  notes = 'Champs vérifiés sur données réelles (06/10/2026). Projets d''achats prévisionnels (publication parfois à 1-2 ans), lien vers la consultation et nom de l''acheteur généralement absents, départements d''exécution souvent « toute la France ». Licence à confirmer. Intérêt : veille anticipée, à présenter comme « projet d''achat à venir », jamais comme consultation ouverte.'
+where code = 'approch';

@@ -60,3 +60,13 @@ test("les données de démonstration sont signalées", async ({ browser }) => {
   await page.goto("/entreprises/demo-iroise-maintenance");
   await expect(page.getByText("Données de démonstration — aucune entreprise ou opportunité réelle.").first()).toBeVisible();
 });
+
+test("la déconnexion ferme la session", async ({ browser }) => {
+  const page = await newPage(browser);
+  await login(page, "fournisseur@demo.linkprob2b.test");
+  await page.getByRole("button", { name: /Menu du compte|Mon compte|Jordan/ }).first().click();
+  await page.getByRole("menuitem", { name: "Se déconnecter" }).click();
+  await expect(page).toHaveURL(/\/$/);
+  await page.goto("/dashboard");
+  await expect(page).toHaveURL(/\/connexion/);
+});

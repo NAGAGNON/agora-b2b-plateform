@@ -12,6 +12,43 @@ import { logServerError } from "@/lib/errors";
  * construit le lien vers /auth/confirmation et envoie l'e-mail.
  * Le jeton n'est jamais stocké : seule la trace d'envoi est journalisée.
  */
+type Layout = Parameters<typeof renderEmail>[0];
+
+export const AUTH_SUBJECTS = {
+  signup: "Confirmez votre adresse e-mail — LinkProB2B",
+  recovery: "Réinitialisation de votre mot de passe — LinkProB2B",
+  welcome: "Votre compte LinkProB2B est activé",
+};
+
+export const signupLayout = (url: string): Layout => ({
+  title: "Bienvenue sur LinkProB2B",
+  paragraphs: [
+    "Merci pour votre inscription. Confirmez votre adresse e-mail pour activer votre compte, puis créez la fiche de votre entreprise.",
+    "Ce lien est valable 24 heures et ne peut être utilisé qu'une seule fois.",
+  ],
+  cta: { label: "Confirmer mon adresse e-mail", url },
+  footer: "Vous n'êtes pas à l'origine de cette inscription ? Ignorez cet e-mail : aucun compte ne sera activé.",
+});
+
+export const recoveryLayout = (url: string): Layout => ({
+  title: "Réinitialiser votre mot de passe",
+  paragraphs: [
+    "Une demande de réinitialisation du mot de passe a été faite pour votre compte LinkProB2B.",
+    "Ce lien est valable 1 heure et ne peut être utilisé qu'une seule fois.",
+  ],
+  cta: { label: "Choisir un nouveau mot de passe", url },
+  footer: "Vous n'êtes pas à l'origine de cette demande ? Ignorez cet e-mail : votre mot de passe reste inchangé.",
+});
+
+export const welcomeLayout = (): Layout => ({
+  title: "Votre compte est activé",
+  paragraphs: [
+    "Prochaine étape : complétez la fiche de votre entreprise (secteurs, compétences, zone d'intervention). Une fiche complète est mieux recommandée aux demandeurs.",
+    "Créez ensuite une alerte pour recevoir les opportunités qui correspondent à votre activité.",
+  ],
+  cta: { label: "Compléter ma fiche entreprise", url: `${env.siteUrl}/onboarding/entreprise` },
+});
+
 export const appSendsAuthEmails = () => env.emailTransport !== null;
 
 function confirmationUrl(tokenHash: string, type: "signup" | "recovery" | "magiclink", suite: string) {
@@ -63,15 +100,7 @@ export async function signUpWithEmail(input: { email: string; password: string; 
     return { ok: false, reason: "error" };
   }
   const url = confirmationUrl(data.properties.hashed_token, "signup", "/onboarding/entreprise");
-  const r = await deliver(input.email, data.user?.id ?? null, "auth_confirm_signup", "Confirmez votre adresse e-mail — LinkProB2B", {
-    title: "Bienvenue sur LinkProB2B",
-    paragraphs: [
-      "Merci pour votre inscription. Confirmez votre adresse e-mail pour activer votre compte, puis créez la fiche de votre entreprise.",
-      "Ce lien est valable 24 heures et ne peut être utilisé qu'une seule fois.",
-    ],
-    cta: { label: "Confirmer mon adresse e-mail", url },
-    footer: "Vous n'êtes pas à l'origine de cette inscription ? Ignorez cet e-mail : aucun compte ne sera activé.",
-  });
+  const r = await deliver(input.email, data.user?.id ?? null, "auth_confirm_signup", AUTH_SUBJECTS.signup, signupLayout(url));
   if (r.status !== "SENT") {
     // Sans e-mail, le compte serait inutilisable : on le supprime pour permettre une nouvelle tentative.
     if (data.user?.id) await admin.auth.admin.deleteUser(data.user.id).catch(() => undefined);
@@ -86,28 +115,13 @@ export async function sendPasswordReset(email: string): Promise<void> {
   const { data, error } = await admin.auth.admin.generateLink({ type: "recovery", email });
   if (error || !data.properties?.hashed_token) return; // compte inexistant : pas d'énumération
   const url = confirmationUrl(data.properties.hashed_token, "recovery", "/reinitialiser-mot-de-passe");
-  await deliver(email, data.user?.id ?? null, "auth_recovery", "Réinitialisation de votre mot de passe — LinkProB2B", {
-    title: "Réinitialiser votre mot de passe",
-    paragraphs: [
-      "Une demande de réinitialisation du mot de passe a été faite pour votre compte LinkProB2B.",
-      "Ce lien est valable 1 heure et ne peut être utilisé qu'une seule fois.",
-    ],
-    cta: { label: "Choisir un nouveau mot de passe", url },
-    footer: "Vous n'êtes pas à l'origine de cette demande ? Ignorez cet e-mail : votre mot de passe reste inchangé.",
-  });
+  await deliver(email, data.user?.id ?? null, "auth_recovery", AUTH_SUBJECTS.recovery, recoveryLayout(url));
 }
 
 /** E-mail de bienvenue, après confirmation de l'adresse. */
 export async function sendWelcome(email: string, userId: string): Promise<void> {
   if (!appSendsAuthEmails()) return;
-  await deliver(email, userId, "welcome", "Votre compte LinkProB2B est activé", {
-    title: "Votre compte est activé",
-    paragraphs: [
-      "Prochaine étape : complétez la fiche de votre entreprise (secteurs, compétences, zone d'intervention). Une fiche complète est mieux recommandée aux demandeurs.",
-      "Créez ensuite une alerte pour recevoir les opportunités qui correspondent à votre activité.",
-    ],
-    cta: { label: "Compléter ma fiche entreprise", url: `${env.siteUrl}/onboarding/entreprise` },
-  });
+  await deliver(email, userId, "welcome", AUTH_SUBJECTS.welcome, welcomeLayout());
 }
 
 /**

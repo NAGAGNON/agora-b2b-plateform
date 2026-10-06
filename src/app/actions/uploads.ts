@@ -56,7 +56,9 @@ export async function requestUpload(input: z.input<typeof metaSchema>): Promise<
     logServerError("requestUpload", error);
     return { ok: false, error: "Vous n'avez pas les droits pour ajouter un fichier ici." };
   }
-  return { ok: true, data: { path, signedUrl: data.signedUrl, apiKey: env.supabasePublishableKey } };
+  // Le navigateur envoie le fichier à l'URL publique de Supabase (le serveur peut utiliser une URL interne).
+  const signedUrl = data.signedUrl.replace(new URL(env.supabaseServerUrl).origin, new URL(env.supabaseUrl).origin);
+  return { ok: true, data: { path, signedUrl, apiKey: env.supabasePublishableKey } };
 }
 
 const confirmSchema = metaSchema.extend({ path: z.string().min(10).max(400) });

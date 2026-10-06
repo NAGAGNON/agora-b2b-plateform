@@ -9,7 +9,7 @@ import { env } from "@/lib/env";
  * formulaire de contact), JAMAIS avec des paramètres non validés.
  */
 export function createAdminClient() {
-  return createClient<Database>(env.supabaseUrl, env.supabaseSecretKey, {
+  return createClient<Database>(env.supabaseServerUrl, env.supabaseSecretKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 }

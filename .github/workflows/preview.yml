@@ -79,6 +79,7 @@ jobs:
             echo "APP_ENV=staging"
             echo "SITE_URL=$APP_URL"
             echo "SUPABASE_URL=$API_URL_PUBLIC"
+            echo "SUPABASE_INTERNAL_URL=http://127.0.0.1:54321"
             echo "SUPABASE_PUBLISHABLE_KEY=$PUBLISHABLE_KEY"
             echo "SUPABASE_SECRET_KEY=$SECRET_KEY"
             echo "CRON_SECRET=$CRON"
@@ -100,17 +101,19 @@ jobs:
       - name: Collecte réelle BOAMP et TED
         run: |
           curl -s -m 280 -H "Authorization: Bearer $CRON_SECRET" http://localhost:3000/api/cron/quotidien | head -c 2000; echo
-          docker exec supabase_db_linkprob2b psql -U postgres -tAc "select s.code, r.status, r.fetched, r.created, r.updated, r.duplicates, r.skipped, r.expired from source_sync_runs r join external_sources s on s.id = r.source_id order by r.started_at"
+          docker exec supabase_db_linkprob2b psql -U postgres -tAF ' | ' -c "select upper(s.code), r.status, 'lus ' || r.fetched, 'créés ' || r.created, 'mis à jour ' || r.updated, 'doublons ' || r.duplicates, 'ignorés ' || r.skipped, 'expirés ' || r.expired from source_sync_runs r join external_sources s on s.id = r.source_id order by r.started_at" | tee sync.txt
+          docker exec supabase_db_linkprob2b psql -U postgres -tAc "select count(*) || ' opportunités externes publiées (non expirées)' from opportunities where origin = 'EXTERNAL' and status = 'PUBLISHED' and not is_demo and (response_deadline is null or response_deadline > now())" | tee -a sync.txt
 
       - name: Comptes de test (données de démonstration signalées)
         run: npx tsx scripts/seed-demo.ts > /dev/null && echo "Comptes de démonstration créés."
 
       - name: Vérification de bout en bout par l'URL publique
         run: |
-          for p in / /opportunites /entreprises /connexion /api/sante; do
-            printf "%-16s %s\n" "$p" "$(curl -s -o /dev/null -w '%{http_code}' "$APP_URL$p")"
-          done
-          curl -s "$MAIL_URL/api/v1/info" | head -c 300; echo
+          for p in / /opportunites /entreprises /connexion /inscription /api/sante; do
+            printf "%-14s HTTP %s\n" "$p" "$(curl -s -o /dev/null -w '%{http_code}' "$APP_URL$p")"
+          done | tee verif.txt
+          printf "%-14s HTTP %s\n" "boîte e-mail" "$(curl -s -o /dev/null -w '%{http_code}' "$MAIL_URL/api/v1/info")" | tee -a verif.txt
+          printf "%-14s HTTP %s\n" "API Supabase" "$(curl -s -o /dev/null -w '%{http_code}' "$API_URL_PUBLIC/auth/v1/health")" | tee -a verif.txt
 
       - name: Publier l'URL
         env:
@@ -118,7 +121,7 @@ jobs:
           DUREE: ${{ inputs.duree_minutes || '330' }}
         run: |
           SECRET_LINE="Mot de passe des comptes de test : communiqué par Claude dans la conversation."
-          if [ -n "$CLE_PUBLIQUE" ]; then echo "$CLE_PUBLIQUE" | base64 -d > pub.pem; elif [ -f .github/preview-public-key.pem ]; then cp .github/preview-public-key.pem pub.pem; fi
+          if [ -n "$CLE_PUBLIQUE" ]; then echo "$CLE_PUBLIQUE" | base64 -d > pub.pem; elif [ -f .github/preview-public-key.txt ]; then cp .github/preview-public-key.txt pub.pem; fi
           if [ -f pub.pem ]; then
             ENC=$(printf '%s' "$DEMO_PASSWORD" | openssl pkeyutl -encrypt -pubin -inkey pub.pem -pkeyopt rsa_padding_mode:oaep -pkeyopt rsa_oaep_md:sha256 | base64 -w0)
             SECRET_LINE="Mot de passe des comptes de test (chiffré) : \`$ENC\`"
@@ -136,6 +139,15 @@ jobs:
           $SECRET_LINE
 
           Vous pouvez aussi créer votre propre compte : l'e-mail de confirmation arrive dans la boîte de test.
+
+          <details><summary>Vérifications au démarrage</summary>
+
+          \`\`\`
+          $(cat verif.txt)
+
+          $(cat sync.txt)
+          \`\`\`
+          </details>
           EOF
           )
           ISSUE=$(gh issue list --state open --search "Prévisualisation LinkProB2B in:title" --json number -q '.[0].number')

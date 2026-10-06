@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { SESSION_COOKIE } from "@/lib/supabase/cookie";
 
 const PROTECTED_PREFIXES = ["/dashboard", "/admin", "/onboarding"];
 
@@ -10,7 +11,7 @@ const PROTECTED_PREFIXES = ["/dashboard", "/admin", "/onboarding"];
  */
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
-  const url = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const url = process.env.SUPABASE_INTERNAL_URL ?? process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key =
     process.env.SUPABASE_PUBLISHABLE_KEY ??
     process.env.SUPABASE_ANON_KEY ??
@@ -18,6 +19,7 @@ export async function proxy(request: NextRequest) {
   if (!url || !key) return response;
 
   const supabase = createServerClient(url, key, {
+    cookieOptions: { name: SESSION_COOKIE },
     cookies: {
       getAll() {
         return request.cookies.getAll();

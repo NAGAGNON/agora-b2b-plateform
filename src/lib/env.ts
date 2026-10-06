@@ -30,6 +30,10 @@ export const env = {
   get supabaseUrl() {
     return required(pick("SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_URL"), "SUPABASE_URL");
   },
+  /** URL utilisée par le serveur (réseau interne si disponible, sinon l'URL publique). */
+  get supabaseServerUrl() {
+    return pick("SUPABASE_INTERNAL_URL") ?? env.supabaseUrl;
+  },
   get supabasePublishableKey() {
     return required(
       pick("SUPABASE_PUBLISHABLE_KEY", "SUPABASE_ANON_KEY", "NEXT_PUBLIC_SUPABASE_ANON_KEY"),

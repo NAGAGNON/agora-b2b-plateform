@@ -21,6 +21,21 @@ const CTA_LABELS: Record<string, string> = {
   moderation_pending: "Ouvrir la modération",
 };
 
+export type NotificationPayload = { type?: string; title?: string; body?: string; link?: string; items?: { label: string; url: string }[]; unsubscribe?: string };
+
+/** Gabarit des e-mails de notification (un par type d'événement, via le titre, le texte et l'action). */
+export function notificationLayout(template: string, payload: NotificationPayload, subject: string): Parameters<typeof renderEmail>[0] {
+  return {
+    title: payload.title ?? subject,
+    paragraphs: payload.body ? [payload.body] : [],
+    list: payload.items?.map((i) => ({ label: i.label, url: env.siteUrl + i.url })),
+    cta: payload.link ? { label: CTA_LABELS[payload.type ?? template] ?? "Voir sur LinkProB2B", url: env.siteUrl + payload.link } : undefined,
+    footer: payload.unsubscribe
+      ? `Vous recevez cet e-mail car vous avez créé une alerte. Se désabonner en un clic : ${env.siteUrl}${payload.unsubscribe}`
+      : undefined,
+  };
+}
+
 /** Traite la file d'attente des e-mails (appelé par la tâche planifiée). */
 export async function processEmailOutbox(limit = 50): Promise<{ sent: number; skipped: number; failed: number }> {
   const admin = createAdminClient();
@@ -33,16 +48,7 @@ export async function processEmailOutbox(limit = 50): Promise<{ sent: number; sk
     .limit(limit);
   const stats = { sent: 0, skipped: 0, failed: 0 };
   for (const row of rows ?? []) {
-    const payload = (row.payload ?? {}) as { type?: string; title?: string; body?: string; link?: string; items?: { label: string; url: string }[]; unsubscribe?: string };
-    const { html, text } = renderEmail({
-      title: payload.title ?? row.subject,
-      paragraphs: payload.body ? [payload.body] : [],
-      list: payload.items?.map((i) => ({ label: i.label, url: env.siteUrl + i.url })),
-      cta: payload.link ? { label: CTA_LABELS[payload.type ?? row.template] ?? "Voir sur LinkProB2B", url: env.siteUrl + payload.link } : undefined,
-      footer: payload.unsubscribe
-        ? `Vous recevez cet e-mail car vous avez créé une alerte. Se désabonner en un clic : ${env.siteUrl}${payload.unsubscribe}`
-        : undefined,
-    });
+    const { html, text } = renderEmail(notificationLayout(row.template, (row.payload ?? {}) as NotificationPayload, row.subject));
     const result = await sendEmail({ to: row.to_email, subject: row.subject, html, text, idempotencyKey: `outbox-${row.id}` });
     stats[result.status === "SENT" ? "sent" : result.status === "SKIPPED" ? "skipped" : "failed"]++;
     await admin
