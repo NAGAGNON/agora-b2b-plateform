@@ -12,7 +12,7 @@ import { logServerError } from "@/lib/errors";
  * construit le lien vers /auth/confirmation et envoie l'e-mail.
  * Le jeton n'est jamais stocké : seule la trace d'envoi est journalisée.
  */
-export const appSendsAuthEmails = () => Boolean(env.resendApiKey);
+export const appSendsAuthEmails = () => env.emailTransport !== null;
 
 function confirmationUrl(tokenHash: string, type: "signup" | "recovery" | "magiclink", suite: string) {
   const u = new URL("/auth/confirmation", env.siteUrl);

@@ -72,8 +72,20 @@ export const env = {
   get resendApiKey() {
     return pick("RESEND_API_KEY");
   },
+  /**
+   * Boîte d'e-mails de test (Mailpit, fournie par Supabase local) : hors production
+   * uniquement. Les e-mails y sont réellement envoyés et consultables, sans sortir.
+   */
+  get mailpitUrl() {
+    const v = pick("MAILPIT_URL");
+    return v && !env.isProduction ? v.replace(/\/$/, "") : undefined;
+  },
+  /** Transport d'e-mail actif : resend (réel), mailpit (boîte de test) ou aucun. */
+  get emailTransport(): "resend" | "mailpit" | null {
+    return env.resendApiKey ? "resend" : env.mailpitUrl ? "mailpit" : null;
+  },
   get emailFrom() {
-    return pick("EMAIL_FROM") ?? "LinkProB2B <notifications@example.com>";
+    return pick("EMAIL_FROM") ?? "LinkProB2B <notifications@linkprob2b.fr>";
   },
   get rateLimitSalt() {
     // À défaut de sel dédié, dérivé de la clé secrète (jamais exposée) pour rester imprévisible.

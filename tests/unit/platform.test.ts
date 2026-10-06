@@ -67,6 +67,21 @@ describe("envoi d'e-mails", () => {
     expect(await sendEmail(msg)).toMatchObject({ status: "FAILED", retryable: true });
   });
 
+  it("envoie dans la boîte de test Mailpit hors production, jamais en production", async () => {
+    vi.stubEnv("RESEND_API_KEY", "");
+    vi.stubEnv("MAILPIT_URL", "http://127.0.0.1:54324");
+    vi.stubEnv("APP_ENV", "staging");
+    const fetchMock = vi.fn(async () => new Response("{}", { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    expect((await sendEmail(msg)).status).toBe("SENT");
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe("http://127.0.0.1:54324/api/v1/send");
+    expect(JSON.parse(String(init.body))).toMatchObject({ To: [{ Email: "a@b.fr" }], Subject: "S" });
+    vi.stubEnv("APP_ENV", "production");
+    expect(env.emailTransport).toBeNull();
+    expect((await sendEmail(msg)).status).toBe("SKIPPED");
+  });
+
   it("produit une version HTML échappée et une version texte", () => {
     const { html, text } = renderEmail({ title: "<script>", paragraphs: ["a & b"], cta: { label: "Voir", url: "https://x.fr/?a=1&b=2" } });
     expect(html).not.toContain("<script>");

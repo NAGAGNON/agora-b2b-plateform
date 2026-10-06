@@ -34,7 +34,7 @@ export async function GET() {
       environment: env.appEnv,
       version: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? "local",
       configuration: {
-        email: Boolean(env.resendApiKey),
+        email: env.emailTransport ?? false,
         cronSecret: Boolean(env.cronSecret),
         initialAdmin: Boolean(env.initialAdminEmail),
       },

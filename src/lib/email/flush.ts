@@ -9,7 +9,7 @@ import { logServerError } from "@/lib/errors";
  * Sans fournisseur configuré, la file reste en attente pour la tâche quotidienne.
  */
 export function flushEmailsAfterResponse() {
-  if (!env.resendApiKey) return;
+  if (!env.emailTransport) return;
   after(async () => {
     try {
       await processEmailOutbox(20);

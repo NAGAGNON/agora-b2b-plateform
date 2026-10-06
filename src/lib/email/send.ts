@@ -5,6 +5,29 @@ export type EmailMessage = { to: string; subject: string; html: string; text: st
 /** `retryable` : erreur temporaire (réseau, 429, 5xx) — la file réessaiera. */
 export type SendResult = { status: "SENT" | "SKIPPED" | "FAILED"; error?: string; retryable?: boolean };
 
+/** Boîte de test Mailpit (API HTTP d'envoi), hors production. */
+async function sendToMailpit(base: string, msg: EmailMessage): Promise<SendResult> {
+  const from = env.emailFrom.match(/^(.*?)\s*<(.+)>$/);
+  try {
+    const res = await fetch(`${base}/api/v1/send`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        From: from ? { Name: from[1].replace(/"/g, ""), Email: from[2] } : { Email: env.emailFrom },
+        To: [{ Email: msg.to }],
+        Subject: msg.subject,
+        HTML: msg.html,
+        Text: msg.text,
+      }),
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!res.ok) return { status: "FAILED", error: `Mailpit HTTP ${res.status}`, retryable: res.status >= 500 };
+    return { status: "SENT" };
+  } catch (e) {
+    return { status: "FAILED", error: e instanceof Error ? e.message : "Erreur réseau", retryable: true };
+  }
+}
+
 /**
  * Envoi d'e-mail transactionnel. Fournisseur : Resend (API HTTP) si RESEND_API_KEY
  * est défini ; sinon l'e-mail est marqué « SKIPPED » (aucun envoi réel) — utile en
@@ -12,6 +35,7 @@ export type SendResult = { status: "SENT" | "SKIPPED" | "FAILED"; error?: string
  */
 export async function sendEmail(msg: EmailMessage): Promise<SendResult> {
   const key = env.resendApiKey;
+  if (!key && env.mailpitUrl) return sendToMailpit(env.mailpitUrl, msg);
   if (!key) return { status: "SKIPPED", error: "Aucun fournisseur e-mail configuré" };
   try {
     const res = await fetch("https://api.resend.com/emails", {
