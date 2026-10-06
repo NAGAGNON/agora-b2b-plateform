@@ -56,10 +56,14 @@ async function main() {
       const batch = await s.run({ config: s.config, since: new Date(now.getTime() - 21 * 86_400_000), fetchImpl: fetch, now });
       const ok = batch.mapped.filter((m) => m.ok);
       const reasons = new Map<string, number>();
-      for (const m of batch.mapped) if (!m.ok) reasons.set(m.reason.split(" :")[0], (reasons.get(m.reason.split(" :")[0]) ?? 0) + 1);
+      for (const m of batch.mapped) if (!m.ok) {
+        const key = m.reason.replace(/\s*\(.*\)\s*$/, "").split(" :")[0];
+        reasons.set(key, (reasons.get(key) ?? 0) + 1);
+      }
       const sectors = new Map<string, number>();
       for (const m of ok) if (m.ok) sectors.set(m.item.sectorSlug ?? "(non classé)", (sectors.get(m.item.sectorSlug ?? "(non classé)") ?? 0) + 1);
-      console.log(`\n## ${s.name} — ${batch.records.length} enregistrement(s) lus, ${ok.length} exploitable(s) en ${Date.now() - started} ms`);
+      const withDeadline = ok.filter((m) => m.ok && m.item.deadline).length;
+      console.log(`\n## ${s.name} — ${batch.records.length} enregistrement(s) lus, ${ok.length} exploitable(s) (${withDeadline} avec date limite) en ${Date.now() - started} ms`);
       if (reasons.size) console.log("Écartés :", Object.fromEntries(reasons));
       console.log("Secteurs :", Object.fromEntries(sectors));
       if (process.argv.includes("--explore")) {

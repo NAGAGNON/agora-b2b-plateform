@@ -10,6 +10,7 @@ on:
     paths:
       - "src/lib/collect/**"
       - "scripts/check-sources.ts"
+      - ".github/workflows/sources.yml"
 
 jobs:
   contrat:
@@ -23,4 +24,4 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm run sources:check -- --explore
+      - run: npm run sources:check

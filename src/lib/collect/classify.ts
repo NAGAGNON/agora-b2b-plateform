@@ -7,6 +7,17 @@ import { normalizeText } from "@/lib/collect/normalize";
  * Les règles sont ordonnées du plus spécifique au plus général.
  */
 const CPV_RULES: [prefix: string, sector: string][] = [
+  ["7934", "communication-evenementiel"],
+  ["79416", "communication-evenementiel"],
+  ["7995", "communication-evenementiel"],
+  ["7996", "communication-evenementiel"],
+  ["66", "assurances-finance"],
+  ["77", "espaces-verts"],
+  ["555", "restauration-alimentation"],
+  ["553", "restauration-alimentation"],
+  ["15", "restauration-alimentation"],
+  ["4533", "batiment-technique"],
+  ["4531", "electricite-automatisme"],
   ["7273", "cybersecurite"],
   ["79711", "securite-surete"],
   ["79713", "securite-surete"],
@@ -34,7 +45,7 @@ const CPV_RULES: [prefix: string, sector: string][] = [
   ["31", "electricite-automatisme"],
   ["38", "fournitures-industrielles"],
   ["18143", "fournitures-industrielles"],
-  ["45", "batiment-technique"],
+  ["45", "travaux-btp"],
   ["09", "energie"],
   ["65", "energie"],
   ["7131", "energie"],
@@ -60,11 +71,15 @@ const CPV_RULES: [prefix: string, sector: string][] = [
 ];
 
 const KEYWORD_RULES: [RegExp, string][] = [
+  [/\b(assurances?|mutuelles?|courtage)\b/, "assurances-finance"],
+  [/\b(espaces? verts?|espaces? naturels?|paysag\w*|elagage|fauchage|tonte|arbres?)\b/, "espaces-verts"],
+  [/\b(restauration (collective|scolaire)|repas|denrees|produits alimentaires|traiteur)\b/, "restauration-alimentation"],
+  [/\b(publicite|evenementiel|reportages?|photographi\w*|imprimerie|impression|signaletique|graphisme|reseaux sociaux|communication)\b/, "communication-evenementiel"],
   [/\b(cyber|securite (des )?systemes? d information|ssi|pentest|intrusion|soc)\b/, "cybersecurite"],
   [/\b(gardiennage|surveillance humaine|securite incendie|ssiap|videoprotection|videosurveillance|controle d acces|alarme)\b/, "securite-surete"],
-  [/\b(nettoyage|proprete|entretien des locaux|hygiene|dechets|deratisation)\b/, "nettoyage-proprete"],
+  [/\b(nettoyage|proprete|entretien des locaux|hygiene|dechets|ordures|deratisation)\b/, "nettoyage-proprete"],
   [/\b(formation|habilitation|caces|sst)\b/, "formation"],
-  [/\b(automate|automatisme|instrumentation|electricite industrielle|armoire electrique|haute tension|basse tension|courants? faibles?)\b/, "electricite-automatisme"],
+  [/\b(automate|automatisme|instrumentation|electricite industrielle|armoire electrique|haute tension|basse tension|courants? faibles?|electricite travaux|asi)\b/, "electricite-automatisme"],
   [/\b(maintenance|depannage|entretien preventif|maintenance preventive|maintenance corrective|compresseur|pompes?|groupe electrogene|ascenseurs?)\b/, "maintenance-industrielle"],
   [/\b(chauffage|climatisation|ventilation|cvc|plomberie|genie climatique|multitechnique)\b/, "batiment-technique"],
   [/\b(energie|photovoltaique|chaufferie|eclairage public|electricite (fourniture|acheminement)|gaz naturel)\b/, "energie"],
@@ -72,7 +87,8 @@ const KEYWORD_RULES: [RegExp, string][] = [
   [/\b(maitrise d oeuvre|bureau d etudes|etudes? techniques?|diagnostic|controle technique|assistance a maitrise d ouvrage|amo|ingenierie)\b/, "ingenierie-etudes"],
   [/\b(logiciel|informatique|infogerance|serveurs?|postes? de travail|progiciel|applicatif|cloud|licences?)\b/, "informatique"],
   [/\b(telecom|telephonie|fibre optique|reseau radio|radiocommunication|wifi)\b/, "telecoms"],
-  [/\b(transport|logistique|demenagement|messagerie|livraison|vehicules?|carburant)\b/, "transport-logistique"],
+  [/\b(transport|logistique|demenagement|messagerie|livraison|vehicules?|carburant|voyages?)\b/, "transport-logistique"],
+  [/\b(gros oeuvre|maconnerie|genie civil|terrassement|voirie|tous corps d etat|couverture|etancheite|menuiseries?|metallerie|serrurerie|demolition|reseaux humides|assainissement|eau potable|canalisations?|digues?|ouvrages? d (art|infrastructure)|construction|rehabilitation|renovation|amenagement|travaux)\b/, "travaux-btp"],
   [/\b(fourniture|equipements?|materiels?|outillage|pieces detachees|epi)\b/, "fournitures-industrielles"],
   [/\b(conseil|audit|accompagnement)\b/, "conseil"],
 ];

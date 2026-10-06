@@ -98,6 +98,9 @@ export function toIsoDeadline(v: unknown): string | null {
   const s = cleanString(v, 40);
   if (!s) return null;
   if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return new Date(`${s}T23:59:00+01:00`).toISOString();
+  // Format TED : date suivie du fuseau, sans heure (« 2026-10-23+02:00 »)
+  const dateTz = s.match(/^(\d{4}-\d{2}-\d{2})([+-]\d{2}:\d{2}|Z)$/);
+  if (dateTz) return new Date(`${dateTz[1]}T23:59:00${dateTz[2]}`).toISOString();
   const compact = s.match(/^(\d{4})(\d{2})(\d{2})/);
   const d = new Date(compact && !s.includes("-") ? `${compact[1]}-${compact[2]}-${compact[3]}T23:59:00+01:00` : s.replace(/([+-]\d{2}:\d{2})Z?$/, "$1"));
   return Number.isNaN(d.getTime()) ? null : d.toISOString();

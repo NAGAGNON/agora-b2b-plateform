@@ -124,7 +124,10 @@ export function tedText(v: unknown): string | null {
 
 export function tedQuery(config: SourceConfig, since: Date): string {
   const country = String(config.country ?? "FRA").replace(/[^A-Z]/g, "") || "FRA";
-  return `buyer-country=${country} AND PD>=${ymd(since).replace(/-/g, "")} SORT BY publication-date DESC`;
+  const nuts = asArray(config.nuts).map((x) => x.toUpperCase()).filter((x) => /^[A-Z]{2}[A-Z0-9]{0,3}$/.test(x));
+  // Filtrage géographique côté serveur (lieu d'exécution NUTS) : vérifié sur l'API réelle.
+  const zone = nuts.length ? `place-of-performance IN (${nuts.join(" ")})` : `buyer-country=${country}`;
+  return `${zone} AND PD>=${ymd(since).replace(/-/g, "")} SORT BY publication-date DESC`;
 }
 
 export function mapTedNotice(n: Record<string, unknown>, nutsFilter: string[]): MapResult {
@@ -140,10 +143,10 @@ export function mapTedNotice(n: Record<string, unknown>, nutsFilter: string[]): 
   const title = cleanString(segments.length >= 3 ? segments.slice(2).join(" – ") : rawTitle, 300);
   if (!title || title.length < 5) return { ok: false, reason: `titre manquant (${pub})` };
   const buyer = cleanString(tedText(n["buyer-name"]), 200);
-  const cpv = asArray(n["classification-cpv"]).map((c) => c.replace(/\D/g, "")).filter((c) => c.length >= 2);
+  const cpv = [...new Set(asArray(n["classification-cpv"]).map((c) => c.replace(/\D/g, "")).filter((c) => c.length >= 2))];
   const deadline = toIsoDeadline(asArray(n["deadline-receipt-tender-date-lot"] ?? n.deadline)[0]);
   const department = nuts.map((c) => NUTS_TO_DEPARTMENT[c]).find(Boolean) ?? null;
-  const nature = cleanString(n["contract-nature"], 60);
+  const nature = cleanString(asArray(n["contract-nature"])[0], 60);
   const { sector } = classifySector(cpv, title);
   const url = `https://ted.europa.eu/fr/notice/-/detail/${encodeURIComponent(pub)}`;
   return {

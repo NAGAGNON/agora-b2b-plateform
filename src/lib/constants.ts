@@ -39,6 +39,11 @@ export const SECTORS = [
   { slug: "securite-surete", label: "Sécurité et sûreté" },
   { slug: "formation", label: "Formation professionnelle" },
   { slug: "conseil", label: "Conseil aux entreprises" },
+  { slug: "travaux-btp", label: "Travaux publics et bâtiment" },
+  { slug: "espaces-verts", label: "Espaces verts et paysage" },
+  { slug: "assurances-finance", label: "Assurances et services financiers" },
+  { slug: "communication-evenementiel", label: "Communication et événementiel" },
+  { slug: "restauration-alimentation", label: "Restauration et alimentation" },
 ] as const;
 
 /**

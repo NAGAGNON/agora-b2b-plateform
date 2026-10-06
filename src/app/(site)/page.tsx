@@ -23,6 +23,11 @@ import {
   Lock,
   GraduationCap,
   Lightbulb,
+  HardHat,
+  Trees,
+  Landmark,
+  Megaphone as MegaphoneIcon,
+  UtensilsCrossed,
 } from "lucide-react";
 import { SearchBar } from "@/components/opportunities/search-bar";
 import { OpportunityCard } from "@/components/opportunities/opportunity-card";
@@ -57,6 +62,11 @@ const SECTOR_ICONS: Record<string, typeof Wrench> = {
   "securite-surete": Lock,
   formation: GraduationCap,
   conseil: Lightbulb,
+  "travaux-btp": HardHat,
+  "espaces-verts": Trees,
+  "assurances-finance": Landmark,
+  "communication-evenementiel": MegaphoneIcon,
+  "restauration-alimentation": UtensilsCrossed,
 };
 
 export default async function HomePage(props: PageProps<"/">) {

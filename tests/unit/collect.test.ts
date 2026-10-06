@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { classifySector } from "@/lib/collect/classify";
-import { boampWhere, mapBoampRecord, mapTedNotice, tedText } from "@/lib/collect/connectors";
-import { contentHash, dedupKey, normalizeText, titleSimilarity, toIsoDeadline } from "@/lib/collect/normalize";
+import { boampWhere, mapBoampRecord, mapTedNotice, tedQuery, tedText } from "@/lib/collect/connectors";
+import { contentHash, dedupKey, normalizeText, titleSimilarity, toDate, toIsoDeadline } from "@/lib/collect/normalize";
 import { boampRecords, tedNotices } from "../fixtures/sources";
 
 describe("normalisation", () => {
@@ -71,5 +71,63 @@ describe("connecteur TED", () => {
     expect(dedupKey(b.item.buyer, b.item.deadline)).toBe(dedupKey(t.item.buyer, t.item.deadline));
     expect(titleSimilarity(b.item.title, t.item.title)).toBeGreaterThanOrEqual(0.5);
     expect(contentHash(b.item)).not.toBe(contentHash(t.item));
+  });
+});
+
+describe("formats réels observés (API BOAMP et TED, octobre 2026)", () => {
+  it("lit les dates TED « date + fuseau »", () => {
+    expect(toIsoDeadline("2026-10-23+02:00")).toBe("2026-10-23T21:59:00.000Z");
+    expect(toDate("2026-09-15+02:00")).toBe("2026-09-15");
+  });
+
+  it("mappe un avis TED réel : date limite, nature, CPV dédoublonnés", () => {
+    const r = mapTedNotice(
+      {
+        "publication-number": "632989-2026",
+        "notice-title": { fra: "France – Services de développement de logiciels – Maintenance applicative" },
+        "buyer-name": { fra: ["RECT- 35"] },
+        "publication-date": "2026-09-15+02:00",
+        "deadline-receipt-tender-date-lot": ["2026-10-23+02:00", "2026-10-23+02:00"],
+        "place-of-performance": ["FRH03", "FRA", "FRH03"],
+        "classification-cpv": ["72200000", "72267000", "72200000"],
+        "contract-nature": ["services", "services"],
+      },
+      ["FRH01", "FRH02", "FRH03", "FRH04"],
+    );
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.item.deadline).toBe("2026-10-23T21:59:00.000Z");
+      expect(r.item.publishedAt).toBe("2026-09-15");
+      expect(r.item.departmentCode).toBe("35");
+      expect(r.item.cpv).toEqual(["72200000", "72267000"]);
+      expect(r.item.summary).toContain("Marché de services");
+      expect(r.item.sectorSlug).toBe("informatique");
+    }
+  });
+
+  it("filtre TED côté serveur par lieu d'exécution", () => {
+    expect(tedQuery({ nuts: ["FRH01", "FRH02"] }, new Date("2026-09-15T00:00:00Z"))).toBe("place-of-performance IN (FRH01 FRH02) AND PD>=20260915 SORT BY publication-date DESC");
+    expect(tedQuery({ country: "FRA" }, new Date("2026-09-15T00:00:00Z"))).toContain("buyer-country=FRA");
+  });
+
+  it.each([
+    ["Confortement de la digue de Léchiagat Digue Ouvrage d'infrastructure", "travaux-btp"],
+    ["Travaux de réseaux humides Alimentation en eau potable", "travaux-btp"],
+    ["Marché de services Assurances Assurance", "assurances-finance"],
+    ["Prestations d'entretien des espaces verts Espaces verts", "espaces-verts"],
+    ["Réalisation de reportages photographiques Publicité Communication", "communication-evenementiel"],
+    ["Traitement des Ordures Ménagères Résiduelles", "nettoyage-proprete"],
+    ["Voyages scolaires 2026-2027 Voyage", "transport-logistique"],
+    ["TRAVAUX DE REMPLACEMENT DE 6 ASI TRIPHASEES Electricité (travaux)", "electricite-automatisme"],
+    ["Travaux de restauration de la tour Vauban Maçonnerie", "travaux-btp"],
+  ])("classe une annonce BOAMP réelle : %s", (text, sector) => {
+    expect(classifySector([], text).sector).toBe(sector);
+  });
+
+  it("classe par CPV les nouveaux secteurs", () => {
+    expect(classifySector(["77310000"], "").sector).toBe("espaces-verts");
+    expect(classifySector(["45233140"], "").sector).toBe("travaux-btp");
+    expect(classifySector(["45331000"], "").sector).toBe("batiment-technique");
+    expect(classifySector(["66510000"], "").sector).toBe("assurances-finance");
   });
 });
