@@ -71,6 +71,16 @@ async function main() {
         if (unclassified.length) console.log("Exemples non classés :\n" + unclassified.map((m) => (m.ok ? `  - ${m.item.title.slice(0, 110)} [cpv: ${m.item.cpv.join(",") || "—"}] [mots-clés: ${m.item.keywords.join(", ").slice(0, 80)}]` : "")).join("\n"));
       }
       for (const m of ok.slice(0, 3)) if (m.ok) console.log(`  • [${m.item.externalId}] ${m.item.title.slice(0, 90)} — ${m.item.buyer ?? "?"} — limite ${m.item.deadline ?? "?"} — ${m.item.originalUrl}`);
+      if (process.argv.includes("--dump")) {
+        // Échantillon brut (champs utiles uniquement), rejouable localement à travers le pipeline complet.
+        const keep = s.name === "BOAMP"
+          ? ["idweb", "objet", "nomacheteur", "code_departement", "descripteur_libelle", "type_marche", "nature_libelle", "procedure_libelle", "url_avis", "datelimitereponse", "dateparution"]
+          : ["publication-number", "notice-title", "buyer-name", "publication-date", "deadline-receipt-tender-date-lot", "place-of-performance", "classification-cpv", "contract-nature"];
+        for (const r of batch.records.slice(0, s.name === "BOAMP" ? 120 : 80)) {
+          const o = r as Record<string, unknown>;
+          console.log(`DUMP:${s.name}:${JSON.stringify(Object.fromEntries(keep.filter((k) => o[k] !== undefined).map((k) => [k, o[k]])))}`);
+        }
+      }
       if (batch.records.length > 0 && ok.length === 0) {
         console.error(`✗ ${s.name} : aucune annonce exploitable — format modifié ?`);
         failures++;
