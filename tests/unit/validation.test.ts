@@ -82,7 +82,8 @@ describe("entreprise", () => {
       expect(r.data.website).toBe("https://acme.fr");
     }
     expect(companySchema.safeParse({ name: "ACME", kind: "SUPPLIER", siren: "12345" }).success).toBe(false);
-    expect(companySchema.safeParse({ name: "ACME", kind: "SUPPLIER", sectors: ["inconnu"] }).success).toBe(false);
+    // Existence du secteur garantie par la clé étrangère en base ; ici, seul le format est validé.
+    expect(companySchema.safeParse({ name: "ACME", kind: "SUPPLIER", sectors: ["Pas Un Slug!"] }).success).toBe(false);
   });
 });
 

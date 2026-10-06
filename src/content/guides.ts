@@ -45,7 +45,7 @@ export const GUIDES: Guide[] = [
     audience: "Tous",
     sections: [
       { heading: "Deux types d'annonces, toujours distingués", paragraphs: ["Un « Besoin publié sur LinkProB2B » est déposé par une entreprise membre : vous y répondez directement sur la plateforme. Une « Opportunité externe » est référencée depuis une source extérieure (site d'un partenaire, publication officielle) : LinkProB2B n'en est pas l'auteur."] },
-      { heading: "Comment répondre à une opportunité externe", bullets: ["Consultez la fiche : source, référence, date de publication et date de dernière vérification sont indiquées.", "Cliquez sur « Consulter l'annonce sur le site source » : les conditions et la candidature se trouvent sur ce site.", "Vérifiez toujours la date limite et les pièces exigées directement sur la source officielle."] },
+      { heading: "Comment répondre à une opportunité externe", bullets: ["Consultez la fiche : source, référence, date de publication et date de dernière vérification sont indiquées.", "Cliquez sur « Consulter l'annonce originale » : les conditions et la candidature se trouvent sur ce site.", "Vérifiez toujours la date limite et les pièces exigées directement sur la source officielle."] },
       { heading: "Nos règles", paragraphs: ["Une source externe n'est référencée qu'après validation de ses conditions de réutilisation. Nous privilégions un résumé rédigé et un lien vers l'annonce originale plutôt qu'une copie intégrale. Si une annonce est retirée ou erronée, signalez-la : elle sera vérifiée et, si besoin, retirée."] },
     ],
   },

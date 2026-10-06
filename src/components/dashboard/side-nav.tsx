@@ -14,12 +14,14 @@ import {
   User,
   BellRing,
   PlusCircle,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 
 const LINKS = [
   { href: "/dashboard", label: "Tableau de bord", icon: Home, exact: true },
   { href: "/dashboard/opportunites", label: "Opportunités", icon: FileStack },
+  { href: "/dashboard/recommandations", label: "Recommandations", icon: Sparkles },
   { href: "/dashboard/pipeline", label: "Pipeline", icon: KanbanSquare },
   { href: "/dashboard/favoris", label: "Favoris", icon: Heart },
   { href: "/dashboard/alertes", label: "Alertes", icon: BellRing },

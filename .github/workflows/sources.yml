@@ -1,0 +1,26 @@
+name: Sources externes (test de contrat)
+
+# Vérifie chaque jour que les API réelles (BOAMP, TED) répondent et que leurs
+# annonces sont toujours correctement normalisées. Aucune écriture en base.
+on:
+  schedule:
+    - cron: "30 5 * * *"
+  workflow_dispatch:
+  push:
+    paths:
+      - "src/lib/collect/**"
+      - "scripts/check-sources.ts"
+
+jobs:
+  contrat:
+    name: BOAMP et TED
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run sources:check

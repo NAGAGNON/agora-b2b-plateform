@@ -241,6 +241,11 @@ export const alertSchema = z.object({
   ),
   keywords: optionalText(200),
   frequency: z.enum(["IMMEDIATE", "DAILY", "WEEKLY"]),
+  placeSlug: z.preprocess((v) => (v === "" ? undefined : v), z.string().regex(/^[a-z0-9-]{1,80}$/, { error: "Ville invalide" }).optional()),
+  radiusKm: z.preprocess((v) => (v === "" || v == null ? undefined : v), z.coerce.number().int().min(5).max(300).optional()),
+  skills: listField(10),
+  companySize: z.preprocess((v) => (v === "" ? undefined : v), z.enum(["INDEPENDANT", "TPE", "PME", "ETI", "GE"]).optional()),
+  includeExternal: z.preprocess((v) => v === "on" || v === "true", z.boolean()),
 });
 
 export const messageSchema = z.object({

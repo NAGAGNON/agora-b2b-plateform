@@ -16,11 +16,11 @@ const TRIGGERS: Record<string, string> = { cron: "Planifiée", manual: "Manuelle
 export default async function SyncRunsPage() {
   await requireStaff();
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("source_sync_runs")
-    .select("*, source:external_sources(name)")
-    .order("started_at", { ascending: false })
-    .limit(100);
+  const [{ data }, { data: cronRow }] = await Promise.all([
+    supabase.from("source_sync_runs").select("*, source:external_sources(name)").order("started_at", { ascending: false }).limit(100),
+    supabase.from("platform_settings").select("value").eq("key", "private.cron").maybeSingle(),
+  ]);
+  const cron = cronRow?.value as { last_run_at?: string; failed_steps?: string[] } | undefined;
   return (
     <div>
       <h1 className="text-2xl font-bold">Synchronisations des sources</h1>
@@ -29,6 +29,17 @@ export default async function SyncRunsPage() {
         <Link href="/admin/sources" className="font-semibold text-teal-700 underline">
           Gérer les sources
         </Link>
+      </p>
+      <p className="-mt-3 mb-6 text-sm text-slate-600">
+        Tâche planifiée quotidienne (06:00 UTC) :{" "}
+        {cron?.last_run_at ? (
+          <>
+            dernière exécution le <strong>{formatDateTime(cron.last_run_at)}</strong>{" "}
+            {cron.failed_steps?.length ? <Badge tone="red">Étapes en échec : {cron.failed_steps.join(", ")}</Badge> : <Badge tone="green">OK</Badge>}
+          </>
+        ) : (
+          <Badge tone="amber">jamais exécutée sur cet environnement</Badge>
+        )}
       </p>
       <DataTable
         rows={data ?? []}

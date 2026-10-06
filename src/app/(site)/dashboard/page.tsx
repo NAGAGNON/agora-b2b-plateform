@@ -1,4 +1,3 @@
-import { getSectorLabels, showDemoData } from "@/lib/queries/platform";
 import Link from "next/link";
 import { ArrowRight, BellRing, FileStack, Handshake, Heart, Inbox, PlusCircle, Send, Sparkles, Users } from "lucide-react";
 import { requireSession } from "@/lib/auth";
@@ -8,11 +7,10 @@ import { ButtonLink } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/states";
 import { Notice } from "@/components/ui/notice";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { Badge } from "@/components/ui/badge";
-import { DemoBadge } from "@/components/demo";
-import { OpportunityTypeBadge, OriginBadge } from "@/components/opportunities/opportunity-badge";
-import { PIPELINE_STAGES, sectorLabel, type PipelineStage } from "@/lib/constants";
-import { deadlineLabel, formatMoney, relativeTime } from "@/lib/format";
+import { RecommendationList } from "@/components/dashboard/recommendations";
+import { getSectorLabels, showDemoData } from "@/lib/queries/platform";
+import { PIPELINE_STAGES, type PipelineStage } from "@/lib/constants";
+import { formatMoney, relativeTime } from "@/lib/format";
 
 export const metadata = { title: "Tableau de bord" };
 
@@ -141,32 +139,14 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
               description="Selon les secteurs, la localisation et les compétences de votre profil."
             />
             {recommended?.data && recommended.data.length > 0 ? (
-              <ul className="divide-y divide-slate-100">
-                {recommended.data.map((o) => (
-                  <li key={o.id} className="flex flex-col gap-2 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap gap-1.5">
-                        <OriginBadge origin={o.origin} type={o.type} />
-                        {o.type !== "EXTERNAL_OPPORTUNITY" && <OpportunityTypeBadge type={o.type} />}
-                        {o.is_demo && <DemoBadge />}
-                      </div>
-                      <Link href={`/opportunites/${o.id}`} className="mt-1 block font-semibold text-navy hover:text-teal-700">
-                        {o.title}
-                      </Link>
-                      <p className="text-xs text-slate-500">
-                        {[o.city, o.sector_slug && sectorLabel(o.sector_slug, sectorLabels), deadlineLabel(o.response_deadline)].filter(Boolean).join(" · ")}
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap gap-1">
-                      {o.reasons.map((r) => (
-                        <Badge key={r} tone="teal">
-                          {r}
-                        </Badge>
-                      ))}
-                    </div>
-                  </li>
-                ))}
-              </ul>
+              <>
+                <RecommendationList items={recommended.data} sectorLabels={sectorLabels} />
+                <div className="border-t border-slate-100 px-5 py-3 text-right">
+                  <Link href="/dashboard/recommandations" className="text-sm font-semibold text-teal-700 hover:underline">
+                    Toutes les recommandations et le barème →
+                  </Link>
+                </div>
+              </>
             ) : (
               <p className="px-5 py-6 text-sm text-slate-500">
                 Aucune recommandation pour le moment. Renseignez vos secteurs et compétences dans{" "}

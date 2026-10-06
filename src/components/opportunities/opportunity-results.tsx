@@ -31,6 +31,10 @@ export async function OpportunityResults({ filters, rawParams, basePath }: { fil
   if (filters.department) alertParams.set("departement", filters.department);
   if (filters.q) alertParams.set("motscles", filters.q);
   if (filters.types.length === 1) alertParams.set("type", filters.types[0]);
+  if (filters.place) {
+    alertParams.set("lieu", filters.place);
+    if (filters.radius) alertParams.set("rayon", String(filters.radius));
+  }
   const count = activeFilterCount(filters);
 
   return (

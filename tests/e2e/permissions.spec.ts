@@ -49,7 +49,7 @@ test("une opportunité externe est identifiée et renvoie vers la source", async
   await page.getByRole("link", { name: /marché public fictif/ }).first().click();
   await expect(page.getByText("Opportunité externe", { exact: true })).toBeVisible();
   await expect(page.getByText("Référencée depuis une source externe")).toBeVisible();
-  await expect(page.getByRole("link", { name: /Consulter l'annonce sur le site source/ })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Consulter l'annonce originale/ })).toBeVisible();
   await expect(page.getByRole("button", { name: "Je suis intéressé" })).toHaveCount(0);
 });
 

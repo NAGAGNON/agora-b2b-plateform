@@ -40,5 +40,11 @@ export async function GET(req: Request) {
   await step("expired", async () => (await createAdminClient().rpc("expire_opportunities")).data);
   await step("digests", () => processAlertDigests());
   await step("emails", () => processEmailOutbox(200));
-  return NextResponse.json({ ok: true, ...report });
+  const failed = Object.entries(report).filter(([, v]) => v && typeof v === "object" && "error" in v).map(([k]) => k);
+  // Trace de la dernière exécution (supervision : /api/sante et Administration → Synchronisations)
+  await createAdminClient()
+    .from("platform_settings")
+    .upsert({ key: "private.cron", value: { last_run_at: new Date().toISOString(), failed_steps: failed }, description: "Dernière exécution de la tâche planifiée" })
+    .then(({ error }) => error && logServerError("cron trace", error));
+  return NextResponse.json({ ok: failed.length === 0, ...report });
 }

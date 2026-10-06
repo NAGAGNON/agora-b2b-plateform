@@ -79,6 +79,11 @@ export async function createAlert(_prev: ActionResult | null, fd: FormData): Pro
     type: d.type ?? null,
     keywords: d.keywords ?? null,
     frequency: d.frequency,
+    place_slug: d.placeSlug ?? null,
+    radius_km: d.placeSlug ? (d.radiusKm ?? 50) : null,
+    skills: d.skills,
+    company_size: d.companySize ?? null,
+    include_external: d.includeExternal,
   });
   if (error) return { ok: false, error: userMessage(error) };
   await supabase.rpc("track_event", { p_event_name: "create_alert", p_properties: { frequency: d.frequency } });
