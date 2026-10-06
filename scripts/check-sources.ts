@@ -25,8 +25,30 @@ const SOURCES: { name: string; run: typeof collectBoamp; config: SourceConfig }[
   },
 ];
 
+/** Diagnostic TED : format brut des champs et filtrage géographique côté serveur. */
+async function exploreTed(since: string) {
+  const fields = ["publication-number", "notice-title", "buyer-name", "publication-date", "deadline-receipt-tender-date-lot", "deadline-receipt-request-date-lot", "deadline", "place-of-performance", "classification-cpv", "contract-nature", "buyer-city", "notice-type"];
+  const queries = [
+    `buyer-country=FRA AND PD>=${since}`,
+    `place-of-performance IN (FRH01 FRH02 FRH03 FRH04) AND PD>=${since}`,
+    `place-of-performance=FRH0* AND PD>=${since}`,
+    `buyer-country=FRA AND place-of-performance IN (FRH01 FRH02 FRH03 FRH04) AND PD>=${since}`,
+  ];
+  for (const query of queries) {
+    const res = await fetch("https://api.ted.europa.eu/v3/notices/search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ query, fields, limit: 3, page: 1, scope: "ACTIVE", paginationMode: "PAGE_NUMBER" }),
+    });
+    const body = (await res.json().catch(() => ({}))) as { totalNoticeCount?: number; notices?: unknown[]; message?: string };
+    console.log(`\n[TED diagnostic] HTTP ${res.status} total=${body.totalNoticeCount ?? "?"} — ${query}${body.message ? ` — ${body.message}` : ""}`);
+    if (query === queries[1] || query === queries[3]) console.log(JSON.stringify(body.notices?.slice(0, 2), null, 1)?.slice(0, 4000));
+  }
+}
+
 async function main() {
   const now = new Date();
+  if (process.argv.includes("--explore")) await exploreTed(new Date(now.getTime() - 21 * 86_400_000).toISOString().slice(0, 10).replace(/-/g, "")).catch((e) => console.error("diagnostic", e));
   let failures = 0;
   for (const s of SOURCES) {
     const started = Date.now();
