@@ -62,6 +62,10 @@ async function main() {
       console.log(`\n## ${s.name} — ${batch.records.length} enregistrement(s) lus, ${ok.length} exploitable(s) en ${Date.now() - started} ms`);
       if (reasons.size) console.log("Écartés :", Object.fromEntries(reasons));
       console.log("Secteurs :", Object.fromEntries(sectors));
+      if (process.argv.includes("--explore")) {
+        const unclassified = ok.filter((m) => m.ok && !m.item.sectorSlug).slice(0, 25);
+        if (unclassified.length) console.log("Exemples non classés :\n" + unclassified.map((m) => (m.ok ? `  - ${m.item.title.slice(0, 110)} [cpv: ${m.item.cpv.join(",") || "—"}] [mots-clés: ${m.item.keywords.join(", ").slice(0, 80)}]` : "")).join("\n"));
+      }
       for (const m of ok.slice(0, 3)) if (m.ok) console.log(`  • [${m.item.externalId}] ${m.item.title.slice(0, 90)} — ${m.item.buyer ?? "?"} — limite ${m.item.deadline ?? "?"} — ${m.item.originalUrl}`);
       if (batch.records.length > 0 && ok.length === 0) {
         console.error(`✗ ${s.name} : aucune annonce exploitable — format modifié ?`);
