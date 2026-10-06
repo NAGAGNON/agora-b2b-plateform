@@ -45,7 +45,7 @@ test("une entreprise ne peut pas gérer la consultation d'une autre", async ({ b
 
 test("une opportunité externe est identifiée et renvoie vers la source", async ({ browser }) => {
   const page = await newPage(browser);
-  await page.goto("/opportunites?origine=EXTERNAL");
+  await page.goto("/opportunites?origine=EXTERNAL&q=fictif");
   await page.getByRole("link", { name: /marché public fictif/ }).first().click();
   await expect(page.getByText("Opportunité externe", { exact: true })).toBeVisible();
   await expect(page.getByText("Référencée depuis une source externe")).toBeVisible();
@@ -56,5 +56,7 @@ test("une opportunité externe est identifiée et renvoie vers la source", async
 test("les données de démonstration sont signalées", async ({ browser }) => {
   const page = await newPage(browser);
   await page.goto("/");
+  await expect(page.getByText(/Version de test — certaines entreprises et opportunités sont fictives/).first()).toBeVisible();
+  await page.goto("/entreprises/demo-iroise-maintenance");
   await expect(page.getByText("Données de démonstration — aucune entreprise ou opportunité réelle.").first()).toBeVisible();
 });

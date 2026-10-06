@@ -72,6 +72,20 @@ export function dedupKey(buyer: string | null, deadline: string | null): string 
 
 export const DUPLICATE_TITLE_THRESHOLD = 0.5;
 
+/**
+ * Même consultation publiée par deux sources ? (dates limites déjà identiques)
+ * Titre proche ET acheteur proche (les intitulés d'acheteur varient d'une source à
+ * l'autre : « Syndicat mixte du Planétarium » / « … de Bretagne »), ou titre quasi identique.
+ */
+export function isSameConsultation(a: { title: string; buyer: string | null }, b: { title: string; buyer: string | null }): boolean {
+  const t = titleSimilarity(a.title, b.title);
+  if (t >= 0.8) return true;
+  if (t < DUPLICATE_TITLE_THRESHOLD || !a.buyer || !b.buyer) return false;
+  const ba = normalizeText(a.buyer);
+  const bb = normalizeText(b.buyer);
+  return titleSimilarity(ba, bb) >= 0.5 || ba.includes(bb) || bb.includes(ba);
+}
+
 /** Empreinte du contenu pour détecter les modifications d'une annonce. */
 export function contentHash(item: NormalizedOpportunity): string {
   const stable = [item.title, item.summary, item.description, item.buyer, item.deadline, item.departmentCode, item.originalUrl, item.status].join("\u0001");

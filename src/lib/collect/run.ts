@@ -1,7 +1,7 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { CONNECTORS, type FetchLike, type SourceConfig } from "@/lib/collect/connectors";
-import { contentHash, dedupKey, DUPLICATE_TITLE_THRESHOLD, titleSimilarity, type NormalizedOpportunity } from "@/lib/collect/normalize";
+import { contentHash, dedupKey, isSameConsultation, type NormalizedOpportunity } from "@/lib/collect/normalize";
 import { logServerError } from "@/lib/errors";
 import type { Database, Json } from "@/lib/database.types";
 
@@ -42,22 +42,23 @@ function opportunityRow(item: NormalizedOpportunity, sectors: Set<string>, depar
 }
 
 /**
- * Rapproche une annonce d'une opportunité existante publiée par une AUTRE source
- * (même acheteur, même date limite, titre suffisamment proche).
+ * Rapproche une annonce d'une opportunité externe existante publiée par une AUTRE
+ * source : même date limite (à un jour près, fuseaux), titre et acheteur proches.
  */
 async function findDuplicate(db: Admin, item: NormalizedOpportunity, sourceId: string): Promise<string | null> {
-  const key = dedupKey(item.buyer, item.deadline);
-  if (!key) return null;
+  if (!item.deadline) return null;
+  const day = new Date(item.deadline.slice(0, 10) + "T00:00:00Z").getTime();
   const { data } = await db
     .from("opportunities")
-    .select("id, title, opportunity_sources(source_id)")
-    .eq("dedup_key", key)
+    .select("id, title, external_buyer_name, opportunity_sources(source_id)")
     .eq("origin", "EXTERNAL")
-    .limit(10);
+    .gte("response_deadline", new Date(day - 86_400_000).toISOString())
+    .lt("response_deadline", new Date(day + 2 * 86_400_000).toISOString())
+    .limit(200);
   for (const cand of data ?? []) {
     const sources = (cand.opportunity_sources as { source_id: string }[]) ?? [];
     if (sources.some((s) => s.source_id === sourceId)) continue;
-    if (titleSimilarity(cand.title, item.title) >= DUPLICATE_TITLE_THRESHOLD) return cand.id;
+    if (isSameConsultation({ title: cand.title, buyer: cand.external_buyer_name }, item)) return cand.id;
   }
   return null;
 }

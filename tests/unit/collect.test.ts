@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { classifySector } from "@/lib/collect/classify";
 import { boampWhere, mapBoampRecord, mapTedNotice, tedQuery, tedText } from "@/lib/collect/connectors";
-import { contentHash, dedupKey, normalizeText, titleSimilarity, toDate, toIsoDeadline } from "@/lib/collect/normalize";
+import { contentHash, dedupKey, isSameConsultation, normalizeText, titleSimilarity, toDate, toIsoDeadline } from "@/lib/collect/normalize";
 import { boampRecords, tedNotices } from "../fixtures/sources";
 
 describe("normalisation", () => {
@@ -129,5 +129,16 @@ describe("formats réels observés (API BOAMP et TED, octobre 2026)", () => {
     expect(classifySector(["45233140"], "").sector).toBe("travaux-btp");
     expect(classifySector(["45331000"], "").sector).toBe("batiment-technique");
     expect(classifySector(["66510000"], "").sector).toBe("assurances-finance");
+  });
+});
+
+describe("déduplication entre sources (cas réels)", () => {
+  it("rapproche des intitulés d'acheteur différents pour la même consultation", () => {
+    expect(isSameConsultation({ title: "Travaux de modernisation du Planétarium de Bretagne", buyer: "SYNDICAT MIXTE DU PLANETARIUM" }, { title: "Modernisation du Planétarium de Bretagne", buyer: "SYNDICAT MIXTE DU PLANETARIUM DE BRETAGNE" })).toBe(true);
+    expect(isSameConsultation({ title: "Nettoyage des locaux du SDIS 22", buyer: "Service Départemental d'Incendie et de Secours des Côtes d'Armor (SDIS 22)" }, { title: "Nettoyage des locaux du SDIS 22", buyer: "Service Départemental d'Incendie et de Secours des Côtes d'Armor (SDIS 22)" })).toBe(true);
+  });
+
+  it("ne confond pas deux consultations différentes d'un même acheteur", () => {
+    expect(isSameConsultation({ title: "Maintenance et nettoyage des sanitaires automatiques publics", buyer: "Ville de Quimper" }, { title: "Acquisition d'équipements pour aires de jeux d'extérieur", buyer: "Ville de Quimper" })).toBe(false);
   });
 });

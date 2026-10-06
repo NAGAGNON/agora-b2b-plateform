@@ -1,6 +1,6 @@
 import { FlaskConical } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { DEMO_NOTICE } from "@/lib/constants";
+import { DEMO_BANNER, DEMO_NOTICE } from "@/lib/constants";
 
 export function DemoBadge() {
   return (
@@ -15,7 +15,7 @@ export function DemoBanner() {
     <div className="bg-amber-100 text-amber-950">
       <p className="container-page flex items-center justify-center gap-2 py-1.5 text-center text-xs font-medium sm:text-sm">
         <FlaskConical className="size-4 shrink-0" aria-hidden />
-        Version de test — {DEMO_NOTICE}
+        Version de test — {DEMO_BANNER}
       </p>
     </div>
   );

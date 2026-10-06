@@ -21,6 +21,8 @@ export const SITE_NAME = "LinkProB2B";
 export const SLOGAN = "Des opportunités qui créent des connexions.";
 export const PROMISE = "Les bonnes opportunités. Les bons partenaires. Au bon moment.";
 export const DEMO_NOTICE = "Données de démonstration — aucune entreprise ou opportunité réelle.";
+/** Bandeau global : la démo coexiste avec les opportunités externes réelles (BOAMP, TED). */
+export const DEMO_BANNER = "certaines entreprises et opportunités sont fictives et marquées « Démo ». Les marchés publics référencés (BOAMP, TED) sont réels.";
 
 export const SECTORS = [
   { slug: "maintenance-industrielle", label: "Maintenance industrielle" },
