@@ -24,4 +24,4 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm run sources:check -- --dump
+      - run: npm run sources:check -- --dump --candidates

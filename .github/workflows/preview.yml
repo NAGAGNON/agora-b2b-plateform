@@ -5,8 +5,8 @@ name: Prévisualisation (staging éphémère)
 # publiquement via un tunnel Cloudflare (sans compte). Environnement de test
 # éphémère (6 h au plus) : les données disparaissent à l'arrêt. APP_ENV=staging.
 # L'URL est publiée dans l'onglet « Deployments » du dépôt et dans l'issue
-# « Prévisualisation LinkProB2B ». Relancé automatiquement à chaque push (la
-# version précédente est arrêtée), comme une prévisualisation Vercel.
+# « Prévisualisation LinkProB2B ». Relancé à chaque push dont le message contient
+# [preview] ou manuellement (la version précédente est alors arrêtée).
 on:
   push:
     branches: ["main", "claude/**"]
@@ -25,13 +25,15 @@ permissions:
   issues: write
   deployments: write
 
-concurrency:
-  group: preview
-  cancel-in-progress: true
-
 jobs:
   preview:
     name: Application de prévisualisation
+    # Sur push : uniquement si le message de commit contient [preview] (évite de couper
+    # la prévisualisation en cours à chaque commit). Toujours sur lancement manuel.
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[preview]')
+    concurrency:
+      group: preview
+      cancel-in-progress: true
     runs-on: ubuntu-latest
     timeout-minutes: 355
     env:

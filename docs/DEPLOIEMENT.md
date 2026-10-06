@@ -59,6 +59,22 @@ Variables Supabase (fournies par l'intégration, ou à saisir) : `SUPABASE_URL` 
 - *Authentication → SMTP* : facultatif si `RESEND_API_KEY` est défini, car l'application envoie elle-même les e-mails d'authentification. Sans Resend, le service intégré de Supabase n'envoie qu'aux membres de l'équipe, en très faible volume.
 - *Authentication → Multi-Factor* : TOTP activé.
 
+## Domaine linkprob2b.fr
+
+Tout est prêt côté application : redirection `www.linkprob2b.fr` → `linkprob2b.fr` (`vercel.json`), URL canoniques et sitemap construits depuis `SITE_URL`, cookies de session `Secure` en HTTPS, expéditeur par défaut `notifications@linkprob2b.fr`.
+
+1. **Vercel → Settings → Domains** : ajouter `linkprob2b.fr` (principal) et `www.linkprob2b.fr`. Le certificat HTTPS est automatique.
+2. **Chez le registraire** :
+
+| Type | Nom | Valeur |
+|---|---|---|
+| A | `@` | `76.76.21.21` |
+| CNAME | `www` | `cname.vercel-dns.com` |
+
+3. **Vercel → Environment Variables (Production)** : `SITE_URL=https://linkprob2b.fr`, puis redéployer.
+4. **Supabase → Authentication → URL Configuration** : Site URL `https://linkprob2b.fr`.
+5. **Resend → Domains → Add domain** `linkprob2b.fr` : copier chez le registraire les enregistrements affichés (SPF, DKIM, retour), puis renseigner `RESEND_API_KEY` dans Vercel.
+
 ## Migrations
 
 - Au déploiement de production : `npm run build` = `node scripts/migrate.mjs && next build`.

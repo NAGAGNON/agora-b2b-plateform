@@ -1,6 +1,6 @@
 /** Collecte de bout en bout sur la base locale, avec réponses d'API simulées. */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { admin, anon, RUN } from "./helpers";
+import { admin, anon, cleanup, RUN, user } from "./helpers";
 import { runSource } from "@/lib/collect/run";
 import { boampRecords, mockFetch, tedNotices } from "../fixtures/sources";
 
@@ -12,13 +12,21 @@ async function loadSource(code: string) {
 
 let boamp: Source, ted: Source;
 const tag = `C${RUN}`;
+let watcher: Awaited<ReturnType<typeof user>>;
 
 beforeAll(async () => {
   boamp = (await loadSource("boamp"))!;
   ted = (await loadSource("ted"))!;
+  // Alerte immédiate créée AVANT la collecte : elle doit se déclencher sur l'annonce collectée.
+  watcher = await user("veille");
+  const { error } = await watcher.client.from("alerts").insert({
+    user_id: watcher.id, name: `IT ${RUN} veille pompes`, frequency: "IMMEDIATE", keywords: `pompes relevage ${tag}`, department_code: "29", include_external: true,
+  });
+  if (error) throw error;
 });
 
 afterAll(async () => {
+  await cleanup();
   await admin.from("opportunities").delete().like("title", `%${tag}%`);
   await admin.from("external_sources").update({ last_success_at: null, last_sync_at: null, next_sync_at: null, last_error: null }).in("code", ["boamp", "ted"]);
 });
@@ -34,6 +42,14 @@ describe("collecte des sources externes", () => {
     expect(run).toMatchObject({ status: "PARTIAL", created: 2 });
     const { data: src } = await admin.from("external_sources").select("last_success_at, next_sync_at").eq("id", boamp.id).single();
     expect(src?.last_success_at).not.toBeNull();
+  });
+
+  it("déclenche l'alerte immédiate correspondante (notification + e-mail en file)", async () => {
+    const { data: notifs } = await watcher.client.from("notifications").select("type, title, link").eq("type", "alert_match");
+    expect(notifs?.length).toBe(1);
+    expect(notifs?.[0].link).toMatch(/^\/opportunites\/[0-9a-f-]{36}$/);
+    const { data: mails } = await admin.from("email_outbox").select("subject").eq("user_id", watcher.id);
+    expect(mails?.length).toBeGreaterThan(0);
   });
 
   it("publie les opportunités comme externes, attribuées à leur source", async () => {

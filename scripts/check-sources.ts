@@ -46,8 +46,36 @@ async function exploreTed(since: string) {
   }
 }
 
+/** Diagnostic : sources candidates (licence, champs, échantillon), sans écriture. */
+async function exploreCandidates() {
+  const get = async (url: string) => {
+    const r = await fetch(url, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(20_000) });
+    return { status: r.status, body: (await r.json().catch(() => null)) as Record<string, unknown> | null };
+  };
+  const ods = "https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets";
+  for (const q of ["approch", "projets d'achats", "decp", "donnees essentielles"]) {
+    const { status, body } = await get(`${ods}?where=${encodeURIComponent(`search("${q}")`)}&limit=6&select=dataset_id,metas`);
+    const rows = ((body?.results as Record<string, unknown>[]) ?? []).map((d) => {
+      const m = ((d.metas as Record<string, Record<string, unknown>>)?.default ?? {}) as Record<string, unknown>;
+      return `${d.dataset_id} | ${m.title} | licence: ${m.license} | maj: ${m.modified} | lignes: ${m.records_count}`;
+    });
+    console.log(`\n[candidat data.economie.gouv.fr] « ${q} » HTTP ${status}\n  ${rows.join("\n  ")}`);
+  }
+  for (const id of ["projets-dachats-publics"]) {
+    const { status, body } = await get(`${ods}/${id}/records?limit=2&order_by=${encodeURIComponent("date_de_publication desc")}`);
+    console.log(`\n[échantillon ${id}] HTTP ${status}`);
+    console.log(JSON.stringify(body?.results ?? body, null, 1)?.slice(0, 3000));
+    const any = await get(`${ods}/${id}/records?limit=2`);
+    if (status !== 200) console.log(JSON.stringify(any.body?.results ?? any.body, null, 1)?.slice(0, 3000));
+  }
+  const dg = await get("https://www.data.gouv.fr/api/1/datasets/?q=avis%20de%20march%C3%A9s%20publics&page_size=8");
+  const items = ((dg.body?.data as Record<string, unknown>[]) ?? []).map((d) => `${d.slug} | ${d.title} | licence: ${d.license} | org: ${(d.organization as Record<string, unknown> | null)?.name ?? "-"}`);
+  console.log(`\n[candidat data.gouv.fr] HTTP ${dg.status}\n  ${items.join("\n  ")}`);
+}
+
 async function main() {
   const now = new Date();
+  if (process.argv.includes("--candidates")) await exploreCandidates().catch((e) => console.error("candidats", e));
   if (process.argv.includes("--explore")) await exploreTed(new Date(now.getTime() - 21 * 86_400_000).toISOString().slice(0, 10).replace(/-/g, "")).catch((e) => console.error("diagnostic", e));
   let failures = 0;
   for (const s of SOURCES) {

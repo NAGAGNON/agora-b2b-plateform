@@ -2,5 +2,13 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
   "regions": ["cdg1"],
-  "crons": [{ "path": "/api/cron/quotidien", "schedule": "0 6 * * *" }]
+  "crons": [{ "path": "/api/cron/quotidien", "schedule": "0 6 * * *" }],
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "www.linkprob2b.fr" }],
+      "destination": "https://linkprob2b.fr/:path*",
+      "permanent": true
+    }
+  ]
 }
