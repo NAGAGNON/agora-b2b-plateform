@@ -5,47 +5,56 @@ import requests
 from io import BytesIO
 import numpy as np
 import plotly.graph_objects as go
+import os
+import hmac
+from pathlib import Path
 
 st.set_page_config(page_title="Agora B2B Pro", layout="wide")
 
 FALLBACK_IMG = "https://upload.wikimedia.org/wikipedia/commons/6/65/No-Image-Placeholder.svg"
 
-@st.cache_data
+DATA_DIR = Path(__file__).parent / "data"
+ORG_FILE = DATA_DIR / "organisations.csv"
+INSCR_FILE = DATA_DIR / "inscriptions.csv"
+STATUT_COLORS = {"Actif": "green", "Moyen": "yellow", "Inactif": "red"}
+
 def load_data():
-    data = [
-        # Universités (images logos réels ou photos de campus, liens OK)
-        {"Type": "Université", "Nom": "University of Oxford", "Ville": "Oxford", "Pays": "Royaume-Uni",
-         "Thématique": "Généraliste, Recherche", "Taille": 24000, "Statut": "Actif", "Statut_color": "green",
-         "Image": "https://upload.wikimedia.org/wikipedia/commons/7/74/Radcliffe_Camera%2C_Oxford_-_Oct_2006.jpg",
-         "Email": "contact@ox.ac.uk", "Site": "https://www.ox.ac.uk/", "Tel": "+44 1865 270000", "Adresse": "University of Oxford, Oxford, Royaume-Uni"},
-        {"Type": "Université", "Nom": "Sorbonne Université", "Ville": "Paris", "Pays": "France",
-         "Thématique": "Généraliste", "Taille": 53000, "Statut": "Moyen", "Statut_color": "yellow",
-         "Image": "https://www.sorbonne-universite.fr/themes/custom/su_theme/images/logo_sorbonne_universite.svg",
-         "Email": "info@sorbonne-universite.fr", "Site": "https://www.sorbonne-universite.fr/", "Tel": "+33 1 44 27 44 27", "Adresse": "21 Rue de l'École de Médecine, 75006 Paris, France"},
-        {"Type": "Université", "Nom": "MIT", "Ville": "Cambridge", "Pays": "États-Unis",
-         "Thématique": "Tech, Recherche", "Taille": 12000, "Statut": "Actif", "Statut_color": "green",
-         "Image": "https://upload.wikimedia.org/wikipedia/commons/0/0c/MIT_logo.svg",
-         "Email": "admissions@mit.edu", "Site": "http://web.mit.edu/", "Tel": "+1 617-253-1000", "Adresse": "77 Massachusetts Ave, Cambridge, MA 02139, USA"},
-        # Entreprises
-        {"Type": "Entreprise", "Nom": "SAP", "Ville": "Walldorf", "Pays": "Allemagne",
-         "Thématique": "Logiciel, Tech", "Taille": 105000, "Statut": "Actif", "Statut_color": "green",
-         "Image": "https://upload.wikimedia.org/wikipedia/commons/5/59/SAP_2011_logo.svg",
-         "Email": "contact@sap.com", "Site": "https://www.sap.com/", "Tel": "+49 6227 747474", "Adresse": "Dietmar-Hopp-Allee 16, 69190 Walldorf, Germany"},
-        {"Type": "Entreprise", "Nom": "Tata Consultancy", "Ville": "Mumbai", "Pays": "Inde",
-         "Thématique": "Tech, Conseil", "Taille": 400000, "Statut": "Inactif", "Statut_color": "red",
-         "Image": "https://upload.wikimedia.org/wikipedia/commons/f/f3/Tata_Consultancy_Services_Logo.svg",
-         "Email": "contact.tcs@tcs.com", "Site": "https://www.tcs.com/", "Tel": "+91 22 6778 9999", "Adresse": "TCS House, Mumbai, Inde"},
-        {"Type": "Entreprise", "Nom": "Capgemini", "Ville": "Paris", "Pays": "France",
-         "Thématique": "Conseil, Tech", "Taille": 40000, "Statut": "Moyen", "Statut_color": "yellow",
-         "Image": "https://upload.wikimedia.org/wikipedia/commons/c/c2/Logo_Capgemini.png",
-         "Email": "contact.fr@capgemini.com", "Site": "https://www.capgemini.com/fr-fr/", "Tel": "+33 1 47 54 50 00", "Adresse": "11 rue de Tilsitt, 75017 Paris, France"},
-    ]
-    return pd.DataFrame(data)
+    frames = [pd.read_csv(ORG_FILE).fillna("")]
+    if INSCR_FILE.exists():
+        frames.append(pd.read_csv(INSCR_FILE).fillna(""))
+    return pd.concat(frames, ignore_index=True)
+
+def save_inscription(record):
+    DATA_DIR.mkdir(exist_ok=True)
+    new = pd.DataFrame([record])
+    new.to_csv(INSCR_FILE, mode="a", header=not INSCR_FILE.exists(), index=False)
+
+def check_password():
+    """Mot de passe via la variable AGORA_PASSWORD ou st.secrets ; si absent, mode démo ouvert."""
+    expected = os.environ.get("AGORA_PASSWORD")
+    if not expected:
+        try:
+            expected = st.secrets.get("AGORA_PASSWORD")
+        except Exception:
+            expected = None
+    if not expected or st.session_state.get("auth_ok"):
+        return True
+    with st.form("login"):
+        pwd = st.text_input("Mot de passe", type="password")
+        if st.form_submit_button("Se connecter"):
+            if hmac.compare_digest(pwd, expected):
+                st.session_state["auth_ok"] = True
+                st.rerun()
+            else:
+                st.error("Mot de passe incorrect.")
+    return False
 
 df = load_data()
 
 @st.cache_data(show_spinner=False)
 def fetch_image(url):
+    if not url:
+        return None
     try:
         response = requests.get(url, timeout=4)
         response.raise_for_status()
@@ -80,7 +89,10 @@ a.contact-link {color: #004080; font-weight:bold; text-decoration:underline;}
 st.markdown('<div class="main-title">Agora B2B Plateforme Pro</div>', unsafe_allow_html=True)
 st.markdown('<div class="sub-title">Mise en relation Universités & Entreprises dans le monde</div>', unsafe_allow_html=True)
 
-menu = st.radio("Navigation :", ["Universités", "Entreprises", "Dashboard KPI"], horizontal=True)
+if not check_password():
+    st.stop()
+
+menu = st.radio("Navigation :", ["Universités", "Entreprises", "Annuaire", "Inscription", "Dashboard KPI"], horizontal=True)
 
 def match_score(row, type_sel, pays, taille, theme):
     score = 0
@@ -156,6 +168,58 @@ def show_matching_score(type_sel):
         st.sidebar.markdown("---")
         st.sidebar.button("Fermer la fiche", on_click=lambda: st.session_state.pop('contact', None))
 
+def show_directory():
+    st.markdown("<h2 style='color:#004080;'>📚 Annuaire</h2>", unsafe_allow_html=True)
+    c1, c2, c3, c4 = st.columns(4)
+    types = c1.multiselect("Type", sorted(df["Type"].unique()))
+    pays = c2.multiselect("Pays", sorted(df["Pays"].unique()))
+    statuts = c3.multiselect("Statut", list(STATUT_COLORS))
+    q = c4.text_input("Recherche (nom, ville)")
+    res = df
+    if types: res = res[res["Type"].isin(types)]
+    if pays: res = res[res["Pays"].isin(pays)]
+    if statuts: res = res[res["Statut"].isin(statuts)]
+    if q:
+        mask = res["Nom"].str.contains(q, case=False) | res["Ville"].str.contains(q, case=False)
+        res = res[mask]
+    st.caption(f"{len(res)} organisation(s)")
+    st.dataframe(res[["Type", "Nom", "Ville", "Pays", "Thématique", "Taille", "Statut", "Email", "Site"]],
+                 hide_index=True, width="stretch")
+
+def show_registration():
+    st.markdown("<h2 style='color:#004080;'>📝 Inscrire une organisation</h2>", unsafe_allow_html=True)
+    with st.form("inscription", clear_on_submit=True):
+        c1, c2 = st.columns(2)
+        type_ = c1.selectbox("Type", ["Université", "Entreprise"])
+        nom = c2.text_input("Nom *")
+        ville = c1.text_input("Ville *")
+        pays = c2.text_input("Pays *")
+        theme_opts = sorted(set(t.strip() for x in df["Thématique"] for t in x.split(",") if t.strip()))
+        themes = st.multiselect("Thématiques *", theme_opts)
+        taille = st.number_input("Taille (étudiants / employés)", 1, 1_000_000, 1000, 100)
+        email = st.text_input("Email *")
+        site = st.text_input("Site web")
+        tel = st.text_input("Téléphone")
+        adresse = st.text_input("Adresse")
+        ok = st.form_submit_button("Envoyer l'inscription")
+    if ok:
+        errors = []
+        if not all([nom.strip(), ville.strip(), pays.strip(), themes, email.strip()]):
+            errors.append("Merci de remplir tous les champs obligatoires (*).")
+        if email and ("@" not in email or "." not in email.split("@")[-1]):
+            errors.append("Adresse email invalide.")
+        if nom.strip().lower() in df["Nom"].str.lower().values:
+            errors.append("Cette organisation existe déjà.")
+        if errors:
+            for e in errors:
+                st.error(e)
+            return
+        save_inscription({"Type": type_, "Nom": nom.strip(), "Ville": ville.strip(), "Pays": pays.strip(),
+                          "Thématique": ", ".join(themes), "Taille": int(taille), "Statut": "Moyen",
+                          "Statut_color": STATUT_COLORS["Moyen"], "Email": email.strip(), "Site": site.strip(),
+                          "Tel": tel.strip(), "Adresse": adresse.strip(), "Image": ""})
+        st.success(f"{nom} a été inscrite. Elle apparaît dès maintenant dans l'annuaire et le matching.")
+
 def show_dashboard():
     nb_universites = df[df['Type'] == "Université"].shape[0]
     nb_entreprises = df[df['Type'] == "Entreprise"].shape[0]
@@ -194,7 +258,11 @@ def show_dashboard():
         st.plotly_chart(fig2, width="stretch")
     st.success("Dashboard live : tous les KPI stratégiques pour piloter la plateforme en un coup d'œil.")
 
-if menu == "Dashboard KPI":
+if menu == "Annuaire":
+    show_directory()
+elif menu == "Inscription":
+    show_registration()
+elif menu == "Dashboard KPI":
     show_dashboard()
 elif menu == "Universités":
     st.markdown('<div style="margin-top:18px;margin-bottom:6px;"><b>Recherche intelligente de partenaires pour Universités</b></div>', unsafe_allow_html=True)
