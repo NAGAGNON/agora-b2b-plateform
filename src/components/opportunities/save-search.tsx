@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useState } from "react";
+import type { ActionResult } from "@/lib/validation";
 import { Bookmark, BellPlus } from "lucide-react";
 import Link from "next/link";
 import { saveSearch } from "@/app/actions/engagement";
@@ -14,14 +15,15 @@ import { useToast } from "@/components/ui/toast";
 /** Actions « Sauvegarder la recherche » et « Créer une alerte » depuis les résultats. */
 export function SearchActions({ query, signedIn, alertHref, scope = "OPPORTUNITIES" }: { query: string; signedIn: boolean; alertHref: string; scope?: "OPPORTUNITIES" | "COMPANIES" }) {
   const [open, setOpen] = useState(false);
-  const [state, action] = useActionState(saveSearch, null);
   const toast = useToast();
-  useEffect(() => {
-    if (state?.ok) {
+  const [state, action] = useActionState(async (prev: ActionResult | null, fd: FormData) => {
+    const r = await saveSearch(prev, fd);
+    if (r.ok) {
       setOpen(false);
-      toast(state.message ?? "Recherche sauvegardée.");
+      toast(r.message ?? "Recherche sauvegardée.");
     }
-  }, [state, toast]);
+    return r;
+  }, null);
   if (!signedIn) {
     const next = encodeURIComponent(`/opportunites${query ? `?${query}` : ""}`);
     return (

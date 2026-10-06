@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useEffect, useState, useTransition } from "react";
+import { useActionState, useState, useTransition } from "react";
+import type { ActionResult } from "@/lib/validation";
 import Link from "next/link";
 import { HandHeart, Send, KanbanSquare } from "lucide-react";
 import { expressInterest, trackInPipeline, withdrawInterest, withdrawProposal } from "@/app/actions/opportunities";
@@ -28,15 +29,16 @@ type Props = {
 /** Panneau d'action d'un besoin interne : « Je suis intéressé » puis « Répondre ». */
 export function InterestPanel(p: Props) {
   const [open, setOpen] = useState(false);
-  const [state, action] = useActionState(expressInterest, null);
   const [pending, start] = useTransition();
   const toast = useToast();
-  useEffect(() => {
-    if (state?.ok) {
+  const [state, action] = useActionState(async (prev: ActionResult | null, fd: FormData) => {
+    const r = await expressInterest(prev, fd);
+    if (r.ok) {
       setOpen(false);
-      toast(state.message ?? "Intérêt envoyé.");
+      toast(r.message ?? "Intérêt envoyé.");
     }
-  }, [state, toast]);
+    return r;
+  }, null);
 
   const next = `/opportunites/${p.opportunityId}`;
   if (!p.signedIn) {

@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getSession } from "@/lib/auth";
 import { logServerError, userMessage } from "@/lib/errors";
 import { storagePath, validateUpload } from "@/lib/files";
+import { flushEmailsAfterResponse } from "@/lib/email/flush";
 import { interestSchema, opportunitySchema, parseForm, proposalSchema, reportSchema, type ActionResult } from "@/lib/validation";
 import type { Database } from "@/lib/database.types";
 
@@ -39,6 +40,7 @@ export async function expressInterest(_prev: ActionResult | null, fd: FormData):
     p_message: parsed.data.message,
   });
   if (error) return { ok: false, error: userMessage(error) };
+  flushEmailsAfterResponse();
   revalidatePath(`/opportunites/${parsed.data.opportunityId}`);
   return { ok: true, message: "Votre intérêt a été transmis au demandeur." };
 }
@@ -98,6 +100,7 @@ export async function submitProposal(_prev: ActionResult | null, fd: FormData): 
       p_size_bytes: f.size,
     });
   }
+  flushEmailsAfterResponse();
   revalidatePath(`/opportunites/${d.opportunityId}`);
   redirect(`/opportunites/${d.opportunityId}?reponse=envoyee`);
 }
@@ -279,7 +282,13 @@ export async function updateOpportunity(_prev: ActionResult | null, fd: FormData
   if (!current) return { ok: false, error: "Opportunité introuvable." };
   const d = parsed.data;
   let status = current.status;
-  if (d.intent === "submit" && ["DRAFT", "CHANGES_REQUESTED"].includes(current.status)) status = "PENDING_REVIEW";
+  if (current.status === "REJECTED") {
+    // Une publication refusée repasse en brouillon pour être corrigée puis resoumise.
+    const { error: e } = await supabase.from("opportunities").update({ status: "DRAFT" }).eq("id", id);
+    if (e) return { ok: false, error: userMessage(e) };
+    status = "DRAFT";
+  }
+  if (d.intent === "submit" && ["DRAFT", "CHANGES_REQUESTED"].includes(status)) status = "PENDING_REVIEW";
   const { error } = await supabase.from("opportunities").update({ ...toRow(d), status }).eq("id", id);
   if (error) return { ok: false, error: userMessage(error) };
   const uploadError = await uploadOpportunityDocs(supabase, id, session.userId, fd);
@@ -354,6 +363,7 @@ export async function closeOpportunity(_prev: ActionResult | null, fd: FormData)
     p_note: d.note ?? "",
   });
   if (error) return { ok: false, error: userMessage(error) };
+  flushEmailsAfterResponse();
   revalidatePath(`/dashboard/opportunites/${d.id}`);
   return { ok: true, message: "Consultation clôturée. Les fournisseurs ayant répondu ont été informés." };
 }
@@ -387,6 +397,7 @@ export async function buyerDecision(_prev: ActionResult | null, fd: FormData): P
           p_message: d.message ?? "",
         });
   if (error) return { ok: false, error: userMessage(error) };
+  flushEmailsAfterResponse();
   revalidatePath(`/dashboard/opportunites/${d.opportunityId}`);
   return { ok: true, message: "Décision enregistrée. Le fournisseur a été notifié." };
 }
@@ -407,4 +418,16 @@ export async function saveEvaluation(_prev: ActionResult | null, fd: FormData): 
   if (error) return { ok: false, error: userMessage(error) };
   revalidatePath(`/dashboard/opportunites/${d.opportunityId}`);
   return { ok: true, message: "Évaluation enregistrée (visible uniquement par votre entreprise)." };
+}
+
+export async function addOpportunityDocuments(_prev: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  const id = String(fd.get("opportunityId") ?? "");
+  if (!uuid.safeParse(id).success) return { ok: false, error: "Identifiant invalide." };
+  const { session, supabase } = await ctx();
+  if (!session) return { ok: false, error: "Session expirée." };
+  if (files(fd).length === 0) return { ok: false, error: "Sélectionnez au moins un fichier." };
+  const err = await uploadOpportunityDocs(supabase, id, session.userId, fd);
+  if (err) return { ok: false, error: err };
+  revalidatePath(`/dashboard/opportunites/${id}`);
+  return { ok: true, message: "Document(s) ajouté(s)." };
 }

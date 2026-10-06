@@ -1,0 +1,6 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "regions": ["cdg1"],
+  "crons": [{ "path": "/api/cron/quotidien", "schedule": "0 6 * * *" }]
+}

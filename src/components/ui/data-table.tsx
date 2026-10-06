@@ -33,7 +33,7 @@ export function DataTable<T>({
   const primary = columns.find((c) => c.primary) ?? columns[0];
   return (
     <>
-      <div className="hidden overflow-x-auto rounded-2xl border border-slate-200 bg-white md:block">
+      <div className="relative hidden overflow-x-auto rounded-2xl border border-slate-200 bg-white md:block">
         <table className="min-w-full divide-y divide-slate-200 text-sm">
           {caption && <caption className="sr-only">{caption}</caption>}
           <thead className="bg-slate-50">

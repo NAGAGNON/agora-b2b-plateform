@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState, useTransition, type FormEvent, type ReactNode } from "react";
+import { useActionState, useRef, useState, useTransition, type FormEvent, type ReactNode } from "react";
 import { ArrowLeft, ArrowRight, Check, FileText, Save, Send } from "lucide-react";
 import { createOpportunity, updateOpportunity } from "@/app/actions/opportunities";
 import { Button } from "@/components/ui/button";
@@ -95,21 +95,22 @@ export function PublishWizard({
   existingDocuments?: { id: string; file_name: string }[];
 }) {
   const edit = Boolean(values.id);
-  const [state, dispatch] = useActionState<ActionResult | null, FormData>(edit ? updateOpportunity : createOpportunity, null);
-  const [pending, start] = useTransition();
   const [step, setStep] = useState(values.type ? 1 : 0);
+  const [state, dispatch] = useActionState<ActionResult | null, FormData>(async (prev, fd) => {
+    const r = await (edit ? updateOpportunity : createOpportunity)(prev, fd);
+    if (!r.ok && r.fieldErrors) {
+      // Revient à la première étape contenant une erreur.
+      const first = Object.keys(r.fieldErrors).map((k) => FIELD_STEP[k] ?? 5).sort((a, b) => a - b)[0];
+      if (first !== undefined) setStep(first);
+    }
+    return r;
+  }, null);
+  const [pending, start] = useTransition();
   const [type, setType] = useState<OpportunityType>(values.type ?? "NEED");
   const [snapshot, setSnapshot] = useState<Record<string, string>>({});
   const formRef = useRef<HTMLFormElement>(null);
   const stepRefs = useRef<(HTMLFieldSetElement | null)[]>([]);
   const fe = state && !state.ok ? state.fieldErrors : undefined;
-
-  useEffect(() => {
-    if (fe) {
-      const first = Object.keys(fe).map((k) => FIELD_STEP[k] ?? 5).sort((a, b) => a - b)[0];
-      if (first !== undefined) setStep(first);
-    }
-  }, [fe]);
 
   function takeSnapshot() {
     if (!formRef.current) return;

@@ -28,7 +28,12 @@ export async function signIn(_prev: ActionResult | null, formData: FormData): Pr
     return { ok: false, error: "Adresse e-mail ou mot de passe incorrect." };
   }
   await supabase.rpc("accept_pending_invitations");
-  redirect(safeNext(formData.get("suite")));
+  const next = safeNext(formData.get("suite"));
+  const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+  if (aal && aal.nextLevel === "aal2" && aal.currentLevel !== "aal2") {
+    redirect(`/connexion/verification?suite=${encodeURIComponent(next)}`);
+  }
+  redirect(next);
 }
 
 export async function signUp(_prev: ActionResult | null, formData: FormData): Promise<ActionResult> {

@@ -15,7 +15,7 @@ export function ReportButton({ targetType, targetId, signedIn, label = "Signaler
   const [state, action] = useActionState(createReport, null);
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-red-700">
+      <button type="button" onClick={() => setOpen(true)} aria-label={label || "Signaler"} className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-red-700">
         <Flag className="size-4" aria-hidden /> {label}
       </button>
       <Modal open={open} onClose={() => setOpen(false)} title="Signaler ce contenu" description="L'équipe de modération examinera votre signalement.">
