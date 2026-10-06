@@ -20,7 +20,7 @@ const SOURCES: { name: string; run: typeof collectBoamp; config: SourceConfig }[
       nuts: ["FRH01", "FRH02", "FRH03", "FRH04"],
       lookbackDays: 21,
       maxRecords: 200,
-      fields: ["publication-number", "notice-title", "buyer-name", "publication-date", "deadline-receipt-tender-date-lot", "place-of-performance", "classification-cpv", "contract-nature"],
+      fields: ["publication-number", "notice-title", "buyer-name", "publication-date", "deadline-receipt-tender-date-lot", "deadline-receipt-request-date-lot", "place-of-performance", "classification-cpv", "contract-nature"],
     },
   },
 ];
@@ -75,7 +75,7 @@ async function main() {
         // Échantillon brut (champs utiles uniquement), rejouable localement à travers le pipeline complet.
         const keep = s.name === "BOAMP"
           ? ["idweb", "objet", "nomacheteur", "code_departement", "descripteur_libelle", "type_marche", "nature_libelle", "procedure_libelle", "url_avis", "datelimitereponse", "dateparution"]
-          : ["publication-number", "notice-title", "buyer-name", "publication-date", "deadline-receipt-tender-date-lot", "place-of-performance", "classification-cpv", "contract-nature"];
+          : ["publication-number", "notice-title", "buyer-name", "publication-date", "deadline-receipt-tender-date-lot", "deadline-receipt-request-date-lot", "place-of-performance", "classification-cpv", "contract-nature"];
         for (const r of batch.records.slice(0, s.name === "BOAMP" ? 120 : 80)) {
           const o = r as Record<string, unknown>;
           console.log(`DUMP:${s.name}:${JSON.stringify(Object.fromEntries(keep.filter((k) => o[k] !== undefined).map((k) => [k, o[k]])))}`);

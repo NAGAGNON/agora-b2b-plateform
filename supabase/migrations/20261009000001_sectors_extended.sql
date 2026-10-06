@@ -9,3 +9,8 @@ insert into public.sectors (slug, label, description, is_pilot_priority, sort_or
   ('communication-evenementiel', 'Communication et événementiel', 'Publicité, création graphique, impression, photographie, événements.', false, 20),
   ('restauration-alimentation', 'Restauration et alimentation', 'Restauration collective, denrées alimentaires, traiteur.', false, 21)
 on conflict (slug) do nothing;
+
+-- TED : date limite de candidature (procédures restreintes) en complément de la date de remise des offres.
+update public.external_sources
+set config = jsonb_set(config, '{fields}', (config->'fields') || '["deadline-receipt-request-date-lot"]'::jsonb)
+where code = 'ted' and config ? 'fields' and not (config->'fields') @> '["deadline-receipt-request-date-lot"]'::jsonb;

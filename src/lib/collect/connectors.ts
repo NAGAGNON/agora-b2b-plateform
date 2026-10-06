@@ -144,7 +144,8 @@ export function mapTedNotice(n: Record<string, unknown>, nutsFilter: string[]): 
   if (!title || title.length < 5) return { ok: false, reason: `titre manquant (${pub})` };
   const buyer = cleanString(tedText(n["buyer-name"]), 200);
   const cpv = [...new Set(asArray(n["classification-cpv"]).map((c) => c.replace(/\D/g, "")).filter((c) => c.length >= 2))];
-  const deadline = toIsoDeadline(asArray(n["deadline-receipt-tender-date-lot"] ?? n.deadline)[0]);
+  // Date limite de remise des offres ; à défaut (procédures restreintes), date limite de candidature.
+  const deadline = toIsoDeadline(asArray(n["deadline-receipt-tender-date-lot"] ?? n["deadline-receipt-request-date-lot"] ?? n.deadline)[0]);
   const department = nuts.map((c) => NUTS_TO_DEPARTMENT[c]).find(Boolean) ?? null;
   const nature = cleanString(asArray(n["contract-nature"])[0], 60);
   const { sector } = classifySector(cpv, title);
@@ -182,7 +183,7 @@ export async function collectTed(ctx: ConnectorContext): Promise<ConnectorBatch>
   const max = num(ctx.config.maxRecords, 300, 2000);
   const fields = asArray(ctx.config.fields).length
     ? asArray(ctx.config.fields)
-    : ["publication-number", "notice-title", "buyer-name", "publication-date", "deadline-receipt-tender-date-lot", "place-of-performance", "classification-cpv", "contract-nature"];
+    : ["publication-number", "notice-title", "buyer-name", "publication-date", "deadline-receipt-tender-date-lot", "deadline-receipt-request-date-lot", "place-of-performance", "classification-cpv", "contract-nature"];
   const nuts = asArray(ctx.config.nuts).map((x) => x.toUpperCase());
   const records: unknown[] = [];
   for (let page = 1; records.length < max; page++) {
