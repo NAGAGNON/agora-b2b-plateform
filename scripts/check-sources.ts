@@ -74,11 +74,14 @@ async function main() {
       if (process.argv.includes("--dump")) {
         // Échantillon brut (champs utiles uniquement), rejouable localement à travers le pipeline complet.
         const keep = s.name === "BOAMP"
-          ? ["idweb", "objet", "nomacheteur", "code_departement", "descripteur_libelle", "type_marche", "nature_libelle", "procedure_libelle", "url_avis", "datelimitereponse", "dateparution"]
+          ? ["idweb", "objet", "nomacheteur", "code_departement", "descripteur_libelle", "type_marche", "nature_libelle", "datelimitereponse", "dateparution"]
           : ["publication-number", "notice-title", "buyer-name", "publication-date", "deadline-receipt-tender-date-lot", "deadline-receipt-request-date-lot", "place-of-performance", "classification-cpv", "contract-nature"];
-        for (const r of batch.records.slice(0, s.name === "BOAMP" ? 120 : 80)) {
+        const fr = (v: unknown) => (v && typeof v === "object" && !Array.isArray(v) ? { fra: (v as Record<string, unknown>).fra ?? Object.values(v as object)[0] } : v);
+        const uniq = (v: unknown) => (Array.isArray(v) ? [...new Set(v)] : v);
+        for (const r of batch.records.slice(0, s.name === "BOAMP" ? 40 : 30)) {
           const o = r as Record<string, unknown>;
-          console.log(`DUMP:${s.name}:${JSON.stringify(Object.fromEntries(keep.filter((k) => o[k] !== undefined).map((k) => [k, o[k]])))}`);
+          const out = Object.fromEntries(keep.filter((k) => o[k] !== undefined && o[k] !== null).map((k) => [k, uniq(fr(o[k]))]));
+          console.log(`DUMP:${s.name}:${JSON.stringify(out)}`);
         }
       }
       if (batch.records.length > 0 && ok.length === 0) {
