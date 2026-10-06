@@ -26,6 +26,12 @@ if (!url || !key) {
   process.exit(1);
 }
 const appEnv = process.env.APP_ENV ?? (process.env.VERCEL_ENV === "production" ? "production" : undefined);
+// Base distante : refus par défaut (évite un seed accidentel avec un .env.local pointant vers la production).
+const remote = !/^https?:\/\/(127\.0\.0\.1|localhost)(:|\/|$)/.test(url);
+if (remote && !clean && process.env.DEMO_REMOTE !== "staging") {
+  console.error("Refusé : base distante. Pour une base de STAGING uniquement, relancer avec DEMO_REMOTE=staging.");
+  process.exit(1);
+}
 if (appEnv === "production" && !clean) {
   console.error("Refusé : APP_ENV=production. Les données de démonstration ne sont jamais chargées en production.");
   process.exit(1);

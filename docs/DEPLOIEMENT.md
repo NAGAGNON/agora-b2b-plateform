@@ -33,9 +33,10 @@ Le bouton du [README](../README.md#mettre-en-ligne) ouvre Vercel et enchaîne :
 2. la création d'un projet **Supabase** (intégration officielle Vercel ↔ Supabase), qui fournit automatiquement `SUPABASE_URL`, les clés et `POSTGRES_URL_NON_POOLING` ;
 3. la saisie de trois valeurs :
    - `INITIAL_ADMIN_EMAIL` : votre adresse, promue super-administrateur à votre première inscription ou connexion ;
-   - `APP_ENV` : `staging` pour tester tout de suite (comptes activés sans e-mail, démo autorisée), ou `production` ;
    - `CRON_SECRET` : une chaîne aléatoire d'au moins 32 caractères (protège la tâche planifiée) ;
-4. le build : `node scripts/migrate.mjs` crée toutes les tables, la sécurité et les données de référence, puis `next build`.
+   - `RESEND_API_KEY` : votre clé Resend (e-mails de confirmation, mot de passe, notifications, alertes) ;
+   L'environnement `production` est déduit de Vercel : démonstration interdite, confirmation d'e-mail obligatoire.
+4. le build : `node scripts/migrate.mjs` crée toutes les tables, la sécurité et les données de référence et marque la base « production » (seed démo refusé même avec une mauvaise variable), puis une première collecte BOAMP/TED (non bloquante), puis `next build`. La collecte se poursuit chaque jour à 06:00 UTC (tâche planifiée).
 
 Ensuite : ouvrez l'URL fournie par Vercel, inscrivez-vous avec `INITIAL_ADMIN_EMAIL` : vous êtes administrateur. En staging, **Administration → Paramètres → Charger les données de démonstration** crée les comptes fictifs et affiche leurs identifiants une seule fois.
 
@@ -116,7 +117,7 @@ Tout est prêt côté application : redirection `www.linkprob2b.fr` → `linkpro
 - **Journaux** : Vercel → *Logs* (erreurs serveur préfixées `[linkprob2b]`, sans données personnelles) ; Supabase → *Logs* (base, authentification, temps réel).
 - **Tâche planifiée** : Vercel → *Cron Jobs* ; le résultat de chaque étape est visible dans **Administration → Synchronisations**.
 - **Sources externes** : journal de chaque collecte dans **Administration → Synchronisations**. Le workflow GitHub `sources.yml` vérifie chaque jour que les API BOAMP et TED répondent et restent compatibles.
-- **E-mails** : table `email_outbox` (statut, tentatives, dernière erreur). Jusqu'à 5 tentatives pour les erreurs temporaires, avec clé d'idempotence côté Resend.
+- **E-mails** : **Administration → E-mails → Envoyer les modèles de contrôle** envoie les 15 modèles à votre adresse et vérifie liens, statut Resend et absence de double envoi. Table `email_outbox` (statut, tentatives, dernière erreur). Jusqu'à 5 tentatives pour les erreurs temporaires, avec clé d'idempotence côté Resend.
 - **Audit** : **Administration → Journal d'audit** (modération, rôles, paramètres, secteurs, données de démonstration).
 
 ## Avant l'ouverture au public

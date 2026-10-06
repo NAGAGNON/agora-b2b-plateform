@@ -34,6 +34,16 @@ describe("environnement applicatif", () => {
     expect(env.siteUrl).toBe("https://linkprob2b-git-test.vercel.app");
   });
 
+  it("utilise le domaine de production Vercel pour le SEO (canonical, sitemap) sans SITE_URL", async () => {
+    vi.stubEnv("SITE_URL", "");
+    vi.stubEnv("NEXT_PUBLIC_SITE_URL", "");
+    vi.stubEnv("VERCEL_ENV", "production");
+    vi.stubEnv("VERCEL_PROJECT_PRODUCTION_URL", "linkprob2b.fr");
+    const { siteUrl } = await import("@/lib/seo");
+    expect(siteUrl()).toBe("https://linkprob2b.fr");
+    expect(env.siteUrl).toBe("https://linkprob2b.fr");
+  });
+
   it("normalise l'adresse du premier administrateur", () => {
     vi.stubEnv("INITIAL_ADMIN_EMAIL", "  Moi@Entreprise.FR ");
     expect(env.initialAdminEmail).toBe("moi@entreprise.fr");

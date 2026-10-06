@@ -4,3 +4,8 @@
  * par une URL interne (SUPABASE_INTERNAL_URL) différente de l'URL publique.
  */
 export const SESSION_COOKIE = "sb-linkprob2b-auth-token";
+
+/** Options du cookie de session : attribut Secure dès que le site est servi en HTTPS. */
+export function sessionCookieOptions(https: boolean) {
+  return { name: SESSION_COOKIE, secure: https, sameSite: "lax" as const, path: "/" };
+}

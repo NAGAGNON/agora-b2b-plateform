@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import { SESSION_COOKIE } from "@/lib/supabase/cookie";
+import { sessionCookieOptions } from "@/lib/supabase/cookie";
+import { siteUrl } from "@/lib/seo";
 
 const PROTECTED_PREFIXES = ["/dashboard", "/admin", "/onboarding"];
 
@@ -19,7 +20,7 @@ export async function proxy(request: NextRequest) {
   if (!url || !key) return response;
 
   const supabase = createServerClient(url, key, {
-    cookieOptions: { name: SESSION_COOKIE },
+    cookieOptions: sessionCookieOptions(siteUrl().startsWith("https://")),
     cookies: {
       getAll() {
         return request.cookies.getAll();

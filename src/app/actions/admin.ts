@@ -11,6 +11,7 @@ import { env } from "@/lib/env";
 import { seedDemo, wipeDemo, type DemoCredential } from "@/lib/demo/seed";
 import { processAlertDigests, processEmailOutbox } from "@/lib/email/outbox";
 import { flushEmailsAfterResponse } from "@/lib/email/flush";
+import { rateLimit } from "@/lib/rate-limit";
 import { externalOpportunitySchema, moderationSchema, parseForm, sourceSchema, type ActionResult } from "@/lib/validation";
 import type { Database, Json } from "@/lib/database.types";
 
@@ -350,4 +351,38 @@ export async function removeDemoData(): Promise<ActionResult> {
     logServerError("removeDemoData", e);
     return { ok: false, error: "La suppression a échoué." };
   }
+}
+
+// ---------------------------------------------------------------------------
+// E-mails : envoi de contrôle des modèles (vérification de la configuration)
+// ---------------------------------------------------------------------------
+export type EmailCheckRow = { key: string; label: string; status: string; detail?: string };
+
+export async function sendTestEmails(): Promise<ActionResult<{ rows: EmailCheckRow[]; to: string }>> {
+  const { session } = await staff();
+  if (!session.isAdmin) return { ok: false, error: "Réservé aux administrateurs." };
+  if (!env.emailTransport) return { ok: false, error: "Aucun fournisseur e-mail configuré : renseignez RESEND_API_KEY." };
+  if (!(await rateLimit("email-test", 3, 3600))) return { ok: false, error: "3 envois de contrôle par heure au maximum." };
+  const { emailCatalog } = await import("@/lib/email/catalog");
+  const { renderEmail } = await import("@/lib/email/templates");
+  const { sendEmail } = await import("@/lib/email/send");
+  const run = Date.now().toString(36);
+  const rows: EmailCheckRow[] = [];
+  let first: { key: string; msg: Parameters<typeof sendEmail>[0]; id?: string } | null = null;
+  for (const e of emailCatalog()) {
+    const { html, text } = renderEmail(e.layout);
+    const links = [e.layout.cta?.url, ...(e.layout.list ?? []).map((l) => l.url)].filter(Boolean) as string[];
+    const badLink = links.find((u) => !u.startsWith(env.siteUrl) || (env.isProduction && !u.startsWith("https://")));
+    const msg = { to: session.email, subject: `[Contrôle] ${e.subject}`, html, text, idempotencyKey: `controle-${run}-${e.key}` };
+    const r = await sendEmail(msg);
+    if (!first && r.status === "SENT") first = { key: e.key, msg, id: r.id };
+    rows.push({ key: e.key, label: e.label, status: badLink ? "LIEN INVALIDE" : r.status, detail: badLink ?? r.error });
+  }
+  // Double envoi : même clé d'idempotence → Resend renvoie le même e-mail, sans nouvel envoi.
+  if (first && env.emailTransport === "resend") {
+    const again = await sendEmail(first.msg);
+    rows.push({ key: "idempotence", label: "Pas de double envoi (même clé)", status: again.status === "SENT" && again.id === first.id ? "OK" : "À VÉRIFIER", detail: `${first.id ?? "?"} / ${again.id ?? again.error ?? "?"}` });
+  }
+  await createAdminClient().from("audit_logs").insert({ actor_user_id: session.userId, action: "email.test", entity_type: "platform", entity_id: "email", metadata: { sent: rows.filter((r) => r.status === "SENT").length } });
+  return { ok: true, message: `Envoi de contrôle terminé vers ${session.email}.`, data: { rows, to: session.email } };
 }

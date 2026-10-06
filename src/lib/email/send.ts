@@ -3,7 +3,7 @@ import { env } from "@/lib/env";
 
 export type EmailMessage = { to: string; subject: string; html: string; text: string; idempotencyKey?: string };
 /** `retryable` : erreur temporaire (réseau, 429, 5xx) — la file réessaiera. */
-export type SendResult = { status: "SENT" | "SKIPPED" | "FAILED"; error?: string; retryable?: boolean };
+export type SendResult = { status: "SENT" | "SKIPPED" | "FAILED"; error?: string; retryable?: boolean; id?: string };
 
 /** Boîte de test Mailpit (API HTTP d'envoi), hors production. */
 async function sendToMailpit(base: string, msg: EmailMessage): Promise<SendResult> {
@@ -52,7 +52,8 @@ export async function sendEmail(msg: EmailMessage): Promise<SendResult> {
       const detail = await res.text().catch(() => "");
       return { status: "FAILED", error: `HTTP ${res.status} ${detail.slice(0, 200)}`.trim(), retryable: res.status === 429 || res.status >= 500 };
     }
-    return { status: "SENT" };
+    const body = (await res.json().catch(() => ({}))) as { id?: string };
+    return { status: "SENT", id: body.id };
   } catch (e) {
     return { status: "FAILED", error: e instanceof Error ? e.message : "Erreur réseau", retryable: true };
   }

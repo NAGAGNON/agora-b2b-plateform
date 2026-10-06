@@ -84,6 +84,14 @@ try {
       }
     }
   }
+  // Marqueur d'environnement en base : la production refuse ensuite tout chargement de démonstration.
+  if (!statusOnly && process.exitCode !== 1 && (process.env.VERCEL_ENV === "production" || process.env.APP_ENV === "production")) {
+    await client.query(
+      `insert into public.platform_settings (key, value, description) values ('private.environment', '{"name": "production"}', 'Environnement de cette base (posé au déploiement)')
+       on conflict (key) do update set value = excluded.value`,
+    );
+    console.log("[migrations] Base marquée « production ».");
+  }
 } finally {
   await client.query("select pg_advisory_unlock(727274001)").catch(() => undefined);
   await client.end();

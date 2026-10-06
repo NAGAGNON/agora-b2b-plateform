@@ -1,4 +1,5 @@
 import "server-only";
+import { siteUrl } from "@/lib/seo";
 
 function pick(...names: string[]): string | undefined {
   for (const n of names) {
@@ -44,11 +45,7 @@ export const env = {
     return required(pick("SUPABASE_SECRET_KEY", "SUPABASE_SERVICE_ROLE_KEY"), "SUPABASE_SECRET_KEY");
   },
   get siteUrl() {
-    const explicit = pick("SITE_URL", "NEXT_PUBLIC_SITE_URL");
-    if (explicit) return explicit.replace(/\/$/, "");
-    // Vercel : domaine de production, sinon URL du déploiement (prévisualisation).
-    const vercel = process.env.VERCEL_ENV === "production" ? pick("VERCEL_PROJECT_PRODUCTION_URL") : pick("VERCEL_BRANCH_URL", "VERCEL_URL");
-    return vercel ? `https://${vercel}` : "http://localhost:3000";
+    return siteUrl();
   },
   /**
    * Environnement applicatif : development (poste local), staging (prévisualisation,

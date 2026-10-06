@@ -14,9 +14,9 @@ Le pilote démarre en Bretagne, Finistère en priorité ; l'architecture est nat
 
 ## Mettre en ligne
 
-[![Déployer avec Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FNAGAGNON%2Fagora-b2b-plateform&project-name=linkprob2b&repository-name=linkprob2b&integration-ids=oac_VqOgBHqhEoFTPzGkPd7L0iH6&env=INITIAL_ADMIN_EMAIL,APP_ENV,CRON_SECRET&envDescription=INITIAL_ADMIN_EMAIL%20%3A%20votre%20e-mail%20(premier%20administrateur).%20APP_ENV%20%3A%20staging%20(test)%20ou%20production.%20CRON_SECRET%20%3A%20cha%C3%AEne%20al%C3%A9atoire%20de%2032%20caract%C3%A8res%20ou%20plus.&envLink=https%3A%2F%2Fgithub.com%2FNAGAGNON%2Fagora-b2b-plateform%2Fblob%2Fmain%2Fdocs%2FDEPLOIEMENT.md)
+[![Déployer avec Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FNAGAGNON%2Fagora-b2b-plateform&project-name=linkprob2b&repository-name=linkprob2b&integration-ids=oac_VqOgBHqhEoFTPzGkPd7L0iH6&env=INITIAL_ADMIN_EMAIL,CRON_SECRET,RESEND_API_KEY&envDescription=INITIAL_ADMIN_EMAIL%20%3A%20votre%20e-mail%20(premier%20administrateur).%20CRON_SECRET%20%3A%20cha%C3%AEne%20al%C3%A9atoire%20de%2032%20caract%C3%A8res%20ou%20plus.%20RESEND_API_KEY%20%3A%20cl%C3%A9%20Resend%20(e-mails).&envLink=https%3A%2F%2Fgithub.com%2FNAGAGNON%2Fagora-b2b-plateform%2Fblob%2Fmain%2Fdocs%2FDEPLOIEMENT.md)
 
-Le bouton crée le projet Vercel et la base Supabase (intégration officielle), applique les migrations au build et vous demande trois valeurs. Inscrivez-vous ensuite avec `INITIAL_ADMIN_EMAIL` : vous êtes administrateur. Détails, environnements, sauvegardes et retour arrière : [docs/DEPLOIEMENT.md](docs/DEPLOIEMENT.md).
+Le bouton crée le projet Vercel et la base Supabase (intégration officielle), applique les migrations au build et vous demande trois valeurs. L'environnement (`production`) est déduit automatiquement. Inscrivez-vous ensuite avec `INITIAL_ADMIN_EMAIL` : vous êtes administrateur. Détails, environnements, sauvegardes et retour arrière : [docs/DEPLOIEMENT.md](docs/DEPLOIEMENT.md).
 
 ## Documentation
 

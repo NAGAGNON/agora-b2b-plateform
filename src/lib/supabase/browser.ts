@@ -3,7 +3,7 @@
 import { createBrowserClient } from "@supabase/ssr";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
-import { SESSION_COOKIE } from "@/lib/supabase/cookie";
+import { sessionCookieOptions } from "@/lib/supabase/cookie";
 
 let client: SupabaseClient<Database> | null = null;
 
@@ -14,6 +14,6 @@ let client: SupabaseClient<Database> | null = null;
  * lectures côté serveur. Les données affichées sont rechargées par le serveur.
  */
 export function getBrowserClient(url: string, publishableKey: string): SupabaseClient<Database> {
-  client ??= createBrowserClient<Database>(url, publishableKey, { cookieOptions: { name: SESSION_COOKIE } });
+  client ??= createBrowserClient<Database>(url, publishableKey, { cookieOptions: sessionCookieOptions(window.location.protocol === "https:") });
   return client;
 }

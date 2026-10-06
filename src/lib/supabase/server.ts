@@ -3,7 +3,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import type { Database } from "@/lib/database.types";
 import { env } from "@/lib/env";
-import { SESSION_COOKIE } from "@/lib/supabase/cookie";
+import { sessionCookieOptions } from "@/lib/supabase/cookie";
 
 /**
  * Client Supabase lié à la session de l'utilisateur (cookies).
@@ -12,7 +12,7 @@ import { SESSION_COOKIE } from "@/lib/supabase/cookie";
 export async function createClient() {
   const cookieStore = await cookies();
   return createServerClient<Database>(env.supabaseServerUrl, env.supabasePublishableKey, {
-    cookieOptions: { name: SESSION_COOKIE },
+    cookieOptions: sessionCookieOptions(env.siteUrl.startsWith("https://")),
     cookies: {
       getAll() {
         return cookieStore.getAll();

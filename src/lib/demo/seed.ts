@@ -172,6 +172,11 @@ const EXTERNAL = [
 
 /** Supprime puis recrée le jeu de démonstration. Retourne les identifiants créés. */
 export async function seedDemo(db: Db, opts: { password?: string } = {}): Promise<{ creds: DemoCredential[]; companies: number; opportunities: number }> {
+  // Verrou en base : posé par le déploiement de production (scripts/migrate.mjs).
+  const { data: marker } = await db.from("platform_settings").select("value").eq("key", "private.environment").maybeSingle();
+  if ((marker?.value as { name?: string } | undefined)?.name === "production") {
+    throw new Error("Refusé : cette base est marquée « production ». Les données de démonstration n'y sont jamais chargées.");
+  }
   await wipeDemo(db);
   const creds: { label: string; email: string; password: string }[] = [];
   const userIds: Record<string, string> = {};
