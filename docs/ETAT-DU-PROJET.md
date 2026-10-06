@@ -1,40 +1,43 @@
-# État du projet — 6 octobre 2026
+# État du projet — LinkProB2B V1 (6 octobre 2026)
 
-Légende : ✅ fonctionnel et testé · 🟡 nécessite vos identifiants ou comptes · 🔴 bloqué par une contrainte externe · ⚖️ nécessite une validation juridique
+Légende : 🟢 terminé et fonctionnel · 🟡 nécessite une information ou un compte de votre part · 🔴 bloqué par l'environnement · ⚖️ validation juridique
 
-## Fonctionnalités
+## Accès
 
-| Domaine | État | Détail |
-|---|---|---|
-| Comptes, entreprises, membres, invitations, double authentification | ✅ | Tests d'intégration et E2E |
-| Publication en 6 étapes, modération, cycle de vie, expiration | ✅ | Parcours E2E complet |
-| Intérêts, réponses, présélection, comparaison, décision, clôture, pipeline | ✅ | Contenu des réponses confidentiel, y compris vis-à-vis de l'administration |
-| Recherche plein texte, filtres, rayon, annuaire | ✅ | |
-| Alertes : secteur, zone, ville + rayon, type, compétences, taille, mots-clés, externes inclus ou non, fréquence | ✅ | |
-| Recommandations à score expliqué (sur 100) | ✅ | Barème public |
-| Messagerie et notifications en temps réel | ✅ | Supabase Realtime, filtré par la RLS ; E2E à deux navigateurs |
-| Collecte BOAMP et TED : normalisation, classification, déduplication, mise à jour, expiration, journal | ✅ | Vérifiée sur les API réelles (GitHub Actions) ; exécution quotidienne sur Vercel |
-| Administration : modération, entreprises, utilisateurs, réponses, signalements, sources, synchronisations, référentiels, paramètres, audit | ✅ | |
-| Environnements développement / staging / production, séparation démo / réel | ✅ | Seed refusé en production ; démo masquée en production |
-| Migrations au déploiement, santé (`/api/sante`), supervision de la tâche planifiée | ✅ | Transactionnelles, avec verrou |
-| E-mails : confirmation d'inscription, mot de passe, bienvenue, notifications, alertes, invitations | 🟡 | Code et gabarits prêts et testés ; envoi réel dès que `RESEND_API_KEY` est configurée |
-| URL publique de l'application | 🟡 | Un clic sur « Deploy with Vercel » (comptes Vercel et Supabase) ; voir ci-dessous |
-| Nom de domaine | 🟡 | Achat à faire |
-| Pages légales (mentions, CGU, confidentialité) | ⚖️ | Modèles à compléter (éléments entre crochets) et à faire valider |
-| Sources APProch, DECP, plateformes d'acheteurs | ⚖️ / 🔴 | Voir [SOURCES-EXTERNES.md](SOURCES-EXTERNES.md) |
-| Paiement, abonnements | — | Hors périmètre du pilote (architecture préparée) |
+| | Où |
+|---|---|
+| **Application interactive (staging)** | URL publiée dans l'issue « Prévisualisation LinkProB2B » et dans l'onglet **Deployments** du dépôt. Elle est relancée à chaque commit marqué `[preview]` ou via **Actions → Prévisualisation → Run workflow**, et reste en ligne 5 h 30 au plus. |
+| **Production** | après fusion de la PR vers `main` et un clic sur « Deploy with Vercel » ([DEPLOIEMENT.md](DEPLOIEMENT.md)) |
+| Aperçu statique (archive) | artefact claude.ai, 27 écrans |
 
-## Tests
+## 🟢 Terminé et fonctionnel
 
-Voir [TESTS.md](TESTS.md). Derniers résultats : unitaires 57/57 · base de données et sécurité 61/61 · E2E 9/9 · responsive 6/6 · accessibilité 3/3 · contrat des API réelles BOAMP et TED réussi.
+- Inscription avec confirmation d'e-mail, connexion, déconnexion, mot de passe oublié, double authentification ; rôles administrateur, modérateur, demandeur, fournisseur appliqués en base.
+- Entreprises : création, fiche (secteurs, compétences, zone, coordonnées, site, présentation), membres et invitations, multi-entreprises.
+- Besoins privés : publication en 6 étapes avec documents, modération, publication, expiration.
+- Réponses : intérêt, réponse (prix, délai, validité, documents), confidentialité, présélection, comparaison, décision, clôture ; pipeline fournisseur ; tableau de bord demandeur.
+- Messagerie et notifications en temps réel (lu / non lu, historique).
+- Alertes (secteur, zone, ville + rayon, type, compétences, taille, mots-clés, externes ou non ; immédiate, quotidienne, hebdomadaire), déclenchées par les publications et par les collectes.
+- Recommandations à score réel (sur 100) et explication « Pourquoi cette opportunité vous est proposée ».
+- Opportunités externes BOAMP et TED : collecte, normalisation, classification, déduplication entre sources, mise à jour, expiration, journal. Vérifié sur les API réelles : 361 opportunités bretonnes, dont 116 doublons TED rattachés à l'avis BOAMP.
+- Administration : vue d'ensemble, modération, opportunités, utilisateurs, entreprises, réponses (métadonnées), signalements, sources, synchronisations, secteurs et zones, e-mails, journal d'audit, paramètres.
+- E-mails : 15 modèles (HTML + texte), file d'envoi avec réessais. Chaîne complète testée via la boîte de test.
+- Séparation démo / réel : la production n'affiche que le réel et refuse le seed ; en staging, le réel et la démo sont affichés, la démo avec un indicateur clair.
+- Sécurité : voir [SECURITE.md](SECURITE.md) (audit final).
+- SEO, responsive (375 → 1440 px), accessibilité (axe-core WCAG 2.1 AA sur 23 pages).
+- Déploiement : migrations transactionnelles au build, supervision `/api/sante`, tâche planifiée, domaine `linkprob2b.fr` préparé, PR vers `main` ouverte.
 
-## Aperçu consultable
+## 🟡 À fournir
 
-Un aperçu statique (27 écrans, instantané du 6 octobre 2026, non interactif) est publié sur claude.ai. Il contient de vrais marchés publics bretons, collectés via BOAMP et TED, et les données de démonstration signalées. L'environnement de développement ne peut pas joindre Vercel ni ouvrir de tunnel public : l'application interactive nécessite le déploiement ci-dessous.
+1. **Compte Vercel et compte Supabase** : fusionner la PR, cliquer « Deploy with Vercel » et répondre aux 3 questions → URL de production permanente.
+2. **`RESEND_API_KEY`** : il me faut cette clé pour activer l'envoi réel des e-mails. Le reste est opérationnel.
+3. **Domaine `linkprob2b.fr`** : 2 enregistrements DNS (voir [DEPLOIEMENT.md](DEPLOIEMENT.md#domaine-linkprob2bfr)).
 
-## Pour obtenir l'URL de l'application interactive
+## 🔴 Bloqué par l'environnement
 
-1. Fusionner la branche `claude/zealous-archimedes-ui0kph` dans `main` (le bouton de déploiement copie la branche par défaut).
-2. Cliquer sur **Deploy with Vercel** dans le README, se connecter à Vercel puis à Supabase, et saisir `INITIAL_ADMIN_EMAIL`, `APP_ENV=staging` et `CRON_SECRET`.
+- Ce poste de développement ne peut pas joindre Vercel : le déploiement permanent nécessite vos comptes. L'application interactive tourne en attendant sur GitHub Actions.
 
-Les migrations, la sécurité et les référentiels s'installent au build. La collecte BOAMP et TED démarre à la première tâche planifiée, ou tout de suite via **Administration → Sources → Synchroniser maintenant**.
+## ⚖️ Validation juridique
+
+- Mentions légales, CGU et politique de confidentialité : compléter les éléments entre crochets et faire valider ([RGPD.md](RGPD.md)).
+- APProch : licence à confirmer (projets d'achats prévisionnels) ; source enregistrée, inactive.
