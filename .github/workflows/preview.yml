@@ -32,7 +32,8 @@ jobs:
     # la prévisualisation en cours à chaque commit). Toujours sur lancement manuel.
     if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[preview]')
     concurrency:
-      group: preview
+      # Groupe propre à chaque run ignoré : un commit sans [preview] ne coupe jamais la prévisualisation en cours.
+      group: ${{ (github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[preview]')) && 'preview' || format('preview-ignore-{0}', github.run_id) }}
       cancel-in-progress: true
     runs-on: ubuntu-latest
     timeout-minutes: 355
