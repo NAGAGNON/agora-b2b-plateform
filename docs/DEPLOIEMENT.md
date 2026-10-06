@@ -14,6 +14,17 @@ Garde-fous qui empêchent de mélanger les deux mondes :
 - Les alertes et e-mails ignorent toujours les opportunités de démonstration.
 - Les déploiements de prévisualisation **n'appliquent pas** les migrations, sauf `MIGRATIONS_ON_PREVIEW=1` (à ne définir que si l'environnement Preview pointe vers la base de staging).
 
+## Prévisualisation interactive immédiate (sans compte)
+
+Le workflow `.github/workflows/preview.yml` lance l'application complète sur un exécuteur GitHub et l'expose sur une URL publique `https://….trycloudflare.com` :
+- base, authentification, stockage et temps réel (Supabase) ;
+- marchés publics BOAMP et TED collectés en direct, puis synchronisés toutes les heures ;
+- boîte e-mail de test, qui affiche tous les e-mails envoyés ;
+- confirmation d'e-mail obligatoire ;
+- comptes de test.
+
+Lancement : à chaque commit dont le message contient `[preview]`, ou depuis **Actions → Prévisualisation → Run workflow**. L'URL est publiée dans l'onglet **Deployments** du dépôt et dans l'issue « Prévisualisation LinkProB2B ». Durée : 5 h 30 au plus ; les données sont effacées à l'arrêt. Ce n'est pas un hébergement de production.
+
 ## Mise en ligne en une action (bouton « Deploy »)
 
 Le bouton du [README](../README.md#mettre-en-ligne) ouvre Vercel et enchaîne :

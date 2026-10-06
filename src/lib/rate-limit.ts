@@ -5,10 +5,24 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { env } from "@/lib/env";
 import { logServerError } from "@/lib/errors";
 
+/**
+ * IP du client. Priorité aux en-têtes posés par l'infrastructure, que le client ne
+ * peut pas falsifier : Vercel (x-vercel-forwarded-for), Cloudflare (cf-connecting-ip).
+ * X-Forwarded-For n'est qu'un repli (réécrit par Vercel, mais falsifiable ailleurs).
+ */
+export function clientIp(h: Headers): string {
+  return (
+    h.get("x-vercel-forwarded-for")?.split(",")[0]?.trim() ||
+    h.get("cf-connecting-ip")?.trim() ||
+    h.get("x-real-ip")?.trim() ||
+    h.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    "unknown"
+  );
+}
+
 /** Identifiant client pseudonymisé (hash salé de l'IP) — l'IP n'est jamais stockée. */
 export async function clientFingerprint(): Promise<string> {
-  const h = await headers();
-  const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || "unknown";
+  const ip = clientIp(await headers());
   return createHash("sha256").update(env.rateLimitSalt + ip).digest("hex").slice(0, 32);
 }
 

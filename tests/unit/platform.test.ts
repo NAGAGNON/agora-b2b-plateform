@@ -90,3 +90,13 @@ describe("envoi d'e-mails", () => {
     expect(text).toContain("Voir : https://x.fr/?a=1&b=2");
   });
 });
+
+describe("limitation de débit : IP du client", () => {
+  it("préfère les en-têtes de l'infrastructure à X-Forwarded-For (falsifiable)", async () => {
+    const { clientIp } = await import("@/lib/rate-limit");
+    expect(clientIp(new Headers({ "x-forwarded-for": "1.1.1.1", "cf-connecting-ip": "2.2.2.2" }))).toBe("2.2.2.2");
+    expect(clientIp(new Headers({ "x-forwarded-for": "1.1.1.1", "x-vercel-forwarded-for": "3.3.3.3", "cf-connecting-ip": "2.2.2.2" }))).toBe("3.3.3.3");
+    expect(clientIp(new Headers({ "x-forwarded-for": "4.4.4.4, 10.0.0.1" }))).toBe("4.4.4.4");
+    expect(clientIp(new Headers())).toBe("unknown");
+  });
+});

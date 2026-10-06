@@ -28,5 +28,5 @@ test("espace connecté accessible", async ({ browser }) => {
 test("administration accessible", async ({ browser }) => {
   const page = await newPage(browser);
   await login(page, "admin@demo.linkprob2b.test");
-  for (const p of ["/admin", "/admin/moderation", "/admin/sources", "/admin/synchronisations", "/admin/referentiels", "/admin/reponses", "/admin/parametres"]) await audit(page, p);
+  for (const p of ["/admin", "/admin/moderation", "/admin/sources", "/admin/synchronisations", "/admin/referentiels", "/admin/reponses", "/admin/parametres", "/admin/emails"]) await audit(page, p);
 });

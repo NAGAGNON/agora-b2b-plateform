@@ -29,6 +29,24 @@
 | En-têtes | HSTS, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy` ; `noindex` sur les espaces privés |
 | Migrations | Transactionnelles, verrouillées, jamais exécutées depuis une branche de prévisualisation par défaut |
 
+## Audit final (6 octobre 2026, sur la base réelle)
+
+| Contrôle | Résultat |
+|---|---|
+| Tables publiques sans RLS | 0 / 34 |
+| Tables sans aucune politique (accès refusé à tous sauf serveur) | `email_outbox`, `rate_limits` — voulu |
+| Droits d'écriture du rôle anonyme sur des tables | aucun |
+| Fonctions `security definer` sans `search_path` fixé | 0 |
+| Fonctions privilégiées exécutables par le rôle anonyme | uniquement les 12 fonctions d'aide des politiques RLS et `track_event` (migration `20261010000001`) |
+| Fonctions internes (déclencheurs, alertes, file d'e-mails, premier administrateur) | réservées au serveur (`service_role`) |
+| Stockage | 4 buckets ; 3 privés (documents, réponses, pièces jointes) avec liste blanche MIME et 10 Mo ; logos publics 2 Mo, images uniquement ; écriture limitée aux membres concernés |
+| Pièces jointes et documents | téléchargement uniquement via l'application après contrôle des droits ; signature binaire vérifiée à l'envoi |
+| Réponses aux consultations | lisibles par le seul fournisseur et le demandeur ; l'administration ne voit que des métadonnées |
+| Conversations | lisibles par les deux entreprises participantes uniquement |
+| Limitation de débit | connexion 10 / 10 min, inscription 5 / h, mot de passe oublié 5 / h, contact ; actions métier limitées en base |
+| Secrets | uniquement en variables d'environnement ; aucun dans le dépôt ni dans les journaux (masqués dans GitHub Actions) |
+| Journaux | erreurs serveur sans données personnelles ; journal d'audit des actions sensibles |
+
 ## Tests de sécurité automatisés
 
 `tests/integration/security.test.ts` et les autres tests d'intégration vérifient sur une vraie base PostgreSQL :
@@ -38,7 +56,9 @@
 - la messagerie est limitée aux deux entreprises de la conversation ;
 - les fonctions d'administration refusent les utilisateurs ordinaires ;
 - le stockage refuse l'accès aux fichiers d'autrui ;
-- les données de démonstration sont exclues des alertes.
+- les données de démonstration sont exclues des alertes ;
+- le rôle anonyme ne peut exécuter aucune fonction métier privilégiée ;
+- les liens d'authentification sont à usage unique et ne sont jamais stockés.
 
 Voir [TESTS.md](TESTS.md).
 

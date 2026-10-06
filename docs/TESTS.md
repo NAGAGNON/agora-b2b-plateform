@@ -34,16 +34,17 @@ npx tsx --conditions=react-server scripts/replay-sources.ts journal.txt
 
 | Suite | Résultat |
 |---|---|
-| Unitaires | 57 / 57 |
-| Base de données et sécurité | 61 / 61 |
-| E2E : parcours, permissions, temps réel | 9 / 9 |
+| Unitaires | 58 / 58 |
+| Base de données, RLS et sécurité (dont e-mails d'authentification, alertes sur collecte) | 67 / 67 |
+| E2E : parcours, permissions, déconnexion | 8 / 8 |
+| Temps réel (messagerie, notifications) | 2 / 2 |
 | Responsive | 6 / 6 |
 | Accessibilité | 3 / 3 (22 pages) |
-| Contrat API réelles | BOAMP 200/200 exploitables (100 % avec date limite, 94 % classées) ; TED 200/200 exploitables en Bretagne (77 % avec date limite, 97 % classées) |
-| Lint, typage | 0 erreur |
+| Contrat API réelles | BOAMP et TED : réussi (GitHub Actions) |
+| Build, lint, typage | réussis |
 
 ## Ce que les tests ne couvrent pas
 
-- L'envoi effectif d'e-mails par Resend : sans clé API, la logique est testée avec un serveur simulé.
+- L'envoi effectif par Resend : sans clé API, la chaîne complète est testée avec une boîte de test (liens de confirmation et de réinitialisation réellement utilisés).
 - La collecte réelle **depuis Vercel** : elle est vérifiée depuis GitHub Actions, avec le même code.
 - Les performances sous charge et un audit d'accessibilité manuel (RGAA) : à prévoir avant l'ouverture large.

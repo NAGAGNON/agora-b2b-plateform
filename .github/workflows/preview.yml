@@ -115,6 +115,14 @@ jobs:
           printf "%-14s HTTP %s\n" "boîte e-mail" "$(curl -s -o /dev/null -w '%{http_code}' "$MAIL_URL/api/v1/info")" | tee -a verif.txt
           printf "%-14s HTTP %s\n" "API Supabase" "$(curl -s -o /dev/null -w '%{http_code}' "$API_URL_PUBLIC/auth/v1/health")" | tee -a verif.txt
 
+      - name: Tests E2E contre l'URL publique (temps réel, permissions, provenance)
+        continue-on-error: true
+        run: |
+          npx playwright install --with-deps chromium > /dev/null
+          E2E_BASE_URL="$APP_URL" npx playwright test tests/e2e/realtime.spec.ts tests/e2e/permissions.spec.ts -g "temps réel|sans rechargement|cloche|externe|démonstration|exigent" --reporter=line > e2e.txt 2>&1 || true
+          grep -E "[0-9]+ (passed|failed|flaky|skipped)" e2e.txt | tee e2e-summary.txt
+          [ -s e2e-summary.txt ] || tail -n 20 e2e.txt > e2e-summary.txt
+
       - name: Publier l'URL
         env:
           CLE_PUBLIQUE: ${{ inputs.cle_publique }}
@@ -146,6 +154,9 @@ jobs:
           $(cat verif.txt)
 
           $(cat sync.txt)
+
+          Tests E2E exécutés contre l'URL publique (temps réel, permissions, provenance) :
+          $(cat e2e-summary.txt 2>/dev/null)
           \`\`\`
           </details>
           EOF
