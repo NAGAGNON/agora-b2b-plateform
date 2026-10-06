@@ -74,7 +74,7 @@ export default async function ConversationPage(props: PageProps<"/dashboard/mess
                     <Paperclip className="size-3" aria-hidden /> {m.attachment_name ?? "Pièce jointe"}
                   </a>
                 )}
-                <p className={cn("mt-1 flex items-center justify-end gap-2 text-[11px]", mine ? "text-slate-300" : "text-slate-400")}>
+                <p className={cn("mt-1 flex items-center justify-end gap-2 text-[11px]", mine ? "text-slate-300" : "text-slate-500")}>
                   <time dateTime={m.created_at}>{formatDateTime(m.created_at)}</time>
                   {mine && <span>{m.read_at ? "· Lu" : "· Envoyé"}</span>}
                 </p>

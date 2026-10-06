@@ -2,7 +2,7 @@ import type { ComponentProps, ReactNode } from "react";
 import { cn } from "@/lib/cn";
 
 const control =
-  "block w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-[15px] text-navy placeholder:text-slate-400 shadow-sm transition focus:border-teal focus:outline-none focus:ring-2 focus:ring-teal/30 disabled:bg-slate-50 aria-[invalid=true]:border-red-500";
+  "block w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-[15px] text-navy placeholder:text-slate-500 shadow-sm transition focus:border-teal focus:outline-none focus:ring-2 focus:ring-teal/30 disabled:bg-slate-50 aria-[invalid=true]:border-red-500";
 
 export function Label({ className, ...props }: ComponentProps<"label">) {
   return <label className={cn("mb-1.5 block text-sm font-semibold text-navy", className)} {...props} />;

@@ -21,7 +21,7 @@ export function RemoveFavoriteButton({ target, id }: { target: "opportunity" | "
           router.refresh();
         })
       }
-      className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600"
+      className="rounded-lg p-2 text-slate-500 hover:bg-red-50 hover:text-red-600"
       aria-label="Retirer des favoris"
     >
       <Trash2 className="size-4" aria-hidden />
@@ -32,7 +32,7 @@ export function RemoveFavoriteButton({ target, id }: { target: "opportunity" | "
 export function DeleteSavedSearchButton({ id }: { id: string }) {
   const [pending, start] = useTransition();
   return (
-    <button type="button" disabled={pending} onClick={() => start(() => deleteSavedSearch(id))} className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600" aria-label="Supprimer la recherche">
+    <button type="button" disabled={pending} onClick={() => start(() => deleteSavedSearch(id))} className="rounded-lg p-2 text-slate-500 hover:bg-red-50 hover:text-red-600" aria-label="Supprimer la recherche">
       <Trash2 className="size-4" aria-hidden />
     </button>
   );
@@ -50,7 +50,7 @@ export function AlertControls({ id, active }: { id: string; active: boolean }) {
         type="button"
         disabled={pending}
         onClick={() => confirm("Supprimer cette alerte ?") && start(() => deleteAlert(id))}
-        className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600"
+        className="rounded-lg p-2 text-slate-500 hover:bg-red-50 hover:text-red-600"
         aria-label="Supprimer l'alerte"
       >
         <Trash2 className="size-4" aria-hidden />

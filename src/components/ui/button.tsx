@@ -6,7 +6,8 @@ type Variant = "primary" | "secondary" | "outline" | "ghost" | "danger" | "light
 type Size = "sm" | "md" | "lg";
 
 const variants: Record<Variant, string> = {
-  primary: "bg-teal text-white hover:bg-teal-600 shadow-sm",
+  // Texte marine sur teal : contraste 5,5:1 (le blanc sur #14B8A6 n'atteint que 2,5:1, insuffisant).
+  primary: "bg-teal text-navy hover:bg-teal-400 shadow-sm",
   secondary: "bg-navy text-white hover:bg-navy-700 shadow-sm",
   outline: "border border-slate-300 bg-white text-navy hover:border-navy hover:bg-sky",
   ghost: "text-navy hover:bg-sky",

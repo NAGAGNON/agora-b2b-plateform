@@ -53,12 +53,12 @@ export default async function MessagesPage() {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-baseline justify-between gap-2">
                       <p className={cn("truncate text-navy", unread ? "font-bold" : "font-semibold")}>{other?.name}</p>
-                      <span className="shrink-0 text-xs text-slate-400">{relativeTime(c.last_message_at)}</span>
+                      <span className="shrink-0 text-xs text-slate-500">{relativeTime(c.last_message_at)}</span>
                     </div>
                     <p className="truncate text-xs text-slate-500">{c.subject}</p>
                     {last && <p className="mt-1 truncate text-sm text-slate-600">{last.body}</p>}
                   </div>
-                  {unread > 0 && <span className="mt-1 rounded-full bg-teal px-2 text-xs font-bold text-white">{unread}</span>}
+                  {unread > 0 && <span className="mt-1 rounded-full bg-teal px-2 text-xs font-bold text-navy">{unread}</span>}
                 </Link>
               </li>
             );

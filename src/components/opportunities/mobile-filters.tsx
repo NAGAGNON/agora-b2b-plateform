@@ -20,7 +20,7 @@ export function MobileFilters({ children, count, action }: { children: ReactNode
             <a href={action} className="flex h-11 flex-1 items-center justify-center rounded-lg border border-slate-300 text-sm font-semibold text-navy">
               Réinitialiser
             </a>
-            <button type="submit" className="h-11 flex-[2] rounded-lg bg-teal text-sm font-semibold text-white">
+            <button type="submit" className="h-11 flex-[2] rounded-lg bg-teal text-sm font-semibold text-navy">
               Voir les résultats
             </button>
           </div>

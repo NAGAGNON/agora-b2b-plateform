@@ -58,25 +58,25 @@ export async function OpportunityCard({ o, headingLevel = 3 }: { o: OpportunityC
       <dl className="mt-auto grid gap-1.5 pt-4 text-sm text-slate-600">
         {(o.city || o.department_code) && (
           <div className="flex items-center gap-2">
-            <MapPin className="size-4 shrink-0 text-slate-400" aria-hidden />
+            <MapPin className="size-4 shrink-0 text-slate-500" aria-hidden />
             <dt className="sr-only">Localisation</dt>
             <dd>
               {o.city ?? ""}
               {o.department_code ? ` (${o.department_code})` : ""}
-              {o.distance_km != null && <span className="text-slate-400"> · {Math.round(o.distance_km)} km</span>}
+              {o.distance_km != null && <span className="text-slate-500"> · {Math.round(o.distance_km)} km</span>}
             </dd>
           </div>
         )}
         {o.sector_slug && (
           <div className="flex items-center gap-2">
-            <Tag className="size-4 shrink-0 text-slate-400" aria-hidden />
+            <Tag className="size-4 shrink-0 text-slate-500" aria-hidden />
             <dt className="sr-only">Secteur</dt>
             <dd>{sectorLabel(o.sector_slug, await getSectorLabels())}</dd>
           </div>
         )}
         {deadline && (
           <div className="flex items-center gap-2">
-            <CalendarClock className="size-4 shrink-0 text-slate-400" aria-hidden />
+            <CalendarClock className="size-4 shrink-0 text-slate-500" aria-hidden />
             <dt className="sr-only">Échéance</dt>
             <dd className={deadline.startsWith("Encore") || deadline === "Dernier jour" ? "font-semibold text-navy" : undefined}>{deadline}</dd>
           </div>

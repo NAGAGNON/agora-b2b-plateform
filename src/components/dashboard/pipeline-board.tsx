@@ -146,7 +146,7 @@ export function PipelineBoard({ items }: { items: PipelineCard[] }) {
                               router.refresh();
                             });
                           }}
-                          className="rounded p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600"
+                          className="rounded p-1.5 text-slate-500 hover:bg-red-50 hover:text-red-600"
                           aria-label="Retirer du pipeline"
                         >
                           <Trash2 className="size-4" aria-hidden />

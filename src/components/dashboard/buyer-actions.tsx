@@ -271,7 +271,7 @@ export function DeleteDocumentButton({ docId, opportunityId }: { docId: string; 
       type="button"
       disabled={pending}
       aria-label="Supprimer le document"
-      className="rounded p-1 text-slate-400 hover:text-red-600"
+      className="rounded p-1 text-slate-500 hover:text-red-600"
       onClick={() => {
         if (!confirm("Supprimer ce document ?")) return;
         start(async () => {

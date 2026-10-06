@@ -90,7 +90,7 @@ export default async function AdminReferencesPage() {
           <ul className="mt-2 grid gap-1 sm:grid-cols-2 lg:grid-cols-3">
             {[...regions.entries()].sort().map(([r, n]) => (
               <li key={r} className="text-slate-600">
-                {r} <span className="text-slate-400">({n})</span>
+                {r} <span className="text-slate-500">({n})</span>
               </li>
             ))}
           </ul>

@@ -202,7 +202,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
                       <div className="flex items-center gap-3 text-sm">
                         {p.price_amount != null && <span className="font-semibold text-navy">{formatMoney(p.price_amount)}</span>}
                         <StatusBadge kind="proposal" status={p.status} />
-                        <span className="text-xs text-slate-400">{relativeTime(p.submitted_at)}</span>
+                        <span className="text-xs text-slate-500">{relativeTime(p.submitted_at)}</span>
                       </div>
                     </li>
                   );

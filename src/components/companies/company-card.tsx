@@ -61,7 +61,7 @@ export async function CompanyCard({ c }: { c: CompanyCardData }) {
       {c.skills.length > 0 && <p className="mt-3 line-clamp-2 text-xs text-slate-500">{c.skills.slice(0, 6).join(" · ")}</p>}
       {c.city && (
         <p className="mt-auto flex items-center gap-1.5 pt-4 text-sm text-slate-600">
-          <MapPin className="size-4 text-slate-400" aria-hidden />
+          <MapPin className="size-4 text-slate-500" aria-hidden />
           {c.city}
           {c.department_code ? ` (${c.department_code})` : ""}
         </p>

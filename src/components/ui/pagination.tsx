@@ -40,7 +40,7 @@ export function Pagination({
       ) : null}
       {pages.map((p, i) =>
         p === "…" ? (
-          <span key={`e${i}`} className={cn(item, "text-slate-400")} aria-hidden>
+          <span key={`e${i}`} className={cn(item, "text-slate-500")} aria-hidden>
             …
           </span>
         ) : (

@@ -52,7 +52,7 @@ export function DashboardNav({ unreadMessages = 0 }: { unreadMessages?: number }
               >
                 <l.icon className="size-4" aria-hidden />
                 {l.label}
-                {l.href === "/dashboard/messages" && unreadMessages > 0 && <span className="rounded-full bg-teal px-1.5 text-[11px] text-white">{unreadMessages}</span>}
+                {l.href === "/dashboard/messages" && unreadMessages > 0 && <span className="rounded-full bg-teal px-1.5 text-[11px] font-bold text-navy">{unreadMessages}</span>}
               </Link>
             </li>
           ))}
@@ -60,7 +60,7 @@ export function DashboardNav({ unreadMessages = 0 }: { unreadMessages?: number }
       </nav>
       {/* Desktop : panneau latéral */}
       <nav aria-label="Mon espace" className="hidden lg:block">
-        <Link href="/publier" className="mb-4 flex h-11 items-center justify-center gap-2 rounded-lg bg-teal text-sm font-semibold text-white hover:bg-teal-600">
+        <Link href="/publier" className="mb-4 flex h-11 items-center justify-center gap-2 rounded-lg bg-teal text-sm font-semibold text-navy hover:bg-teal-400">
           <PlusCircle className="size-4" aria-hidden /> Publier un besoin
         </Link>
         <ul className="space-y-0.5">
@@ -76,7 +76,7 @@ export function DashboardNav({ unreadMessages = 0 }: { unreadMessages?: number }
               >
                 <l.icon className="size-4" aria-hidden />
                 <span className="flex-1">{l.label}</span>
-                {l.href === "/dashboard/messages" && unreadMessages > 0 && <span className="rounded-full bg-teal px-1.5 text-[11px] text-white">{unreadMessages}</span>}
+                {l.href === "/dashboard/messages" && unreadMessages > 0 && <span className="rounded-full bg-teal px-1.5 text-[11px] font-bold text-navy">{unreadMessages}</span>}
               </Link>
             </li>
           ))}

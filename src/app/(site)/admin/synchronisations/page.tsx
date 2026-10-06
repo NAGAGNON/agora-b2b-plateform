@@ -86,7 +86,7 @@ export default async function SyncRunsPage() {
                   </ul>
                 </details>
               ) : (
-                <span className="text-xs text-slate-400">—</span>
+                <span className="text-xs text-slate-500">—</span>
               );
             },
           },

@@ -85,7 +85,7 @@ export async function Header() {
               >
                 <MessageSquare className="size-5" aria-hidden />
                 {unreadMessages > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 flex min-w-5 items-center justify-center rounded-full bg-teal px-1 text-[11px] font-bold text-white">
+                  <span className="absolute -top-0.5 -right-0.5 flex min-w-5 items-center justify-center rounded-full bg-teal px-1 text-[11px] font-bold text-navy">
                     {unreadMessages > 99 ? "99+" : unreadMessages}
                   </span>
                 )}

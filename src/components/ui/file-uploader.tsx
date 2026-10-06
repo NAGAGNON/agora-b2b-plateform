@@ -75,7 +75,7 @@ export function FileUploader({
               <FileText className="size-4 shrink-0 text-slate-500" aria-hidden />
               <span className="min-w-0 flex-1 truncate">{f.name}</span>
               <span className="text-xs text-slate-500">{formatBytes(f.size)}</span>
-              <button type="button" onClick={() => sync(files.filter((_, j) => j !== i))} className="rounded p-1 text-slate-400 hover:text-red-600" aria-label={`Retirer ${f.name}`}>
+              <button type="button" onClick={() => sync(files.filter((_, j) => j !== i))} className="rounded p-1 text-slate-500 hover:text-red-600" aria-label={`Retirer ${f.name}`}>
                 <X className="size-4" aria-hidden />
               </button>
             </li>

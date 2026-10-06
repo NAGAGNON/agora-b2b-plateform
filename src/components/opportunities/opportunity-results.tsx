@@ -46,7 +46,7 @@ export async function OpportunityResults({ filters, rawParams, basePath }: { fil
             <a href={basePath} className="flex h-11 flex-1 items-center justify-center rounded-lg border border-slate-300 text-sm font-semibold text-navy hover:bg-sky">
               Effacer
             </a>
-            <button type="submit" className="h-11 flex-[2] rounded-lg bg-teal text-sm font-semibold text-white hover:bg-teal-600">
+            <button type="submit" className="h-11 flex-[2] rounded-lg bg-teal text-sm font-semibold text-navy hover:bg-teal-400">
               Appliquer
             </button>
           </div>

@@ -59,7 +59,7 @@ export function NotificationCenter({ items, unread }: { items: NotificationItem[
                   <>
                     <p className={cn("text-sm text-navy", !n.read_at && "font-semibold")}>{n.title}</p>
                     {n.body && <p className="mt-0.5 line-clamp-2 text-xs text-slate-600">{n.body}</p>}
-                    <p className="mt-1 text-[11px] text-slate-400">{relativeTime(n.created_at)}</p>
+                    <p className="mt-1 text-[11px] text-slate-500">{relativeTime(n.created_at)}</p>
                   </>
                 );
                 return (

@@ -13,7 +13,7 @@ export async function SearchBar({ defaults = {} }: { defaults?: { q?: string; se
             Que recherchez-vous ?
           </label>
           <div className="relative">
-            <Search className="pointer-events-none absolute top-1/2 left-3 size-5 -translate-y-1/2 text-slate-400" aria-hidden />
+            <Search className="pointer-events-none absolute top-1/2 left-3 size-5 -translate-y-1/2 text-slate-500" aria-hidden />
             <input id="hero-q" name="q" defaultValue={defaults.q} placeholder="Que recherchez-vous ?" className={`${field} pl-10`} />
           </div>
         </div>
@@ -56,7 +56,7 @@ export async function SearchBar({ defaults = {} }: { defaults?: { q?: string; se
             ))}
           </select>
         </div>
-        <button type="submit" className="flex h-12 items-center justify-center gap-2 rounded-xl bg-teal px-6 font-semibold text-white hover:bg-teal-600">
+        <button type="submit" className="flex h-12 items-center justify-center gap-2 rounded-xl bg-teal px-6 font-semibold text-navy hover:bg-teal-400">
           <Search className="size-5" aria-hidden /> Rechercher
         </button>
       </div>

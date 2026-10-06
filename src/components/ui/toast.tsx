@@ -29,7 +29,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           >
             {t.tone === "success" ? <CheckCircle2 className="size-5 shrink-0 text-teal-600" aria-hidden /> : <XCircle className="size-5 shrink-0 text-red-600" aria-hidden />}
             <p className="flex-1 text-navy">{t.message}</p>
-            <button type="button" onClick={() => setToasts((x) => x.filter((y) => y.id !== t.id))} aria-label="Fermer la notification" className="text-slate-400 hover:text-navy">
+            <button type="button" onClick={() => setToasts((x) => x.filter((y) => y.id !== t.id))} aria-label="Fermer la notification" className="text-slate-500 hover:text-navy">
               <X className="size-4" aria-hidden />
             </button>
           </div>

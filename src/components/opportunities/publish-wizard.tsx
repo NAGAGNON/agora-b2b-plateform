@@ -182,7 +182,7 @@ export function PublishWizard({
               <span
                 className={cn(
                   "flex size-8 items-center justify-center rounded-full text-sm font-bold",
-                  i < step ? "bg-teal text-white" : i === step ? "bg-navy text-white" : "bg-slate-200 text-slate-500",
+                  i < step ? "bg-teal text-navy" : i === step ? "bg-navy text-white" : "bg-slate-200 text-slate-500",
                 )}
               >
                 {i < step ? <Check className="size-4" aria-hidden /> : i + 1}

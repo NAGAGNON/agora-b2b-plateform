@@ -68,7 +68,7 @@ export default async function AdminUsers(props: PageProps<"/admin/utilisateurs">
           { key: "role", header: "Rôle", cell: (u) => <RoleSelect id={u.id} role={u.platform_role} canEdit={u.id !== session.userId} /> },
           { key: "status", header: "Statut", cell: (u) => <StatusBadge kind="account" status={u.status} /> },
           { key: "dates", header: "Inscription / activité", hideOnMobile: true, cell: (u) => <span className="text-xs">{formatDate(u.created_at)}<br />{u.last_seen_at ? relativeTime(u.last_seen_at) : "—"}</span> },
-          { key: "actions", header: "Actions", cell: (u) => (u.id !== session.userId ? <StatusWithReason kind="user" id={u.id} current={u.status} /> : <span className="text-xs text-slate-400">Vous</span>) },
+          { key: "actions", header: "Actions", cell: (u) => (u.id !== session.userId ? <StatusWithReason kind="user" id={u.id} current={u.status} /> : <span className="text-xs text-slate-500">Vous</span>) },
         ]}
       />
       <Pagination page={page} pageCount={Math.ceil((count ?? 0) / PER)} basePath="/admin/utilisateurs" params={sp} />

@@ -28,6 +28,7 @@ import { SearchBar } from "@/components/opportunities/search-bar";
 import { OpportunityCard } from "@/components/opportunities/opportunity-card";
 import { ButtonLink } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/states";
+import { Notice } from "@/components/ui/notice";
 import { recentOpportunities } from "@/lib/queries/opportunities";
 import { getSectors } from "@/lib/queries/platform";
 import { pageMetadata } from "@/lib/seo";
@@ -58,10 +59,16 @@ const SECTOR_ICONS: Record<string, typeof Wrench> = {
   conseil: Lightbulb,
 };
 
-export default async function HomePage() {
+export default async function HomePage(props: PageProps<"/">) {
+  const sp = await props.searchParams;
   const [recent, sectors] = await Promise.all([recentOpportunities(6), getSectors()]);
   return (
     <>
+      {sp.compte === "supprime" && (
+        <div className="container-page pt-4">
+          <Notice tone="success">Votre compte a été supprimé. Vos données personnelles ont été effacées.</Notice>
+        </div>
+      )}
       {/* Hero */}
       <section className="relative overflow-hidden bg-navy text-white">
         <svg aria-hidden className="pointer-events-none absolute inset-0 h-full w-full" preserveAspectRatio="none" viewBox="0 0 1440 600">
@@ -90,7 +97,7 @@ export default async function HomePage() {
           </div>
           <div className="mt-6 grid max-w-3xl gap-3 sm:grid-cols-2">
             <Link href="/entreprises" className="group flex items-center gap-3 rounded-xl bg-white/10 p-4 ring-1 ring-white/15 transition hover:bg-white/15">
-              <span className="flex size-10 items-center justify-center rounded-lg bg-teal text-white">
+              <span className="flex size-10 items-center justify-center rounded-lg bg-teal text-navy">
                 <Search className="size-5" aria-hidden />
               </span>
               <span className="flex-1">
@@ -159,7 +166,7 @@ export default async function HomePage() {
                     href={`/opportunites/${s.slug}`}
                     className="flex h-full items-center gap-3 rounded-xl border border-white bg-white p-4 shadow-sm transition hover:border-teal hover:shadow-md"
                   >
-                    <span className={`flex size-11 shrink-0 items-center justify-center rounded-lg ${i === 0 ? "bg-teal text-white" : "bg-sky text-navy"}`}>
+                    <span className={`flex size-11 shrink-0 items-center justify-center rounded-lg ${i === 0 ? "bg-teal text-navy" : "bg-sky text-navy"}`}>
                       <Icon className="size-5" aria-hidden />
                     </span>
                     <span className="font-semibold text-navy">{s.label}</span>

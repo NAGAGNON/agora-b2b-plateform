@@ -13,10 +13,12 @@ Navigateur ──HTTPS──▶ Next.js 16 (Vercel)
                         ├─ Auth : e-mail / mot de passe, confirmation, réinitialisation, TOTP
                         └─ Storage : 4 buckets (logos publics ; documents, réponses, pièces jointes privés)
 Navigateur ──URL signée──▶ Storage (envoi direct des fichiers, après contrôle des droits)
-Vercel Cron (quotidien) ──▶ /api/cron/quotidien : expiration, résumés d'alertes, file d'e-mails ──▶ Resend
+Navigateur ◀──WebSocket── Realtime (nouveaux messages, notifications ; filtrés par la RLS)
+Vercel Cron (quotidien) ──▶ /api/cron/quotidien : collecte BOAMP/TED, expiration, résumés d'alertes, file d'e-mails ──▶ Resend
+Build (production) ──▶ scripts/migrate.mjs : migrations SQL transactionnelles
 ```
 
-**Principe de sécurité** : le navigateur ne reçoit aucune clé capable de lire des données. Toutes les lectures et écritures passent par le serveur Next.js, avec la session de l'utilisateur, et sont donc soumises à la RLS. La clé publishable n'est transmise au navigateur que pour l'envoi d'un fichier via une URL signée déjà autorisée. La clé secrète n'est utilisée que dans du code serveur de confiance : tâches planifiées, suppression de compte, formulaire de contact, limitation de débit.
+**Principe de sécurité** : toutes les lectures et écritures de données passent par le serveur Next.js, avec la session de l'utilisateur, et sont donc soumises à la RLS. La clé publishable (publique par conception) est transmise au navigateur pour l'envoi d'un fichier via une URL signée déjà autorisée et pour l'abonnement temps réel, lui aussi filtré par la RLS. La clé secrète n'est utilisée que dans du code serveur de confiance : tâches planifiées, suppression de compte, formulaire de contact, limitation de débit.
 
 ## Modèle de données (PostgreSQL)
 
@@ -66,12 +68,13 @@ DRAFT → PENDING_REVIEW → PUBLISHED → CLOSED / EXPIRED → ARCHIVED
 
 ## Opportunités externes
 
-- Origine `EXTERNAL`, types `EXTERNAL_OPPORTUNITY` ou `PUBLIC_TENDER` (contrainte en base).
-- Création uniquement via `admin_create_external_opportunity`, et seulement depuis une source au statut `APPROVED`.
-- Une source ne passe à `APPROVED` qu'avec confirmation explicite de la validation juridique et technique ; cette confirmation est journalisée.
-- BOAMP et TED sont enregistrées au statut « Validation juridique en cours ». **Aucune importation automatique, aucun scraping.**
-- La fiche affiche le badge « Opportunité externe », la source, la référence, les dates de publication, de référencement et de vérification, et le bouton « Consulter l'annonce sur le site source » (redirection `/go/[id]`, clic compté de façon agrégée). Aucun bouton de candidature interne n'est proposé.
-- Suspendre une source retire de la publication les opportunités qui en proviennent.
+- Origine `EXTERNAL`, types `EXTERNAL_OPPORTUNITY` ou `PUBLIC_TENDER` (contrainte en base). Il est impossible de les confondre avec une demande publiée sur LinkProB2B : badge « Opportunité externe » / « Marché public », bloc « Source : BOAMP · Référence · Date », bouton **« Consulter l'annonce originale »**, aucun bouton de candidature interne.
+- Collecte automatique (`src/lib/collect/`) **uniquement** pour les sources au statut `APPROVED` dont les conditions de réutilisation ont été vérifiées (voir [SOURCES-EXTERNES.md](SOURCES-EXTERNES.md)) : BOAMP (API Opendatasoft de la DILA) et TED (API de recherche v3). Aucun scraping.
+- Chaîne de traitement : **collecte** (connecteur par source, pagination, fenêtre incrémentale depuis la dernière synchronisation réussie) → **normalisation** (titre, acheteur, dates, département, CPV, URL d'origine) → **classification** (CPV puis mots-clés, règle explicable) → **déduplication** → **publication** → **mise à jour** (empreinte du contenu ; annulation à la source → archivage) → **expiration**.
+- Déduplication : même `(source, identifiant externe)` = mise à jour ; même acheteur normalisé + même date limite + titres similaires (Jaccard ≥ 0,5) provenant d'une **autre** source = même consultation, la source est rattachée comme secondaire (« Également publiée sur… »).
+- Expiration : date limite dépassée → « EXPIRÉE » immédiatement à l'affichage, statut `EXPIRED` par la tâche quotidienne ; annonce externe sans date limite non revérifiée depuis 60 jours → expirée.
+- Chaque exécution est journalisée dans `source_sync_runs` (lus, créés, mis à jour, inchangés, doublons, ignorés, expirés, erreurs) ; l'administration permet de synchroniser, tester (échantillon sans écriture) et régler chaque source.
+- Le référencement manuel reste possible (`admin_create_external_opportunity`), toujours depuis une source approuvée. Suspendre une source retire ses opportunités de la publication.
 
 ## Recherche
 
@@ -82,7 +85,7 @@ DRAFT → PENDING_REVIEW → PUBLISHED → CLOSED / EXPIRED → ARCHIVED
 - la distance (formule de Haversine depuis une commune de référence) ;
 - le tri (récentes, échéance, pertinence, distance) et la pagination.
 
-Les recommandations (`recommended_opportunities`) sont explicables : secteur, département et compétences communes, affichés en badges. Il n'y a pas d'IA opaque.
+Les recommandations (`recommended_opportunities`) sont explicables : score sur 100 (secteur 30, zone d'intervention 25 ou département 15, compétences communes jusqu'à 30, mots-clés 10, historique favoris/intérêts 10, taille visée 5), raisons affichées sous « Pourquoi cette opportunité vous est proposée » et barème public dans **Recommandations**. Il n'y a pas d'IA opaque.
 
 ## Fichiers
 
@@ -91,39 +94,21 @@ Les recommandations (`recommended_opportunities`) sont explicables : secteur, d�
 3. Le serveur relit le fichier, contrôle sa **signature binaire** (PDF, PNG, JPEG, Office, OpenDocument), supprime tout fichier invalide, puis l'enregistre.
 4. Les téléchargements passent par `/api/fichiers/...` avec la session de l'utilisateur : double contrôle, sur la table des métadonnées et sur le stockage.
 
-## Notifications et e-mails
+## Notifications, e-mails et temps réel
 
-- Les notifications internes sont créées en base par les RPC et déclencheurs : intérêt reçu, réponse reçue, décision, message, statut de modération, alerte…
-- Les e-mails sont mis en file (`email_outbox`). Ils partent juste après l'action (`after()`) si Resend est configuré, sinon lors de la tâche quotidienne. Sans fournisseur configuré, ils sont marqués `SKIPPED` : rien n'est envoyé.
-- Alertes : immédiates (à la publication), quotidiennes ou hebdomadaires (résumé). Chaque résumé contient un lien de désabonnement en un clic, avec une confirmation pour éviter les désinscriptions par préchargement.
+- Les notifications internes sont créées en base par les RPC et déclencheurs : intérêt reçu, réponse reçue, décision, sélection, message, statut de modération, clôture, alerte…
+- **Temps réel** : un client Supabase navigateur (clé publique + session, donc soumis à la RLS) s'abonne aux tables `messages` et `notifications` (publication `supabase_realtime`). À chaque événement, la page est re-rendue côté serveur (`router.refresh()`) : nouveaux messages, accusés de lecture et cloche de notifications sans rechargement. Indicateur « En direct » dans la conversation.
+- **E-mails d'authentification** (confirmation d'inscription, réinitialisation du mot de passe, bienvenue) : Supabase génère un jeton à usage unique (`admin.generateLink`), l'application envoie l'e-mail via Resend. Le jeton n'est jamais stocké.
+- **E-mails de notification** : file `email_outbox` ; envoi juste après l'action (`after()`) puis par la tâche quotidienne ; 5 tentatives au plus pour les erreurs temporaires (réseau, 429, 5xx), clé d'idempotence. Gabarits HTML + texte. Sans fournisseur configuré, statut `SKIPPED`.
+- Alertes : secteur, département ou **ville + rayon**, type, compétences, taille d'entreprise, mots-clés, inclusion ou non des opportunités externes ; fréquence immédiate, quotidienne ou hebdomadaire ; désabonnement en un clic.
 
 ## Sécurité
 
-| Mesure | Mise en œuvre |
-|---|---|
-| Authentification | Supabase Auth, mots de passe ≥ 10 caractères, confirmation par e-mail, TOTP (obligatoire pour l'administration si le paramètre est activé) |
-| Autorisation | RLS sur 100 % des tables publiques, droits `UPDATE` limités par colonne, RPC security definer avec contrôle explicite des droits |
-| Validation | zod côté serveur sur toutes les Server Actions ; contraintes `CHECK` en base |
-| Injections | Requêtes paramétrées (PostgREST / RPC), aucune concaténation SQL ; filtres de recherche nettoyés |
-| XSS | Rendu React échappé, aucun `dangerouslySetInnerHTML`, CSP stricte (`default-src 'self'`, `frame-ancestors 'none'`, `object-src 'none'`) |
-| CSRF | Server Actions protégées par Next.js (vérification d'origine) ; cookies de session `SameSite=Lax` |
-| Fichiers | Liste blanche MIME, 10 Mo maximum, signature binaire vérifiée, noms nettoyés, buckets privés |
-| Limitation de débit | Connexion, inscription, mot de passe oublié, contact (empreinte d'IP salée et hachée) ; actions métier limitées par utilisateur en base |
-| Redirections | Paramètre `suite` limité aux chemins internes ; redirection externe uniquement vers les URL de sources enregistrées |
-| Erreurs | Messages génériques côté client, détails uniquement dans les journaux serveur |
-| Journalisation | `audit_logs` (modération, administration, entreprises, réponses, clôtures, suppressions de compte) |
-| En-têtes | HSTS, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy` ; `noindex` sur les espaces privés |
+Voir [SECURITE.md](SECURITE.md).
 
 ## RGPD
 
-- Export des données personnelles (JSON) et suppression du compte en libre-service.
-- Lors de la suppression, une entreprise dont l'utilisateur est le seul membre est supprimée avec lui ; sinon, le rôle d'administrateur est transmis au membre le plus ancien.
-- Minimisation :
-  - analytics sans IP ni cookie ;
-  - limitation de débit par empreinte hachée, purgée régulièrement (fenêtres de plus de 2 jours) ;
-  - coordonnées des entreprises visibles des seuls membres connectés.
-- Cookies : uniquement des cookies strictement nécessaires (session, entreprise active). Aucun bandeau n'est requis tant qu'aucun traceur non essentiel n'est ajouté.
-- Les pages légales sont des modèles à compléter et à faire valider.
+Voir [RGPD.md](RGPD.md).
 
 ## Analytics (événements)
 
@@ -141,6 +126,8 @@ Les KPI sont calculés en temps réel par `admin_stats` dans **Administration �
 
 ## Choix notables
 
-- **Pas de client Supabase dans le navigateur** : surface d'attaque réduite et une seule origine. Le navigateur ne contacte le stockage que pour envoyer un fichier via URL signée.
+- **Données lues et écrites par le serveur** : le navigateur ne contacte Supabase que pour envoyer un fichier (URL signée) et recevoir les événements temps réel (clé publique, RLS). Aucune lecture de données métier côté client.
+- **Secteurs administrables** : la table `sectors` est la référence (formulaires, filtres, SEO, classification) ; ajout et désactivation dans **Administration → Référentiels**.
+- **Environnements** : `APP_ENV` (development, staging, production) ; voir [DEPLOIEMENT.md](DEPLOIEMENT.md).
 - **Logique métier en base** : les règles critiques (transitions, droits, notifications, journal) ne dépendent pas de l'interface et sont testées directement sur la base (`tests/integration`).
 - **Pages SEO secteur et département** (`/opportunites/maintenance-industrielle`, `/opportunites/finistere`, `/entreprises/<secteur>/<departement>`) : indexées seulement si elles ont du contenu réel. Les combinaisons de filtres ne sont pas indexées, et les données de démonstration sont exclues du sitemap.

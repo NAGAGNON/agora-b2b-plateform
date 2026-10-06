@@ -19,7 +19,8 @@ export function Logo({ variant = "color", className, withTagline = false }: { va
   return (
     <span className={cn("inline-flex items-center gap-2", className)}>
       <Image src={variant === "white" ? "/brand/logo-mark-white.png" : "/brand/logo-mark.png"} alt="" width={210} height={152} className="h-8 w-auto" priority />
-      <span className={cn("font-heading text-xl font-extrabold tracking-tight", variant === "white" ? "text-white" : "text-navy")}>
+      {/* Logotype (exempté des exigences de contraste, WCAG 1.4.3), nommé par le lien parent. */}
+      <span aria-hidden="true" className={cn("font-heading text-xl font-extrabold tracking-tight", variant === "white" ? "text-white" : "text-navy")}>
         LinkPro<span className="text-teal">B2B</span>
       </span>
     </span>
