@@ -20,7 +20,13 @@ function required(value: string | undefined, label: string): string {
  * toutes les requêtes passent par le serveur Next.js (Server Components,
  * Server Actions, Route Handlers).
  */
+export type AppEnv = "development" | "staging" | "production";
+
 export const env = {
+  /** Configuration publique du temps réel (URL et clé publique, protégées par RLS). */
+  get realtime() {
+    return { url: env.supabaseUrl, key: env.supabasePublishableKey };
+  },
   get supabaseUrl() {
     return required(pick("SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_URL"), "SUPABASE_URL");
   },
@@ -34,9 +40,33 @@ export const env = {
     return required(pick("SUPABASE_SECRET_KEY", "SUPABASE_SERVICE_ROLE_KEY"), "SUPABASE_SECRET_KEY");
   },
   get siteUrl() {
-    return (pick("SITE_URL", "NEXT_PUBLIC_SITE_URL") ?? "http://localhost:3000").replace(/\/$/, "");
+    const explicit = pick("SITE_URL", "NEXT_PUBLIC_SITE_URL");
+    if (explicit) return explicit.replace(/\/$/, "");
+    // Vercel : domaine de production, sinon URL du déploiement (prévisualisation).
+    const vercel = process.env.VERCEL_ENV === "production" ? pick("VERCEL_PROJECT_PRODUCTION_URL") : pick("VERCEL_BRANCH_URL", "VERCEL_URL");
+    return vercel ? `https://${vercel}` : "http://localhost:3000";
+  },
+  /**
+   * Environnement applicatif : development (poste local), staging (prévisualisation,
+   * données de démonstration autorisées) ou production (données réelles uniquement).
+   * APP_ENV prime ; à défaut, déduit de VERCEL_ENV.
+   */
+  get appEnv(): AppEnv {
+    const v = pick("APP_ENV");
+    if (v === "production" || v === "staging" || v === "development") return v;
+    if (process.env.VERCEL_ENV === "production") return "production";
+    if (process.env.VERCEL_ENV === "preview") return "staging";
+    return "development";
+  },
+  get isProduction() {
+    return env.appEnv === "production";
+  },
+  /** Adresse du premier super-administrateur (promu automatiquement à sa première connexion). */
+  get initialAdminEmail() {
+    return pick("INITIAL_ADMIN_EMAIL")?.toLowerCase();
   },
   get cronSecret() {
+    // Sur Vercel, CRON_SECRET est fourni à la tâche planifiée ; sans lui, /api/cron est fermé.
     return pick("CRON_SECRET");
   },
   get resendApiKey() {
@@ -46,6 +76,7 @@ export const env = {
     return pick("EMAIL_FROM") ?? "LinkProB2B <notifications@example.com>";
   },
   get rateLimitSalt() {
-    return pick("RATE_LIMIT_SALT") ?? "linkprob2b-dev-salt";
+    // À défaut de sel dédié, dérivé de la clé secrète (jamais exposée) pour rester imprévisible.
+    return pick("RATE_LIMIT_SALT") ?? pick("SUPABASE_SECRET_KEY", "SUPABASE_SERVICE_ROLE_KEY")?.slice(-24) ?? "linkprob2b-dev-salt";
   },
 };

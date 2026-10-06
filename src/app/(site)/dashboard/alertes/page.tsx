@@ -1,18 +1,19 @@
 import { BellRing } from "lucide-react";
 import { requireSession } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { getDepartments } from "@/lib/queries/platform";
+import { getDepartments, getSectors, getSectorLabels } from "@/lib/queries/platform";
 import { Card, CardHeader } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/states";
 import { Badge } from "@/components/ui/badge";
 import { AlertForm } from "@/components/dashboard/alert-form";
 import { AlertControls } from "@/components/dashboard/small-actions";
-import { ALERT_FREQUENCY_LABELS, OPPORTUNITY_TYPE_LABELS, SECTOR_LABELS } from "@/lib/constants";
+import { ALERT_FREQUENCY_LABELS, OPPORTUNITY_TYPE_LABELS, sectorLabel } from "@/lib/constants";
 import { formatDateTime } from "@/lib/format";
 
 export const metadata = { title: "Alertes" };
 
 export default async function AlertsPage(props: PageProps<"/dashboard/alertes">) {
+  const sectorLabels = await getSectorLabels();
   const session = await requireSession("/dashboard/alertes");
   const sp = await props.searchParams;
   const supabase = await createClient();
@@ -33,7 +34,7 @@ export default async function AlertsPage(props: PageProps<"/dashboard/alertes">)
       <Card>
         <CardHeader title="Nouvelle alerte" />
         <div className="p-5">
-          <AlertForm departments={departments} defaults={{ secteur: str(sp.secteur), departement: str(sp.departement), type: str(sp.type), motscles: str(sp.motscles) }} />
+          <AlertForm departments={departments} sectors={await getSectors()} defaults={{ secteur: str(sp.secteur), departement: str(sp.departement), type: str(sp.type), motscles: str(sp.motscles) }} />
         </div>
       </Card>
       <Card>
@@ -50,7 +51,7 @@ export default async function AlertsPage(props: PageProps<"/dashboard/alertes">)
                   <p className="font-semibold text-navy">{a.name}</p>
                   <div className="mt-1 flex flex-wrap gap-1.5">
                     <Badge tone="navy">{ALERT_FREQUENCY_LABELS[a.frequency]}</Badge>
-                    {a.sector_slug && <Badge tone="sky">{SECTOR_LABELS[a.sector_slug]}</Badge>}
+                    {a.sector_slug && <Badge tone="sky">{sectorLabel(a.sector_slug, sectorLabels)}</Badge>}
                     {a.department_code && <Badge tone="sky">Dép. {a.department_code}</Badge>}
                     {a.type && <Badge tone="sky">{OPPORTUNITY_TYPE_LABELS[a.type]}</Badge>}
                     {a.keywords && <Badge tone="slate">« {a.keywords} »</Badge>}

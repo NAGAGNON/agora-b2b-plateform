@@ -5,7 +5,7 @@ import { createCompany, updateCompanyProfile } from "@/app/actions/company";
 import { Checkbox, Field, Input, Select, Textarea } from "@/components/ui/form";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { Notice } from "@/components/ui/notice";
-import { COMPANY_KIND_LABELS, COMPANY_SIZE_LABELS, SECTORS, type CompanyKind, type CompanySize } from "@/lib/constants";
+import { COMPANY_KIND_LABELS, COMPANY_SIZE_LABELS, type SectorOption, type CompanyKind, type CompanySize } from "@/lib/constants";
 
 export type CompanyFormValues = {
   name?: string;
@@ -34,7 +34,7 @@ export type CompanyFormValues = {
 type Place = { name: string; postal_code: string; department_code: string };
 type Dept = { code: string; name: string };
 
-export function CompanyForm({ mode, values = {}, places, departments, next }: { mode: "create" | "edit"; values?: CompanyFormValues; places: Place[]; departments: Dept[]; next?: string }) {
+export function CompanyForm({ mode, values = {}, places, departments, sectors, next }: { mode: "create" | "edit"; values?: CompanyFormValues; places: Place[]; departments: Dept[]; sectors: SectorOption[]; next?: string }) {
   const [state, action] = useActionState(mode === "create" ? createCompany : updateCompanyProfile, null);
   const fe = state && !state.ok ? state.fieldErrors : undefined;
   const full = mode === "edit";
@@ -125,7 +125,7 @@ export function CompanyForm({ mode, values = {}, places, departments, next }: { 
         <fieldset>
           <legend className="mb-2 text-sm font-semibold text-navy">Secteurs</legend>
           <div className="grid gap-2 sm:grid-cols-2">
-            {SECTORS.map((s) => (
+            {sectors.map((s) => (
               <Checkbox key={s.slug} name="sectors" value={s.slug} defaultChecked={values.sectors?.includes(s.slug)} label={s.label} />
             ))}
           </div>

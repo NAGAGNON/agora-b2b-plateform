@@ -7,6 +7,8 @@ import { MessageComposer } from "@/components/dashboard/message-composer";
 import { ReportButton } from "@/components/report-button";
 import { formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/cn";
+import { env } from "@/lib/env";
+import { RealtimeRefresh, ScrollToEnd } from "@/components/realtime";
 
 export const metadata = { title: "Conversation" };
 
@@ -31,9 +33,20 @@ export default async function ConversationPage(props: PageProps<"/dashboard/mess
   return (
     <div className="flex h-[calc(100dvh-12rem)] min-h-[32rem] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
       <header className="border-b border-slate-200 bg-white px-4 py-3">
-        <Link href="/dashboard/messages" className="text-xs font-semibold text-teal-700 hover:underline">
-          ← Toutes les conversations
-        </Link>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <Link href="/dashboard/messages" className="text-xs font-semibold text-teal-700 hover:underline">
+            ← Toutes les conversations
+          </Link>
+          <RealtimeRefresh
+            config={env.realtime}
+            channel={`conversation:${conv.id}`}
+            indicator
+            watch={[
+              { table: "messages", event: "INSERT", filter: `conversation_id=eq.${conv.id}` },
+              { table: "messages", event: "UPDATE", filter: `conversation_id=eq.${conv.id}` },
+            ]}
+          />
+        </div>
         <h1 className="mt-1 text-lg font-bold">
           <Link href={`/entreprises/${other?.slug}`} className="hover:underline">
             {other?.name}
@@ -48,7 +61,7 @@ export default async function ConversationPage(props: PageProps<"/dashboard/mess
           </p>
         )}
       </header>
-      <ol className="flex-1 space-y-3 overflow-y-auto p-4" aria-label="Messages">
+      <ol id="conversation-messages" className="flex-1 space-y-3 overflow-y-auto p-4" aria-label="Messages" aria-live="polite">
         {(messages ?? []).map((m) => {
           const mine = myIds.includes(m.sender_company_id);
           return (
@@ -75,6 +88,7 @@ export default async function ConversationPage(props: PageProps<"/dashboard/mess
           );
         })}
       </ol>
+      <ScrollToEnd count={messages?.length ?? 0} targetId="conversation-messages" />
       <MessageComposer conversationId={conv.id} />
     </div>
   );

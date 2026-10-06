@@ -1,8 +1,9 @@
 import { Search } from "lucide-react";
-import { SECTORS, BRITTANY_DEPARTMENTS, OPPORTUNITY_TYPE_LABELS, type OpportunityType } from "@/lib/constants";
+import { getSectors } from "@/lib/queries/platform";
+import { BRITTANY_DEPARTMENTS, OPPORTUNITY_TYPE_LABELS, type OpportunityType } from "@/lib/constants";
 
 /** Recherche principale (formulaire GET vers /opportunites — fonctionne sans JavaScript). */
-export function SearchBar({ defaults = {} }: { defaults?: { q?: string; secteur?: string; departement?: string; type?: string } }) {
+export async function SearchBar({ defaults = {} }: { defaults?: { q?: string; secteur?: string; departement?: string; type?: string } }) {
   const field = "h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-[15px] text-navy focus:border-teal focus:ring-2 focus:ring-teal/30 focus:outline-none";
   return (
     <form action="/opportunites" method="get" role="search" aria-label="Rechercher des opportunités" className="rounded-2xl bg-white p-3 shadow-xl ring-1 ring-slate-900/5 sm:p-4">
@@ -22,7 +23,7 @@ export function SearchBar({ defaults = {} }: { defaults?: { q?: string; secteur?
           </label>
           <select id="hero-secteur" name="secteur" defaultValue={defaults.secteur ?? ""} className={field}>
             <option value="">Tous les secteurs</option>
-            {SECTORS.map((s) => (
+            {(await getSectors()).map((s) => (
               <option key={s.slug} value={s.slug}>
                 {s.label}
               </option>

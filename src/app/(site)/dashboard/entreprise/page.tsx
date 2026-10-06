@@ -2,7 +2,7 @@ import Link from "next/link";
 import { BadgeCheck } from "lucide-react";
 import { requireCompany } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { getDepartments, getPlaces } from "@/lib/queries/platform";
+import { getDepartments, getPlaces, getSectors } from "@/lib/queries/platform";
 import { Card, CardHeader } from "@/components/ui/card";
 import { Notice } from "@/components/ui/notice";
 import { CompanyForm } from "@/components/companies/company-form";
@@ -52,7 +52,7 @@ export default async function CompanySettingsPage() {
         <CardHeader title="Profil de l'entreprise" description={isAdmin ? "Visible dans l'annuaire si l'option est cochée." : "Seuls les administrateurs de l'entreprise peuvent le modifier."} />
         <div className="p-5">
           {isAdmin ? (
-            <CompanyForm mode="edit" values={{ ...company, ...(profile ?? {}) }} places={places} departments={departments} />
+            <CompanyForm mode="edit" values={{ ...company, ...(profile ?? {}) }} places={places} departments={departments} sectors={await getSectors()} />
           ) : (
             <Notice tone="info">Vous êtes membre de cette entreprise. Demandez à un administrateur de modifier le profil.</Notice>
           )}

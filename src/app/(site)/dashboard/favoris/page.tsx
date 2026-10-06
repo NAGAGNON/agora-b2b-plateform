@@ -1,3 +1,4 @@
+import { getSectorLabels } from "@/lib/queries/platform";
 import Link from "next/link";
 import { Heart, Search } from "lucide-react";
 import { requireSession } from "@/lib/auth";
@@ -8,7 +9,7 @@ import { DemoBadge } from "@/components/demo";
 import { OriginBadge } from "@/components/opportunities/opportunity-badge";
 import { DeleteSavedSearchButton, RemoveFavoriteButton } from "@/components/dashboard/small-actions";
 import { deadlineLabel, formatDate } from "@/lib/format";
-import { SECTOR_LABELS } from "@/lib/constants";
+import { sectorLabel } from "@/lib/constants";
 
 export const metadata = { title: "Favoris" };
 
@@ -24,6 +25,7 @@ function Empty({ text, href, cta }: { text: string; href: string; cta: string })
 }
 
 export default async function FavoritesPage() {
+  const sectorLabels = await getSectorLabels();
   const session = await requireSession("/dashboard/favoris");
   const supabase = await createClient();
   const [{ data: favs }, { data: searches }] = await Promise.all([
@@ -103,7 +105,7 @@ export default async function FavoritesPage() {
                       {s.name}
                     </Link>
                     <p className="truncate text-xs text-slate-500">
-                      {s.scope === "COMPANIES" ? "Annuaire" : "Opportunités"} · {[params.q, params.secteur && SECTOR_LABELS[params.secteur], params.departement && `dép. ${params.departement}`, params.lieu && `${params.lieu} (${params.rayon ?? 50} km)`].filter(Boolean).join(" · ") || "tous critères"} · {formatDate(s.created_at)}
+                      {s.scope === "COMPANIES" ? "Annuaire" : "Opportunités"} · {[params.q, params.secteur && sectorLabel(params.secteur, sectorLabels), params.departement && `dép. ${params.departement}`, params.lieu && `${params.lieu} (${params.rayon ?? 50} km)`].filter(Boolean).join(" · ") || "tous critères"} · {formatDate(s.created_at)}
                     </p>
                   </div>
                   <DeleteSavedSearchButton id={s.id} />

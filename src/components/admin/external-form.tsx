@@ -5,9 +5,9 @@ import { createExternalOpportunity } from "@/app/actions/admin";
 import { Field, Input, Select, Textarea } from "@/components/ui/form";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { Notice } from "@/components/ui/notice";
-import { SECTORS } from "@/lib/constants";
+import type { SectorOption } from "@/lib/constants";
 
-export function ExternalOpportunityForm({ sources, departments }: { sources: { id: string; name: string }[]; departments: { code: string; name: string }[] }) {
+export function ExternalOpportunityForm({ sources, departments, sectors }: { sources: { id: string; name: string }[]; departments: { code: string; name: string }[]; sectors: SectorOption[] }) {
   const [state, action] = useActionState(createExternalOpportunity, null);
   const fe = state && !state.ok ? state.fieldErrors : undefined;
   return (
@@ -66,7 +66,7 @@ export function ExternalOpportunityForm({ sources, departments }: { sources: { i
               <option value="" disabled>
                 Choisir
               </option>
-              {SECTORS.map((s) => (
+              {sectors.map((s) => (
                 <option key={s.slug} value={s.slug}>
                   {s.label}
                 </option>

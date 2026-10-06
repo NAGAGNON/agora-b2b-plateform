@@ -5,9 +5,9 @@ import { createAlert } from "@/app/actions/engagement";
 import { Field, Input, Select } from "@/components/ui/form";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { Notice } from "@/components/ui/notice";
-import { ALERT_FREQUENCY_LABELS, OPPORTUNITY_TYPE_LABELS, SECTORS, type AlertFrequency, type OpportunityType } from "@/lib/constants";
+import { ALERT_FREQUENCY_LABELS, OPPORTUNITY_TYPE_LABELS, type SectorOption, type AlertFrequency, type OpportunityType } from "@/lib/constants";
 
-export function AlertForm({ departments, defaults }: { departments: { code: string; name: string }[]; defaults: { secteur?: string; departement?: string; type?: string; motscles?: string } }) {
+export function AlertForm({ departments, sectors, defaults }: { departments: { code: string; name: string }[]; sectors: SectorOption[]; defaults: { secteur?: string; departement?: string; type?: string; motscles?: string } }) {
   const [state, action] = useActionState(createAlert, null);
   const ref = useRef<HTMLFormElement>(null);
   useEffect(() => {
@@ -23,7 +23,7 @@ export function AlertForm({ departments, defaults }: { departments: { code: stri
         {(p) => (
           <Select {...p} defaultValue={defaults.secteur ?? ""}>
             <option value="">Tous</option>
-            {SECTORS.map((s) => (
+            {sectors.map((s) => (
               <option key={s.slug} value={s.slug}>
                 {s.label}
               </option>

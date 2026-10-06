@@ -11,14 +11,17 @@ const supabaseOrigin = (() => {
   }
 })();
 
-// Les données passent par le serveur ; seul l'envoi de fichiers parle directement au stockage.
+const supabaseWs = supabaseOrigin ? supabaseOrigin.replace(/^http/, "ws") : "";
+
+// Les données passent par le serveur ; le navigateur ne parle directement à Supabase
+// que pour l'envoi de fichiers (URL signées) et le temps réel (WebSocket, RLS).
 const csp = [
   "default-src 'self'",
   `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
   "font-src 'self' data:",
-  `connect-src 'self' ${supabaseOrigin}${isDev ? " ws: wss:" : ""}`.trim(),
+  `connect-src 'self' ${supabaseOrigin} ${supabaseWs}${isDev ? " ws: wss:" : ""}`.replace(/\s+/g, " ").trim(),
   "frame-ancestors 'none'",
   "form-action 'self'",
   "base-uri 'self'",

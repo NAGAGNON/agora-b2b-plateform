@@ -14,13 +14,22 @@ import {
   Wrench,
   Briefcase,
   CheckCircle2,
+  Zap,
+  Sun,
+  Building,
+  Ruler,
+  RadioTower,
+  Sparkles,
+  Lock,
+  GraduationCap,
+  Lightbulb,
 } from "lucide-react";
 import { SearchBar } from "@/components/opportunities/search-bar";
 import { OpportunityCard } from "@/components/opportunities/opportunity-card";
 import { ButtonLink } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/states";
 import { recentOpportunities } from "@/lib/queries/opportunities";
-import { SECTORS } from "@/lib/constants";
+import { getSectors } from "@/lib/queries/platform";
 import { pageMetadata } from "@/lib/seo";
 
 export const metadata = pageMetadata({
@@ -38,10 +47,19 @@ const SECTOR_ICONS: Record<string, typeof Wrench> = {
   cybersecurite: ShieldCheck,
   "services-aux-entreprises": Briefcase,
   "transport-logistique": Truck,
+  "electricite-automatisme": Zap,
+  energie: Sun,
+  "batiment-technique": Building,
+  "ingenierie-etudes": Ruler,
+  telecoms: RadioTower,
+  "nettoyage-proprete": Sparkles,
+  "securite-surete": Lock,
+  formation: GraduationCap,
+  conseil: Lightbulb,
 };
 
 export default async function HomePage() {
-  const recent = await recentOpportunities(6);
+  const [recent, sectors] = await Promise.all([recentOpportunities(6), getSectors()]);
   return (
     <>
       {/* Hero */}
@@ -133,7 +151,7 @@ export default async function HomePage() {
           </h2>
           <p className="mt-1 text-slate-600">Priorité du pilote : maintenance industrielle et services techniques aux entreprises.</p>
           <ul className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {SECTORS.map((s, i) => {
+            {sectors.map((s, i) => {
               const Icon = SECTOR_ICONS[s.slug] ?? Building2;
               return (
                 <li key={s.slug}>

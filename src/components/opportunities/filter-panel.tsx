@@ -1,5 +1,6 @@
-import { SECTORS, OPPORTUNITY_TYPE_LABELS, COMPANY_SIZE_LABELS, type OpportunityType, type CompanySize } from "@/lib/constants";
+import { OPPORTUNITY_TYPE_LABELS, COMPANY_SIZE_LABELS, type OpportunityType, type CompanySize } from "@/lib/constants";
 import type { OpportunityFilters } from "@/lib/search-params";
+import { getSectors } from "@/lib/queries/platform";
 import { Label } from "@/components/ui/form";
 
 type Dept = { code: string; name: string; region: string };
@@ -12,7 +13,7 @@ const sel =
  * Champs de filtre (formulaire GET). Utilisé en panneau latéral (desktop)
  * et dans un tiroir (mobile). Fonctionne sans JavaScript.
  */
-export function FilterFields({ f, departments, places, idPrefix }: { f: OpportunityFilters; departments: Dept[]; places: Place[]; idPrefix: string }) {
+export async function FilterFields({ f, departments, places, idPrefix }: { f: OpportunityFilters; departments: Dept[]; places: Place[]; idPrefix: string }) {
   const id = (n: string) => `${idPrefix}-${n}`;
   const brittany = departments.filter((d) => d.region === "Bretagne");
   const others = departments.filter((d) => d.region !== "Bretagne");
@@ -26,7 +27,7 @@ export function FilterFields({ f, departments, places, idPrefix }: { f: Opportun
         <Label htmlFor={id("secteur")}>Secteur</Label>
         <select id={id("secteur")} name="secteur" defaultValue={f.sector ?? ""} className={sel}>
           <option value="">Tous les secteurs</option>
-          {SECTORS.map((s) => (
+          {(await getSectors()).map((s) => (
             <option key={s.slug} value={s.slug}>
               {s.label}
             </option>

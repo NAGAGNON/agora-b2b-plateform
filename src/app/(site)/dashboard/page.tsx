@@ -1,3 +1,4 @@
+import { getSectorLabels, showDemoData } from "@/lib/queries/platform";
 import Link from "next/link";
 import { ArrowRight, BellRing, FileStack, Handshake, Heart, Inbox, PlusCircle, Send, Sparkles, Users } from "lucide-react";
 import { requireSession } from "@/lib/auth";
@@ -10,12 +11,13 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { DemoBadge } from "@/components/demo";
 import { OpportunityTypeBadge, OriginBadge } from "@/components/opportunities/opportunity-badge";
-import { PIPELINE_STAGES, SECTOR_LABELS, type PipelineStage } from "@/lib/constants";
+import { PIPELINE_STAGES, sectorLabel, type PipelineStage } from "@/lib/constants";
 import { deadlineLabel, formatMoney, relativeTime } from "@/lib/format";
 
 export const metadata = { title: "Tableau de bord" };
 
 export default async function DashboardPage(props: PageProps<"/dashboard">) {
+  const sectorLabels = await getSectorLabels();
   const session = await requireSession("/dashboard");
   const sp = await props.searchParams;
   const company = session.activeCompany?.company;
@@ -37,7 +39,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
   const buyer = company.kind !== "SUPPLIER";
 
   const [recommended, favs, alerts, interests, proposals, pipeline, myOpps, receivedInterests, receivedProposals, latestProposals] = await Promise.all([
-    supplier ? supabase.rpc("recommended_opportunities", { p_company_id: cid, p_limit: 5 }) : null,
+    supplier ? supabase.rpc("recommended_opportunities", { p_company_id: cid, p_limit: 5, p_include_demo: await showDemoData() }) : null,
     supabase.from("favorites").select("id", { count: "exact", head: true }).eq("user_id", session.userId),
     supabase.from("alerts").select("id", { count: "exact", head: true }).eq("user_id", session.userId).eq("is_active", true),
     supabase.from("interests").select("id", { count: "exact", head: true }).eq("company_id", cid).neq("status", "WITHDRAWN"),
@@ -152,7 +154,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
                         {o.title}
                       </Link>
                       <p className="text-xs text-slate-500">
-                        {[o.city, o.sector_slug && SECTOR_LABELS[o.sector_slug], deadlineLabel(o.response_deadline)].filter(Boolean).join(" · ")}
+                        {[o.city, o.sector_slug && sectorLabel(o.sector_slug, sectorLabels), deadlineLabel(o.response_deadline)].filter(Boolean).join(" · ")}
                       </p>
                     </div>
                     <div className="flex flex-wrap gap-1">

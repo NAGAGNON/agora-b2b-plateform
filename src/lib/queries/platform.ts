@@ -2,6 +2,7 @@ import "server-only";
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { SECTORS, SECTOR_LABELS, type SectorOption } from "@/lib/constants";
+import { env } from "@/lib/env";
 
 export const getSettings = cache(async () => {
   const supabase = await createClient();
@@ -9,11 +10,22 @@ export const getSettings = cache(async () => {
   return Object.fromEntries((data ?? []).map((r) => [r.key, r.value])) as Record<string, Record<string, unknown>>;
 });
 
+/**
+ * Les données de démonstration ne sont jamais affichées en production (et ne
+ * peuvent pas y être chargées) ; ailleurs, l'administrateur peut les masquer.
+ */
+export const showDemoData = cache(async (): Promise<boolean> => {
+  if (env.isProduction) return false;
+  const settings = await getSettings().catch(() => ({}) as Record<string, Record<string, unknown>>);
+  return settings.demo?.visible !== false;
+});
+
 /** Vrai si des données de démonstration existent (affiche le bandeau d'avertissement). */
 export const hasDemoData = cache(async (): Promise<boolean> => {
   try {
     const settings = await getSettings();
     if (settings.demo && settings.demo.show_banner === false) return false;
+    if (!(await showDemoData())) return false;
     const supabase = await createClient();
     const [{ count: c1 }, { count: c2 }] = await Promise.all([
       supabase.from("companies").select("id", { count: "exact", head: true }).eq("is_demo", true),

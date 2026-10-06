@@ -7,14 +7,14 @@ import { EmptyState, ErrorState } from "@/components/ui/states";
 import { ButtonLink } from "@/components/ui/button";
 import { Label } from "@/components/ui/form";
 import { searchCompanies } from "@/lib/queries/companies";
-import { getDepartments } from "@/lib/queries/platform";
+import { getDepartments, getSectors } from "@/lib/queries/platform";
 import { getSession } from "@/lib/auth";
-import { COMPANY_KIND_LABELS, COMPANY_SIZE_LABELS, PAGE_SIZE, SECTORS, type CompanyKind, type CompanySize } from "@/lib/constants";
+import { COMPANY_KIND_LABELS, COMPANY_SIZE_LABELS, PAGE_SIZE, type SectorOption, type CompanyKind, type CompanySize } from "@/lib/constants";
 import type { CompanyFilters, RawSearchParams } from "@/lib/search-params";
 
 const sel = "h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-navy focus:border-teal focus:ring-2 focus:ring-teal/30 focus:outline-none";
 
-function Fields({ f, departments, p }: { f: CompanyFilters; departments: { code: string; name: string }[]; p: string }) {
+function Fields({ f, departments, sectors, p }: { f: CompanyFilters; departments: { code: string; name: string }[]; sectors: SectorOption[]; p: string }) {
   return (
     <div className="space-y-5">
       <div>
@@ -25,7 +25,7 @@ function Fields({ f, departments, p }: { f: CompanyFilters; departments: { code:
         <Label htmlFor={`${p}-secteur`}>Secteur</Label>
         <select id={`${p}-secteur`} name="secteur" defaultValue={f.sector ?? ""} className={sel}>
           <option value="">Tous les secteurs</option>
-          {SECTORS.map((s) => (
+          {sectors.map((s) => (
             <option key={s.slug} value={s.slug}>
               {s.label}
             </option>
@@ -74,7 +74,7 @@ function Fields({ f, departments, p }: { f: CompanyFilters; departments: { code:
 }
 
 export async function Directory({ filters, rawParams, basePath }: { filters: CompanyFilters; rawParams: RawSearchParams; basePath: string }) {
-  const [{ rows, total, error }, departments, session] = await Promise.all([searchCompanies(filters), getDepartments(), getSession()]);
+  const [{ rows, total, error }, departments, sectors, session] = await Promise.all([searchCompanies(filters), getDepartments(), getSectors(), getSession()]);
   const pageCount = Math.ceil(total / PAGE_SIZE);
   const count = [filters.sector, filters.department, filters.kind, filters.size].filter(Boolean).length + (filters.skills.length ? 1 : 0);
   const query = new URLSearchParams(Object.entries(rawParams).flatMap(([k, v]) => (typeof v === "string" && k !== "page" ? [[k, v]] : [])));
@@ -82,7 +82,7 @@ export async function Directory({ filters, rawParams, basePath }: { filters: Com
     <div className="grid gap-8 lg:grid-cols-[18rem_1fr]">
       <aside className="hidden lg:block" aria-label="Filtres">
         <form action={basePath} method="get" className="sticky top-20 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <Fields f={filters} departments={departments} p="d" />
+          <Fields f={filters} departments={departments} sectors={sectors} p="d" />
           <div className="mt-6 flex gap-2">
             <a href={basePath} className="flex h-11 flex-1 items-center justify-center rounded-lg border border-slate-300 text-sm font-semibold text-navy hover:bg-sky">
               Effacer
@@ -95,7 +95,7 @@ export async function Directory({ filters, rawParams, basePath }: { filters: Com
       </aside>
       <div className="min-w-0">
         <MobileFilters count={count} action={basePath}>
-          <Fields f={filters} departments={departments} p="m" />
+          <Fields f={filters} departments={departments} sectors={sectors} p="m" />
         </MobileFilters>
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 lg:mt-0">
           <p className="text-sm text-slate-600" aria-live="polite">

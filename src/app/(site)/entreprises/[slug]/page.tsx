@@ -17,11 +17,12 @@ import { parseCompanyFilters } from "@/lib/search-params";
 import { pageMetadata } from "@/lib/seo";
 import { track } from "@/lib/analytics";
 import type { Database } from "@/lib/database.types";
-import { COMPANY_KIND_LABELS, COMPANY_SIZE_LABELS, DEMO_NOTICE, SECTORS, SECTOR_LABELS } from "@/lib/constants";
+import { getSectors, getSectorLabels, showDemoData } from "@/lib/queries/platform";
+import { COMPANY_KIND_LABELS, COMPANY_SIZE_LABELS, DEMO_NOTICE, sectorLabel } from "@/lib/constants";
 
 export async function generateMetadata(props: PageProps<"/entreprises/[slug]">): Promise<Metadata> {
   const { slug } = await props.params;
-  const sector = SECTORS.find((s) => s.slug === slug);
+  const sector = (await getSectors()).find((s) => s.slug === slug);
   if (sector) {
     const { total } = await searchCompanies(parseCompanyFilters({ secteur: slug }), 1);
     return pageMetadata({
@@ -45,7 +46,7 @@ export async function generateMetadata(props: PageProps<"/entreprises/[slug]">):
 export default async function CompanyPage(props: PageProps<"/entreprises/[slug]">) {
   const { slug } = await props.params;
   const sp = await props.searchParams;
-  const sector = SECTORS.find((s) => s.slug === slug);
+  const sector = (await getSectors()).find((s) => s.slug === slug);
   if (sector) {
     return (
       <div className="container-page py-8 sm:py-10">
@@ -63,7 +64,8 @@ export default async function CompanyPage(props: PageProps<"/entreprises/[slug]"
   }
 
   const c = await getCompanyBySlug(slug);
-  if (!c) notFound();
+  const sectorLabels = await getSectorLabels();
+  if (!c || (c.is_demo && !(await showDemoData()))) notFound();
   const profile = (Array.isArray(c.profile) ? c.profile[0] : c.profile) as Database["public"]["Tables"]["company_profiles"]["Row"] | null;
   const session = await getSession();
   const isMember = Boolean(session?.memberships.some((m) => m.company.id === c.id));
@@ -133,7 +135,7 @@ export default async function CompanyPage(props: PageProps<"/entreprises/[slug]"
                   {profile.sectors.map((s) => (
                     <li key={s}>
                       <Link href={`/entreprises/${s}`}>
-                        <Badge tone="sky">{SECTOR_LABELS[s] ?? s}</Badge>
+                        <Badge tone="sky">{sectorLabel(s, sectorLabels)}</Badge>
                       </Link>
                     </li>
                   ))}

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requireStaff } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { getDepartments } from "@/lib/queries/platform";
+import { getDepartments, getSectors } from "@/lib/queries/platform";
 import { Notice } from "@/components/ui/notice";
 import { ExternalOpportunityForm } from "@/components/admin/external-form";
 
@@ -33,7 +33,7 @@ export default async function ExternalOpportunityPage() {
         </Notice>
       ) : (
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8">
-          <ExternalOpportunityForm sources={sources} departments={departments} />
+          <ExternalOpportunityForm sources={sources} departments={departments} sectors={await getSectors()} />
         </div>
       )}
     </div>

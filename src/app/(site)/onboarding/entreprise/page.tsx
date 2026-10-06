@@ -1,7 +1,7 @@
 import { CompanyForm } from "@/components/companies/company-form";
 import { Notice } from "@/components/ui/notice";
 import { requireSession } from "@/lib/auth";
-import { getDepartments, getPlaces } from "@/lib/queries/platform";
+import { getDepartments, getPlaces, getSectors } from "@/lib/queries/platform";
 import { PRIVATE_METADATA } from "@/lib/seo";
 
 export const metadata = { ...PRIVATE_METADATA, title: "Créer mon entreprise" };
@@ -25,7 +25,7 @@ export default async function OnboardingCompanyPage(props: PageProps<"/onboardin
         </Notice>
       )}
       <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8">
-        <CompanyForm mode="create" places={places} departments={departments} next={next} />
+        <CompanyForm mode="create" places={places} departments={departments} sectors={await getSectors()} next={next} />
       </div>
     </div>
   );

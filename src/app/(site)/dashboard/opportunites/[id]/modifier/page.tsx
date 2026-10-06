@@ -4,7 +4,7 @@ import { PublishWizard } from "@/components/opportunities/publish-wizard";
 import { Notice } from "@/components/ui/notice";
 import { requireCompany } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { getDepartments, getPlaces } from "@/lib/queries/platform";
+import { getDepartments, getPlaces, getSectors } from "@/lib/queries/platform";
 
 export const metadata = { title: "Modifier une publication" };
 
@@ -33,7 +33,7 @@ export default async function EditOpportunityPage(props: PageProps<"/dashboard/o
             </Notice>
           )}
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8">
-            <PublishWizard values={o} places={places} departments={departments} companyName={session.activeCompany.company.name} existingDocuments={o.documents} />
+            <PublishWizard values={o} places={places} departments={departments} sectors={await getSectors()} companyName={session.activeCompany.company.name} existingDocuments={o.documents} />
           </div>
         </>
       )}

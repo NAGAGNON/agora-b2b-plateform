@@ -3,13 +3,12 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { Directory } from "@/components/companies/directory";
 import { searchCompanies } from "@/lib/queries/companies";
-import { getDepartments } from "@/lib/queries/platform";
+import { getDepartments, getSectors } from "@/lib/queries/platform";
 import { parseCompanyFilters } from "@/lib/search-params";
 import { pageMetadata } from "@/lib/seo";
-import { SECTORS } from "@/lib/constants";
 
 async function resolve(slug: string, location: string) {
-  const sector = SECTORS.find((s) => s.slug === slug);
+  const sector = (await getSectors()).find((s) => s.slug === slug);
   const dep = (await getDepartments()).find((d) => d.slug === location);
   return sector && dep ? { sector, dep } : null;
 }

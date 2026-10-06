@@ -854,6 +854,11 @@ isOneToOne: false
               "body": string,"created_at": string,"id": string,"sender_company": string
             }[]
                            },
+"admin_proposals_overview":
+{ Args: { "p_limit"?: number,"p_status"?: Database["public"]['Enums']["proposal_status"] }; Returns: {
+              "buyer_name": string,"documents": number,"id": string,"is_demo": boolean,"opportunity_id": string,"opportunity_status": Database["public"]['Enums']["opportunity_status"],"opportunity_title": string,"status": Database["public"]['Enums']["proposal_status"],"submitted_at": string,"supplier_name": string,"supplier_slug": string,"updated_at": string
+            }[]
+                           },
 "admin_set_company_status":
 { Args: { "p_company_id": string,"p_reason": string,"p_status": Database["public"]['Enums']["company_status"] }; Returns: undefined
                            },
@@ -1111,7 +1116,7 @@ isOneToOne: false
 { Args: { "p_note": string,"p_proposal_id": string,"p_score": number }; Returns: undefined
                            },
 "search_companies":
-{ Args: { "p_department"?: string,"p_kind"?: Database["public"]['Enums']["company_kind"],"p_limit"?: number,"p_offset"?: number,"p_q"?: string,"p_sector"?: string,"p_size"?: Database["public"]['Enums']["company_size"],"p_skills"?: (string)[] }; Returns: {
+{ Args: { "p_department"?: string,"p_include_demo"?: boolean,"p_kind"?: Database["public"]['Enums']["company_kind"],"p_limit"?: number,"p_offset"?: number,"p_q"?: string,"p_sector"?: string,"p_size"?: Database["public"]['Enums']["company_size"],"p_skills"?: (string)[] }; Returns: {
               "city": string,"department_code": string,"id": string,"is_demo": boolean,"kind": Database["public"]['Enums']["company_kind"],"logo_path": string,"name": string,"sectors": (string)[],"size": Database["public"]['Enums']["company_size"],"skills": (string)[],"slug": string,"tagline": string,"total_count": number,"verified": boolean
             }[]
                            },

@@ -3,7 +3,8 @@ import { CalendarClock, MapPin, Tag, BadgeCheck } from "lucide-react";
 import { OpportunityTypeBadge, OriginBadge } from "@/components/opportunities/opportunity-badge";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { DemoBadge } from "@/components/demo";
-import { SECTOR_LABELS, type OpportunityOrigin, type OpportunityType } from "@/lib/constants";
+import { sectorLabel, type OpportunityOrigin, type OpportunityType } from "@/lib/constants";
+import { getSectorLabels } from "@/lib/queries/platform";
 import { deadlineLabel, formatBudget, formatDate } from "@/lib/format";
 
 export type OpportunityCardData = {
@@ -28,7 +29,7 @@ export type OpportunityCardData = {
   distance_km?: number | null;
 };
 
-export function OpportunityCard({ o, headingLevel = 3 }: { o: OpportunityCardData; headingLevel?: 2 | 3 }) {
+export async function OpportunityCard({ o, headingLevel = 3 }: { o: OpportunityCardData; headingLevel?: 2 | 3 }) {
   const H = headingLevel === 2 ? "h2" : "h3";
   const budget = formatBudget(o.budget_min ?? null, o.budget_max ?? null);
   const deadline = deadlineLabel(o.response_deadline);
@@ -70,7 +71,7 @@ export function OpportunityCard({ o, headingLevel = 3 }: { o: OpportunityCardDat
           <div className="flex items-center gap-2">
             <Tag className="size-4 shrink-0 text-slate-400" aria-hidden />
             <dt className="sr-only">Secteur</dt>
-            <dd>{SECTOR_LABELS[o.sector_slug] ?? o.sector_slug}</dd>
+            <dd>{sectorLabel(o.sector_slug, await getSectorLabels())}</dd>
           </div>
         )}
         {deadline && (

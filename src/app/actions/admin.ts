@@ -6,7 +6,9 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getSession } from "@/lib/auth";
-import { userMessage } from "@/lib/errors";
+import { logServerError, userMessage } from "@/lib/errors";
+import { env } from "@/lib/env";
+import { seedDemo, wipeDemo, type DemoCredential } from "@/lib/demo/seed";
 import { processAlertDigests, processEmailOutbox } from "@/lib/email/outbox";
 import { flushEmailsAfterResponse } from "@/lib/email/flush";
 import { externalOpportunitySchema, moderationSchema, parseForm, sourceSchema, type ActionResult } from "@/lib/validation";
@@ -281,4 +283,71 @@ export async function updateSourceSettings(_prev: ActionResult | null, fd: FormD
   if (error) return { ok: false, error: userMessage(error) };
   revalidatePath("/admin/sources");
   return { ok: true, message: "Réglages de collecte enregistrés." };
+}
+
+const sectorSchema = z.object({
+  mode: z.enum(["create", "update"]),
+  slug: z
+    .string()
+    .trim()
+    .min(2, { error: "Identifiant trop court" })
+    .max(60)
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, { error: "Minuscules, chiffres et tirets uniquement" }),
+  label: z.string().trim().min(2, { error: "Libellé requis" }).max(80),
+  description: z.string().trim().max(300).optional().transform((v) => v || null),
+  sortOrder: z.coerce.number().int().min(0).max(999).default(100),
+  isActive: z.preprocess((v) => v === "on" || v === "true", z.boolean()),
+  isPilotPriority: z.preprocess((v) => v === "on" || v === "true", z.boolean()),
+});
+
+/** Création ou modification d'un secteur (référentiel). Un secteur utilisé ne se supprime pas : il se désactive. */
+export async function saveSector(_prev: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  const parsed = parseForm(sectorSchema, fd);
+  if (!parsed.success) return parsed.result;
+  const { session, supabase } = await staff();
+  if (!session.isAdmin) return { ok: false, error: "Réservé aux administrateurs." };
+  const d = parsed.data;
+  const values = { label: d.label, description: d.description, sort_order: d.sortOrder, is_active: d.isActive, is_pilot_priority: d.isPilotPriority };
+  const { error } =
+    d.mode === "create"
+      ? await supabase.from("sectors").insert({ slug: d.slug, ...values })
+      : await supabase.from("sectors").update(values).eq("slug", d.slug);
+  if (error) return { ok: false, error: error.code === "23505" ? "Ce secteur existe déjà." : userMessage(error) };
+  await createAdminClient()
+    .from("audit_logs")
+    .insert({ actor_user_id: session.userId, action: d.mode === "create" ? "sector.create" : "sector.update", entity_type: "sector", entity_id: d.slug, metadata: values });
+  revalidatePath("/", "layout");
+  return { ok: true, message: d.mode === "create" ? "Secteur ajouté." : "Secteur mis à jour." };
+}
+
+// ---------------------------------------------------------------------------
+// Données de démonstration (hors production uniquement)
+// ---------------------------------------------------------------------------
+export async function loadDemoData(): Promise<ActionResult<{ creds: DemoCredential[] }>> {
+  const { session } = await staff();
+  if (!session.isSuperAdmin) return { ok: false, error: "Réservé au super-administrateur." };
+  if (env.isProduction) return { ok: false, error: "Refusé : les données de démonstration ne sont jamais chargées en production." };
+  try {
+    const { creds, companies, opportunities } = await seedDemo(createAdminClient());
+    await createAdminClient().from("audit_logs").insert({ actor_user_id: session.userId, action: "demo.load", entity_type: "platform", entity_id: "demo", metadata: { companies, opportunities } });
+    revalidatePath("/", "layout");
+    return { ok: true, message: `${companies} entreprises, ${opportunities} opportunités et ${creds.length} comptes fictifs créés.`, data: { creds } };
+  } catch (e) {
+    logServerError("loadDemoData", e);
+    return { ok: false, error: "Le chargement des données de démonstration a échoué." };
+  }
+}
+
+export async function removeDemoData(): Promise<ActionResult> {
+  const { session } = await staff();
+  if (!session.isSuperAdmin) return { ok: false, error: "Réservé au super-administrateur." };
+  try {
+    await wipeDemo(createAdminClient());
+    await createAdminClient().from("audit_logs").insert({ actor_user_id: session.userId, action: "demo.remove", entity_type: "platform", entity_id: "demo" });
+    revalidatePath("/", "layout");
+    return { ok: true, message: "Toutes les données de démonstration ont été supprimées." };
+  } catch (e) {
+    logServerError("removeDemoData", e);
+    return { ok: false, error: "La suppression a échoué." };
+  }
 }

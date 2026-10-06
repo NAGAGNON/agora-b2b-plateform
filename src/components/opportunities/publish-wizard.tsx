@@ -16,8 +16,8 @@ import {
   INTERNAL_TYPES,
   OPPORTUNITY_TYPE_HELP,
   OPPORTUNITY_TYPE_LABELS,
-  SECTORS,
-  SECTOR_LABELS,
+  sectorLabel,
+  type SectorOption,
   type CompanySize,
   type OpportunityType,
 } from "@/lib/constants";
@@ -87,12 +87,14 @@ export function PublishWizard({
   values = {},
   places,
   departments,
+  sectors,
   companyName,
   existingDocuments = [],
 }: {
   values?: WizardValues;
   places: Place[];
   departments: Dept[];
+  sectors: SectorOption[];
   companyName: string;
   existingDocuments?: { id: string; file_name: string }[];
 }) {
@@ -237,7 +239,7 @@ export function PublishWizard({
                 <option value="" disabled>
                   Choisir un secteur
                 </option>
-                {SECTORS.map((s) => (
+                {sectors.map((s) => (
                   <option key={s.slug} value={s.slug}>
                     {s.label}
                   </option>
@@ -392,7 +394,7 @@ export function PublishWizard({
             {snapshot.summary && <p className="mt-3 text-navy">{snapshot.summary}</p>}
             <p className="mt-3 text-sm whitespace-pre-line text-slate-700">{snapshot.description}</p>
             <dl className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
-              <Preview label="Secteur" value={snapshot.sector ? SECTOR_LABELS[snapshot.sector] : "—"} />
+              <Preview label="Secteur" value={sectorLabel(snapshot.sector, Object.fromEntries(sectors.map((s) => [s.slug, s.label])))} />
               <Preview label="Localisation" value={[snapshot.city, snapshot.postalCode].filter(Boolean).join(" ") || snapshot.departmentCode || "—"} />
               <Preview
                 label="Budget"

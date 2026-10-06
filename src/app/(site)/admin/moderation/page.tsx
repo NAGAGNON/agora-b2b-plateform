@@ -1,3 +1,4 @@
+import { getSectorLabels } from "@/lib/queries/platform";
 import Link from "next/link";
 import { ClipboardCheck } from "lucide-react";
 import { requireStaff } from "@/lib/auth";
@@ -6,12 +7,13 @@ import { EmptyState } from "@/components/ui/states";
 import { Badge } from "@/components/ui/badge";
 import { DemoBadge } from "@/components/demo";
 import { ModerationButtons } from "@/components/admin/admin-actions";
-import { OPPORTUNITY_TYPE_LABELS, SECTOR_LABELS } from "@/lib/constants";
+import { OPPORTUNITY_TYPE_LABELS, sectorLabel } from "@/lib/constants";
 import { formatBudget, formatDate, formatDateTime } from "@/lib/format";
 
 export const metadata = { title: "Modération" };
 
 export default async function ModerationPage() {
+  const sectorLabels = await getSectorLabels();
   await requireStaff();
   const supabase = await createClient();
   const { data } = await supabase
@@ -33,7 +35,7 @@ export default async function ModerationPage() {
               <li key={o.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge tone="sky">{OPPORTUNITY_TYPE_LABELS[o.type]}</Badge>
-                  {o.sector_slug && <Badge tone="slate">{SECTOR_LABELS[o.sector_slug]}</Badge>}
+                  {o.sector_slug && <Badge tone="slate">{sectorLabel(o.sector_slug, sectorLabels)}</Badge>}
                   {o.visibility === "MEMBERS_ONLY" && <Badge tone="slate">Membres uniquement</Badge>}
                   {o.is_demo && <DemoBadge />}
                   <span className="text-xs text-slate-500">Soumise le {formatDateTime(o.updated_at)}</span>

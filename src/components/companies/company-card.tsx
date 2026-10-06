@@ -3,7 +3,8 @@ import Image from "next/image";
 import { BadgeCheck, MapPin } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { DemoBadge } from "@/components/demo";
-import { COMPANY_KIND_LABELS, SECTOR_LABELS, type CompanyKind } from "@/lib/constants";
+import { COMPANY_KIND_LABELS, sectorLabel, type CompanyKind } from "@/lib/constants";
+import { getSectorLabels } from "@/lib/queries/platform";
 import { initials } from "@/lib/format";
 import { logoUrl } from "@/lib/storage-urls";
 
@@ -32,7 +33,8 @@ export function CompanyLogo({ name, path, size = 56 }: { name: string; path: str
   );
 }
 
-export function CompanyCard({ c }: { c: CompanyCardData }) {
+export async function CompanyCard({ c }: { c: CompanyCardData }) {
+  const labels = await getSectorLabels();
   return (
     <article className="group relative flex h-full flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-teal hover:shadow-md">
       <div className="flex items-start gap-4">
@@ -52,7 +54,7 @@ export function CompanyCard({ c }: { c: CompanyCardData }) {
         {c.is_demo && <DemoBadge />}
         {c.sectors.slice(0, 2).map((s) => (
           <Badge key={s} tone="sky">
-            {SECTOR_LABELS[s] ?? s}
+            {sectorLabel(s, labels)}
           </Badge>
         ))}
       </div>

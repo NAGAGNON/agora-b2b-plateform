@@ -29,19 +29,19 @@ import { DemoBadge } from "@/components/demo";
 import { CompanyLogo } from "@/components/companies/company-card";
 import { buttonClasses } from "@/components/ui/button";
 import { getOpportunityDetail, searchOpportunities } from "@/lib/queries/opportunities";
-import { getDepartments } from "@/lib/queries/platform";
+import { getDepartments, getSectors, getSectorLabels, showDemoData } from "@/lib/queries/platform";
 import { getSession } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { track } from "@/lib/analytics";
 import { parseOpportunityFilters } from "@/lib/search-params";
 import { pageMetadata } from "@/lib/seo";
-import { DEMO_NOTICE, OPPORTUNITY_TYPE_HELP, SECTORS, SECTOR_LABELS, VERIFICATION_STATUS_LABELS, COMPANY_SIZE_LABELS } from "@/lib/constants";
+import { DEMO_NOTICE, OPPORTUNITY_TYPE_HELP, sectorLabel, VERIFICATION_STATUS_LABELS, COMPANY_SIZE_LABELS } from "@/lib/constants";
 import { deadlineLabel, formatBudget, formatBytes, formatDate, formatDateTime, isUuid } from "@/lib/format";
 
 type Landing = { kind: "sector"; slug: string; label: string } | { kind: "department"; code: string; name: string; slug: string };
 
 async function resolveLanding(slug: string): Promise<Landing | null> {
-  const sector = SECTORS.find((s) => s.slug === slug);
+  const sector = (await getSectors()).find((s) => s.slug === slug);
   if (sector) return { kind: "sector", slug: sector.slug, label: sector.label };
   const dep = (await getDepartments()).find((d) => d.slug === slug);
   if (dep) return { kind: "department", code: dep.code, name: dep.name, slug: dep.slug };
@@ -108,7 +108,7 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
   }
 
   const o = await getOpportunityDetail(id);
-  if (!o) notFound();
+  if (!o || (o.is_demo && !(await showDemoData()))) notFound();
   const session = await getSession();
   const supabase = await createClient();
   void track("view_opportunity", { opportunity_id: o.id, origin: o.origin, type: o.type });
@@ -152,7 +152,7 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
             <>
               {" / "}
               <Link href={`/opportunites/${o.sector_slug}`} className="hover:underline">
-                {SECTOR_LABELS[o.sector_slug]}
+                {sectorLabel(o.sector_slug, await getSectorLabels())}
               </Link>
             </>
           )}
@@ -231,7 +231,7 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
 
             <dl className="mt-6 grid gap-3 rounded-xl bg-sky/60 p-4 text-sm sm:grid-cols-2">
               <Fact icon={MapPin} label="Localisation" value={[o.city, o.department_code && `(${o.department_code})`, o.region].filter(Boolean).join(" ") || "—"} />
-              <Fact icon={Tag} label="Secteur" value={o.sector_slug ? SECTOR_LABELS[o.sector_slug] : "—"} />
+              <Fact icon={Tag} label="Secteur" value={sectorLabel(o.sector_slug, await getSectorLabels())} />
               <Fact icon={CalendarDays} label="Publication" value={formatDate(o.published_at)} />
               <Fact icon={CalendarClock} label="Échéance" value={o.response_deadline ? `${formatDateTime(o.response_deadline)}${deadline ? ` — ${deadline}` : ""}` : "Non précisée"} />
               {!external && <Fact icon={Wallet} label="Budget" value={budget ?? (o.budget_visible ? "Non précisé" : "Non communiqué")} />}

@@ -4,6 +4,23 @@ import { env } from "@/lib/env";
 import { renderEmail } from "@/lib/email/templates";
 import { sendEmail } from "@/lib/email/send";
 
+const CTA_LABELS: Record<string, string> = {
+  new_message: "Lire le message",
+  proposal_received: "Voir la réponse",
+  proposal_status: "Voir ma réponse",
+  interest_received: "Voir les fournisseurs intéressés",
+  interest_status: "Voir l'opportunité",
+  opportunity_published: "Voir mon opportunité",
+  opportunity_changes_requested: "Modifier mon opportunité",
+  opportunity_rejected: "Voir le motif",
+  opportunity_closed: "Voir l'opportunité",
+  opportunity_expired: "Voir l'opportunité",
+  alert_match: "Voir l'opportunité",
+  alert_digest: "Voir les opportunités",
+  invitation: "Rejoindre l'entreprise",
+  moderation_pending: "Ouvrir la modération",
+};
+
 /** Traite la file d'attente des e-mails (appelé par la tâche planifiée). */
 export async function processEmailOutbox(limit = 50): Promise<{ sent: number; skipped: number; failed: number }> {
   const admin = createAdminClient();
@@ -16,22 +33,22 @@ export async function processEmailOutbox(limit = 50): Promise<{ sent: number; sk
     .limit(limit);
   const stats = { sent: 0, skipped: 0, failed: 0 };
   for (const row of rows ?? []) {
-    const payload = (row.payload ?? {}) as { title?: string; body?: string; link?: string; items?: { label: string; url: string }[]; unsubscribe?: string };
+    const payload = (row.payload ?? {}) as { type?: string; title?: string; body?: string; link?: string; items?: { label: string; url: string }[]; unsubscribe?: string };
     const { html, text } = renderEmail({
       title: payload.title ?? row.subject,
       paragraphs: payload.body ? [payload.body] : [],
       list: payload.items?.map((i) => ({ label: i.label, url: env.siteUrl + i.url })),
-      cta: payload.link ? { label: "Voir sur LinkProB2B", url: env.siteUrl + payload.link } : undefined,
+      cta: payload.link ? { label: CTA_LABELS[payload.type ?? row.template] ?? "Voir sur LinkProB2B", url: env.siteUrl + payload.link } : undefined,
       footer: payload.unsubscribe
         ? `Vous recevez cet e-mail car vous avez créé une alerte. Se désabonner en un clic : ${env.siteUrl}${payload.unsubscribe}`
         : undefined,
     });
-    const result = await sendEmail({ to: row.to_email, subject: row.subject, html, text });
+    const result = await sendEmail({ to: row.to_email, subject: row.subject, html, text, idempotencyKey: `outbox-${row.id}` });
     stats[result.status === "SENT" ? "sent" : result.status === "SKIPPED" ? "skipped" : "failed"]++;
     await admin
       .from("email_outbox")
       .update({
-        status: result.status === "FAILED" && row.attempts + 1 < 5 ? "PENDING" : result.status,
+        status: result.status === "FAILED" && result.retryable && row.attempts + 1 < 5 ? "PENDING" : result.status,
         attempts: row.attempts + 1,
         last_error: result.error ?? null,
         sent_at: result.status === "SENT" ? new Date().toISOString() : null,

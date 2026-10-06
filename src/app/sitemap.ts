@@ -3,7 +3,6 @@ import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
 import { siteUrl } from "@/lib/seo";
 import { GUIDES } from "@/content/guides";
-import { BRITTANY_DEPARTMENTS, SECTORS } from "@/lib/constants";
 
 export const revalidate = 3600;
 
@@ -24,22 +23,26 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   if (!url || !key) return entries;
   // Client anonyme : seules les données publiques sont lisibles (RLS).
   const db = createClient<Database>(url, key, { auth: { persistSession: false } });
-  const [{ data: opps }, { data: companies }] = await Promise.all([
+  const [{ data: opps }, { data: companies }, { data: sectorRows }, { data: deptRows }] = await Promise.all([
     db.from("opportunities").select("id, updated_at, sector_slug, department_code").eq("status", "PUBLISHED").eq("visibility", "PUBLIC").eq("is_demo", false).limit(5000),
     db.from("companies").select("slug, updated_at, department_code, company_profiles!inner(is_public, sectors)").eq("status", "ACTIVE").eq("is_demo", false).eq("company_profiles.is_public", true).limit(5000),
+    db.from("sectors").select("slug").eq("is_active", true),
+    db.from("departments").select("code, slug"),
   ]);
+  const SECTORS = sectorRows ?? [];
+  const DEPARTMENTS = deptRows ?? [];
   for (const o of opps ?? []) entries.push({ url: `${base}/opportunites/${o.id}`, lastModified: new Date(o.updated_at), changeFrequency: "weekly", priority: 0.7 });
   for (const c of companies ?? []) entries.push({ url: `${base}/entreprises/${c.slug}`, lastModified: new Date(c.updated_at), changeFrequency: "monthly", priority: 0.5 });
 
   for (const s of SECTORS) if ((opps ?? []).some((o) => o.sector_slug === s.slug)) entries.push({ url: `${base}/opportunites/${s.slug}`, changeFrequency: "daily", priority: 0.6 });
-  for (const d of BRITTANY_DEPARTMENTS) if ((opps ?? []).some((o) => o.department_code === d.code)) entries.push({ url: `${base}/opportunites/${d.slug}`, changeFrequency: "daily", priority: 0.6 });
+  for (const d of DEPARTMENTS) if ((opps ?? []).some((o) => o.department_code === d.code)) entries.push({ url: `${base}/opportunites/${d.slug}`, changeFrequency: "daily", priority: 0.6 });
   for (const s of SECTORS) {
     const inSector = (companies ?? []).filter((c) => {
       const prof = c.company_profiles as unknown as { sectors: string[] } | { sectors: string[] }[];
       return (Array.isArray(prof) ? prof : [prof]).some((p) => p.sectors.includes(s.slug));
     });
     if (inSector.length) entries.push({ url: `${base}/entreprises/${s.slug}`, changeFrequency: "weekly", priority: 0.5 });
-    for (const d of BRITTANY_DEPARTMENTS) {
+    for (const d of DEPARTMENTS) {
       if (inSector.some((c) => c.department_code === d.code)) entries.push({ url: `${base}/entreprises/${s.slug}/${d.slug}`, changeFrequency: "weekly", priority: 0.4 });
     }
   }

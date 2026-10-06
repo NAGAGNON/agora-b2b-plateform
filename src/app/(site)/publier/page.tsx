@@ -4,7 +4,7 @@ import { PublishWizard } from "@/components/opportunities/publish-wizard";
 import { ButtonLink } from "@/components/ui/button";
 import { Notice } from "@/components/ui/notice";
 import { getSession } from "@/lib/auth";
-import { getDepartments, getPlaces } from "@/lib/queries/platform";
+import { getDepartments, getPlaces, getSectors } from "@/lib/queries/platform";
 import { pageMetadata } from "@/lib/seo";
 
 export const metadata = pageMetadata({
@@ -88,7 +88,7 @@ export default async function PublishPage() {
         <Notice tone="error">Votre entreprise est suspendue : la publication est désactivée. Contactez l&apos;équipe LinkProB2B.</Notice>
       ) : (
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8">
-          <PublishWizard places={places} departments={departments} companyName={session.activeCompany.company.name} />
+          <PublishWizard places={places} departments={departments} sectors={await getSectors()} companyName={session.activeCompany.company.name} />
         </div>
       )}
     </div>

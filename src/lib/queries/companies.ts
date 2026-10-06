@@ -2,6 +2,7 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/errors";
 import { PAGE_SIZE } from "@/lib/constants";
+import { showDemoData } from "@/lib/queries/platform";
 import type { CompanyFilters } from "@/lib/search-params";
 
 export async function searchCompanies(f: CompanyFilters, pageSize = PAGE_SIZE) {
@@ -15,6 +16,7 @@ export async function searchCompanies(f: CompanyFilters, pageSize = PAGE_SIZE) {
     p_skills: f.skills.length ? f.skills : undefined,
     p_limit: pageSize,
     p_offset: (f.page - 1) * pageSize,
+    p_include_demo: await showDemoData(),
   });
   if (error) {
     logServerError("search_companies", error);

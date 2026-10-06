@@ -8,6 +8,8 @@ import { MobileMenu } from "@/components/layout/mobile-menu";
 import { NotificationCenter, type NotificationItem } from "@/components/layout/notification-center";
 import { AccountMenu } from "@/components/layout/account-menu";
 import { NavLink } from "@/components/layout/nav-link";
+import { RealtimeRefresh } from "@/components/realtime";
+import { env } from "@/lib/env";
 
 export const PUBLIC_NAV = [
   { href: "/opportunites", label: "Explorer les opportunités" },
@@ -68,6 +70,14 @@ export async function Header() {
         <div className="ml-auto flex items-center gap-1 sm:gap-2">
           {session ? (
             <>
+              <RealtimeRefresh
+                config={env.realtime}
+                channel={`user:${session.userId}`}
+                watch={[
+                  { table: "notifications", event: "INSERT", filter: `user_id=eq.${session.userId}` },
+                  { table: "messages", event: "INSERT" },
+                ]}
+              />
               <Link
                 href="/dashboard/messages"
                 className="relative rounded-lg p-2 text-navy hover:bg-sky"
