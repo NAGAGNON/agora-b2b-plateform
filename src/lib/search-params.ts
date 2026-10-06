@@ -1,4 +1,4 @@
-import { PAGE_SIZE, SECTORS, type CompanyKind, type CompanySize, type OpportunityOrigin, type OpportunityType } from "@/lib/constants";
+import { PAGE_SIZE, type CompanyKind, type CompanySize, type OpportunityOrigin, type OpportunityType } from "@/lib/constants";
 import { splitList } from "@/lib/format";
 
 export type RawSearchParams = Record<string, string | string[] | undefined>;
@@ -55,7 +55,7 @@ export function parseOpportunityFilters(sp: RawSearchParams, now: Date = new Dat
   const place = first(sp.lieu);
   return {
     q,
-    sector: sector && SECTORS.some((s) => s.slug === sector) ? sector : undefined,
+    sector: sector && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(sector) && sector.length <= 60 ? sector : undefined,
     department: department && /^(\d{2,3}|2[AB])$/.test(department) ? department : undefined,
     place: place && /^[a-z0-9-]{2,80}$/.test(place) ? place : undefined,
     radius: Number.isFinite(radiusRaw) && radiusRaw > 0 ? Math.min(Math.round(radiusRaw), 500) : undefined,
@@ -108,7 +108,7 @@ export function parseCompanyFilters(sp: RawSearchParams): CompanyFilters {
   const pageRaw = Number(first(sp.page));
   return {
     q: first(sp.q)?.slice(0, 200),
-    sector: sector && SECTORS.some((s) => s.slug === sector) ? sector : undefined,
+    sector: sector && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(sector) && sector.length <= 60 ? sector : undefined,
     department: department && /^(\d{2,3}|2[AB])$/.test(department) ? department : undefined,
     kind: kind === "SUPPLIER" || kind === "BUYER" || kind === "BOTH" ? kind : undefined,
     size: SIZES.includes(size as CompanySize) ? (size as CompanySize) : undefined,

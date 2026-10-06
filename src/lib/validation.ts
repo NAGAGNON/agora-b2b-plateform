@@ -79,21 +79,13 @@ export const newPasswordSchema = z
   .object({ password: passwordSchema, confirm: z.string() })
   .refine((d) => d.password === d.confirm, { message: "Les mots de passe ne correspondent pas", path: ["confirm"] });
 
-export const sectorSlugs = [
-  "maintenance-industrielle",
-  "fournitures-industrielles",
-  "sous-traitance-industrielle",
-  "informatique",
-  "cybersecurite",
-  "services-aux-entreprises",
-  "transport-logistique",
-] as const;
-
-const sectorField = z.enum(sectorSlugs, { error: "Secteur invalide" });
+const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+/** Secteur : format validé ici, existence garantie par la clé étrangère en base. */
+const sectorField = z.string({ error: "Secteur obligatoire" }).regex(SLUG_RE, "Secteur invalide").max(60);
 const optionalSector = z.preprocess((v) => (v === "" ? undefined : v), sectorField.optional());
 const sectorList = z.preprocess(
   (v) => (Array.isArray(v) ? v : v ? [v] : []),
-  z.array(sectorField).max(7),
+  z.array(sectorField).max(20),
 );
 
 const companyKind = z.enum(["SUPPLIER", "BUYER", "BOTH"], { error: "Type d'entreprise invalide" });

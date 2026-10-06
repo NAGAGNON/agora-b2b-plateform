@@ -25,13 +25,13 @@ export type Database = {
           Tables: {
             "alerts": {
                   Row: {
-                    "created_at": string,"department_code": string | null,"frequency": Database["public"]['Enums']["alert_frequency"],"id": string,"is_active": boolean,"keywords": string | null,"last_sent_at": string | null,"name": string,"sector_slug": string | null,"type": Database["public"]['Enums']["opportunity_type"] | null,"unsubscribe_token": string,"user_id": string
+                    "company_size": Database["public"]['Enums']["company_size"] | null,"created_at": string,"department_code": string | null,"frequency": Database["public"]['Enums']["alert_frequency"],"id": string,"include_external": boolean,"is_active": boolean,"keywords": string | null,"last_sent_at": string | null,"name": string,"place_slug": string | null,"radius_km": number | null,"sector_slug": string | null,"skills": (string)[],"type": Database["public"]['Enums']["opportunity_type"] | null,"unsubscribe_token": string,"user_id": string
                   }
                   Insert: {
-                    "created_at"?: string,"department_code"?: string | null,"frequency"?: Database["public"]['Enums']["alert_frequency"],"id"?: string,"is_active"?: boolean,"keywords"?: string | null,"last_sent_at"?: string | null,"name": string,"sector_slug"?: string | null,"type"?: Database["public"]['Enums']["opportunity_type"] | null,"unsubscribe_token"?: string,"user_id": string
+                    "company_size"?: Database["public"]['Enums']["company_size"] | null,"created_at"?: string,"department_code"?: string | null,"frequency"?: Database["public"]['Enums']["alert_frequency"],"id"?: string,"include_external"?: boolean,"is_active"?: boolean,"keywords"?: string | null,"last_sent_at"?: string | null,"name": string,"place_slug"?: string | null,"radius_km"?: number | null,"sector_slug"?: string | null,"skills"?: (string)[],"type"?: Database["public"]['Enums']["opportunity_type"] | null,"unsubscribe_token"?: string,"user_id": string
                   }
                   Update: {
-                    "created_at"?: string,"department_code"?: string | null,"frequency"?: Database["public"]['Enums']["alert_frequency"],"id"?: string,"is_active"?: boolean,"keywords"?: string | null,"last_sent_at"?: string | null,"name"?: string,"sector_slug"?: string | null,"type"?: Database["public"]['Enums']["opportunity_type"] | null,"unsubscribe_token"?: string,"user_id"?: string
+                    "company_size"?: Database["public"]['Enums']["company_size"] | null,"created_at"?: string,"department_code"?: string | null,"frequency"?: Database["public"]['Enums']["alert_frequency"],"id"?: string,"include_external"?: boolean,"is_active"?: boolean,"keywords"?: string | null,"last_sent_at"?: string | null,"name"?: string,"place_slug"?: string | null,"radius_km"?: number | null,"sector_slug"?: string | null,"skills"?: (string)[],"type"?: Database["public"]['Enums']["opportunity_type"] | null,"unsubscribe_token"?: string,"user_id"?: string
                   }
                   Relationships: [
                     {
@@ -40,6 +40,12 @@ export type Database = {
 isOneToOne: false
       referencedRelation: "departments"
       referencedColumns: ["code"]
+    },{
+      foreignKeyName: "alerts_place_slug_fkey"
+      columns: ["place_slug"]
+isOneToOne: false
+      referencedRelation: "places"
+      referencedColumns: ["slug"]
     },{
       foreignKeyName: "alerts_sector_slug_fkey"
       columns: ["sector_slug"]
@@ -256,13 +262,13 @@ isOneToOne: false
                   ]
                 },"departments": {
                   Row: {
-                    "code": string,"name": string,"region": string,"slug": string
+                    "code": string,"name": string,"nuts3": string | null,"region": string,"slug": string
                   }
                   Insert: {
-                    "code": string,"name": string,"region": string,"slug": string
+                    "code": string,"name": string,"nuts3"?: string | null,"region": string,"slug": string
                   }
                   Update: {
-                    "code"?: string,"name"?: string,"region"?: string,"slug"?: string
+                    "code"?: string,"name"?: string,"nuts3"?: string | null,"region"?: string,"slug"?: string
                   }
                   Relationships: [
                     
@@ -288,13 +294,13 @@ isOneToOne: false
                   ]
                 },"external_sources": {
                   Row: {
-                    "base_url": string | null,"created_at": string,"description": string | null,"id": string,"import_method": string,"is_demo": boolean,"legal_validated_at": string | null,"legal_validated_by": string | null,"license": string | null,"name": string,"notes": string | null,"status": Database["public"]['Enums']["source_status"],"terms_url": string | null,"updated_at": string
+                    "attribution": string | null,"base_url": string | null,"code": string | null,"config": NonNullable<Json>,"connector": string,"created_at": string,"description": string | null,"id": string,"import_method": string,"is_active": boolean,"is_demo": boolean,"last_error": string | null,"last_success_at": string | null,"last_sync_at": string | null,"legal_validated_at": string | null,"legal_validated_by": string | null,"license": string | null,"name": string,"next_sync_at": string | null,"notes": string | null,"status": Database["public"]['Enums']["source_status"],"sync_frequency": string,"terms_url": string | null,"updated_at": string
                   }
                   Insert: {
-                    "base_url"?: string | null,"created_at"?: string,"description"?: string | null,"id"?: string,"import_method"?: string,"is_demo"?: boolean,"legal_validated_at"?: string | null,"legal_validated_by"?: string | null,"license"?: string | null,"name": string,"notes"?: string | null,"status"?: Database["public"]['Enums']["source_status"],"terms_url"?: string | null,"updated_at"?: string
+                    "attribution"?: string | null,"base_url"?: string | null,"code"?: string | null,"config"?: NonNullable<Json>,"connector"?: string,"created_at"?: string,"description"?: string | null,"id"?: string,"import_method"?: string,"is_active"?: boolean,"is_demo"?: boolean,"last_error"?: string | null,"last_success_at"?: string | null,"last_sync_at"?: string | null,"legal_validated_at"?: string | null,"legal_validated_by"?: string | null,"license"?: string | null,"name": string,"next_sync_at"?: string | null,"notes"?: string | null,"status"?: Database["public"]['Enums']["source_status"],"sync_frequency"?: string,"terms_url"?: string | null,"updated_at"?: string
                   }
                   Update: {
-                    "base_url"?: string | null,"created_at"?: string,"description"?: string | null,"id"?: string,"import_method"?: string,"is_demo"?: boolean,"legal_validated_at"?: string | null,"legal_validated_by"?: string | null,"license"?: string | null,"name"?: string,"notes"?: string | null,"status"?: Database["public"]['Enums']["source_status"],"terms_url"?: string | null,"updated_at"?: string
+                    "attribution"?: string | null,"base_url"?: string | null,"code"?: string | null,"config"?: NonNullable<Json>,"connector"?: string,"created_at"?: string,"description"?: string | null,"id"?: string,"import_method"?: string,"is_active"?: boolean,"is_demo"?: boolean,"last_error"?: string | null,"last_success_at"?: string | null,"last_sync_at"?: string | null,"legal_validated_at"?: string | null,"legal_validated_by"?: string | null,"license"?: string | null,"name"?: string,"next_sync_at"?: string | null,"notes"?: string | null,"status"?: Database["public"]['Enums']["source_status"],"sync_frequency"?: string,"terms_url"?: string | null,"updated_at"?: string
                   }
                   Relationships: [
                     {
@@ -438,13 +444,13 @@ isOneToOne: false
                   ]
                 },"opportunities": {
                   Row: {
-                    "budget_max": number | null,"budget_min": number | null,"budget_visible": boolean,"city": string | null,"closed_at": string | null,"company_id": string | null,"constraints": string | null,"contact_name": string | null,"created_at": string,"created_by": string | null,"criteria": string | null,"department_code": string | null,"description": string,"duplicate_of": string | null,"external_buyer_name": string | null,"id": string,"is_demo": boolean,"keywords": (string)[],"lat": number | null,"lng": number | null,"max_suppliers": number | null,"moderation_note": string | null,"origin": Database["public"]['Enums']["opportunity_origin"],"outcome": Database["public"]['Enums']["opportunity_outcome"] | null,"outcome_note": string | null,"postal_code": string | null,"published_at": string | null,"publisher_attested_at": string | null,"region": string | null,"response_deadline": string | null,"search_vector": unknown,"sector_slug": string | null,"selected_proposal_id": string | null,"services": string | null,"skills": (string)[],"start_date": string | null,"status": Database["public"]['Enums']["opportunity_status"],"summary": string | null,"target_company_size": Database["public"]['Enums']["company_size"] | null,"title": string,"type": Database["public"]['Enums']["opportunity_type"],"updated_at": string,"visibility": Database["public"]['Enums']["opportunity_visibility"]
+                    "budget_max": number | null,"budget_min": number | null,"budget_visible": boolean,"city": string | null,"closed_at": string | null,"company_id": string | null,"constraints": string | null,"contact_name": string | null,"cpv_codes": (string)[],"created_at": string,"created_by": string | null,"criteria": string | null,"dedup_key": string | null,"department_code": string | null,"description": string,"duplicate_of": string | null,"external_buyer_name": string | null,"external_reference": string | null,"id": string,"is_demo": boolean,"keywords": (string)[],"lat": number | null,"lng": number | null,"max_suppliers": number | null,"moderation_note": string | null,"origin": Database["public"]['Enums']["opportunity_origin"],"outcome": Database["public"]['Enums']["opportunity_outcome"] | null,"outcome_note": string | null,"postal_code": string | null,"published_at": string | null,"publisher_attested_at": string | null,"region": string | null,"response_deadline": string | null,"search_vector": unknown,"sector_slug": string | null,"selected_proposal_id": string | null,"services": string | null,"skills": (string)[],"start_date": string | null,"status": Database["public"]['Enums']["opportunity_status"],"summary": string | null,"target_company_size": Database["public"]['Enums']["company_size"] | null,"title": string,"type": Database["public"]['Enums']["opportunity_type"],"updated_at": string,"visibility": Database["public"]['Enums']["opportunity_visibility"]
                   }
                   Insert: {
-                    "budget_max"?: number | null,"budget_min"?: number | null,"budget_visible"?: boolean,"city"?: string | null,"closed_at"?: string | null,"company_id"?: string | null,"constraints"?: string | null,"contact_name"?: string | null,"created_at"?: string,"created_by"?: string | null,"criteria"?: string | null,"department_code"?: string | null,"description": string,"duplicate_of"?: string | null,"external_buyer_name"?: string | null,"id"?: string,"is_demo"?: boolean,"keywords"?: (string)[],"lat"?: number | null,"lng"?: number | null,"max_suppliers"?: number | null,"moderation_note"?: string | null,"origin"?: Database["public"]['Enums']["opportunity_origin"],"outcome"?: Database["public"]['Enums']["opportunity_outcome"] | null,"outcome_note"?: string | null,"postal_code"?: string | null,"published_at"?: string | null,"publisher_attested_at"?: string | null,"region"?: string | null,"response_deadline"?: string | null,"search_vector"?: unknown,"sector_slug"?: string | null,"selected_proposal_id"?: string | null,"services"?: string | null,"skills"?: (string)[],"start_date"?: string | null,"status"?: Database["public"]['Enums']["opportunity_status"],"summary"?: string | null,"target_company_size"?: Database["public"]['Enums']["company_size"] | null,"title": string,"type": Database["public"]['Enums']["opportunity_type"],"updated_at"?: string,"visibility"?: Database["public"]['Enums']["opportunity_visibility"]
+                    "budget_max"?: number | null,"budget_min"?: number | null,"budget_visible"?: boolean,"city"?: string | null,"closed_at"?: string | null,"company_id"?: string | null,"constraints"?: string | null,"contact_name"?: string | null,"cpv_codes"?: (string)[],"created_at"?: string,"created_by"?: string | null,"criteria"?: string | null,"dedup_key"?: string | null,"department_code"?: string | null,"description": string,"duplicate_of"?: string | null,"external_buyer_name"?: string | null,"external_reference"?: string | null,"id"?: string,"is_demo"?: boolean,"keywords"?: (string)[],"lat"?: number | null,"lng"?: number | null,"max_suppliers"?: number | null,"moderation_note"?: string | null,"origin"?: Database["public"]['Enums']["opportunity_origin"],"outcome"?: Database["public"]['Enums']["opportunity_outcome"] | null,"outcome_note"?: string | null,"postal_code"?: string | null,"published_at"?: string | null,"publisher_attested_at"?: string | null,"region"?: string | null,"response_deadline"?: string | null,"search_vector"?: unknown,"sector_slug"?: string | null,"selected_proposal_id"?: string | null,"services"?: string | null,"skills"?: (string)[],"start_date"?: string | null,"status"?: Database["public"]['Enums']["opportunity_status"],"summary"?: string | null,"target_company_size"?: Database["public"]['Enums']["company_size"] | null,"title": string,"type": Database["public"]['Enums']["opportunity_type"],"updated_at"?: string,"visibility"?: Database["public"]['Enums']["opportunity_visibility"]
                   }
                   Update: {
-                    "budget_max"?: number | null,"budget_min"?: number | null,"budget_visible"?: boolean,"city"?: string | null,"closed_at"?: string | null,"company_id"?: string | null,"constraints"?: string | null,"contact_name"?: string | null,"created_at"?: string,"created_by"?: string | null,"criteria"?: string | null,"department_code"?: string | null,"description"?: string,"duplicate_of"?: string | null,"external_buyer_name"?: string | null,"id"?: string,"is_demo"?: boolean,"keywords"?: (string)[],"lat"?: number | null,"lng"?: number | null,"max_suppliers"?: number | null,"moderation_note"?: string | null,"origin"?: Database["public"]['Enums']["opportunity_origin"],"outcome"?: Database["public"]['Enums']["opportunity_outcome"] | null,"outcome_note"?: string | null,"postal_code"?: string | null,"published_at"?: string | null,"publisher_attested_at"?: string | null,"region"?: string | null,"response_deadline"?: string | null,"search_vector"?: unknown,"sector_slug"?: string | null,"selected_proposal_id"?: string | null,"services"?: string | null,"skills"?: (string)[],"start_date"?: string | null,"status"?: Database["public"]['Enums']["opportunity_status"],"summary"?: string | null,"target_company_size"?: Database["public"]['Enums']["company_size"] | null,"title"?: string,"type"?: Database["public"]['Enums']["opportunity_type"],"updated_at"?: string,"visibility"?: Database["public"]['Enums']["opportunity_visibility"]
+                    "budget_max"?: number | null,"budget_min"?: number | null,"budget_visible"?: boolean,"city"?: string | null,"closed_at"?: string | null,"company_id"?: string | null,"constraints"?: string | null,"contact_name"?: string | null,"cpv_codes"?: (string)[],"created_at"?: string,"created_by"?: string | null,"criteria"?: string | null,"dedup_key"?: string | null,"department_code"?: string | null,"description"?: string,"duplicate_of"?: string | null,"external_buyer_name"?: string | null,"external_reference"?: string | null,"id"?: string,"is_demo"?: boolean,"keywords"?: (string)[],"lat"?: number | null,"lng"?: number | null,"max_suppliers"?: number | null,"moderation_note"?: string | null,"origin"?: Database["public"]['Enums']["opportunity_origin"],"outcome"?: Database["public"]['Enums']["opportunity_outcome"] | null,"outcome_note"?: string | null,"postal_code"?: string | null,"published_at"?: string | null,"publisher_attested_at"?: string | null,"region"?: string | null,"response_deadline"?: string | null,"search_vector"?: unknown,"sector_slug"?: string | null,"selected_proposal_id"?: string | null,"services"?: string | null,"skills"?: (string)[],"start_date"?: string | null,"status"?: Database["public"]['Enums']["opportunity_status"],"summary"?: string | null,"target_company_size"?: Database["public"]['Enums']["company_size"] | null,"title"?: string,"type"?: Database["public"]['Enums']["opportunity_type"],"updated_at"?: string,"visibility"?: Database["public"]['Enums']["opportunity_visibility"]
                   }
                   Relationships: [
                     {
@@ -518,13 +524,13 @@ isOneToOne: false
                   ]
                 },"opportunity_sources": {
                   Row: {
-                    "external_id": string | null,"imported_at": string,"imported_by": string | null,"last_verified_at": string | null,"opportunity_id": string,"original_url": string,"source_id": string,"source_published_at": string | null,"verification_status": string
+                    "content_hash": string | null,"external_id": string | null,"imported_at": string,"imported_by": string | null,"is_primary": boolean,"last_verified_at": string | null,"opportunity_id": string,"original_url": string,"source_id": string,"source_published_at": string | null,"source_updated_at": string | null,"verification_status": string
                   }
                   Insert: {
-                    "external_id"?: string | null,"imported_at"?: string,"imported_by"?: string | null,"last_verified_at"?: string | null,"opportunity_id": string,"original_url": string,"source_id": string,"source_published_at"?: string | null,"verification_status"?: string
+                    "content_hash"?: string | null,"external_id"?: string | null,"imported_at"?: string,"imported_by"?: string | null,"is_primary"?: boolean,"last_verified_at"?: string | null,"opportunity_id": string,"original_url": string,"source_id": string,"source_published_at"?: string | null,"source_updated_at"?: string | null,"verification_status"?: string
                   }
                   Update: {
-                    "external_id"?: string | null,"imported_at"?: string,"imported_by"?: string | null,"last_verified_at"?: string | null,"opportunity_id"?: string,"original_url"?: string,"source_id"?: string,"source_published_at"?: string | null,"verification_status"?: string
+                    "content_hash"?: string | null,"external_id"?: string | null,"imported_at"?: string,"imported_by"?: string | null,"is_primary"?: boolean,"last_verified_at"?: string | null,"opportunity_id"?: string,"original_url"?: string,"source_id"?: string,"source_published_at"?: string | null,"source_updated_at"?: string | null,"verification_status"?: string
                   }
                   Relationships: [
                     {
@@ -536,7 +542,7 @@ isOneToOne: false
     },{
       foreignKeyName: "opportunity_sources_opportunity_id_fkey"
       columns: ["opportunity_id"]
-isOneToOne: true
+isOneToOne: false
       referencedRelation: "opportunities"
       referencedColumns: ["id"]
     },{
@@ -782,16 +788,41 @@ isOneToOne: false
                   ]
                 },"sectors": {
                   Row: {
-                    "description": string | null,"is_pilot_priority": boolean,"label": string,"slug": string,"sort_order": number
+                    "description": string | null,"is_active": boolean,"is_pilot_priority": boolean,"label": string,"slug": string,"sort_order": number
                   }
                   Insert: {
-                    "description"?: string | null,"is_pilot_priority"?: boolean,"label": string,"slug": string,"sort_order"?: number
+                    "description"?: string | null,"is_active"?: boolean,"is_pilot_priority"?: boolean,"label": string,"slug": string,"sort_order"?: number
                   }
                   Update: {
-                    "description"?: string | null,"is_pilot_priority"?: boolean,"label"?: string,"slug"?: string,"sort_order"?: number
+                    "description"?: string | null,"is_active"?: boolean,"is_pilot_priority"?: boolean,"label"?: string,"slug"?: string,"sort_order"?: number
                   }
                   Relationships: [
                     
+                  ]
+                },"source_sync_runs": {
+                  Row: {
+                    "created": number,"duplicates": number,"errors": NonNullable<Json>,"expired": number,"fetched": number,"finished_at": string | null,"id": string,"sample": Json | null,"skipped": number,"source_id": string,"started_at": string,"status": string,"trigger": string,"triggered_by": string | null,"unchanged": number,"updated": number
+                  }
+                  Insert: {
+                    "created"?: number,"duplicates"?: number,"errors"?: NonNullable<Json>,"expired"?: number,"fetched"?: number,"finished_at"?: string | null,"id"?: string,"sample"?: Json | null,"skipped"?: number,"source_id": string,"started_at"?: string,"status"?: string,"trigger"?: string,"triggered_by"?: string | null,"unchanged"?: number,"updated"?: number
+                  }
+                  Update: {
+                    "created"?: number,"duplicates"?: number,"errors"?: NonNullable<Json>,"expired"?: number,"fetched"?: number,"finished_at"?: string | null,"id"?: string,"sample"?: Json | null,"skipped"?: number,"source_id"?: string,"started_at"?: string,"status"?: string,"trigger"?: string,"triggered_by"?: string | null,"unchanged"?: number,"updated"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "source_sync_runs_source_id_fkey"
+      columns: ["source_id"]
+isOneToOne: false
+      referencedRelation: "external_sources"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "source_sync_runs_triggered_by_fkey"
+      columns: ["triggered_by"]
+isOneToOne: false
+      referencedRelation: "users"
+      referencedColumns: ["id"]
+    }
                   ]
                 },"users": {
                   Row: {
@@ -832,11 +863,19 @@ isOneToOne: false
 "admin_set_user_status":
 { Args: { "p_reason": string,"p_status": Database["public"]['Enums']["account_status"],"p_user_id": string }; Returns: undefined
                            },
+"admin_source_stats":
+{ Args: Record<PropertyKey, never>; Returns: {
+              "expired": number,"published": number,"source_id": string,"total": number
+            }[]
+                           },
 "admin_stats":
 { Args: Record<PropertyKey, never>; Returns: Json
                            },
 "admin_update_setting":
 { Args: { "p_key": string,"p_value": Json }; Returns: undefined
+                           },
+"admin_update_source_settings":
+{ Args: { "p_config": Json,"p_id": string,"p_is_active": boolean,"p_sync_frequency": string }; Returns: undefined
                            },
 "admin_upsert_external_source":
 { Args: { "p_base_url": string,"p_description": string,"p_id": string,"p_import_method": string,"p_legal_validation_confirmed"?: boolean,"p_license": string,"p_name": string,"p_notes": string,"p_status": Database["public"]['Enums']["source_status"],"p_terms_url": string }; Returns: string
@@ -865,13 +904,16 @@ isOneToOne: false
 "company_id": string | null,
 "constraints": string | null,
 "contact_name": string | null,
+"cpv_codes": (string)[],
 "created_at": string,
 "created_by": string | null,
 "criteria": string | null,
+"dedup_key": string | null,
 "department_code": string | null,
 "description": string,
 "duplicate_of": string | null,
 "external_buyer_name": string | null,
+"external_reference": string | null,
 "id": string,
 "is_demo": boolean,
 "keywords": (string)[],
@@ -907,6 +949,9 @@ isOneToOne: false
         isOneToOne: true
         isSetofReturn: false
       } },
+"bootstrap_super_admin":
+{ Args: { "p_email": string }; Returns: boolean
+                           },
 "buyer_set_interest_status":
 { Args: { "p_interest_id": string,"p_message"?: string,"p_status": Database["public"]['Enums']["interest_status"] }; Returns: undefined
                            },
@@ -930,6 +975,9 @@ isOneToOne: false
                            },
 "dispatch_immediate_alerts":
 { Args: { "p_opportunity_id": string }; Returns: number
+                           },
+"distance_km":
+{ Args: { "lat1": number,"lat2": number,"lng1": number,"lng2": number }; Returns: number
                            },
 "enforce_rate_limit":
 { Args: { "p_max": number,"p_scope": string,"p_window_seconds": number }; Returns: undefined
@@ -957,6 +1005,9 @@ isOneToOne: false
                            },
 "is_admin":
 { Args: Record<PropertyKey, never>; Returns: boolean
+                           },
+"is_company_active":
+{ Args: { "p_company_id": string }; Returns: boolean
                            },
 "is_company_admin":
 { Args: { "p_company_id": string }; Returns: boolean
@@ -1013,7 +1064,7 @@ isOneToOne: false
 { Args: Record<PropertyKey, never>; Returns: number
                            },
 "recommended_opportunities":
-{ Args: { "p_company_id": string,"p_limit"?: number }; Returns: {
+{ Args: { "p_company_id": string,"p_include_demo"?: boolean,"p_limit"?: number }; Returns: {
               "city": string,"id": string,"is_demo": boolean,"origin": Database["public"]['Enums']["opportunity_origin"],"published_at": string,"reasons": (string)[],"response_deadline": string,"score": number,"sector_slug": string,"title": string,"type": Database["public"]['Enums']["opportunity_type"]
             }[]
                            },
@@ -1065,7 +1116,7 @@ isOneToOne: false
             }[]
                            },
 "search_opportunities":
-{ Args: { "p_company_size"?: Database["public"]['Enums']["company_size"],"p_deadline_before"?: string,"p_department"?: string,"p_limit"?: number,"p_offset"?: number,"p_origin"?: Database["public"]['Enums']["opportunity_origin"],"p_place"?: string,"p_published_since"?: string,"p_q"?: string,"p_radius_km"?: number,"p_sector"?: string,"p_skills"?: (string)[],"p_sort"?: string,"p_status"?: string,"p_types"?: (Database["public"]['Enums']["opportunity_type"])[] }; Returns: {
+{ Args: { "p_company_size"?: Database["public"]['Enums']["company_size"],"p_deadline_before"?: string,"p_department"?: string,"p_include_demo"?: boolean,"p_limit"?: number,"p_offset"?: number,"p_origin"?: Database["public"]['Enums']["opportunity_origin"],"p_place"?: string,"p_published_since"?: string,"p_q"?: string,"p_radius_km"?: number,"p_sector"?: string,"p_skills"?: (string)[],"p_sort"?: string,"p_status"?: string,"p_types"?: (Database["public"]['Enums']["opportunity_type"])[] }; Returns: {
               "budget_max": number,"budget_min": number,"budget_visible": boolean,"city": string,"company_id": string,"company_name": string,"company_slug": string,"company_verified": boolean,"department_code": string,"distance_km": number,"effective_status": string,"external_buyer_name": string,"id": string,"is_demo": boolean,"origin": Database["public"]['Enums']["opportunity_origin"],"published_at": string,"rank": number,"response_deadline": string,"sector_slug": string,"skills": (string)[],"source_name": string,"status": Database["public"]['Enums']["opportunity_status"],"summary": string,"title": string,"total_count": number,"type": Database["public"]['Enums']["opportunity_type"],"visibility": Database["public"]['Enums']["opportunity_visibility"]
             }[]
                            },

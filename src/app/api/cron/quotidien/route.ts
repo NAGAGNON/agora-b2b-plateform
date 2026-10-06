@@ -3,7 +3,11 @@ import { timingSafeEqual } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { env } from "@/lib/env";
 import { processAlertDigests, processEmailOutbox } from "@/lib/email/outbox";
+import { runDueSources } from "@/lib/collect/run";
 import { logServerError } from "@/lib/errors";
+
+// La collecte de plusieurs sources peut prendre du temps.
+export const maxDuration = 300;
 
 function authorized(req: Request): boolean {
   const secret = env.cronSecret;
@@ -14,18 +18,27 @@ function authorized(req: Request): boolean {
 }
 
 /**
- * Tâche planifiée quotidienne (Vercel Cron — voir vercel.json) :
- * expiration des opportunités, résumés d'alertes, envoi de la file d'e-mails.
+ * Tâche planifiée (Vercel Cron — vercel.json) :
+ * 1. collecte des sources externes dont l'échéance est atteinte ;
+ * 2. expiration des opportunités ;
+ * 3. résumés d'alertes ;
+ * 4. envoi de la file d'e-mails.
+ * Chaque étape est isolée : l'échec de l'une n'empêche pas les suivantes.
  */
 export async function GET(req: Request) {
   if (!authorized(req)) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
-  try {
-    const { data: expired } = await createAdminClient().rpc("expire_opportunities");
-    const digests = await processAlertDigests();
-    const emails = await processEmailOutbox(200);
-    return NextResponse.json({ ok: true, expired, digests, emails });
-  } catch (e) {
-    logServerError("cron quotidien", e);
-    return NextResponse.json({ ok: false }, { status: 500 });
-  }
+  const report: Record<string, unknown> = {};
+  const step = async (name: string, fn: () => Promise<unknown>) => {
+    try {
+      report[name] = await fn();
+    } catch (e) {
+      logServerError(`cron ${name}`, e);
+      report[name] = { error: e instanceof Error ? e.message : String(e) };
+    }
+  };
+  await step("sources", () => runDueSources());
+  await step("expired", async () => (await createAdminClient().rpc("expire_opportunities")).data);
+  await step("digests", () => processAlertDigests());
+  await step("emails", () => processEmailOutbox(200));
+  return NextResponse.json({ ok: true, ...report });
 }

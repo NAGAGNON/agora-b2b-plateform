@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, Building2, ClipboardCheck, FileStack, Flag, History, Settings, Users, Database } from "lucide-react";
+import { BarChart3, Building2, ClipboardCheck, FileStack, Flag, History, Settings, Users, Database, RefreshCw, Tags, Inbox } from "lucide-react";
 import { cn } from "@/lib/cn";
 
 const LINKS = [
@@ -13,6 +13,9 @@ const LINKS = [
   { href: "/admin/entreprises", label: "Entreprises", icon: Building2 },
   { href: "/admin/signalements", label: "Signalements", icon: Flag, badge: "reports" },
   { href: "/admin/sources", label: "Sources externes", icon: Database, admin: true },
+  { href: "/admin/synchronisations", label: "Synchronisations", icon: RefreshCw },
+  { href: "/admin/reponses", label: "Intérêts et réponses", icon: Inbox },
+  { href: "/admin/referentiels", label: "Secteurs et zones", icon: Tags, admin: true },
   { href: "/admin/audit", label: "Journal d'audit", icon: History, admin: true },
   { href: "/admin/parametres", label: "Paramètres", icon: Settings, admin: true },
 ];

@@ -28,8 +28,8 @@ export async function getOpportunityDetail(id: string) {
     .select(
       `*, company:companies(id, slug, name, city, logo_path, verified_at, is_demo, kind),
        documents:opportunity_documents(id, file_name, mime_type, size_bytes, created_at),
-       source:opportunity_sources(external_id, original_url, source_published_at, imported_at, last_verified_at, verification_status,
-         external_source:external_sources(name, base_url, license, terms_url))`,
+       source:opportunity_sources(source_id, is_primary, external_id, original_url, source_published_at, imported_at, last_verified_at, verification_status,
+         external_source:external_sources(name, base_url, license, terms_url, attribution))`,
     )
     .eq("id", id)
     .maybeSingle();

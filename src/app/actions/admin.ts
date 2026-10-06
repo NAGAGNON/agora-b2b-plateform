@@ -216,3 +216,69 @@ export async function runMaintenance(): Promise<ActionResult> {
     message: `${expired ?? 0} opportunité(s) expirée(s) · ${digests.emails} résumé(s) d'alerte · e-mails : ${mails.sent} envoyé(s), ${mails.skipped} non envoyé(s) (aucun fournisseur configuré), ${mails.failed} en échec.`,
   };
 }
+
+// ---------------------------------------------------------------------------
+// Sources externes : collecte
+// ---------------------------------------------------------------------------
+async function loadSource(id: string) {
+  const { data } = await createAdminClient().from("external_sources").select("*").eq("id", id).maybeSingle();
+  return data;
+}
+
+/** Lance immédiatement la collecte d'une source approuvée. */
+export async function syncSourceNow(id: string): Promise<ActionResult> {
+  if (!z.uuid().safeParse(id).success) return { ok: false, error: "Identifiant invalide." };
+  const { session } = await staff();
+  if (!session.isAdmin) return { ok: false, error: "Réservé aux administrateurs." };
+  const source = await loadSource(id);
+  if (!source) return { ok: false, error: "Source introuvable." };
+  const { runSource } = await import("@/lib/collect/run");
+  const r = await runSource(source, { trigger: "manual", userId: session.userId });
+  revalidatePath("/admin", "layout");
+  revalidatePath("/opportunites");
+  if (r.status === "FAILED") return { ok: false, error: `Échec de la collecte : ${r.errors[0] ?? "erreur inconnue"}` };
+  return { ok: true, message: `${r.fetched} annonce(s) lue(s) : ${r.created} créée(s), ${r.updated} mise(s) à jour, ${r.duplicates} doublon(s) rattaché(s), ${r.skipped} ignorée(s).` };
+}
+
+/** Collecte de test : aucune écriture d'opportunité, renvoie un échantillon normalisé. */
+export async function testSource(id: string): Promise<ActionResult<{ sample: unknown }>> {
+  if (!z.uuid().safeParse(id).success) return { ok: false, error: "Identifiant invalide." };
+  const { session } = await staff();
+  if (!session.isAdmin) return { ok: false, error: "Réservé aux administrateurs." };
+  const source = await loadSource(id);
+  if (!source) return { ok: false, error: "Source introuvable." };
+  const { runSource } = await import("@/lib/collect/run");
+  const r = await runSource(source, { trigger: "test", userId: session.userId });
+  revalidatePath("/admin/synchronisations");
+  const { data: run } = r.runId ? await createAdminClient().from("source_sync_runs").select("sample").eq("id", r.runId).single() : { data: null };
+  if (r.status === "FAILED") return { ok: false, error: `Test en échec : ${r.errors.slice(0, 3).join(" · ") || "aucune annonce exploitable"}` };
+  return { ok: true, message: `Test réussi : ${r.fetched} enregistrement(s) lu(s), ${r.skipped} non exploitable(s).`, data: { sample: run?.sample ?? null } };
+}
+
+const sourceSettingsSchema = z.object({
+  id: z.uuid(),
+  isActive: z.preprocess((v) => v === "on" || v === "true", z.boolean()),
+  syncFrequency: z.enum(["hourly", "daily", "weekly"]),
+  config: z.string().max(10000),
+});
+
+export async function updateSourceSettings(_prev: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  const parsed = parseForm(sourceSettingsSchema, fd);
+  if (!parsed.success) return parsed.result;
+  const { supabase } = await staff();
+  let config: Json;
+  try {
+    config = JSON.parse(parsed.data.config || "{}");
+  } catch {
+    return { ok: false, error: "Configuration JSON invalide.", fieldErrors: { config: "JSON invalide" } };
+  }
+  const { error } = await supabase.rpc("admin_update_source_settings", {
+    p_id: parsed.data.id,
+    p_is_active: parsed.data.isActive,
+    p_sync_frequency: parsed.data.syncFrequency,
+    p_config: config,
+  });
+  if (error) return { ok: false, error: userMessage(error) };
+  revalidatePath("/admin/sources");
+  return { ok: true, message: "Réglages de collecte enregistrés." };
+}

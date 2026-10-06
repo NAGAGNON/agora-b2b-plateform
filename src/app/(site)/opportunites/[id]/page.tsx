@@ -123,7 +123,9 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
   ]);
 
   const external = o.origin === "EXTERNAL";
-  const source = Array.isArray(o.source) ? o.source[0] : o.source;
+  const sources = (Array.isArray(o.source) ? o.source : o.source ? [o.source] : []).sort((a, b) => Number(b.is_primary) - Number(a.is_primary));
+  const source = sources[0];
+  const otherSources = sources.slice(1);
   const company = Array.isArray(o.company) ? o.company[0] : o.company;
   const deadlinePassed = Boolean(o.response_deadline && new Date(o.response_deadline) < new Date());
   const effectiveStatus = o.status === "PUBLISHED" && deadlinePassed ? "EXPIRED" : o.status;
@@ -156,6 +158,19 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
           )}
         </nav>
 
+        {effectiveStatus === "EXPIRED" && (
+          <Notice tone="warning" title="EXPIRÉE" className="mb-6">
+            La date limite de cette opportunité est dépassée : elle n&apos;est plus active. Elle reste consultable pour information.{" "}
+            <Link href={`/opportunites${o.sector_slug ? `/${o.sector_slug}` : ""}`} className="font-semibold underline">
+              Voir les opportunités ouvertes
+            </Link>
+          </Notice>
+        )}
+        {typeof sp.erreur === "string" && (
+          <Notice tone="error" className="mb-6" title="Pièces jointes">
+            {sp.erreur}
+          </Notice>
+        )}
         {sp.reponse === "envoyee" && (
           <Notice tone="success" title="Réponse envoyée" className="mb-6">
             Le demandeur a été notifié. Suivez l&apos;avancement dans{" "}
@@ -318,6 +333,7 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
                   )}
                   {source?.external_source?.license && <Row label="Conditions" value={source.external_source.license} />}
                 </dl>
+                {source?.external_source?.attribution && <p className="mt-3 text-xs text-slate-500">{source.external_source.attribution}</p>}
                 {source?.original_url && (
                   <a
                     href={`/go/${o.id}`}
@@ -325,10 +341,25 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
                     rel="noopener noreferrer nofollow"
                     className={buttonClasses({ full: true, size: "lg", className: "mt-5" })}
                   >
-                    Consulter l&apos;annonce sur le site source <ExternalLink className="size-4" aria-hidden />
+                    Consulter l&apos;annonce originale <ExternalLink className="size-4" aria-hidden />
                   </a>
                 )}
                 <p className="mt-2 text-center text-xs text-slate-500">Ouvre le site source dans un nouvel onglet.</p>
+                {otherSources.length > 0 && (
+                  <div className="mt-4 border-t border-slate-100 pt-3 text-sm">
+                    <p className="font-semibold text-navy">Également publiée sur</p>
+                    <ul className="mt-1 space-y-1">
+                      {otherSources.map((s) => (
+                        <li key={s.source_id}>
+                          <a href={`/go/${o.id}?source=${s.source_id}`} target="_blank" rel="noopener noreferrer nofollow" className="text-teal-700 underline">
+                            {s.external_source?.name}
+                            {s.external_id ? ` — réf. ${s.external_id}` : ""}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
                 {source?.verification_status === "UNVERIFIABLE" && (
                   <Notice tone="warning" className="mt-4">
                     <span className="flex items-center gap-1">

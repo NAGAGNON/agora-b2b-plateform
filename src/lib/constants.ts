@@ -30,9 +30,29 @@ export const SECTORS = [
   { slug: "cybersecurite", label: "Cybersécurité" },
   { slug: "services-aux-entreprises", label: "Services aux entreprises" },
   { slug: "transport-logistique", label: "Transport et logistique" },
+  { slug: "electricite-automatisme", label: "Électricité industrielle et automatisme" },
+  { slug: "energie", label: "Énergie" },
+  { slug: "batiment-technique", label: "Bâtiment technique" },
+  { slug: "ingenierie-etudes", label: "Ingénierie et bureaux d'études" },
+  { slug: "telecoms", label: "Télécoms et réseaux" },
+  { slug: "nettoyage-proprete", label: "Nettoyage et propreté" },
+  { slug: "securite-surete", label: "Sécurité et sûreté" },
+  { slug: "formation", label: "Formation professionnelle" },
+  { slug: "conseil", label: "Conseil aux entreprises" },
 ] as const;
 
+/**
+ * Libellés par défaut. La liste de référence est la table `sectors` (gérée
+ * dans l'administration) : voir getSectors() ; ces libellés servent de repli.
+ */
 export const SECTOR_LABELS: Record<string, string> = Object.fromEntries(SECTORS.map((s) => [s.slug, s.label]));
+
+export type SectorOption = { slug: string; label: string };
+
+export function sectorLabel(slug: string | null | undefined, labels: Record<string, string> = SECTOR_LABELS): string {
+  if (!slug) return "—";
+  return labels[slug] ?? SECTOR_LABELS[slug] ?? slug.replace(/-/g, " ").replace(/^./, (c) => c.toUpperCase());
+}
 
 export const BRITTANY_DEPARTMENTS = [
   { code: "29", name: "Finistère", slug: "finistere" },

@@ -1,0 +1,86 @@
+import Link from "next/link";
+import { RefreshCw } from "lucide-react";
+import { requireStaff } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/server";
+import { DataTable } from "@/components/ui/data-table";
+import { EmptyState } from "@/components/ui/states";
+import { Badge, type BadgeTone } from "@/components/ui/badge";
+import { formatDateTime } from "@/lib/format";
+
+export const metadata = { title: "Synchronisations" };
+
+const TONES: Record<string, BadgeTone> = { SUCCESS: "green", PARTIAL: "amber", FAILED: "red", RUNNING: "sky" };
+const LABELS: Record<string, string> = { SUCCESS: "Réussie", PARTIAL: "Partielle", FAILED: "En échec", RUNNING: "En cours" };
+const TRIGGERS: Record<string, string> = { cron: "Planifiée", manual: "Manuelle", test: "Test" };
+
+export default async function SyncRunsPage() {
+  await requireStaff();
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("source_sync_runs")
+    .select("*, source:external_sources(name)")
+    .order("started_at", { ascending: false })
+    .limit(100);
+  return (
+    <div>
+      <h1 className="text-2xl font-bold">Synchronisations des sources</h1>
+      <p className="mt-1 mb-6 text-slate-600">
+        Journal de chaque collecte : annonces lues, créées, mises à jour, doublons rattachés, ignorées, et erreurs.{" "}
+        <Link href="/admin/sources" className="font-semibold text-teal-700 underline">
+          Gérer les sources
+        </Link>
+      </p>
+      <DataTable
+        rows={data ?? []}
+        rowKey={(r) => r.id}
+        caption="Synchronisations"
+        empty={<EmptyState icon={<RefreshCw className="size-6" aria-hidden />} title="Aucune synchronisation" description="Lancez une collecte depuis la page Sources ou attendez la tâche planifiée quotidienne." />}
+        columns={[
+          {
+            key: "source",
+            header: "Source",
+            primary: true,
+            cell: (r) => (
+              <span>
+                <span className="font-semibold text-navy">{(Array.isArray(r.source) ? r.source[0] : r.source)?.name}</span>
+                <span className="block text-xs text-slate-500">
+                  {formatDateTime(r.started_at)} · {TRIGGERS[r.trigger] ?? r.trigger}
+                </span>
+              </span>
+            ),
+          },
+          { key: "status", header: "Statut", cell: (r) => <Badge tone={TONES[r.status] ?? "slate"}>{LABELS[r.status] ?? r.status}</Badge> },
+          {
+            key: "counts",
+            header: "Lues / créées / mises à jour / doublons / ignorées",
+            cell: (r) => (
+              <span className="tabular-nums">
+                {r.fetched} / {r.created} / {r.updated} / {r.duplicates} / {r.skipped}
+              </span>
+            ),
+          },
+          {
+            key: "errors",
+            header: "Erreurs",
+            hideOnMobile: true,
+            cell: (r) => {
+              const errs = (r.errors as string[]) ?? [];
+              return errs.length ? (
+                <details className="max-w-md text-xs">
+                  <summary className="cursor-pointer text-red-700">{errs.length} erreur(s)</summary>
+                  <ul className="mt-1 list-disc pl-4 text-slate-600">
+                    {errs.slice(0, 10).map((e) => (
+                      <li key={e}>{e}</li>
+                    ))}
+                  </ul>
+                </details>
+              ) : (
+                <span className="text-xs text-slate-400">—</span>
+              );
+            },
+          },
+        ]}
+      />
+    </div>
+  );
+}
