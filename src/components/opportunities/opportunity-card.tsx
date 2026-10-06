@@ -4,7 +4,7 @@ import { OpportunityTypeBadge, OriginBadge } from "@/components/opportunities/op
 import { StatusBadge } from "@/components/ui/status-badge";
 import { DemoBadge } from "@/components/demo";
 import { sectorLabel, type OpportunityOrigin, type OpportunityType } from "@/lib/constants";
-import { getSectorLabels } from "@/lib/queries/platform";
+import { getLocationLabel, getSectorLabels } from "@/lib/queries/platform";
 import { deadlineLabel, formatBudget, formatDate } from "@/lib/format";
 
 export type OpportunityCardData = {
@@ -61,8 +61,7 @@ export async function OpportunityCard({ o, headingLevel = 3 }: { o: OpportunityC
             <MapPin className="size-4 shrink-0 text-slate-500" aria-hidden />
             <dt className="sr-only">Localisation</dt>
             <dd>
-              {o.city ?? ""}
-              {o.department_code ? ` (${o.department_code})` : ""}
+              {(await getLocationLabel())(o.city, o.department_code)}
               {o.distance_km != null && <span className="text-slate-500"> · {Math.round(o.distance_km)} km</span>}
             </dd>
           </div>

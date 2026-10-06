@@ -29,7 +29,7 @@ import { DemoBadge } from "@/components/demo";
 import { CompanyLogo } from "@/components/companies/company-card";
 import { buttonClasses } from "@/components/ui/button";
 import { getOpportunityDetail, searchOpportunities } from "@/lib/queries/opportunities";
-import { getDepartments, getSectors, getSectorLabels, showDemoData } from "@/lib/queries/platform";
+import { getDepartments, getSectors, getSectorLabels, showDemoData, getLocationLabel } from "@/lib/queries/platform";
 import { getSession } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { track } from "@/lib/analytics";
@@ -230,7 +230,7 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
             ) : null}
 
             <dl className="mt-6 grid gap-3 rounded-xl bg-sky/60 p-4 text-sm sm:grid-cols-2">
-              <Fact icon={MapPin} label="Localisation" value={[o.city, o.department_code && `(${o.department_code})`, o.region].filter(Boolean).join(" ") || "—"} />
+              <Fact icon={MapPin} label="Localisation" value={[(await getLocationLabel())(o.city, o.department_code), o.region && `— ${o.region}`].filter(Boolean).join(" ") || "—"} />
               <Fact icon={Tag} label="Secteur" value={sectorLabel(o.sector_slug, await getSectorLabels())} />
               <Fact icon={CalendarDays} label="Publication" value={formatDate(o.published_at)} />
               <Fact icon={CalendarClock} label="Échéance" value={o.response_deadline ? `${formatDateTime(o.response_deadline)}${deadline ? ` — ${deadline}` : ""}` : "Non précisée"} />

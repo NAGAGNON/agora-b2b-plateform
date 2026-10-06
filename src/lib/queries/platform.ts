@@ -43,6 +43,13 @@ export const getDepartments = cache(async () => {
   return data ?? [];
 });
 
+/** « Brest (29) », ou « Finistère (29) » quand seule la localisation départementale est connue. */
+export const getLocationLabel = cache(async () => {
+  const names = Object.fromEntries((await getDepartments()).map((d) => [d.code, d.name]));
+  return (city: string | null | undefined, code: string | null | undefined) =>
+    [city ?? (code ? names[code] : null), code ? `(${code})` : null].filter(Boolean).join(" ");
+});
+
 export const getPlaces = cache(async () => {
   const supabase = await createClient();
   const { data } = await supabase.from("places").select("name, slug, postal_code, department_code").order("name");
