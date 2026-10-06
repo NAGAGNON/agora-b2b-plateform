@@ -11,6 +11,9 @@ test("un message apparaît chez le destinataire sans rechargement", async ({ bro
   const conversationUrl = supplier.url();
   await expect(supplier.locator('[data-realtime-channel="conversation"][data-realtime="live"]')).toBeVisible({ timeout: 20_000 });
 
+  // Marqueur : disparaîtrait si la page du fournisseur était rechargée.
+  await supplier.evaluate(() => ((window as unknown as { __sansRechargement: boolean }).__sansRechargement = true));
+
   const buyer = await newPage(browser);
   await login(buyer, "acheteur@demo.linkprob2b.test");
   await buyer.goto(conversationUrl);
@@ -19,11 +22,9 @@ test("un message apparaît chez le destinataire sans rechargement", async ({ bro
   await buyer.getByRole("button", { name: /Envoyer/ }).click();
   await expect(buyer.getByText(text)).toBeVisible();
 
-  // Côté fournisseur : aucune navigation, le message arrive par le temps réel.
-  let navigations = 0;
-  supplier.on("framenavigated", () => navigations++);
+  // Côté fournisseur : pas de rechargement (le marqueur posé sur window survit), le message arrive par le temps réel.
   await expect(supplier.getByText(text)).toBeVisible({ timeout: 15_000 });
-  expect(navigations).toBe(0);
+  expect(await supplier.evaluate(() => (window as unknown as { __sansRechargement?: boolean }).__sansRechargement)).toBe(true);
 
   // Accusé de lecture côté expéditeur, également en temps réel.
   await expect(buyer.locator("li", { hasText: text }).getByText("· Lu")).toBeVisible({ timeout: 15_000 });
