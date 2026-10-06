@@ -44,6 +44,22 @@ def load_data():
 
 df = load_data()
 
+@st.cache_data(show_spinner=False)
+def fetch_image(url):
+    try:
+        response = requests.get(url, timeout=4)
+        response.raise_for_status()
+        return Image.open(BytesIO(response.content))
+    except Exception:
+        return None
+
+def show_image(url, width, container=st):
+    img = fetch_image(url)
+    if img is not None:
+        container.image(img, width=width)
+    else:
+        container.image(FALLBACK_IMG, width=width)
+
 st.markdown("""
 <style>
 .main-title {font-size: 2.7em; color: #d32f2f; font-weight: 900; text-align: center;}
@@ -94,47 +110,51 @@ def show_matching_score(type_sel):
         submit = st.button("Trouver les partenaires adaptés", key=type_sel)
         st.markdown('</div>', unsafe_allow_html=True)
 
-    # Fonctionnalité : affichage "fiche contact"
+    state_key = f"results_{type_sel}"
     if submit:
         candidates = df[df['Type'] != type_sel].copy()
         candidates["Score"] = candidates.apply(
             lambda row: match_score(row, type_sel, pays, taille, theme), axis=1
         )
-        candidates = candidates.sort_values("Score", ascending=False).head(nb_part)
-        st.markdown("<br><b>Résultat de votre recherche</b> :", unsafe_allow_html=True)
-        for idx, row in candidates.iterrows():
-            score_color = "score-green" if row["Score"] >= 80 else "score-orange" if row["Score"] >= 60 else "score-red"
-            st.markdown(f'<div class="card">', unsafe_allow_html=True)
-            cols = st.columns([1,6])
+        st.session_state[state_key] = candidates.sort_values("Score", ascending=False).head(nb_part)
+        st.session_state.pop('contact', None)
+
+    candidates = st.session_state.get(state_key)
+    if candidates is None:
+        return
+
+    st.markdown("<br><b>Résultat de votre recherche</b> :", unsafe_allow_html=True)
+    for idx, row in candidates.iterrows():
+        score_color = "score-green" if row["Score"] >= 80 else "score-orange" if row["Score"] >= 60 else "score-red"
+        with st.container(border=True):
+            cols = st.columns([1, 6])
             with cols[0]:
                 st.markdown(f'<span class="score-box {score_color}">{row["Score"]}%</span>', unsafe_allow_html=True)
             with cols[1]:
-                # Clique sur le nom ouvre la fiche contact
-                if st.button(row['Nom'], key=row['Nom'] + "_btn"):
-                    st.session_state['contact'] = row['Nom']
                 st.markdown(f"<h4 style='display:inline'>{row['Nom']} <span style='font-size: 0.8em;'>({row['Ville']}, {row['Pays']})</span></h4>", unsafe_allow_html=True)
-                try:
-                    response = requests.get(row["Image"], timeout=4)
-                    img = Image.open(BytesIO(response.content))
-                    st.image(img, width=160)
-                except Exception:
-                    st.image(FALLBACK_IMG, width=120)
+                show_image(row["Image"], 160)
                 st.markdown(f"<b>Thématique :</b> {row['Thématique']}<br><b>Statut :</b> <span style='color:{row['Statut_color']}'>{row['Statut']}</span>", unsafe_allow_html=True)
-            st.markdown('</div>', unsafe_allow_html=True)
-        if len(candidates) == 0 or candidates["Score"].max() < 60:
-            st.warning("Aucun partenaire parfaitement adapté, mais voici les plus proches selon vos critères.")
+                if st.button("Voir la fiche contact", key=f"{type_sel}_{row['Nom']}_btn"):
+                    st.session_state['contact'] = row['Nom']
+    if candidates["Score"].max() < 60:
+        st.warning("Aucun partenaire parfaitement adapté, mais voici les plus proches selon vos critères.")
 
-        # Pop-up fiche contact (latérale)
-        if 'contact' in st.session_state:
-            selected = candidates[candidates['Nom'] == st.session_state['contact']].iloc[0]
-            st.sidebar.markdown(f"### Fiche Contact – {selected['Nom']}")
-            st.sidebar.image(selected["Image"], width=140)
-            st.sidebar.markdown(f"- *Adresse* : {selected['Adresse']}")
-            st.sidebar.markdown(f"- *Téléphone* : {selected['Tel']}")
-            st.sidebar.markdown(f"- *Email* : [{selected['Email']}](mailto:{selected['Email']})")
-            st.sidebar.markdown(f"- *Site web* : [Site officiel]({selected['Site']})")
-            st.sidebar.markdown("---")
-            st.sidebar.button("Fermer la fiche", on_click=lambda: st.session_state.pop('contact'))
+    export = candidates.drop(columns=["Image", "Statut_color"]).to_csv(index=False).encode("utf-8")
+    st.download_button("Exporter les résultats (CSV)", export, file_name="partenaires.csv", mime="text/csv", key=f"export_{type_sel}")
+
+    # Fiche contact (latérale)
+    selected_name = st.session_state.get('contact')
+    match = candidates[candidates['Nom'] == selected_name]
+    if not match.empty:
+        selected = match.iloc[0]
+        st.sidebar.markdown(f"### Fiche Contact – {selected['Nom']}")
+        show_image(selected["Image"], 140, st.sidebar)
+        st.sidebar.markdown(f"- *Adresse* : {selected['Adresse']}")
+        st.sidebar.markdown(f"- *Téléphone* : {selected['Tel']}")
+        st.sidebar.markdown(f"- *Email* : [{selected['Email']}](mailto:{selected['Email']})")
+        st.sidebar.markdown(f"- *Site web* : [Site officiel]({selected['Site']})")
+        st.sidebar.markdown("---")
+        st.sidebar.button("Fermer la fiche", on_click=lambda: st.session_state.pop('contact', None))
 
 def show_dashboard():
     nb_universites = df[df['Type'] == "Université"].shape[0]
@@ -142,10 +162,11 @@ def show_dashboard():
     actifs = df[df['Statut'] == "Actif"].shape[0]
     moyens = df[df['Statut'] == "Moyen"].shape[0]
     inactifs = df[df['Statut'] == "Inactif"].shape[0]
-    collaborations = np.random.randint(30, 100)
-    revenu_premium = np.random.randint(7000, 30000)
-    taux_retention = round(np.random.uniform(0.70, 0.97), 2)
-    taux_satisfaction = round(np.random.uniform(0.75, 0.97), 2)
+    rng = np.random.default_rng(42)  # données de démo stables entre les rafraîchissements
+    collaborations = int(rng.integers(30, 100))
+    revenu_premium = int(rng.integers(7000, 30000))
+    taux_retention = round(rng.uniform(0.70, 0.97), 2)
+    taux_satisfaction = round(rng.uniform(0.75, 0.97), 2)
     st.markdown("<h2 style='color:#004080;'>📊 Dashboard KPI (live)</h2>", unsafe_allow_html=True)
     kpi1, kpi2, kpi3, kpi4, kpi5, kpi6 = st.columns(6)
     kpi1.metric("Universités", nb_universites)
@@ -159,7 +180,7 @@ def show_dashboard():
     with c1:
         fig1 = go.Figure(data=[go.Pie(labels=["Actif", "Moyen", "Inactif"], values=[actifs, moyens, inactifs], hole=.4)])
         fig1.update_layout(title_text="Répartition statut")
-        st.plotly_chart(fig1, use_container_width=True)
+        st.plotly_chart(fig1, width="stretch")
     with c2:
         st.metric("Collaborations initiées", collaborations)
         st.metric("Taux de rétention", f"{int(taux_retention*100)}%")
@@ -167,10 +188,10 @@ def show_dashboard():
     with c3:
         fig2 = go.Figure()
         x_vals = [f"M-{i}" for i in range(11, -1, -1)]
-        y_vals = (np.cumsum(np.random.randint(2, 15, 12)) + 40).tolist()
+        y_vals = (np.cumsum(rng.integers(2, 15, 12)) + 40).tolist()
         fig2.add_trace(go.Scatter(x=x_vals, y=y_vals, mode='lines+markers', name="Collaborations"))
         fig2.update_layout(title_text="Evolution collaborations")
-        st.plotly_chart(fig2, use_container_width=True)
+        st.plotly_chart(fig2, width="stretch")
     st.success("Dashboard live : tous les KPI stratégiques pour piloter la plateforme en un coup d'œil.")
 
 if menu == "Dashboard KPI":
