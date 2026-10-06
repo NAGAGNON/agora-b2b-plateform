@@ -1,0 +1,195 @@
+name: Prévisualisation (staging éphémère)
+
+# Lance l'application COMPLÈTE (Next.js + Supabase : base, auth, stockage, temps réel)
+# sur un exécuteur GitHub, collecte les vraies annonces BOAMP et TED, et l'expose
+# publiquement via un tunnel Cloudflare (sans compte). Environnement de test
+# éphémère (6 h au plus) : les données disparaissent à l'arrêt. APP_ENV=staging.
+# L'URL est publiée dans l'onglet « Deployments » du dépôt et dans l'issue
+# « Prévisualisation LinkProB2B ». Relancé à chaque push dont le message contient
+# [preview] ou manuellement (la version précédente est alors arrêtée).
+on:
+  push:
+    branches: ["main", "claude/**"]
+    paths-ignore: ["docs/**", "**/*.md"]
+  workflow_dispatch:
+    inputs:
+      duree_minutes:
+        description: "Durée de disponibilité (minutes, 340 au plus)"
+        default: "330"
+      cle_publique:
+        description: "Facultatif : clé publique RSA (PEM encodé en base64) pour chiffrer le mot de passe des comptes de test"
+        default: ""
+
+permissions:
+  contents: read
+  issues: write
+  deployments: write
+
+jobs:
+  preview:
+    name: Application de prévisualisation
+    # Sur push : uniquement si le message de commit contient [preview] (évite de couper
+    # la prévisualisation en cours à chaque commit). Toujours sur lancement manuel.
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[preview]')
+    concurrency:
+      # Groupe propre à chaque run ignoré : un commit sans [preview] ne coupe jamais la prévisualisation en cours.
+      group: ${{ (github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[preview]')) && 'preview' || format('preview-ignore-{0}', github.run_id) }}
+      cancel-in-progress: true
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      - name: Confirmation d'e-mail obligatoire (comme en production)
+        run: sed -i '/^\[auth.email\]/,/^\[/ s/^enable_confirmations = false/enable_confirmations = true/' supabase/config.toml
+
+      - name: Démarrer Supabase (base, auth, stockage, temps réel, boîte e-mail de test)
+        run: npx supabase start -x studio,edge-runtime,logflare,vector,supavisor,imgproxy
+
+      - name: Ouvrir les tunnels publics
+        run: |
+          curl -sSL -o cloudflared https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
+          chmod +x cloudflared
+          tunnel() { nohup ./cloudflared tunnel --no-autoupdate --url "$1" > "$2" 2>&1 & }
+          tunnel http://localhost:3000 tunnel-app.log
+          tunnel http://localhost:54321 tunnel-api.log
+          tunnel http://localhost:54324 tunnel-mail.log
+          url() { for i in $(seq 1 60); do u=$(grep -o 'https://[a-z0-9-]*\.trycloudflare\.com' "$1" | head -1); [ -n "$u" ] && { echo "$u"; return; }; sleep 2; done; echo "Tunnel indisponible ($1)" >&2; cat "$1" >&2; exit 1; }
+          echo "APP_URL=$(url tunnel-app.log)" >> "$GITHUB_ENV"
+          echo "API_URL_PUBLIC=$(url tunnel-api.log)" >> "$GITHUB_ENV"
+          echo "MAIL_URL=$(url tunnel-mail.log)" >> "$GITHUB_ENV"
+
+      - name: Variables d'environnement (staging)
+        run: |
+          eval "$(npx supabase status -o env | grep -E '^(PUBLISHABLE_KEY|SECRET_KEY)=')"
+          CRON=$(openssl rand -hex 24)
+          PW="Lp-$(openssl rand -base64 18 | tr -dc 'A-Za-z0-9' | head -c 16)-9a"
+          echo "::add-mask::$CRON"
+          echo "::add-mask::$PW"
+          echo "CRON_SECRET=$CRON" >> "$GITHUB_ENV"
+          echo "DEMO_PASSWORD=$PW" >> "$GITHUB_ENV"
+          {
+            echo "APP_ENV=staging"
+            echo "SITE_URL=$APP_URL"
+            echo "SUPABASE_URL=$API_URL_PUBLIC"
+            echo "SUPABASE_INTERNAL_URL=http://127.0.0.1:54321"
+            echo "SUPABASE_PUBLISHABLE_KEY=$PUBLISHABLE_KEY"
+            echo "SUPABASE_SECRET_KEY=$SECRET_KEY"
+            echo "CRON_SECRET=$CRON"
+            echo "RATE_LIMIT_SALT=$(openssl rand -hex 24)"
+            echo "MAILPIT_URL=http://127.0.0.1:54324"
+            echo "EMAIL_FROM=LinkProB2B <notifications@linkprob2b.fr>"
+          } > .env.local
+          node scripts/migrate.mjs --status
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+
+      - name: Construire et démarrer l'application
+        run: |
+          npm run build:app
+          nohup npx next start -p 3000 > next.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf http://localhost:3000/api/sante > /dev/null && break; sleep 2; done
+          curl -s http://localhost:3000/api/sante
+
+      - name: Collecte réelle BOAMP et TED
+        run: |
+          curl -s -m 280 -H "Authorization: Bearer $CRON_SECRET" http://localhost:3000/api/cron/quotidien | head -c 2000; echo
+          docker exec supabase_db_linkprob2b psql -U postgres -tAF ' | ' -c "select upper(s.code), r.status, 'lus ' || r.fetched, 'créés ' || r.created, 'mis à jour ' || r.updated, 'doublons ' || r.duplicates, 'ignorés ' || r.skipped, 'expirés ' || r.expired from source_sync_runs r join external_sources s on s.id = r.source_id order by r.started_at" | tee sync.txt
+          docker exec supabase_db_linkprob2b psql -U postgres -tAc "select count(*) || ' opportunités externes publiées (non expirées)' from opportunities where origin = 'EXTERNAL' and status = 'PUBLISHED' and not is_demo and (response_deadline is null or response_deadline > now())" | tee -a sync.txt
+
+      - name: Comptes de test (données de démonstration signalées)
+        run: npx tsx scripts/seed-demo.ts > /dev/null && echo "Comptes de démonstration créés."
+
+      - name: Vérification de bout en bout par l'URL publique
+        run: |
+          for p in / /opportunites /entreprises /connexion /inscription /api/sante; do
+            printf "%-14s HTTP %s\n" "$p" "$(curl -s -o /dev/null -w '%{http_code}' "$APP_URL$p")"
+          done | tee verif.txt
+          printf "%-14s HTTP %s\n" "boîte e-mail" "$(curl -s -o /dev/null -w '%{http_code}' "$MAIL_URL/api/v1/info")" | tee -a verif.txt
+          printf "%-14s HTTP %s\n" "API Supabase" "$(curl -s -o /dev/null -w '%{http_code}' "$API_URL_PUBLIC/auth/v1/health")" | tee -a verif.txt
+
+      - name: Tests E2E contre l'URL publique (temps réel, permissions, provenance)
+        continue-on-error: true
+        run: |
+          npx playwright install --with-deps chromium > /dev/null
+          E2E_BASE_URL="$APP_URL" npx playwright test tests/e2e/realtime.spec.ts tests/e2e/permissions.spec.ts -g "temps réel|sans rechargement|cloche|externe|démonstration|exigent" --reporter=line > e2e.txt 2>&1 || true
+          grep -E "[0-9]+ (passed|failed|flaky|skipped)" e2e.txt | tee e2e-summary.txt
+          [ -s e2e-summary.txt ] || tail -n 20 e2e.txt > e2e-summary.txt
+
+      - name: Publier l'URL
+        env:
+          CLE_PUBLIQUE: ${{ inputs.cle_publique }}
+          DUREE: ${{ inputs.duree_minutes || '330' }}
+        run: |
+          SECRET_LINE="Mot de passe des comptes de test : communiqué par Claude dans la conversation."
+          if [ -n "$CLE_PUBLIQUE" ]; then echo "$CLE_PUBLIQUE" | base64 -d > pub.pem; elif [ -f .github/preview-public-key.txt ]; then cp .github/preview-public-key.txt pub.pem; fi
+          if [ -f pub.pem ]; then
+            ENC=$(printf '%s' "$DEMO_PASSWORD" | openssl pkeyutl -encrypt -pubin -inkey pub.pem -pkeyopt rsa_padding_mode:oaep -pkeyopt rsa_oaep_md:sha256 | base64 -w0)
+            SECRET_LINE="Mot de passe des comptes de test (chiffré) : \`$ENC\`"
+          fi
+          END=$(date -u -d "+${DUREE} minutes" '+%d/%m/%Y %H:%M UTC')
+          BODY=$(cat <<EOF
+          ## Prévisualisation LinkProB2B en ligne
+
+          - **Application** : $APP_URL
+          - **Boîte e-mail de test** (tous les e-mails envoyés par la plateforme) : $MAIL_URL
+          - **Disponible jusqu'au** : $END (environ). Relancer le workflow « Prévisualisation » pour une nouvelle URL.
+          - Version : \`${GITHUB_SHA::7}\` · environnement \`staging\` · marchés publics BOAMP/TED collectés en direct
+
+          Comptes de test (fictifs, marqués « Démo ») : \`admin@demo.linkprob2b.test\`, \`moderateur@…\`, \`acheteur@…\`, \`fournisseur@…\` (domaine \`demo.linkprob2b.test\`).
+          $SECRET_LINE
+
+          Vous pouvez aussi créer votre propre compte : l'e-mail de confirmation arrive dans la boîte de test.
+
+          <details><summary>Vérifications au démarrage</summary>
+
+          \`\`\`
+          $(cat verif.txt)
+
+          $(cat sync.txt)
+
+          Tests E2E exécutés contre l'URL publique (temps réel, permissions, provenance) :
+          $(cat e2e-summary.txt 2>/dev/null)
+          \`\`\`
+          </details>
+          EOF
+          )
+          ISSUE=$(gh issue list --state open --search "Prévisualisation LinkProB2B in:title" --json number -q '.[0].number')
+          if [ -z "$ISSUE" ]; then ISSUE=$(gh issue create --title "Prévisualisation LinkProB2B" --body "URL de l'environnement de prévisualisation (mis à jour à chaque lancement du workflow)." | grep -o '[0-9]*$'); fi
+          gh issue comment "$ISSUE" --body "$BODY"
+          DEP=$(gh api "repos/$GITHUB_REPOSITORY/deployments" --input - -q .id <<JSON
+          {"ref": "$GITHUB_SHA", "environment": "preview", "auto_merge": false, "required_contexts": [], "transient_environment": true, "description": "Prévisualisation éphémère"}
+          JSON
+          )
+          echo "DEPLOYMENT_ID=$DEP" >> "$GITHUB_ENV"
+          gh api "repos/$GITHUB_REPOSITORY/deployments/$DEP/statuses" -f state=success -f environment_url="$APP_URL" -f description="En ligne" > /dev/null
+          echo "Application : $APP_URL" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Maintenir en ligne (synchronisation horaire des sources)
+        env:
+          DUREE: ${{ inputs.duree_minutes || '330' }}
+        run: |
+          [ "$DUREE" -gt 340 ] && DUREE=340
+          END=$(( $(date +%s) + DUREE * 60 ))
+          N=0
+          while [ "$(date +%s)" -lt "$END" ]; do
+            sleep 300; N=$((N+1))
+            code=$(curl -s -o /dev/null -w '%{http_code}' "$APP_URL/api/sante")
+            echo "$(date -u +%H:%M) santé publique : $code"
+            if [ $((N % 12)) -eq 0 ]; then
+              curl -s -m 280 -X GET -H "Authorization: Bearer $CRON_SECRET" http://localhost:3000/api/cron/quotidien -o /dev/null -w "synchronisation : %{http_code}\n"
+            fi
+          done
+
+      - name: Fermer la prévisualisation
+        if: always()
+        run: |
+          [ -n "$DEPLOYMENT_ID" ] && gh api "repos/$GITHUB_REPOSITORY/deployments/$DEPLOYMENT_ID/statuses" -f state=inactive > /dev/null || true
+          tail -n 50 next.log || true

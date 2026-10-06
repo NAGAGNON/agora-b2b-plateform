@@ -1,0 +1,388 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { z } from "zod";
+import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { getSession } from "@/lib/auth";
+import { logServerError, userMessage } from "@/lib/errors";
+import { env } from "@/lib/env";
+import { seedDemo, wipeDemo, type DemoCredential } from "@/lib/demo/seed";
+import { processAlertDigests, processEmailOutbox } from "@/lib/email/outbox";
+import { flushEmailsAfterResponse } from "@/lib/email/flush";
+import { rateLimit } from "@/lib/rate-limit";
+import { externalOpportunitySchema, moderationSchema, parseForm, sourceSchema, type ActionResult } from "@/lib/validation";
+import type { Database, Json } from "@/lib/database.types";
+
+type Enums = Database["public"]["Enums"];
+
+async function staff() {
+  const session = await getSession();
+  if (!session?.isStaff) throw new Error("Accès refusé");
+  return { session, supabase: await createClient() };
+}
+
+export async function moderateOpportunity(_prev: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  const parsed = parseForm(moderationSchema, fd);
+  if (!parsed.success) return parsed.result;
+  const { supabase } = await staff();
+  const { error } = await supabase.rpc("moderate_opportunity", {
+    p_opportunity_id: parsed.data.opportunityId,
+    p_action: parsed.data.action,
+    p_reason: parsed.data.reason ?? "",
+  });
+  if (error) return { ok: false, error: userMessage(error) };
+  flushEmailsAfterResponse();
+  revalidatePath("/admin", "layout");
+  const labels: Record<string, string> = {
+    APPROVE: "Opportunité publiée.",
+    REJECT: "Publication refusée.",
+    REQUEST_CHANGES: "Modifications demandées.",
+    SUSPEND: "Opportunité suspendue.",
+    ARCHIVE: "Opportunité archivée.",
+    REINSTATE: "Opportunité rétablie.",
+  };
+  return { ok: true, message: labels[parsed.data.action] };
+}
+
+const dupSchema = z.object({ opportunityId: z.uuid(), duplicateOf: z.uuid({ error: "Identifiant de l'original invalide" }) });
+
+export async function markDuplicate(_prev: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  const parsed = parseForm(dupSchema, fd);
+  if (!parsed.success) return parsed.result;
+  const { supabase } = await staff();
+  const { error } = await supabase.rpc("mark_opportunity_duplicate", { p_opportunity_id: parsed.data.opportunityId, p_duplicate_of: parsed.data.duplicateOf });
+  if (error) return { ok: false, error: userMessage(error) };
+  revalidatePath("/admin/opportunites");
+  return { ok: true, message: "Marquée comme doublon et archivée." };
+}
+
+export async function verifyExternal(opportunityId: string, status: "VERIFIED" | "UNVERIFIABLE" | "REMOVED_AT_SOURCE"): Promise<ActionResult> {
+  if (!z.uuid().safeParse(opportunityId).success) return { ok: false, error: "Identifiant invalide." };
+  const { supabase } = await staff();
+  const { error } = await supabase.rpc("admin_verify_external_opportunity", { p_opportunity_id: opportunityId, p_verification_status: status });
+  if (error) return { ok: false, error: userMessage(error) };
+  revalidatePath("/admin/opportunites");
+  return { ok: true, message: "Vérification enregistrée." };
+}
+
+const userStatusSchema = z.object({ userId: z.uuid(), status: z.enum(["ACTIVE", "SUSPENDED"]), reason: z.string().trim().min(3, "Motif obligatoire").max(1000) });
+
+export async function setUserStatus(_prev: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  const parsed = parseForm(userStatusSchema, fd);
+  if (!parsed.success) return parsed.result;
+  const { supabase } = await staff();
+  const { error } = await supabase.rpc("admin_set_user_status", { p_user_id: parsed.data.userId, p_status: parsed.data.status, p_reason: parsed.data.reason });
+  if (error) return { ok: false, error: userMessage(error) };
+  if (parsed.data.status === "SUSPENDED") {
+    // Révoque les sessions actives de l'utilisateur suspendu.
+    await createAdminClient().auth.admin.signOut(parsed.data.userId).catch(() => {});
+  }
+  revalidatePath("/admin/utilisateurs");
+  return { ok: true, message: parsed.data.status === "SUSPENDED" ? "Utilisateur suspendu." : "Utilisateur réactivé." };
+}
+
+export async function setUserRole(userId: string, role: Enums["platform_role"]): Promise<ActionResult> {
+  if (!z.uuid().safeParse(userId).success) return { ok: false, error: "Identifiant invalide." };
+  const { supabase } = await staff();
+  const { error } = await supabase.rpc("admin_set_user_role", { p_user_id: userId, p_role: role });
+  if (error) return { ok: false, error: userMessage(error) };
+  revalidatePath("/admin/utilisateurs");
+  return { ok: true, message: "Rôle mis à jour." };
+}
+
+const companyStatusSchema = z.object({ companyId: z.uuid(), status: z.enum(["ACTIVE", "SUSPENDED"]), reason: z.string().trim().min(3, "Motif obligatoire").max(1000) });
+
+export async function setCompanyStatus(_prev: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  const parsed = parseForm(companyStatusSchema, fd);
+  if (!parsed.success) return parsed.result;
+  const { supabase } = await staff();
+  const { error } = await supabase.rpc("admin_set_company_status", { p_company_id: parsed.data.companyId, p_status: parsed.data.status, p_reason: parsed.data.reason });
+  if (error) return { ok: false, error: userMessage(error) };
+  revalidatePath("/admin/entreprises");
+  return { ok: true, message: "Statut de l'entreprise mis à jour." };
+}
+
+const verifySchema = z.object({ companyId: z.uuid(), verified: z.enum(["true", "false"]), note: z.string().max(1000).optional() });
+
+export async function verifyCompany(_prev: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  const parsed = parseForm(verifySchema, fd);
+  if (!parsed.success) return parsed.result;
+  const { supabase } = await staff();
+  const { error } = await supabase.rpc("admin_verify_company", {
+    p_company_id: parsed.data.companyId,
+    p_verified: parsed.data.verified === "true",
+    p_note: parsed.data.note ?? "",
+  });
+  if (error) return { ok: false, error: userMessage(error) };
+  revalidatePath("/admin/entreprises");
+  return { ok: true, message: parsed.data.verified === "true" ? "Entreprise marquée comme vérifiée." : "Vérification retirée." };
+}
+
+const reportSchema = z.object({ reportId: z.uuid(), status: z.enum(["OPEN", "REVIEWING", "RESOLVED", "DISMISSED"]), note: z.string().max(2000).optional() });
+
+export async function resolveReport(_prev: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  const parsed = parseForm(reportSchema, fd);
+  if (!parsed.success) return parsed.result;
+  const { supabase } = await staff();
+  const { error } = await supabase.rpc("resolve_report", { p_report_id: parsed.data.reportId, p_status: parsed.data.status, p_note: parsed.data.note ?? "" });
+  if (error) return { ok: false, error: userMessage(error) };
+  revalidatePath("/admin/signalements");
+  return { ok: true, message: "Signalement mis à jour." };
+}
+
+export async function markContactHandled(id: string) {
+  if (!z.uuid().safeParse(id).success) return;
+  await staff();
+  // Table sans droit d'écriture côté client : mise à jour via la clé serveur après contrôle du rôle.
+  await createAdminClient().from("contact_messages").update({ handled: true }).eq("id", id);
+  revalidatePath("/admin/signalements");
+}
+
+export async function upsertSource(_prev: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  const parsed = parseForm(sourceSchema, fd);
+  if (!parsed.success) return parsed.result;
+  const { supabase } = await staff();
+  const d = parsed.data;
+  const { error } = await supabase.rpc("admin_upsert_external_source", {
+    p_id: (d.id ?? null) as unknown as string,
+    p_name: d.name,
+    p_base_url: d.baseUrl ?? "",
+    p_description: d.description ?? "",
+    p_license: d.license ?? "",
+    p_terms_url: d.termsUrl ?? "",
+    p_status: d.status,
+    p_import_method: d.importMethod,
+    p_notes: d.notes ?? "",
+    p_legal_validation_confirmed: d.legalConfirmed,
+  });
+  if (error) return { ok: false, error: userMessage(error) };
+  revalidatePath("/admin/sources");
+  return { ok: true, message: "Source enregistrée." };
+}
+
+export async function createExternalOpportunity(_prev: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  const parsed = parseForm(externalOpportunitySchema, fd);
+  if (!parsed.success) return parsed.result;
+  const { supabase } = await staff();
+  const d = parsed.data;
+  const { data, error } = await supabase.rpc("admin_create_external_opportunity", {
+    p_source_id: d.sourceId,
+    p_type: d.type,
+    p_title: d.title,
+    p_summary: d.summary ?? "",
+    p_description: d.description,
+    p_external_buyer_name: d.externalBuyerName ?? "",
+    p_sector_slug: d.sector,
+    p_city: d.city ?? "",
+    p_department_code: (d.departmentCode ?? null) as unknown as string,
+    p_response_deadline: (d.responseDeadline ? new Date(`${d.responseDeadline}T23:59:00+02:00`).toISOString() : null) as unknown as string,
+    p_original_url: d.originalUrl,
+    p_external_id: d.externalId ?? "",
+    p_source_published_at: (d.sourcePublishedAt ?? null) as unknown as string,
+  });
+  if (error || !data) return { ok: false, error: userMessage(error) };
+  revalidatePath("/admin/opportunites");
+  redirect(`/opportunites/${data}`);
+}
+
+const settingSchema = z.object({ key: z.enum(["moderation", "demo", "registrations", "security", "pilot"]), value: z.string().max(2000) });
+
+export async function updateSetting(_prev: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  const parsed = parseForm(settingSchema, fd);
+  if (!parsed.success) return parsed.result;
+  const { supabase } = await staff();
+  let value: Json;
+  try {
+    value = JSON.parse(parsed.data.value);
+  } catch {
+    return { ok: false, error: "Valeur JSON invalide." };
+  }
+  const { error } = await supabase.rpc("admin_update_setting", { p_key: parsed.data.key, p_value: value });
+  if (error) return { ok: false, error: userMessage(error) };
+  revalidatePath("/", "layout");
+  return { ok: true, message: "Paramètre enregistré." };
+}
+
+/** Lance manuellement les traitements planifiés (expiration, alertes, e-mails). */
+export async function runMaintenance(): Promise<ActionResult> {
+  const { session } = await staff();
+  if (!session.isAdmin) return { ok: false, error: "Réservé aux administrateurs." };
+  const admin = createAdminClient();
+  const { data: expired } = await admin.rpc("expire_opportunities");
+  const digests = await processAlertDigests();
+  const mails = await processEmailOutbox(100);
+  revalidatePath("/admin", "layout");
+  return {
+    ok: true,
+    message: `${expired ?? 0} opportunité(s) expirée(s) · ${digests.emails} résumé(s) d'alerte · e-mails : ${mails.sent} envoyé(s), ${mails.skipped} non envoyé(s) (aucun fournisseur configuré), ${mails.failed} en échec.`,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Sources externes : collecte
+// ---------------------------------------------------------------------------
+async function loadSource(id: string) {
+  const { data } = await createAdminClient().from("external_sources").select("*").eq("id", id).maybeSingle();
+  return data;
+}
+
+/** Lance immédiatement la collecte d'une source approuvée. */
+export async function syncSourceNow(id: string): Promise<ActionResult> {
+  if (!z.uuid().safeParse(id).success) return { ok: false, error: "Identifiant invalide." };
+  const { session } = await staff();
+  if (!session.isAdmin) return { ok: false, error: "Réservé aux administrateurs." };
+  const source = await loadSource(id);
+  if (!source) return { ok: false, error: "Source introuvable." };
+  const { runSource } = await import("@/lib/collect/run");
+  const r = await runSource(source, { trigger: "manual", userId: session.userId });
+  revalidatePath("/admin", "layout");
+  revalidatePath("/opportunites");
+  if (r.status === "FAILED") return { ok: false, error: `Échec de la collecte : ${r.errors[0] ?? "erreur inconnue"}` };
+  return { ok: true, message: `${r.fetched} annonce(s) lue(s) : ${r.created} créée(s), ${r.updated} mise(s) à jour, ${r.duplicates} doublon(s) rattaché(s), ${r.skipped} ignorée(s).` };
+}
+
+/** Collecte de test : aucune écriture d'opportunité, renvoie un échantillon normalisé. */
+export async function testSource(id: string): Promise<ActionResult<{ sample: unknown }>> {
+  if (!z.uuid().safeParse(id).success) return { ok: false, error: "Identifiant invalide." };
+  const { session } = await staff();
+  if (!session.isAdmin) return { ok: false, error: "Réservé aux administrateurs." };
+  const source = await loadSource(id);
+  if (!source) return { ok: false, error: "Source introuvable." };
+  const { runSource } = await import("@/lib/collect/run");
+  const r = await runSource(source, { trigger: "test", userId: session.userId });
+  revalidatePath("/admin/synchronisations");
+  const { data: run } = r.runId ? await createAdminClient().from("source_sync_runs").select("sample").eq("id", r.runId).single() : { data: null };
+  if (r.status === "FAILED") return { ok: false, error: `Test en échec : ${r.errors.slice(0, 3).join(" · ") || "aucune annonce exploitable"}` };
+  return { ok: true, message: `Test réussi : ${r.fetched} enregistrement(s) lu(s), ${r.skipped} non exploitable(s).`, data: { sample: run?.sample ?? null } };
+}
+
+const sourceSettingsSchema = z.object({
+  id: z.uuid(),
+  isActive: z.preprocess((v) => v === "on" || v === "true", z.boolean()),
+  syncFrequency: z.enum(["hourly", "daily", "weekly"]),
+  config: z.string().max(10000),
+});
+
+export async function updateSourceSettings(_prev: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  const parsed = parseForm(sourceSettingsSchema, fd);
+  if (!parsed.success) return parsed.result;
+  const { supabase } = await staff();
+  let config: Json;
+  try {
+    config = JSON.parse(parsed.data.config || "{}");
+  } catch {
+    return { ok: false, error: "Configuration JSON invalide.", fieldErrors: { config: "JSON invalide" } };
+  }
+  const { error } = await supabase.rpc("admin_update_source_settings", {
+    p_id: parsed.data.id,
+    p_is_active: parsed.data.isActive,
+    p_sync_frequency: parsed.data.syncFrequency,
+    p_config: config,
+  });
+  if (error) return { ok: false, error: userMessage(error) };
+  revalidatePath("/admin/sources");
+  return { ok: true, message: "Réglages de collecte enregistrés." };
+}
+
+const sectorSchema = z.object({
+  mode: z.enum(["create", "update"]),
+  slug: z
+    .string()
+    .trim()
+    .min(2, { error: "Identifiant trop court" })
+    .max(60)
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, { error: "Minuscules, chiffres et tirets uniquement" }),
+  label: z.string().trim().min(2, { error: "Libellé requis" }).max(80),
+  description: z.string().trim().max(300).optional().transform((v) => v || null),
+  sortOrder: z.coerce.number().int().min(0).max(999).default(100),
+  isActive: z.preprocess((v) => v === "on" || v === "true", z.boolean()),
+  isPilotPriority: z.preprocess((v) => v === "on" || v === "true", z.boolean()),
+});
+
+/** Création ou modification d'un secteur (référentiel). Un secteur utilisé ne se supprime pas : il se désactive. */
+export async function saveSector(_prev: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  const parsed = parseForm(sectorSchema, fd);
+  if (!parsed.success) return parsed.result;
+  const { session, supabase } = await staff();
+  if (!session.isAdmin) return { ok: false, error: "Réservé aux administrateurs." };
+  const d = parsed.data;
+  const values = { label: d.label, description: d.description, sort_order: d.sortOrder, is_active: d.isActive, is_pilot_priority: d.isPilotPriority };
+  const { error } =
+    d.mode === "create"
+      ? await supabase.from("sectors").insert({ slug: d.slug, ...values })
+      : await supabase.from("sectors").update(values).eq("slug", d.slug);
+  if (error) return { ok: false, error: error.code === "23505" ? "Ce secteur existe déjà." : userMessage(error) };
+  await createAdminClient()
+    .from("audit_logs")
+    .insert({ actor_user_id: session.userId, action: d.mode === "create" ? "sector.create" : "sector.update", entity_type: "sector", entity_id: d.slug, metadata: values });
+  revalidatePath("/", "layout");
+  return { ok: true, message: d.mode === "create" ? "Secteur ajouté." : "Secteur mis à jour." };
+}
+
+// ---------------------------------------------------------------------------
+// Données de démonstration (hors production uniquement)
+// ---------------------------------------------------------------------------
+export async function loadDemoData(): Promise<ActionResult<{ creds: DemoCredential[] }>> {
+  const { session } = await staff();
+  if (!session.isSuperAdmin) return { ok: false, error: "Réservé au super-administrateur." };
+  if (env.isProduction) return { ok: false, error: "Refusé : les données de démonstration ne sont jamais chargées en production." };
+  try {
+    const { creds, companies, opportunities } = await seedDemo(createAdminClient());
+    await createAdminClient().from("audit_logs").insert({ actor_user_id: session.userId, action: "demo.load", entity_type: "platform", entity_id: "demo", metadata: { companies, opportunities } });
+    revalidatePath("/", "layout");
+    return { ok: true, message: `${companies} entreprises, ${opportunities} opportunités et ${creds.length} comptes fictifs créés.`, data: { creds } };
+  } catch (e) {
+    logServerError("loadDemoData", e);
+    return { ok: false, error: "Le chargement des données de démonstration a échoué." };
+  }
+}
+
+export async function removeDemoData(): Promise<ActionResult> {
+  const { session } = await staff();
+  if (!session.isSuperAdmin) return { ok: false, error: "Réservé au super-administrateur." };
+  try {
+    await wipeDemo(createAdminClient());
+    await createAdminClient().from("audit_logs").insert({ actor_user_id: session.userId, action: "demo.remove", entity_type: "platform", entity_id: "demo" });
+    revalidatePath("/", "layout");
+    return { ok: true, message: "Toutes les données de démonstration ont été supprimées." };
+  } catch (e) {
+    logServerError("removeDemoData", e);
+    return { ok: false, error: "La suppression a échoué." };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// E-mails : envoi de contrôle des modèles (vérification de la configuration)
+// ---------------------------------------------------------------------------
+export type EmailCheckRow = { key: string; label: string; status: string; detail?: string };
+
+export async function sendTestEmails(): Promise<ActionResult<{ rows: EmailCheckRow[]; to: string }>> {
+  const { session } = await staff();
+  if (!session.isAdmin) return { ok: false, error: "Réservé aux administrateurs." };
+  if (!env.emailTransport) return { ok: false, error: "Aucun fournisseur e-mail configuré : renseignez RESEND_API_KEY." };
+  if (!(await rateLimit("email-test", 3, 3600))) return { ok: false, error: "3 envois de contrôle par heure au maximum." };
+  const { emailCatalog } = await import("@/lib/email/catalog");
+  const { renderEmail } = await import("@/lib/email/templates");
+  const { sendEmail } = await import("@/lib/email/send");
+  const run = Date.now().toString(36);
+  const rows: EmailCheckRow[] = [];
+  let first: { key: string; msg: Parameters<typeof sendEmail>[0]; id?: string } | null = null;
+  for (const e of emailCatalog()) {
+    const { html, text } = renderEmail(e.layout);
+    const links = [e.layout.cta?.url, ...(e.layout.list ?? []).map((l) => l.url)].filter(Boolean) as string[];
+    const badLink = links.find((u) => !u.startsWith(env.siteUrl) || (env.isProduction && !u.startsWith("https://")));
+    const msg = { to: session.email, subject: `[Contrôle] ${e.subject}`, html, text, idempotencyKey: `controle-${run}-${e.key}` };
+    const r = await sendEmail(msg);
+    if (!first && r.status === "SENT") first = { key: e.key, msg, id: r.id };
+    rows.push({ key: e.key, label: e.label, status: badLink ? "LIEN INVALIDE" : r.status, detail: badLink ?? r.error });
+  }
+  // Double envoi : même clé d'idempotence → Resend renvoie le même e-mail, sans nouvel envoi.
+  if (first && env.emailTransport === "resend") {
+    const again = await sendEmail(first.msg);
+    rows.push({ key: "idempotence", label: "Pas de double envoi (même clé)", status: again.status === "SENT" && again.id === first.id ? "OK" : "À VÉRIFIER", detail: `${first.id ?? "?"} / ${again.id ?? again.error ?? "?"}` });
+  }
+  await createAdminClient().from("audit_logs").insert({ actor_user_id: session.userId, action: "email.test", entity_type: "platform", entity_id: "email", metadata: { sent: rows.filter((r) => r.status === "SENT").length } });
+  return { ok: true, message: `Envoi de contrôle terminé vers ${session.email}.`, data: { rows, to: session.email } };
+}

@@ -1,0 +1,1 @@
+-- Les données de démonstration sont chargées par: npm run seed:demo (scripts/seed-demo.ts)
