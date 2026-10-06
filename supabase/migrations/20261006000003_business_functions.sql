@@ -313,6 +313,12 @@ begin
   insert into public.company_invitations (company_id, email, role, invited_by)
   values (p_company_id, lower(trim(p_email)), p_role, v_uid)
   on conflict (company_id, email) do update set role = excluded.role, invited_by = excluded.invited_by;
+  -- E-mail d'invitation (envoyé par la file d'e-mails si un fournisseur est configuré)
+  insert into public.email_outbox (to_email, template, subject, payload)
+  values (lower(trim(p_email)), 'invitation', 'Invitation à rejoindre ' || v_name || ' sur LinkProB2B',
+    jsonb_build_object('title', 'Vous êtes invité(e) à rejoindre ' || v_name,
+      'body', 'Un membre de ' || v_name || ' vous invite sur LinkProB2B. Créez votre compte avec cette adresse e-mail pour rejoindre l''entreprise automatiquement.',
+      'link', '/inscription'));
   perform public.log_audit('company.member_invited', 'company', p_company_id::text, '{}'::jsonb);
   return 'INVITED';
 end;

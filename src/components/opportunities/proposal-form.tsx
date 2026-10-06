@@ -1,6 +1,8 @@
 "use client";
 
-import { useActionState, useTransition, type FormEvent } from "react";
+import { useActionState, useState, useTransition, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
+import { uploadFiles } from "@/lib/direct-upload";
 import { submitProposal } from "@/app/actions/opportunities";
 import { Field, Input, Textarea } from "@/components/ui/form";
 import { FileUploader } from "@/components/ui/file-uploader";
@@ -19,7 +21,19 @@ export type ProposalValues = {
 };
 
 export function ProposalForm({ opportunityId, values = {} }: { opportunityId: string; values?: ProposalValues }) {
-  const [state, dispatch] = useActionState<ActionResult | null, FormData>(submitProposal, null);
+  const [files, setFiles] = useState<File[]>([]);
+  const router = useRouter();
+  const [state, dispatch] = useActionState<ActionResult<{ id: string }> | null, FormData>(async (prev, fd) => {
+    const r = await submitProposal(prev, fd);
+    if (!r.ok) return r;
+    let suffix = "reponse=envoyee";
+    if (files.length) {
+      const { errors } = await uploadFiles("proposal", r.data!.id, files);
+      if (errors.length) suffix += `&erreur=${encodeURIComponent(errors.join(" "))}`;
+    }
+    router.push(`/opportunites/${opportunityId}?${suffix}`);
+    return r;
+  }, null);
   const [pending, start] = useTransition();
   const fe = state && !state.ok ? state.fieldErrors : undefined;
   function onSubmit(e: FormEvent<HTMLFormElement>) {
@@ -55,7 +69,7 @@ export function ProposalForm({ opportunityId, values = {} }: { opportunityId: st
       </Field>
       <div>
         <p className="mb-2 text-sm font-semibold text-navy">Pièces jointes</p>
-        <FileUploader name="files" maxFiles={5} label="Ajouter devis, références, attestations…" />
+        <FileUploader maxFiles={5} onChange={setFiles} label="Ajouter devis, références, attestations…" />
         {fe?.files && <p className="mt-1 text-sm text-red-600">{fe.files}</p>}
         <p className="mt-2 text-xs text-slate-500">Visibles uniquement par votre entreprise et le demandeur.</p>
       </div>

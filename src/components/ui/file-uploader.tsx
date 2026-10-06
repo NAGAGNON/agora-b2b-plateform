@@ -16,7 +16,9 @@ export function FileUploader({
   accept = Object.keys(ALLOWED_DOCUMENT_TYPES),
   maxBytes = MAX_DOCUMENT_BYTES,
   label = "Ajouter des documents",
+  onChange,
 }: {
+  onChange?: (files: File[]) => void;
   name?: string;
   multiple?: boolean;
   maxFiles?: number;
@@ -30,13 +32,14 @@ export function FileUploader({
 
   function sync(next: File[]) {
     setFiles(next);
+    onChange?.(next);
     if (!input.current) return;
     const dt = new DataTransfer();
     next.forEach((f) => dt.items.add(f));
     input.current.files = dt.files;
   }
 
-  function onChange(list: FileList | null) {
+  function handleFiles(list: FileList | null) {
     if (!list) return;
     const incoming = Array.from(list);
     const bad = incoming.find((f) => !accept.includes(f.type) || f.size > maxBytes);
@@ -58,7 +61,7 @@ export function FileUploader({
         <span className="text-xs">
           {Object.values(ALLOWED_DOCUMENT_TYPES).join(", ")} — {formatBytes(maxBytes)} max{multiple ? `, ${maxFiles} fichiers max` : ""}
         </span>
-        <input ref={input} type="file" name={name} multiple={multiple} accept={accept.join(",")} className="sr-only" onChange={(e) => onChange(e.target.files)} />
+        <input ref={input} type="file" name={onChange ? undefined : name} multiple={multiple} accept={accept.join(",")} className="sr-only" onChange={(e) => handleFiles(e.target.files)} />
       </label>
       {error && (
         <p className="mt-2 text-sm text-red-600" role="alert">

@@ -49,3 +49,4 @@ supabase/.temp
 /playwright-report
 /coverage
 .demo-credentials*
+/screenshots

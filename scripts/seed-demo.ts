@@ -48,14 +48,18 @@ async function wipe() {
   await db.from("opportunities").delete().eq("is_demo", true);
   await db.from("companies").delete().eq("is_demo", true);
   await db.from("external_sources").delete().eq("is_demo", true);
+  const demoUsers: string[] = [];
   let page = 1;
   for (;;) {
     const { data } = await db.auth.admin.listUsers({ page, perPage: 200 });
     const users = data?.users ?? [];
-    for (const u of users) if (u.email?.endsWith(`@${DOMAIN}`)) await db.auth.admin.deleteUser(u.id);
+    for (const u of users) if (u.email?.endsWith(`@${DOMAIN}`)) demoUsers.push(u.id);
     if (users.length < 200) break;
     page++;
   }
+  // Signalements créés par les comptes de démonstration (pas de clé étrangère vers la cible)
+  if (demoUsers.length) await db.from("reports").delete().in("reporter_user_id", demoUsers);
+  for (const id of demoUsers) await db.auth.admin.deleteUser(id);
 }
 
 type DemoUser = { key: string; email: string; name: string; role: Database["public"]["Enums"]["platform_role"]; label: string };

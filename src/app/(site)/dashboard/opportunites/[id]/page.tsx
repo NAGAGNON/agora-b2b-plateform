@@ -39,10 +39,17 @@ export default async function ManageOpportunityPage(props: PageProps<"/dashboard
   const convBy = new Map((conversations ?? []).map((c) => [c.supplier_company_id, c.id]));
   const activeProposals = (proposals ?? []).filter((p) => p.status !== "WITHDRAWN");
   const activeInterests = (interests ?? []).filter((i) => i.status !== "WITHDRAWN");
-  const shortlist = [
-    ...activeInterests.filter((i) => ["SHORTLISTED", "ACCEPTED"].includes(i.status)).map((i) => ({ key: `i-${i.id}`, company: i.company, kind: "Intérêt", status: i.status })),
-    ...activeProposals.filter((p) => ["SHORTLISTED", "SELECTED"].includes(p.status)).map((p) => ({ key: `p-${p.id}`, company: p.company, kind: "Réponse", status: p.status })),
-  ];
+  // Shortlist : une entrée par entreprise (réponse prioritaire sur l'intérêt).
+  const shortlistMap = new Map<string, { key: string; company: (typeof activeInterests)[number]["company"]; kind: string; status: string }>();
+  for (const i of activeInterests.filter((x) => ["SHORTLISTED", "ACCEPTED"].includes(x.status))) {
+    const c = Array.isArray(i.company) ? i.company[0] : i.company;
+    if (c) shortlistMap.set(c.id, { key: `i-${i.id}`, company: i.company, kind: "Intérêt", status: i.status });
+  }
+  for (const p of activeProposals.filter((x) => ["SHORTLISTED", "SELECTED"].includes(x.status))) {
+    const c = Array.isArray(p.company) ? p.company[0] : p.company;
+    if (c) shortlistMap.set(c.id, { key: `p-${p.id}`, company: p.company, kind: "Réponse", status: p.status });
+  }
+  const shortlist = [...shortlistMap.values()];
   const deadlinePassed = o.response_deadline && new Date(o.response_deadline) < new Date();
   const effective = o.status === "PUBLISHED" && deadlinePassed ? "EXPIRED" : o.status;
   const decisionsOpen = ["PUBLISHED", "EXPIRED"].includes(o.status);

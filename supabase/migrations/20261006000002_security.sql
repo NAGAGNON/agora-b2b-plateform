@@ -457,8 +457,21 @@ create policy external_sources_select on public.external_sources for select usin
 );
 
 -- opportunities
+-- Évaluée sur les colonnes de la ligne (et non par relecture de la table) afin
+-- qu'un INSERT ... RETURNING voie immédiatement la ligne créée.
+create or replace function public.is_company_active(p_company_id uuid)
+returns boolean language sql stable security definer set search_path = '' as $$
+  select exists (select 1 from public.companies c where c.id = p_company_id and c.status = 'ACTIVE');
+$$;
+
 create policy opportunities_select on public.opportunities for select using (
-  public.can_view_opportunity(id)
+  (
+    status in ('PUBLISHED', 'CLOSED', 'EXPIRED')
+    and (visibility = 'PUBLIC' or auth.uid() is not null)
+    and (company_id is null or public.is_company_active(company_id))
+  )
+  or public.is_company_member(company_id)
+  or public.is_staff()
 );
 create policy opportunities_insert on public.opportunities for insert with check (
   auth.uid() is not null

@@ -14,7 +14,7 @@ export function MobileFilters({ children, count, action }: { children: ReactNode
         <SlidersHorizontal className="size-4" aria-hidden /> Filtres{count > 0 ? ` (${count})` : ""}
       </Button>
       <Drawer open={open} onClose={() => setOpen(false)} title="Filtrer les opportunités">
-        <form action={action} method="get" onSubmit={() => setOpen(false)}>
+        <form action={action} method="get">
           {children}
           <div className="sticky bottom-0 -mx-5 mt-6 flex gap-2 border-t border-slate-200 bg-white px-5 pt-4 pb-1">
             <a href={action} className="flex h-11 flex-1 items-center justify-center rounded-lg border border-slate-300 text-sm font-semibold text-navy">

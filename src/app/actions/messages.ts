@@ -4,8 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { userMessage, logServerError } from "@/lib/errors";
-import { storagePath, validateUpload } from "@/lib/files";
+import { userMessage } from "@/lib/errors";
 import { flushEmailsAfterResponse } from "@/lib/email/flush";
 import { messageSchema, parseForm, type ActionResult } from "@/lib/validation";
 
@@ -35,20 +34,9 @@ export async function sendMessage(_prev: ActionResult | null, fd: FormData): Pro
   if (!parsed.success) return parsed.result;
   const supabase = await createClient();
   const { conversationId, body } = parsed.data;
-  let attachmentPath: string | undefined;
-  let attachmentName: string | undefined;
-  const file = fd.get("attachment");
-  if (file instanceof File && file.size > 0) {
-    const v = await validateUpload(file);
-    if (!v.ok) return { ok: false, error: v.error };
-    attachmentPath = storagePath(conversationId, v.file.name);
-    attachmentName = v.file.name;
-    const { error } = await supabase.storage.from("message-attachments").upload(attachmentPath, v.file.bytes, { contentType: v.file.mime });
-    if (error) {
-      logServerError("attachment upload", error);
-      return { ok: false, error: "La pièce jointe n'a pas pu être envoyée." };
-    }
-  }
+  // Pièce jointe déjà envoyée au stockage et vérifiée (voir actions/uploads.ts).
+  const attachmentPath = typeof fd.get("attachmentPath") === "string" && fd.get("attachmentPath") ? String(fd.get("attachmentPath")) : undefined;
+  const attachmentName = attachmentPath ? String(fd.get("attachmentName") ?? "piece-jointe").slice(0, 200) : undefined;
   const { error } = await supabase.rpc("send_message", {
     p_conversation_id: conversationId,
     p_body: body,

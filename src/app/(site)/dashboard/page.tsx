@@ -48,12 +48,12 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
       ? supabase.from("interests").select("id, opportunity:opportunities!inner(company_id)", { count: "exact", head: true }).eq("opportunity.company_id", cid).neq("status", "WITHDRAWN")
       : null,
     buyer
-      ? supabase.from("proposals").select("id, opportunity:opportunities!inner(company_id)", { count: "exact", head: true }).eq("opportunity.company_id", cid).neq("status", "WITHDRAWN")
+      ? supabase.from("proposals").select("id, opportunity:opportunities!proposals_opportunity_id_fkey!inner(company_id)", { count: "exact", head: true }).eq("opportunity.company_id", cid).neq("status", "WITHDRAWN")
       : null,
     buyer
       ? supabase
           .from("proposals")
-          .select("id, status, price_amount, submitted_at, company:companies(name), opportunity:opportunities!inner(id, title, company_id)")
+          .select("id, status, price_amount, submitted_at, company:companies(name), opportunity:opportunities!proposals_opportunity_id_fkey!inner(id, title, company_id)")
           .eq("opportunity.company_id", cid)
           .neq("status", "WITHDRAWN")
           .order("submitted_at", { ascending: false })

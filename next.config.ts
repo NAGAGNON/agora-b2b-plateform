@@ -2,14 +2,23 @@ import type { NextConfig } from "next";
 
 const isDev = process.env.NODE_ENV !== "production";
 
-// Toutes les requêtes Supabase passent par le serveur : le navigateur ne parle qu'à notre origine.
+// Le navigateur envoie les fichiers directement au stockage Supabase (URL signées).
+const supabaseOrigin = (() => {
+  try {
+    return new URL(process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").origin;
+  } catch {
+    return "";
+  }
+})();
+
+// Les données passent par le serveur ; seul l'envoi de fichiers parle directement au stockage.
 const csp = [
   "default-src 'self'",
   `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
   "font-src 'self' data:",
-  `connect-src 'self'${isDev ? " ws: wss:" : ""}`,
+  `connect-src 'self' ${supabaseOrigin}${isDev ? " ws: wss:" : ""}`.trim(),
   "frame-ancestors 'none'",
   "form-action 'self'",
   "base-uri 'self'",
@@ -28,7 +37,8 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   experimental: {
-    serverActions: { bodySizeLimit: "52mb" },
+    // Les fichiers ne transitent plus par les Server Actions (logo : 2 Mo max).
+    serverActions: { bodySizeLimit: "4mb" },
   },
   async headers() {
     return [

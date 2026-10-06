@@ -2,7 +2,9 @@
 
 import { useActionState, useRef, useState, useTransition, type FormEvent, type ReactNode } from "react";
 import { ArrowLeft, ArrowRight, Check, FileText, Save, Send } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { createOpportunity, updateOpportunity } from "@/app/actions/opportunities";
+import { uploadFiles } from "@/lib/direct-upload";
 import { Button } from "@/components/ui/button";
 import { Checkbox, Field, Input, Select, Textarea } from "@/components/ui/form";
 import { FileUploader } from "@/components/ui/file-uploader";
@@ -96,13 +98,27 @@ export function PublishWizard({
 }) {
   const edit = Boolean(values.id);
   const [step, setStep] = useState(values.type ? 1 : 0);
-  const [state, dispatch] = useActionState<ActionResult | null, FormData>(async (prev, fd) => {
+  const [files, setFiles] = useState<File[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const router = useRouter();
+  const [state, dispatch] = useActionState<ActionResult<{ id: string; intent: string }> | null, FormData>(async (prev, fd) => {
     const r = await (edit ? updateOpportunity : createOpportunity)(prev, fd);
-    if (!r.ok && r.fieldErrors) {
-      // Revient à la première étape contenant une erreur.
-      const first = Object.keys(r.fieldErrors).map((k) => FIELD_STEP[k] ?? 5).sort((a, b) => a - b)[0];
-      if (first !== undefined) setStep(first);
+    if (!r.ok) {
+      if (r.fieldErrors) {
+        // Revient à la première étape contenant une erreur.
+        const first = Object.keys(r.fieldErrors).map((k) => FIELD_STEP[k] ?? 5).sort((a, b) => a - b)[0];
+        if (first !== undefined) setStep(first);
+      }
+      return r;
     }
+    const id = r.data!.id;
+    let suffix = edit ? "modifie=1" : `cree=${r.data!.intent}`;
+    if (files.length) {
+      setUploading(true);
+      const { errors } = await uploadFiles("opportunity", id, files);
+      if (errors.length) suffix = `erreur=${encodeURIComponent(errors.join(" "))}`;
+    }
+    router.push(`/dashboard/opportunites/${id}?${suffix}`);
     return r;
   }, null);
   const [pending, start] = useTransition();
@@ -300,7 +316,7 @@ export function PublishWizard({
                 ))}
               </ul>
             )}
-            <FileUploader name="files" maxFiles={5} />
+            <FileUploader maxFiles={5} onChange={setFiles} />
             <p className="mt-2 text-xs text-slate-500">Les documents ne sont accessibles qu&apos;aux membres connectés. N&apos;y faites pas figurer de données personnelles inutiles.</p>
             {fe?.files && <p className="mt-1 text-sm text-red-600">{fe.files}</p>}
           </div>
@@ -445,7 +461,7 @@ export function PublishWizard({
               </Button>
             ) : (
               <Button type="submit" name="intent" value="submit" disabled={pending} className="w-full sm:w-auto">
-                <Send className="size-4" aria-hidden /> {pending ? "Envoi…" : "Soumettre à validation"}
+                <Send className="size-4" aria-hidden /> {uploading ? "Envoi des documents…" : pending ? "Envoi…" : "Soumettre à validation"}
               </Button>
             )}
           </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, type ReactNode } from "react";
+import { useActionState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Notice } from "@/components/ui/notice";
 import { useToast } from "@/components/ui/toast";
@@ -8,18 +8,23 @@ import type { ActionResult } from "@/lib/validation";
 
 type Action = (prev: ActionResult | null, fd: FormData) => Promise<ActionResult>;
 
-/** Formulaire générique d'action d'administration (champs cachés + retour). */
+/**
+ * Formulaire générique d'action d'administration (champs cachés + retour).
+ * Le retour est traité dans l'action elle-même : l'élément peut disparaître de
+ * la liste (ex. opportunité approuvée) sans que la confirmation soit perdue.
+ */
 export function ActionForm({ action, hidden, children, className, onDone }: { action: Action; hidden: Record<string, string>; children: ReactNode; className?: string; onDone?: () => void }) {
-  const [state, dispatch] = useActionState(action, null);
   const router = useRouter();
   const toast = useToast();
-  useEffect(() => {
-    if (state?.ok) {
-      toast(state.message ?? "Enregistré.");
+  const [state, dispatch] = useActionState(async (prev: ActionResult | null, fd: FormData) => {
+    const r = await action(prev, fd);
+    if (r.ok) {
+      toast(r.message ?? "Enregistré.");
       onDone?.();
       router.refresh();
     }
-  }, [state, router, toast, onDone]);
+    return r;
+  }, null);
   return (
     <form action={dispatch} className={className}>
       {Object.entries(hidden).map(([k, v]) => (

@@ -6,7 +6,6 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getSession } from "@/lib/auth";
 import { logServerError, userMessage } from "@/lib/errors";
-import { storagePath, validateUpload } from "@/lib/files";
 import { flushEmailsAfterResponse } from "@/lib/email/flush";
 import { interestSchema, opportunitySchema, parseForm, proposalSchema, reportSchema, type ActionResult } from "@/lib/validation";
 import type { Database } from "@/lib/database.types";
@@ -18,10 +17,6 @@ async function ctx() {
   const session = await getSession();
   const supabase = await createClient();
   return { session, supabase };
-}
-
-function files(fd: FormData, name = "files"): File[] {
-  return fd.getAll(name).filter((f): f is File => f instanceof File && f.size > 0);
 }
 
 // ---------------------------------------------------------------------------
@@ -55,21 +50,12 @@ export async function withdrawInterest(interestId: string, opportunityId: string
   return { ok: true, message: "Intérêt retiré." };
 }
 
-export async function submitProposal(_prev: ActionResult | null, fd: FormData): Promise<ActionResult> {
+export async function submitProposal(_prev: ActionResult<{ id: string }> | null, fd: FormData): Promise<ActionResult<{ id: string }>> {
   const parsed = parseForm(proposalSchema, fd);
   if (!parsed.success) return parsed.result;
   const { session, supabase } = await ctx();
   if (!session) return { ok: false, error: "Connectez-vous pour répondre." };
   if (!session.activeCompany) return { ok: false, error: "Créez d'abord le profil de votre entreprise." };
-
-  const uploads = files(fd);
-  if (uploads.length > 5) return { ok: false, error: "5 pièces jointes maximum." };
-  const validated = [];
-  for (const f of uploads) {
-    const v = await validateUpload(f);
-    if (!v.ok) return { ok: false, error: v.error, fieldErrors: { files: v.error } };
-    validated.push(v.file);
-  }
 
   const d = parsed.data;
   const { data: proposalId, error } = await supabase.rpc("submit_proposal", {
@@ -85,24 +71,9 @@ export async function submitProposal(_prev: ActionResult | null, fd: FormData): 
   });
   if (error || !proposalId) return { ok: false, error: userMessage(error) };
 
-  for (const f of validated) {
-    const path = storagePath(proposalId, f.name);
-    const { error: upErr } = await supabase.storage.from("proposal-documents").upload(path, f.bytes, { contentType: f.mime });
-    if (upErr) {
-      logServerError("proposal upload", upErr);
-      return { ok: false, error: "Votre réponse est enregistrée mais un document n'a pas pu être envoyé. Réessayez depuis votre espace." };
-    }
-    await supabase.rpc("register_proposal_document", {
-      p_proposal_id: proposalId,
-      p_storage_path: path,
-      p_file_name: f.name,
-      p_mime_type: f.mime,
-      p_size_bytes: f.size,
-    });
-  }
   flushEmailsAfterResponse();
   revalidatePath(`/opportunites/${d.opportunityId}`);
-  redirect(`/opportunites/${d.opportunityId}?reponse=envoyee`);
+  return { ok: true, data: { id: proposalId } };
 }
 
 export async function withdrawProposal(proposalId: string, opportunityId: string): Promise<ActionResult> {
@@ -223,34 +194,7 @@ function toRow(d: z.output<typeof opportunitySchema>) {
   };
 }
 
-async function uploadOpportunityDocs(supabase: Awaited<ReturnType<typeof createClient>>, opportunityId: string, userId: string, fd: FormData): Promise<string | null> {
-  const uploads = files(fd);
-  if (uploads.length === 0) return null;
-  const { count } = await supabase.from("opportunity_documents").select("id", { count: "exact", head: true }).eq("opportunity_id", opportunityId);
-  if ((count ?? 0) + uploads.length > 10) return "10 documents maximum par opportunité.";
-  for (const f of uploads) {
-    const v = await validateUpload(f);
-    if (!v.ok) return v.error;
-    const path = storagePath(opportunityId, v.file.name);
-    const { error } = await supabase.storage.from("opportunity-documents").upload(path, v.file.bytes, { contentType: v.file.mime });
-    if (error) {
-      logServerError("opportunity upload", error);
-      return "Un document n'a pas pu être envoyé.";
-    }
-    const { error: insErr } = await supabase.from("opportunity_documents").insert({
-      opportunity_id: opportunityId,
-      storage_path: path,
-      file_name: v.file.name,
-      mime_type: v.file.mime,
-      size_bytes: v.file.size,
-      uploaded_by: userId,
-    });
-    if (insErr) return userMessage(insErr);
-  }
-  return null;
-}
-
-export async function createOpportunity(_prev: ActionResult | null, fd: FormData): Promise<ActionResult> {
+export async function createOpportunity(_prev: ActionResult<{ id: string; intent: string }> | null, fd: FormData): Promise<ActionResult<{ id: string; intent: string }>> {
   const parsed = parseForm(opportunitySchema, fd);
   if (!parsed.success) return parsed.result;
   const { session, supabase } = await ctx();
@@ -266,12 +210,12 @@ export async function createOpportunity(_prev: ActionResult | null, fd: FormData
     logServerError("createOpportunity", error);
     return { ok: false, error: userMessage(error) };
   }
-  const uploadError = await uploadOpportunityDocs(supabase, data.id, session.userId, fd);
   revalidatePath("/dashboard/opportunites");
-  redirect(`/dashboard/opportunites/${data.id}?${uploadError ? `erreur=${encodeURIComponent(uploadError)}` : `cree=${d.intent}`}`);
+  // Les documents sont ensuite envoyés directement au stockage par le navigateur.
+  return { ok: true, data: { id: data.id, intent: d.intent } };
 }
 
-export async function updateOpportunity(_prev: ActionResult | null, fd: FormData): Promise<ActionResult> {
+export async function updateOpportunity(_prev: ActionResult<{ id: string; intent: string }> | null, fd: FormData): Promise<ActionResult<{ id: string; intent: string }>> {
   const id = String(fd.get("id") ?? "");
   if (!uuid.safeParse(id).success) return { ok: false, error: "Identifiant invalide." };
   const parsed = parseForm(opportunitySchema, fd);
@@ -291,10 +235,9 @@ export async function updateOpportunity(_prev: ActionResult | null, fd: FormData
   if (d.intent === "submit" && ["DRAFT", "CHANGES_REQUESTED"].includes(status)) status = "PENDING_REVIEW";
   const { error } = await supabase.from("opportunities").update({ ...toRow(d), status }).eq("id", id);
   if (error) return { ok: false, error: userMessage(error) };
-  const uploadError = await uploadOpportunityDocs(supabase, id, session.userId, fd);
   revalidatePath(`/dashboard/opportunites/${id}`);
   revalidatePath(`/opportunites/${id}`);
-  redirect(`/dashboard/opportunites/${id}?${uploadError ? `erreur=${encodeURIComponent(uploadError)}` : "modifie=1"}`);
+  return { ok: true, data: { id, intent: d.intent } };
 }
 
 const statusChange = z.object({ id: z.uuid(), to: z.enum(["PENDING_REVIEW", "DRAFT", "ARCHIVED"]) });
@@ -420,14 +363,3 @@ export async function saveEvaluation(_prev: ActionResult | null, fd: FormData): 
   return { ok: true, message: "Évaluation enregistrée (visible uniquement par votre entreprise)." };
 }
 
-export async function addOpportunityDocuments(_prev: ActionResult | null, fd: FormData): Promise<ActionResult> {
-  const id = String(fd.get("opportunityId") ?? "");
-  if (!uuid.safeParse(id).success) return { ok: false, error: "Identifiant invalide." };
-  const { session, supabase } = await ctx();
-  if (!session) return { ok: false, error: "Session expirée." };
-  if (files(fd).length === 0) return { ok: false, error: "Sélectionnez au moins un fichier." };
-  const err = await uploadOpportunityDocs(supabase, id, session.userId, fd);
-  if (err) return { ok: false, error: err };
-  revalidatePath(`/dashboard/opportunites/${id}`);
-  return { ok: true, message: "Document(s) ajouté(s)." };
-}

@@ -24,7 +24,7 @@ export default async function MyOpportunitiesPage(props: PageProps<"/dashboard/o
   const [{ data: opps }, { data: interests }, { data: proposals }] = await Promise.all([
     supabase
       .from("opportunities")
-      .select("id, title, type, status, response_deadline, published_at, updated_at, is_demo, interests(count), proposals(count)")
+      .select("id, title, type, status, response_deadline, published_at, updated_at, is_demo, interests(count), proposals!proposals_opportunity_id_fkey(count)")
       .eq("company_id", cid)
       .order("updated_at", { ascending: false }),
     supabase
