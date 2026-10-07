@@ -10,6 +10,7 @@ import Image from "next/image";
 import type { ArticleBody } from "@/lib/articles";
 import { articleFigures, type ArticleFacts } from "@/lib/article-figures";
 import { BarChart, KeyFigures } from "@/components/article-charts";
+import { ARTICLE_AUTHOR } from "@/lib/seo";
 
 export const revalidate = 3600;
 
@@ -190,11 +191,9 @@ export default async function AnalysePage(
       )}
 
       <p className="mt-10 border-t border-slate-200 pt-4 text-sm text-slate-500">
-        Analyse rédigée avec l&apos;aide d&apos;une intelligence artificielle,
-        uniquement à partir des données publiées sur LinkProB2B
-        {facts.date_des_donnees ? ` au ${facts.date_des_donnees}` : ""}. Sources
-        : {facts.sources ?? "BOAMP et TED"} Vérifiez toujours les conditions sur
-        l&apos;avis officiel avant de répondre.
+        Rédigé par <strong className="text-navy">{ARTICLE_AUTHOR}</strong>
+        {facts.date_des_donnees ? `, d'après les données publiées sur LinkProB2B au ${facts.date_des_donnees}` : ""}. Sources :{" "}
+        {facts.sources ?? "BOAMP et TED"} Vérifiez toujours les conditions sur l&apos;avis officiel avant de répondre.
       </p>
       <p>
         <Link href="/analyses">← Toutes les analyses</Link>
