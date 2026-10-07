@@ -6,6 +6,8 @@ import { EmptyState } from "@/components/ui/states";
 import { ButtonLink } from "@/components/ui/button";
 import { DashboardCard } from "@/components/ui/card";
 import { formatMoney } from "@/lib/format";
+import { companyPlan } from "@/lib/billing/entitlements";
+import { UpgradePrompt } from "@/components/billing/upgrade-prompt";
 
 export const metadata = { title: "Pipeline" };
 
@@ -22,6 +24,7 @@ export default async function PipelinePage() {
   const won = items.filter((i) => i.stage === "WON");
   const lost = items.filter((i) => i.stage === "LOST");
   const openValue = open.reduce((s, i) => s + (i.estimated_value ?? 0), 0);
+  const free = (await companyPlan(session.activeCompany.company.id)) === "FREE";
   return (
     <div>
       <h1 className="text-2xl font-bold">Pipeline commercial</h1>
@@ -29,6 +32,16 @@ export default async function PipelinePage() {
         Suivi privé de vos opportunités, de la détection au résultat. Seuls les membres de {session.activeCompany.company.name} y ont accès — ni les
         demandeurs ni l&apos;équipe LinkProB2B.
       </p>
+      {free && (
+        <UpgradePrompt
+          className="mb-6"
+          message={
+            items.length
+              ? "Votre pipeline est conservé et reste consultable. Son suivi (ajout, déplacement, notes) est inclus dans les offres Pro et Business."
+              : "Le pipeline commercial est inclus dans les offres Pro et Business : suivez chaque opportunité de la détection au résultat, avec notes, valeur estimée et date de relance."
+          }
+        />
+      )}
       {items.length === 0 ? (
         <EmptyState
           icon={<KanbanSquare className="size-6" aria-hidden />}

@@ -11,6 +11,8 @@ import { AdminFilter, adminInput } from "@/components/admin/admin-filter";
 import { StatusWithReason, VerifyCompanyButton } from "@/components/admin/admin-actions";
 import { COMPANY_KIND_LABELS } from "@/lib/constants";
 import { formatDate } from "@/lib/format";
+import { Badge } from "@/components/ui/badge";
+import { PLAN_LABEL, type PlanCode } from "@/lib/billing/plans";
 
 export const metadata = { title: "Entreprises" };
 const PER = 25;
@@ -24,7 +26,7 @@ export default async function AdminCompanies(props: PageProps<"/admin/entreprise
   const supabase = await createClient();
   let query = supabase
     .from("companies")
-    .select("id, slug, name, siren, kind, city, department_code, status, verified_at, verification_note, created_at, is_demo, company_members(count), opportunities(count)", { count: "exact" })
+    .select("id, slug, name, siren, kind, city, department_code, status, verified_at, verification_note, created_at, is_demo, plan_code, company_members(count), opportunities(count)", { count: "exact" })
     .order("created_at", { ascending: false })
     .range((page - 1) * PER, page * PER - 1);
   if (q) query = query.or(`name.ilike.%${q}%,siren.ilike.%${q}%`);
@@ -67,6 +69,7 @@ export default async function AdminCompanies(props: PageProps<"/admin/entreprise
             ),
           },
           { key: "status", header: "Statut", cell: (c) => <StatusBadge kind="account" status={c.status} /> },
+          { key: "plan", header: "Offre", cell: (c) => <Badge tone={c.plan_code === "BUSINESS" ? "navy" : c.plan_code === "PRO" ? "teal" : "slate"}>{PLAN_LABEL[c.plan_code as PlanCode] ?? "Gratuit"}</Badge> },
           { key: "counts", header: "Membres / publications", hideOnMobile: true, cell: (c) => `${n(c.company_members)} / ${n(c.opportunities)}` },
           { key: "date", header: "Créée", hideOnMobile: true, cell: (c) => formatDate(c.created_at) },
           {

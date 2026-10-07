@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { env } from "@/lib/env";
+import { stripeConfigured, stripeMode } from "@/lib/billing/stripe";
 
 export const dynamic = "force-dynamic";
 
@@ -37,6 +38,17 @@ export async function GET() {
         email: env.emailTransport ?? false,
         cronSecret: Boolean(env.cronSecret),
         initialAdmin: Boolean(env.initialAdminEmail),
+        // Paiement : indicateurs uniquement (aucune clé ni identifiant de prix n'est exposé)
+        stripe: {
+          mode: stripeMode() ?? false,
+          secretKey: Boolean(process.env.STRIPE_SECRET_KEY),
+          webhookSecret: Boolean(process.env.STRIPE_WEBHOOK_SECRET),
+          proPrice: Boolean(process.env.STRIPE_PRO_PRICE_ID),
+          businessPrice: Boolean(process.env.STRIPE_BUSINESS_PRICE_ID),
+          taxRate: Boolean(process.env.STRIPE_TAX_RATE_ID),
+          checkoutReady: stripeConfigured() && Boolean(process.env.STRIPE_WEBHOOK_SECRET),
+          liveAllowed: process.env.STRIPE_ALLOW_LIVE === "1",
+        },
         supabase: Boolean(
           (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL) &&
             (process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY),

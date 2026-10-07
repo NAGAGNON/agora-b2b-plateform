@@ -36,6 +36,8 @@ beforeAll(async () => {
   [buyer, supplier, moderator, adminUser] = await Promise.all([user("pbuyer"), user("psupplier"), user("pmod", "MODERATOR"), user("padmin", "ADMIN")]);
   buyerCo = await company(buyer.client, "P Acheteur", "BUYER");
   supplierCo = await company(supplier.client, "P Fournisseur", "SUPPLIER");
+  // Alertes multiples : fonctionnalité de l'offre Pro (le plan n'est modifiable que par le serveur)
+  await admin.from("companies").update({ plan_code: "PRO" }).eq("id", supplierCo);
   await opp("brest", { city: "Brest", skills: ["hydraulique"] });
   await opp("rennes", { city: "Rennes", skills: ["peinture"], sector_slug: "batiment-technique", description: "Opportunité de test d'intégration, travaux de peinture industrielle." });
   await opp("demo", { city: "Brest", skills: ["hydraulique"], is_demo: true });

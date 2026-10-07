@@ -3,11 +3,14 @@ import { requireStaff } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { DashboardCard, Card, CardHeader } from "@/components/ui/card";
 import { Notice } from "@/components/ui/notice";
+import { stripeMode as stripeModeOf } from "@/lib/billing/stripe";
 import { AudiencePanel, PERIODS, type AudienceStats } from "@/components/admin/audience-panel";
 
 export const metadata = { title: "Vue d'ensemble" };
 
 type Stats = Record<string, number>;
+
+const euros = (cents: number) => new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(cents / 100);
 
 function pct(a: number, b: number) {
   return b > 0 ? `${Math.round((a / b) * 100)} %` : "—";
@@ -18,11 +21,14 @@ export default async function AdminHome(props: PageProps<"/admin">) {
   const sp = await props.searchParams;
   const supabase = await createClient();
   const period = PERIODS.find((p) => String(p) === sp.periode) ?? 30;
-  const [{ data }, { data: audience }] = await Promise.all([
+  const [{ data }, { data: audience }, { data: billing }] = await Promise.all([
     supabase.rpc("admin_stats"),
     supabase.rpc("admin_audience_stats", { p_days: period }),
+    supabase.rpc("admin_billing_stats"),
   ]);
   const s = (data ?? {}) as Stats;
+  const b = billing as Stats | null; // réservé aux administrateurs (null pour la modération)
+  const stripeMode = stripeModeOf();
   return (
     <div className="space-y-8">
       {sp.refus === "admin" && <Notice tone="error">Cette page est réservée aux administrateurs.</Notice>}
@@ -49,6 +55,28 @@ export default async function AdminHome(props: PageProps<"/admin">) {
             </Link>
           )}
         </Notice>
+      )}
+      {b && (
+        <section>
+          <h2 className="mb-3 text-lg font-bold">
+            Abonnements et revenus{" "}
+            <span className="text-sm font-medium text-slate-500">
+              {stripeMode === "test" ? "· Stripe en mode test (aucun encaissement réel)" : stripeMode === "live" ? "· Stripe en production" : "· Stripe non configuré"}
+            </span>
+          </h2>
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            <DashboardCard label="Revenu mensuel récurrent (MRR, HT)" value={euros(b.mrr_cents ?? 0)} />
+            <DashboardCard label="Encaissé sur 30 jours (TTC)" value={euros(b.revenue_30d_cents ?? 0)} />
+            <DashboardCard label="Entreprises Pro" value={b.companies_pro ?? 0} />
+            <DashboardCard label="Entreprises Business" value={b.companies_business ?? 0} />
+            <DashboardCard label="Entreprises Gratuit" value={b.companies_free ?? 0} />
+            <DashboardCard label="Taux de conversion payant" value={pct((b.companies_pro ?? 0) + (b.companies_business ?? 0), b.companies_total ?? 0)} hint="Entreprises Pro ou Business / inscrites" />
+            <DashboardCard label="Nouveaux abonnements (30 j)" value={b.new_30d ?? 0} hint={`Pro ${b.new_pro_30d ?? 0} · Business ${b.new_business_30d ?? 0}`} />
+            <DashboardCard label="Résiliations effectives (30 j)" value={b.churned_30d ?? 0} />
+            <DashboardCard label="Paiements en échec (relances)" value={b.past_due ?? 0} />
+            <DashboardCard label="Résiliations programmées" value={b.cancel_scheduled ?? 0} />
+          </div>
+        </section>
       )}
       {audience ? (
         <AudiencePanel stats={audience as unknown as AudienceStats} period={period} />

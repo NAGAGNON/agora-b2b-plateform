@@ -117,15 +117,34 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
-                },"companies": {
+                },"billing_events": {
                   Row: {
-                    "city": string | null,"created_at": string,"created_by": string | null,"department_code": string | null,"id": string,"is_demo": boolean,"kind": Database["public"]['Enums']["company_kind"],"lat": number | null,"lng": number | null,"logo_path": string | null,"name": string,"plan_code": string,"postal_code": string | null,"region": string | null,"siren": string | null,"size": Database["public"]['Enums']["company_size"] | null,"slug": string,"status": Database["public"]['Enums']["company_status"],"updated_at": string,"verification_note": string | null,"verified_at": string | null,"verified_by": string | null,"website": string | null
+                    "company_id": string | null,"processed_at": string,"stripe_event_id": string,"summary": NonNullable<Json>,"type": string
                   }
                   Insert: {
-                    "city"?: string | null,"created_at"?: string,"created_by"?: string | null,"department_code"?: string | null,"id"?: string,"is_demo"?: boolean,"kind"?: Database["public"]['Enums']["company_kind"],"lat"?: number | null,"lng"?: number | null,"logo_path"?: string | null,"name": string,"plan_code"?: string,"postal_code"?: string | null,"region"?: string | null,"siren"?: string | null,"size"?: Database["public"]['Enums']["company_size"] | null,"slug": string,"status"?: Database["public"]['Enums']["company_status"],"updated_at"?: string,"verification_note"?: string | null,"verified_at"?: string | null,"verified_by"?: string | null,"website"?: string | null
+                    "company_id"?: string | null,"processed_at"?: string,"stripe_event_id": string,"summary"?: NonNullable<Json>,"type": string
                   }
                   Update: {
-                    "city"?: string | null,"created_at"?: string,"created_by"?: string | null,"department_code"?: string | null,"id"?: string,"is_demo"?: boolean,"kind"?: Database["public"]['Enums']["company_kind"],"lat"?: number | null,"lng"?: number | null,"logo_path"?: string | null,"name"?: string,"plan_code"?: string,"postal_code"?: string | null,"region"?: string | null,"siren"?: string | null,"size"?: Database["public"]['Enums']["company_size"] | null,"slug"?: string,"status"?: Database["public"]['Enums']["company_status"],"updated_at"?: string,"verification_note"?: string | null,"verified_at"?: string | null,"verified_by"?: string | null,"website"?: string | null
+                    "company_id"?: string | null,"processed_at"?: string,"stripe_event_id"?: string,"summary"?: NonNullable<Json>,"type"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "billing_events_company_id_fkey"
+      columns: ["company_id"]
+isOneToOne: false
+      referencedRelation: "companies"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"companies": {
+                  Row: {
+                    "city": string | null,"created_at": string,"created_by": string | null,"department_code": string | null,"id": string,"is_demo": boolean,"kind": Database["public"]['Enums']["company_kind"],"lat": number | null,"lng": number | null,"logo_path": string | null,"name": string,"plan_code": string,"postal_code": string | null,"region": string | null,"siren": string | null,"size": Database["public"]['Enums']["company_size"] | null,"slug": string,"status": Database["public"]['Enums']["company_status"],"stripe_customer_id": string | null,"updated_at": string,"verification_note": string | null,"verified_at": string | null,"verified_by": string | null,"website": string | null
+                  }
+                  Insert: {
+                    "city"?: string | null,"created_at"?: string,"created_by"?: string | null,"department_code"?: string | null,"id"?: string,"is_demo"?: boolean,"kind"?: Database["public"]['Enums']["company_kind"],"lat"?: number | null,"lng"?: number | null,"logo_path"?: string | null,"name": string,"plan_code"?: string,"postal_code"?: string | null,"region"?: string | null,"siren"?: string | null,"size"?: Database["public"]['Enums']["company_size"] | null,"slug": string,"status"?: Database["public"]['Enums']["company_status"],"stripe_customer_id"?: string | null,"updated_at"?: string,"verification_note"?: string | null,"verified_at"?: string | null,"verified_by"?: string | null,"website"?: string | null
+                  }
+                  Update: {
+                    "city"?: string | null,"created_at"?: string,"created_by"?: string | null,"department_code"?: string | null,"id"?: string,"is_demo"?: boolean,"kind"?: Database["public"]['Enums']["company_kind"],"lat"?: number | null,"lng"?: number | null,"logo_path"?: string | null,"name"?: string,"plan_code"?: string,"postal_code"?: string | null,"region"?: string | null,"siren"?: string | null,"size"?: Database["public"]['Enums']["company_size"] | null,"slug"?: string,"status"?: Database["public"]['Enums']["company_status"],"stripe_customer_id"?: string | null,"updated_at"?: string,"verification_note"?: string | null,"verified_at"?: string | null,"verified_by"?: string | null,"website"?: string | null
                   }
                   Relationships: [
                     {
@@ -386,6 +405,25 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"invoices": {
+                  Row: {
+                    "amount_due_cents": number,"amount_paid_cents": number,"company_id": string,"created_at": string,"currency": string,"hosted_invoice_url": string | null,"id": string,"invoice_pdf": string | null,"number": string | null,"period_end": string | null,"period_start": string | null,"status": string,"stripe_invoice_id": string,"stripe_subscription_id": string | null,"updated_at": string
+                  }
+                  Insert: {
+                    "amount_due_cents"?: number,"amount_paid_cents"?: number,"company_id": string,"created_at"?: string,"currency"?: string,"hosted_invoice_url"?: string | null,"id"?: string,"invoice_pdf"?: string | null,"number"?: string | null,"period_end"?: string | null,"period_start"?: string | null,"status": string,"stripe_invoice_id": string,"stripe_subscription_id"?: string | null,"updated_at"?: string
+                  }
+                  Update: {
+                    "amount_due_cents"?: number,"amount_paid_cents"?: number,"company_id"?: string,"created_at"?: string,"currency"?: string,"hosted_invoice_url"?: string | null,"id"?: string,"invoice_pdf"?: string | null,"number"?: string | null,"period_end"?: string | null,"period_start"?: string | null,"status"?: string,"stripe_invoice_id"?: string,"stripe_subscription_id"?: string | null,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "invoices_company_id_fkey"
+      columns: ["company_id"]
+isOneToOne: false
+      referencedRelation: "companies"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"messages": {
                   Row: {
                     "attachment_name": string | null,"attachment_path": string | null,"body": string,"conversation_id": string,"created_at": string,"id": string,"read_at": string | null,"sender_company_id": string,"sender_user_id": string | null
@@ -638,13 +676,13 @@ isOneToOne: false
                   ]
                 },"plans": {
                   Row: {
-                    "code": string,"description": string | null,"features": NonNullable<Json>,"is_paid": boolean,"label": string
+                    "code": string,"description": string | null,"features": NonNullable<Json>,"is_paid": boolean,"label": string,"monthly_price_cents": number | null,"sort_order": number
                   }
                   Insert: {
-                    "code": string,"description"?: string | null,"features"?: NonNullable<Json>,"is_paid"?: boolean,"label": string
+                    "code": string,"description"?: string | null,"features"?: NonNullable<Json>,"is_paid"?: boolean,"label": string,"monthly_price_cents"?: number | null,"sort_order"?: number
                   }
                   Update: {
-                    "code"?: string,"description"?: string | null,"features"?: NonNullable<Json>,"is_paid"?: boolean,"label"?: string
+                    "code"?: string,"description"?: string | null,"features"?: NonNullable<Json>,"is_paid"?: boolean,"label"?: string,"monthly_price_cents"?: number | null,"sort_order"?: number
                   }
                   Relationships: [
                     
@@ -850,6 +888,31 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"subscriptions": {
+                  Row: {
+                    "billing_interval": string | null,"cancel_at_period_end": boolean,"canceled_at": string | null,"company_id": string,"created_at": string,"currency": string | null,"current_period_end": string | null,"current_period_start": string | null,"ended_at": string | null,"id": string,"latest_invoice_id": string | null,"plan_code": string,"started_at": string | null,"status": string,"stripe_customer_id": string,"stripe_price_id": string | null,"stripe_subscription_id": string,"unit_amount_cents": number | null,"updated_at": string
+                  }
+                  Insert: {
+                    "billing_interval"?: string | null,"cancel_at_period_end"?: boolean,"canceled_at"?: string | null,"company_id": string,"created_at"?: string,"currency"?: string | null,"current_period_end"?: string | null,"current_period_start"?: string | null,"ended_at"?: string | null,"id"?: string,"latest_invoice_id"?: string | null,"plan_code": string,"started_at"?: string | null,"status": string,"stripe_customer_id": string,"stripe_price_id"?: string | null,"stripe_subscription_id": string,"unit_amount_cents"?: number | null,"updated_at"?: string
+                  }
+                  Update: {
+                    "billing_interval"?: string | null,"cancel_at_period_end"?: boolean,"canceled_at"?: string | null,"company_id"?: string,"created_at"?: string,"currency"?: string | null,"current_period_end"?: string | null,"current_period_start"?: string | null,"ended_at"?: string | null,"id"?: string,"latest_invoice_id"?: string | null,"plan_code"?: string,"started_at"?: string | null,"status"?: string,"stripe_customer_id"?: string,"stripe_price_id"?: string | null,"stripe_subscription_id"?: string,"unit_amount_cents"?: number | null,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "subscriptions_company_id_fkey"
+      columns: ["company_id"]
+isOneToOne: false
+      referencedRelation: "companies"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "subscriptions_plan_code_fkey"
+      columns: ["plan_code"]
+isOneToOne: false
+      referencedRelation: "plans"
+      referencedColumns: ["code"]
+    }
+                  ]
                 },"users": {
                   Row: {
                     "created_at": string,"email": string,"full_name": string,"id": string,"is_demo": boolean,"job_title": string | null,"last_seen_at": string | null,"marketing_consent": boolean,"notify_email": boolean,"phone": string | null,"platform_role": Database["public"]['Enums']["platform_role"],"status": Database["public"]['Enums']["account_status"],"terms_accepted_at": string | null,"updated_at": string
@@ -874,6 +937,9 @@ isOneToOne: false
                            },
 "admin_audience_stats":
 { Args: { "p_days"?: number }; Returns: Json
+                           },
+"admin_billing_stats":
+{ Args: Record<PropertyKey, never>; Returns: Json
                            },
 "admin_create_external_opportunity":
 { Args: { "p_city": string,"p_department_code": string,"p_description": string,"p_external_buyer_name": string,"p_external_id": string,"p_is_demo"?: boolean,"p_original_url": string,"p_response_deadline": string,"p_sector_slug": string,"p_source_id": string,"p_source_published_at": string,"p_summary": string,"p_title": string,"p_type": Database["public"]['Enums']["opportunity_type"] }; Returns: string
@@ -1001,6 +1067,15 @@ isOneToOne: false
 "close_opportunity":
 { Args: { "p_note"?: string,"p_opportunity_id": string,"p_outcome": Database["public"]['Enums']["opportunity_outcome"],"p_selected_proposal_id"?: string }; Returns: undefined
                            },
+"company_has_feature":
+{ Args: { "p_company_id": string,"p_key": string }; Returns: boolean
+                           },
+"company_plan":
+{ Args: { "p_company_id": string }; Returns: string
+                           },
+"company_usage":
+{ Args: { "p_company_id": string }; Returns: Json
+                           },
 "create_company":
 { Args: { "p_city"?: string,"p_description"?: string,"p_kind": Database["public"]['Enums']["company_kind"],"p_name": string,"p_postal_code"?: string,"p_sectors"?: (string)[],"p_siren"?: string,"p_size"?: Database["public"]['Enums']["company_size"],"p_skills"?: (string)[],"p_tagline"?: string,"p_website"?: string }; Returns: string
                            },
@@ -1094,11 +1169,17 @@ isOneToOne: false
 "pipeline_rank":
 { Args: { "p_stage": Database["public"]['Enums']["pipeline_stage"] }; Returns: number
                            },
+"plan_feature":
+{ Args: { "p_key": string,"p_plan": string }; Returns: Json
+                           },
 "prepare_account_deletion":
 { Args: Record<PropertyKey, never>; Returns: number
                            },
 "purge_page_views":
 { Args: Record<PropertyKey, never>; Returns: number
+                           },
+"raise_plan_limit":
+{ Args: { "p_key": string,"p_message": string }; Returns: undefined
                            },
 "recommended_opportunities":
 { Args: { "p_company_id": string,"p_include_demo"?: boolean,"p_limit"?: number }; Returns: {
@@ -1183,6 +1264,9 @@ isOneToOne: false
                            },
 "unique_company_slug":
 { Args: { "p_name": string }; Returns: string
+                           },
+"user_plan":
+{ Args: { "p_user_id"?: string }; Returns: string
                            },
 "withdraw_interest":
 { Args: { "p_interest_id": string }; Returns: undefined

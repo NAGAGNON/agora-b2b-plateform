@@ -7,7 +7,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ACTIVE_COMPANY_COOKIE, getSession } from "@/lib/auth";
-import { logServerError, userMessage } from "@/lib/errors";
+import { logServerError, actionError } from "@/lib/errors";
 import { storagePath, validateUpload } from "@/lib/files";
 import { ALLOWED_LOGO_TYPES, MAX_LOGO_BYTES } from "@/lib/constants";
 import { companyProfileSchema, companySchema, emailSchema, parseForm, userProfileSchema, type ActionResult } from "@/lib/validation";
@@ -37,7 +37,7 @@ export async function createCompany(_prev: ActionResult | null, fd: FormData): P
     p_sectors: d.sectors,
     p_skills: d.skills,
   });
-  if (error || !companyId) return { ok: false, error: userMessage(error) };
+  if (error || !companyId) return actionError(error);
   (await cookies()).set(ACTIVE_COMPANY_COOKIE, companyId, { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/" });
   revalidatePath("/", "layout");
   redirect(safeNext(fd.get("suite"), "/dashboard?bienvenue=1"));
@@ -72,7 +72,7 @@ export async function updateCompanyProfile(_prev: ActionResult | null, fd: FormD
       website: d.website ?? null,
     })
     .eq("id", company.company.id);
-  if (e1) return { ok: false, error: userMessage(e1) };
+  if (e1) return actionError(e1);
   const { error: e2 } = await supabase
     .from("company_profiles")
     .update({
@@ -91,7 +91,7 @@ export async function updateCompanyProfile(_prev: ActionResult | null, fd: FormD
       is_public: d.isPublic,
     })
     .eq("company_id", company.company.id);
-  if (e2) return { ok: false, error: userMessage(e2) };
+  if (e2) return actionError(e2);
 
   const logo = fd.get("logo");
   if (logo instanceof File && logo.size > 0) {
@@ -128,7 +128,7 @@ export async function inviteMember(_prev: ActionResult | null, fd: FormData): Pr
     p_email: parsed.data.email,
     p_role: parsed.data.role,
   });
-  if (error) return { ok: false, error: userMessage(error) };
+  if (error) return actionError(error);
   revalidatePath("/dashboard/entreprise");
   return {
     ok: true,
@@ -143,7 +143,7 @@ export async function setMemberRole(memberId: string, role: "COMPANY_MEMBER" | "
   if (!z.uuid().safeParse(memberId).success) return { ok: false, error: "Identifiant invalide." };
   const supabase = await createClient();
   const { error } = await supabase.rpc("set_company_member_role", { p_member_id: memberId, p_role: role });
-  if (error) return { ok: false, error: userMessage(error) };
+  if (error) return actionError(error);
   revalidatePath("/dashboard/entreprise");
   return { ok: true, message: "Rôle mis à jour." };
 }
@@ -152,7 +152,7 @@ export async function removeMember(memberId: string): Promise<ActionResult> {
   if (!z.uuid().safeParse(memberId).success) return { ok: false, error: "Identifiant invalide." };
   const supabase = await createClient();
   const { error } = await supabase.rpc("remove_company_member", { p_member_id: memberId });
-  if (error) return { ok: false, error: userMessage(error) };
+  if (error) return actionError(error);
   revalidatePath("/", "layout");
   return { ok: true, message: "Membre retiré." };
 }
@@ -168,7 +168,7 @@ export async function updateUserProfile(_prev: ActionResult | null, fd: FormData
     .from("users")
     .update({ full_name: d.fullName, job_title: d.jobTitle ?? null, phone: d.phone ?? null, notify_email: d.notifyEmail, marketing_consent: d.marketingConsent })
     .eq("id", session.userId);
-  if (error) return { ok: false, error: userMessage(error) };
+  if (error) return actionError(error);
   revalidatePath("/", "layout");
   return { ok: true, message: "Profil enregistré." };
 }
@@ -185,7 +185,7 @@ export async function deleteAccount(_prev: ActionResult | null, fd: FormData): P
   if (session.profile.platform_role === "SUPER_ADMIN") return { ok: false, error: "Un super administrateur ne peut pas supprimer son compte depuis cette page." };
   const supabase = await createClient();
   const { error } = await supabase.rpc("prepare_account_deletion");
-  if (error) return { ok: false, error: userMessage(error) };
+  if (error) return actionError(error);
   const { error: delErr } = await createAdminClient().auth.admin.deleteUser(session.userId);
   if (delErr) {
     logServerError("deleteUser", delErr);

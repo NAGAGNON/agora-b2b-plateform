@@ -1,4 +1,4 @@
-import { siteUrl } from "@/lib/seo";
+import { ARTICLE_AUTHOR, siteUrl } from "@/lib/seo";
 
 /**
  * Données structurées schema.org (JSON-LD) : invisibles pour l'utilisateur, lues par
@@ -66,7 +66,7 @@ export function articleLd(a: { title: string; description: string; path: string;
     ...(a.publishedAt ? { datePublished: a.publishedAt } : {}),
     ...(a.updatedAt ? { dateModified: a.updatedAt } : {}),
     inLanguage: "fr-FR",
-    author: { "@type": "Organization", name: "LinkProB2B", url: base },
+    author: { "@type": "Person", name: ARTICLE_AUTHOR },
     publisher: { "@id": `${base}/#organisation` },
     image: `${base}/brand/logo.png`,
   };

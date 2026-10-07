@@ -8,6 +8,8 @@ import { SubmitButton } from "@/components/ui/submit-button";
 import { Notice } from "@/components/ui/notice";
 import { useToast } from "@/components/ui/toast";
 import { COMPANY_ROLE_LABELS, type CompanyRole } from "@/lib/constants";
+import { ActionError } from "@/components/billing/upgrade-prompt";
+import { LegalNote } from "@/components/legal-note";
 
 export function UserProfileForm({ v }: { v: { full_name: string; job_title: string | null; phone: string | null; notify_email: boolean; marketing_consent: boolean; email: string } }) {
   const [state, action] = useActionState(updateUserProfile, null);
@@ -30,8 +32,10 @@ export function UserProfileForm({ v }: { v: { full_name: string; job_title: stri
       </Field>
       <Checkbox name="notifyEmail" defaultChecked={v.notify_email} label="Recevoir les notifications par e-mail" hint="Nouvelles réponses, messages, décisions, alertes." />
       <Checkbox name="marketingConsent" defaultChecked={v.marketing_consent} label="Recevoir les actualités de LinkProB2B" />
-      {state && <Notice tone={state.ok ? "success" : "error"}>{state.ok ? state.message : state.error}</Notice>}
+      {state?.ok && <Notice tone="success">{state.message}</Notice>}
+      <ActionError state={state} />
       <SubmitButton>Enregistrer</SubmitButton>
+      <LegalNote>Gestion de vos données personnelles : voir les</LegalNote>
     </form>
   );
 }

@@ -26,3 +26,6 @@ export function pageMetadata({ title, description, path, noindex = false }: { ti
 }
 
 export const PRIVATE_METADATA: Metadata = { robots: { index: false, follow: false } };
+
+/** Auteur affiché sur les analyses de marché (et dans les données structurées). */
+export const ARTICLE_AUTHOR = "YEO NAGAGNON GUY ROLAND";

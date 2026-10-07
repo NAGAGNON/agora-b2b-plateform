@@ -6,9 +6,9 @@ import { uploadFiles } from "@/lib/direct-upload";
 import { submitProposal } from "@/app/actions/opportunities";
 import { Field, Input, Textarea } from "@/components/ui/form";
 import { FileUploader } from "@/components/ui/file-uploader";
-import { Notice } from "@/components/ui/notice";
 import { Button } from "@/components/ui/button";
 import type { ActionResult } from "@/lib/validation";
+import { ActionError } from "@/components/billing/upgrade-prompt";
 
 export type ProposalValues = {
   message?: string;
@@ -73,7 +73,7 @@ export function ProposalForm({ opportunityId, values = {} }: { opportunityId: st
         {fe?.files && <p className="mt-1 text-sm text-red-600">{fe.files}</p>}
         <p className="mt-2 text-xs text-slate-500">Visibles uniquement par votre entreprise et le demandeur.</p>
       </div>
-      {state && !state.ok && <Notice tone="error">{state.error}</Notice>}
+      <ActionError state={state} />
       <Button type="submit" size="lg" disabled={pending} className="w-full sm:w-auto">
         {pending ? "Envoi…" : "Envoyer ma réponse"}
       </Button>

@@ -7,6 +7,10 @@ import { Card, CardHeader } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/states";
 import { ButtonLink } from "@/components/ui/button";
 import { RecommendationList, SCORING_RULES } from "@/components/dashboard/recommendations";
+import { companyPlan } from "@/lib/billing/entitlements";
+import { UpgradePrompt } from "@/components/billing/upgrade-prompt";
+
+const FREE_PREVIEW = 3;
 
 export const metadata = { title: "Recommandations" };
 
@@ -24,8 +28,10 @@ export default async function RecommendationsPage() {
     );
   }
   const supabase = await createClient();
+  const free = (await companyPlan(company.id)) === "FREE";
   const [{ data, error }, sectorLabels] = await Promise.all([
-    supabase.rpc("recommended_opportunities", { p_company_id: company.id, p_limit: 30, p_include_demo: await showDemoData() }),
+    // Offre Gratuite : aperçu des premières recommandations seulement (contrôlé côté serveur)
+    supabase.rpc("recommended_opportunities", { p_company_id: company.id, p_limit: free ? FREE_PREVIEW : 30, p_include_demo: await showDemoData() }),
     getSectorLabels(),
   ]);
 
@@ -37,6 +43,9 @@ export default async function RecommendationsPage() {
           Opportunités ouvertes classées selon le profil de <strong>{company.name}</strong>. Chaque proposition est expliquée.
         </p>
       </div>
+      {free && (
+        <UpgradePrompt message={`Offre Gratuite : aperçu des ${FREE_PREVIEW} meilleures recommandations. Avec Pro, accédez à toutes les opportunités « Recommandé pour votre entreprise », avec leur score de pertinence.`} />
+      )}
       <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
         <Card>
           <CardHeader title={`${data?.length ?? 0} opportunité(s) recommandée(s)`} />

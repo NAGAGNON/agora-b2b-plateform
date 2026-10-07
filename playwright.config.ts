@@ -29,5 +29,7 @@ export default defineConfig({
         url: `http://localhost:${PORT}`,
         reuseExistingServer: !process.env.CI,
         timeout: 120_000,
+        // Stripe en mode test fictif : affiche les formulaires de souscription sans appeler Stripe.
+        env: { STRIPE_SECRET_KEY: "sk_test_e2e", STRIPE_PRO_PRICE_ID: "price_e2e_pro", STRIPE_BUSINESS_PRICE_ID: "price_e2e_business" },
       },
 });

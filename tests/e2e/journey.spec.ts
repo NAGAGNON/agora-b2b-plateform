@@ -104,6 +104,7 @@ test("parcours complet demandeur / modération / fournisseur", async ({ browser 
   // Le fournisseur voit le résultat
   await supplier.goto("/dashboard/opportunites?onglet=reponses");
   await expect(supplier.getByText("Retenue").first()).toBeVisible();
+  // Offre Gratuite : le pipeline n'est pas alimenté automatiquement, un encart propose Pro
   await supplier.goto("/dashboard/pipeline");
-  await expect(supplier.getByRole("link", { name: title })).toBeVisible();
+  await expect(supplier.getByRole("link", { name: "Découvrir LinkProB2B Pro" })).toBeVisible();
 });

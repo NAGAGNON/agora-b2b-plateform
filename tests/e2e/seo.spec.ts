@@ -52,7 +52,8 @@ test("SEO : analyses publiées, données structurées, sitemap et clé IndexNow"
   await page.goto("/analyses");
   await page.getByRole("link", { name: new RegExp(`Analyse E2E ${RUN}`) }).click();
   await expect(page.getByRole("heading", { level: 1 })).toContainText(`Analyse E2E ${RUN}`);
-  await expect(page.getByText(/rédigée avec l'aide d'une intelligence artificielle/)).toBeVisible();
+  await expect(page.getByText("Rédigé par")).toBeVisible();
+  await expect(page.getByText(/intelligence artificielle/)).toHaveCount(0);
   // Couverture générée et graphiques issus des données (libellés fusionnés : Région Bretagne = 3)
   const cover = await page.request.get(`/visuels/analyses/${slug}`);
   expect(cover.status()).toBe(200);
