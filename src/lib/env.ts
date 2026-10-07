@@ -86,7 +86,12 @@ export const env = {
     return env.resendApiKey ? "resend" : env.mailpitUrl ? "mailpit" : null;
   },
   get emailFrom() {
-    return pick("EMAIL_FROM") ?? "LinkProB2B <notifications@linkprob2b.fr>";
+    // À défaut d'EMAIL_FROM : domaine du site (sans « www. »), sinon linkprob2b.com.
+    const explicit = pick("EMAIL_FROM");
+    if (explicit) return explicit;
+    const host = new URL(siteUrl()).hostname.replace(/^www\./, "");
+    const domain = /(^localhost$|^127\.|\.vercel\.app$|\.trycloudflare\.com$)/.test(host) ? "linkprob2b.com" : host;
+    return `LinkProB2B <notifications@${domain}>`;
   },
   get rateLimitSalt() {
     // À défaut de sel dédié, dérivé de la clé secrète (jamais exposée) pour rester imprévisible.
