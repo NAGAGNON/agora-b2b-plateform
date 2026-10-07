@@ -14,7 +14,7 @@ export function UserProfileForm({ v }: { v: { full_name: string; job_title: stri
   const fe = state && !state.ok ? state.fieldErrors : undefined;
   return (
     <form action={action} className="space-y-5">
-      <Field label="Adresse e-mail" name="email" hint="L'adresse de connexion ne peut pas être modifiée ici pendant le pilote.">
+      <Field label="Adresse e-mail" name="email" hint="L'adresse de connexion ne peut pas être modifiée ici : contactez-nous pour la changer.">
         {(p) => <Input {...p} value={v.email} disabled readOnly />}
       </Field>
       <div className="grid gap-5 sm:grid-cols-2">
@@ -29,7 +29,7 @@ export function UserProfileForm({ v }: { v: { full_name: string; job_title: stri
         {(p) => <Input {...p} type="tel" defaultValue={v.phone ?? ""} maxLength={30} autoComplete="tel" />}
       </Field>
       <Checkbox name="notifyEmail" defaultChecked={v.notify_email} label="Recevoir les notifications par e-mail" hint="Nouvelles réponses, messages, décisions, alertes." />
-      <Checkbox name="marketingConsent" defaultChecked={v.marketing_consent} label="Recevoir les informations sur le pilote LinkProB2B" />
+      <Checkbox name="marketingConsent" defaultChecked={v.marketing_consent} label="Recevoir les actualités de LinkProB2B" />
       {state && <Notice tone={state.ok ? "success" : "error"}>{state.ok ? state.message : state.error}</Notice>}
       <SubmitButton>Enregistrer</SubmitButton>
     </form>

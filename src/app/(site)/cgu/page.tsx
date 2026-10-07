@@ -11,7 +11,7 @@ export default function TermsPage() {
       <h2>2. Accès et compte</h2>
       <p>
         Le service est réservé aux professionnels. L&apos;utilisateur garantit l&apos;exactitude des informations fournies et la confidentialité de ses
-        identifiants. Pendant le pilote, le service est gratuit.
+        identifiants. Le service est actuellement gratuit.
       </p>
       <h2>3. Règles de publication</h2>
       <ul>

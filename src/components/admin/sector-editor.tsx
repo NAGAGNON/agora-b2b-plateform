@@ -43,7 +43,7 @@ export function SectorEditor({ sector }: { sector?: SectorRow }) {
             {(p) => <Input {...p} type="number" min={0} max={999} defaultValue={sector?.sort_order ?? 100} />}
           </Field>
           <Checkbox name="isActive" defaultChecked={sector?.is_active ?? true} label="Actif" hint="Un secteur inactif n'est plus proposé dans les formulaires et filtres ; les données existantes sont conservées." />
-          <Checkbox name="isPilotPriority" defaultChecked={sector?.is_pilot_priority ?? false} label="Prioritaire pour le pilote" />
+          <Checkbox name="isPilotPriority" defaultChecked={sector?.is_pilot_priority ?? false} label="Secteur prioritaire (mis en avant)" />
           <SubmitButton>{create ? "Ajouter" : "Enregistrer"}</SubmitButton>
         </ActionForm>
       </Modal>

@@ -4,14 +4,14 @@ import { pageMetadata } from "@/lib/seo";
 
 export const metadata = pageMetadata({
   title: "Contact",
-  description: "Contactez l'équipe LinkProB2B : rejoindre le pilote, question, signalement, données personnelles.",
+  description: "Contactez l'équipe LinkProB2B : inscription, question, signalement, données personnelles.",
   path: "/contact",
 });
 
 const SUBJECTS: Record<string, string> = {
   signalement: "Signalement d'un contenu",
   compte: "Question sur la plateforme",
-  pilote: "Rejoindre le pilote",
+  pilote: "Inscrire mon entreprise",
   rgpd: "Données personnelles (RGPD)",
 };
 
@@ -45,7 +45,7 @@ export default async function ContactPage(props: PageProps<"/contact">) {
           <p className="flex items-center gap-2 font-semibold text-navy">
             <Mail className="size-4" aria-hidden /> Délai de réponse
           </p>
-          <p className="mt-1">Pendant le pilote, nous répondons généralement sous quelques jours ouvrés.</p>
+          <p className="mt-1">Nous répondons généralement sous quelques jours ouvrés.</p>
         </div>
       </aside>
     </div>

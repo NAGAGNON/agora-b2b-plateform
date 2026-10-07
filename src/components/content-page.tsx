@@ -9,7 +9,7 @@ export function ContentPage({ title, intro, children, legalDraft = false, update
       {updated && <p className="mt-2 text-sm text-slate-500">Dernière mise à jour : {updated}</p>}
       {legalDraft && (
         <Notice tone="warning" className="mt-6" title="Document de travail — à faire valider">
-          Ce texte est un modèle préparé pour la phase pilote. Les éléments entre crochets doivent être complétés, et l&apos;ensemble doit être validé par un
+          Ce texte est un modèle. Les éléments entre crochets doivent être complétés, et l&apos;ensemble doit être validé par un
           professionnel du droit (et, si nécessaire, un DPO) avant la mise en production.
         </Notice>
       )}

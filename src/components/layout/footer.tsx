@@ -49,7 +49,7 @@ export function Footer() {
         <div>
           <Logo variant="white" />
           <p className="mt-3 max-w-xs text-sm">{SLOGAN}</p>
-          <p className="mt-4 text-xs text-slate-400">Pilote en cours en Bretagne — Finistère.</p>
+          <p className="mt-4 text-xs text-slate-400">Plateforme B2B — Bretagne.</p>
         </div>
         {COLUMNS.map((c) => (
           <nav key={c.title} aria-label={c.title}>
@@ -67,7 +67,7 @@ export function Footer() {
         ))}
       </div>
       <div className="border-t border-white/10">
-        <p className="container-page py-4 text-xs text-slate-400">© {new Date().getFullYear()} LinkProB2B. Version pilote.</p>
+        <p className="container-page py-4 text-xs text-slate-400">© {new Date().getFullYear()} LinkProB2B.</p>
       </div>
     </footer>
   );

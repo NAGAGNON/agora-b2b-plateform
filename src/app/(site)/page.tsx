@@ -44,7 +44,7 @@ import { formatDate } from "@/lib/format";
 export const metadata = pageMetadata({
   title: "LinkProB2B — Trouvez le bon partenaire industriel en Bretagne",
   description:
-    "Identifiez des fournisseurs, découvrez des besoins et développez de nouvelles opportunités commerciales. Plateforme B2B pilote en Finistère.",
+    "Identifiez des fournisseurs, découvrez des besoins et développez de nouvelles opportunités commerciales. Plateforme B2B en Bretagne.",
   path: "/",
 });
 
@@ -102,7 +102,7 @@ export default async function HomePage(props: PageProps<"/">) {
         </svg>
         <div className="container-page relative py-14 sm:py-20 lg:py-24">
           <p className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold tracking-wide text-teal-50 uppercase ring-1 ring-white/20">
-            <span className="size-2 rounded-full bg-teal" aria-hidden /> Pilote Bretagne · Finistère
+            <span className="size-2 rounded-full bg-teal" aria-hidden /> Bretagne · Finistère
           </p>
           <h1 className="mt-5 max-w-3xl text-3xl leading-tight font-extrabold text-white sm:text-5xl">
             Trouvez le bon partenaire industriel en <span className="text-teal">Bretagne</span>.
@@ -155,7 +155,7 @@ export default async function HomePage(props: PageProps<"/">) {
           {recent.length === 0 ? (
             <EmptyState
               title="Aucune opportunité publiée pour le moment"
-              description="Le pilote démarre : soyez parmi les premières entreprises à publier un besoin réel."
+              description="Soyez parmi les premières entreprises à publier un besoin."
               action={<ButtonLink href="/publier">Publier un besoin</ButtonLink>}
             />
           ) : (
@@ -207,7 +207,7 @@ export default async function HomePage(props: PageProps<"/">) {
           <h2 id="secteurs" className="text-2xl font-bold sm:text-3xl">
             Secteurs
           </h2>
-          <p className="mt-1 text-slate-600">Priorité du pilote : maintenance industrielle et services techniques aux entreprises.</p>
+          <p className="mt-1 text-slate-600">Industrie, services techniques, numérique, bâtiment… trouvez les opportunités de votre métier.</p>
           <ul className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {sectors.map((s, i) => {
               const Icon = SECTOR_ICONS[s.slug] ?? Building2;
@@ -255,7 +255,7 @@ export default async function HomePage(props: PageProps<"/">) {
             "Provenance toujours affichée",
             "Opportunités externes redirigées vers la source",
             "Publications modérées avant diffusion",
-            "Gratuit pendant le pilote",
+            "Inscription gratuite",
           ].map((t) => (
             <p key={t} className="flex items-center gap-2">
               <CheckCircle2 className="size-5 shrink-0 text-teal-600" aria-hidden /> {t}
@@ -264,15 +264,15 @@ export default async function HomePage(props: PageProps<"/">) {
         </div>
       </section>
 
-      {/* CTA pilote */}
+      {/* Appel à l'inscription */}
       <section className="container-page pb-16">
         <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-navy to-navy-700 px-6 py-10 text-white sm:px-12 sm:py-14">
           <div className="absolute -right-24 -bottom-24 size-72 rounded-full bg-teal/30 blur-3xl" aria-hidden />
           <div className="relative max-w-2xl">
-            <h2 className="text-2xl font-bold text-white sm:text-3xl">Rejoignez le pilote finistérien.</h2>
+            <h2 className="text-2xl font-bold text-white sm:text-3xl">Rejoignez LinkProB2B.</h2>
             <p className="mt-3 text-slate-200">
-              LinkProB2B démarre avec les entreprises de maintenance industrielle et de services techniques du Finistère. L&apos;accès est gratuit pendant
-              toute la durée du pilote.
+              Acheteurs et fournisseurs bretons y publient leurs besoins, répondent aux consultations et suivent les marchés publics. L&apos;inscription
+              est gratuite.
             </p>
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
               <ButtonLink href="/inscription" size="lg">

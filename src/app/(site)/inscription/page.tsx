@@ -7,7 +7,7 @@ import { pageMetadata } from "@/lib/seo";
 
 export const metadata = pageMetadata({
   title: "Créer un compte",
-  description: "Créez gratuitement votre compte LinkProB2B pendant le pilote.",
+  description: "Créez gratuitement votre compte LinkProB2B.",
   path: "/inscription",
 });
 

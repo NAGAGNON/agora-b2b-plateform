@@ -73,7 +73,9 @@ describe("analyses de marché", () => {
     expect(g.note).toMatch(/987654/);
     // Brouillon invisible du public
     expect((await anon().from("articles").select("id").eq("slug", g.slug!)).data).toEqual([]);
-    await admin.from("articles").delete().eq("slug", g.slug!);
+    // Libère les thèmes consommés par les tentatives (chaque brouillon refusé passe au thème suivant)
+    expect(r.generated?.every((x) => x.status === "DRAFT")).toBe(true);
+    await admin.from("articles").delete().in("slug", (r.generated ?? []).map((x) => x.slug!).filter(Boolean));
   });
 
   it("réécrit l'article quand un chiffre est bloqué, puis le publie s'il devient conforme", async () => {

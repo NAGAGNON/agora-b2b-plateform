@@ -110,7 +110,7 @@ export async function Directory({ filters, rawParams, basePath }: { filters: Com
             <EmptyState
               icon={<Building className="size-6" aria-hidden />}
               title="Aucune entreprise ne correspond"
-              description="L'annuaire s'enrichit au fil du pilote. Vous ne trouvez pas de prestataire ? Publiez votre besoin : les fournisseurs concernés seront alertés."
+              description="L'annuaire s'enrichit au fil des inscriptions. Vous ne trouvez pas de prestataire ? Publiez votre besoin : les fournisseurs concernés seront alertés."
               action={<ButtonLink href="/publier">Publier un besoin</ButtonLink>}
             />
           ) : (

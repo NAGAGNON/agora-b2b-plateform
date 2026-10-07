@@ -174,7 +174,7 @@ function buildFacts(t: Topic, ctx: Awaited<ReturnType<typeof loadContext>>) {
   const byDept = t.kind !== "departement" && t.kind !== "secteur-departement";
   return {
     theme: t.theme,
-    zone: "Bretagne (pilote LinkProB2B)",
+    zone: "Bretagne",
     periode: t.kind === "bretagne" ? dateFmt.format(new Date()) : monthFmt.format(new Date()),
     date_des_donnees: dateFmt.format(new Date()),
     opportunites_ouvertes: t.opps.length,

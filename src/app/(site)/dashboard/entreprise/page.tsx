@@ -35,7 +35,7 @@ export default async function CompanySettingsPage() {
             {company.verified_at && <BadgeCheck className="size-6 text-teal-600" aria-label="Entreprise vérifiée" />}
           </h1>
           <p className="text-sm text-slate-500">
-            Offre : pilote gratuit · {company.verified_at ? `vérifiée le ${formatDate(company.verified_at)}` : "non vérifiée"}
+            Offre : gratuite · {company.verified_at ? `vérifiée le ${formatDate(company.verified_at)}` : "non vérifiée"}
           </p>
         </div>
         <Link href={`/entreprises/${company.slug}`} className="text-sm font-semibold text-teal-700 underline">

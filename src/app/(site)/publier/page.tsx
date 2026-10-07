@@ -29,7 +29,7 @@ export default async function PublishPage() {
                 { icon: CheckCircle2, t: "Quatre formats", d: "Besoin simple, demande de devis, consultation privée ou appel d'offres privé." },
                 { icon: ShieldCheck, t: "Publication modérée", d: "Chaque publication est relue avant diffusion pour garantir la qualité du catalogue." },
                 { icon: Users, t: "Vous gardez la main", d: "Présélection, demande d'informations, sélection et clôture depuis votre espace." },
-                { icon: Clock, t: "Gratuit pendant le pilote", d: "Aucun paiement, aucune carte bancaire." },
+                { icon: Clock, t: "Publication gratuite", d: "Aucun paiement, aucune carte bancaire." },
               ].map((x) => (
                 <li key={x.t} className="flex gap-3">
                   <x.icon className="mt-0.5 size-6 shrink-0 text-teal-600" aria-hidden />

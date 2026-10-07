@@ -19,7 +19,7 @@ export function AuthShell({ title, subtitle, children, aside = true }: { title: 
               "Publiez un besoin, une demande de devis ou un appel d'offres privé",
               "Recevez des alertes selon vos secteurs et votre zone",
               "Suivez vos opportunités dans un pipeline privé",
-              "Gratuit pendant le pilote — sans carte bancaire",
+              "Inscription gratuite — sans carte bancaire",
             ].map((t) => (
               <li key={t} className="flex gap-3">
                 <CheckCircle2 className="size-5 shrink-0 text-teal" aria-hidden /> {t}
