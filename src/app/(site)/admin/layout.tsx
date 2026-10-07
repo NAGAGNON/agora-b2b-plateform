@@ -31,7 +31,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           {session.mfaLevel === "aal2" ? " · 2FA ✓" : ""}
         </p>
       </div>
-      <div className="grid gap-6 lg:grid-cols-[14rem_minmax(0,1fr)]">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[14rem_minmax(0,1fr)]">
         <AdminNav isAdmin={session.isAdmin} pending={pending ?? 0} reports={reports ?? 0} />
         <div className="min-w-0">{children}</div>
       </div>

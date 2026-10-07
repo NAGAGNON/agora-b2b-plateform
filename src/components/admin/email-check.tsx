@@ -13,6 +13,7 @@ export function EmailCheck({ enabled }: { enabled: boolean }) {
   return (
     <div className="space-y-3">
       <Button
+        className="h-auto max-w-full py-2 text-left whitespace-normal"
         disabled={pending || !enabled}
         title={enabled ? undefined : "Aucun fournisseur e-mail configuré"}
         onClick={() =>
