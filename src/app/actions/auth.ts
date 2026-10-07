@@ -7,6 +7,7 @@ import { env } from "@/lib/env";
 import { logServerError } from "@/lib/errors";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { appSendsAuthEmails, bootstrapInitialAdmin, sendPasswordReset, signUpWithEmail } from "@/lib/email/auth-emails";
+import { trackSignupReferral } from "@/lib/outreach/tracking";
 import { newPasswordSchema, parseForm, resetRequestSchema, signInSchema, signUpSchema, type ActionResult } from "@/lib/validation";
 
 function safeNext(next: FormDataEntryValue | null): string {
@@ -69,12 +70,13 @@ export async function signUp(_prev: ActionResult | null, formData: FormData): Pr
       return failed;
     }
     await supabase.rpc("track_event", { p_event_name: "create_account" });
+    await trackSignupReferral(formData.get("ref"), null);
     return { ok: true, message: "Compte créé. Un e-mail de confirmation vient de vous être envoyé : cliquez sur le lien pour activer votre compte." };
   }
 
   // 2. Prévisualisation / développement sans fournisseur e-mail : activation immédiate.
   if (!env.isProduction) {
-    const { error } = await createAdminClient().auth.admin.createUser({
+    const { data: created, error } = await createAdminClient().auth.admin.createUser({
       email: parsed.data.email,
       password: parsed.data.password,
       email_confirm: true,
@@ -90,6 +92,7 @@ export async function signUp(_prev: ActionResult | null, formData: FormData): Pr
     if (signInError) return { ok: true, message: "Compte créé. Vous pouvez vous connecter." };
     await bootstrapInitialAdmin(parsed.data.email);
     await supabase.rpc("track_event", { p_event_name: "create_account" });
+    await trackSignupReferral(formData.get("ref"), created.user?.id ?? null);
     redirect("/onboarding/entreprise");
   }
 
@@ -106,6 +109,7 @@ export async function signUp(_prev: ActionResult | null, formData: FormData): Pr
     return failed;
   }
   await supabase.rpc("track_event", { p_event_name: "create_account" });
+  await trackSignupReferral(formData.get("ref"), data.user?.id ?? null);
   if (!data.session) {
     return { ok: true, message: "Compte créé. Un e-mail de confirmation vient de vous être envoyé : cliquez sur le lien pour activer votre compte." };
   }

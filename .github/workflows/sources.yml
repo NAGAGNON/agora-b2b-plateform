@@ -10,6 +10,8 @@ on:
     paths:
       - "src/lib/collect/**"
       - "scripts/check-sources.ts"
+      - "scripts/check-discovery.ts"
+      - "src/lib/outreach/discovery.ts"
       - ".github/workflows/sources.yml"
 
 jobs:
@@ -27,3 +29,5 @@ jobs:
       - run: npm run sources:check -- --dump --candidates --places
         env:
           CHECK_MAX: "500"
+      # LinkProB2B Outreach : registre public des entreprises (SIRENE)
+      - run: npx tsx scripts/check-discovery.ts

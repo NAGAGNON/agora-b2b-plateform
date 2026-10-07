@@ -11,6 +11,15 @@ const supabaseOrigin = (() => {
   }
 })();
 
+// Origine du site public : logo des e-mails affiché dans l'aperçu Outreach (sous-domaine).
+const siteOrigin = (() => {
+  try {
+    return new URL(process.env.SITE_URL ?? process.env.NEXT_PUBLIC_SITE_URL ?? "").origin;
+  } catch {
+    return "";
+  }
+})();
+
 const supabaseWs = supabaseOrigin ? supabaseOrigin.replace(/^http/, "ws") : "";
 
 // Les données passent par le serveur ; le navigateur ne parle directement à Supabase
@@ -19,7 +28,7 @@ const csp = [
   "default-src 'self'",
   `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob:",
+  `img-src 'self' data: blob:${siteOrigin ? ` ${siteOrigin}` : ""}`,
   "font-src 'self' data:",
   `connect-src 'self' ${supabaseOrigin} ${supabaseWs}${isDev ? " ws: wss:" : ""}`.replace(/\s+/g, " ").trim(),
   "frame-ancestors 'none'",
@@ -47,7 +56,7 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       { source: "/:path*", headers: securityHeaders },
-      { source: "/(dashboard|admin|onboarding)/:path*", headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }] },
+      { source: "/(dashboard|admin|onboarding|outreach)/:path*", headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }] },
     ];
   },
 };

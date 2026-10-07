@@ -617,6 +617,201 @@ isOneToOne: false
                   Relationships: [
                     
                   ]
+                },"outreach_campaigns": {
+                  Row: {
+                    "campaign_date": string,"created_at": string,"dry_run": boolean,"error": string | null,"id": string,"intro_template": string,"min_score": number,"report": string | null,"sent_at": string | null,"stats": NonNullable<Json>,"status": string,"subject_template": string,"updated_at": string,"validated_at": string | null,"validated_by": string | null
+                  }
+                  Insert: {
+                    "campaign_date": string,"created_at"?: string,"dry_run"?: boolean,"error"?: string | null,"id"?: string,"intro_template": string,"min_score": number,"report"?: string | null,"sent_at"?: string | null,"stats"?: NonNullable<Json>,"status"?: string,"subject_template": string,"updated_at"?: string,"validated_at"?: string | null,"validated_by"?: string | null
+                  }
+                  Update: {
+                    "campaign_date"?: string,"created_at"?: string,"dry_run"?: boolean,"error"?: string | null,"id"?: string,"intro_template"?: string,"min_score"?: number,"report"?: string | null,"sent_at"?: string | null,"stats"?: NonNullable<Json>,"status"?: string,"subject_template"?: string,"updated_at"?: string,"validated_at"?: string | null,"validated_by"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "outreach_campaigns_validated_by_fkey"
+      columns: ["validated_by"]
+isOneToOne: false
+      referencedRelation: "users"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"outreach_discovery_runs": {
+                  Row: {
+                    "department_code": string,"error": string | null,"fetched": number,"id": string,"naf_code": string,"ran_at": string
+                  }
+                  Insert: {
+                    "department_code": string,"error"?: string | null,"fetched"?: number,"id"?: string,"naf_code": string,"ran_at"?: string
+                  }
+                  Update: {
+                    "department_code"?: string,"error"?: string | null,"fetched"?: number,"id"?: string,"naf_code"?: string,"ran_at"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"outreach_events": {
+                  Row: {
+                    "campaign_id": string | null,"created_at": string,"id": number,"meta": NonNullable<Json>,"opportunity_id": string | null,"recipient_id": string | null,"type": string,"user_id": string | null
+                  }
+                  Insert: {
+                    "campaign_id"?: string | null,"created_at"?: string,"id"?: never,"meta"?: NonNullable<Json>,"opportunity_id"?: string | null,"recipient_id"?: string | null,"type": string,"user_id"?: string | null
+                  }
+                  Update: {
+                    "campaign_id"?: string | null,"created_at"?: string,"id"?: never,"meta"?: NonNullable<Json>,"opportunity_id"?: string | null,"recipient_id"?: string | null,"type"?: string,"user_id"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "outreach_events_campaign_id_fkey"
+      columns: ["campaign_id"]
+isOneToOne: false
+      referencedRelation: "outreach_campaigns"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "outreach_events_opportunity_id_fkey"
+      columns: ["opportunity_id"]
+isOneToOne: false
+      referencedRelation: "opportunities"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "outreach_events_recipient_id_fkey"
+      columns: ["recipient_id"]
+isOneToOne: false
+      referencedRelation: "outreach_recipients"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "outreach_events_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "users"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"outreach_opportunity_states": {
+                  Row: {
+                    "content_hash": string,"first_seen_at": string,"last_campaign_id": string | null,"matches_count": number,"opportunity_id": string,"processed_at": string | null,"status": string,"target_naf": (string)[],"target_profiles": (string)[],"updated_at": string
+                  }
+                  Insert: {
+                    "content_hash": string,"first_seen_at"?: string,"last_campaign_id"?: string | null,"matches_count"?: number,"opportunity_id": string,"processed_at"?: string | null,"status"?: string,"target_naf"?: (string)[],"target_profiles"?: (string)[],"updated_at"?: string
+                  }
+                  Update: {
+                    "content_hash"?: string,"first_seen_at"?: string,"last_campaign_id"?: string | null,"matches_count"?: number,"opportunity_id"?: string,"processed_at"?: string | null,"status"?: string,"target_naf"?: (string)[],"target_profiles"?: (string)[],"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "outreach_opportunity_states_opportunity_id_fkey"
+      columns: ["opportunity_id"]
+isOneToOne: true
+      referencedRelation: "opportunities"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"outreach_prospects": {
+                  Row: {
+                    "activity": string | null,"city": string | null,"contact_name": string | null,"contacts_count": number,"created_at": string,"department_code": string | null,"email": string | null,"email_source": string | null,"excluded_reason": string | null,"id": string,"intervention_zone": string,"is_individual_entrepreneur": boolean,"keywords": (string)[],"last_clicked_at": string | null,"last_contacted_at": string | null,"legal_basis": string,"linkprob2b_company_id": string | null,"naf_code": string | null,"naf_label": string | null,"name": string,"postal_code": string | null,"refreshed_at": string,"region": string | null,"sectors": (string)[],"services": (string)[],"siren": string | null,"siret": string | null,"size_range": string | null,"source": string,"source_ref": string | null,"status": string,"updated_at": string,"website": string | null
+                  }
+                  Insert: {
+                    "activity"?: string | null,"city"?: string | null,"contact_name"?: string | null,"contacts_count"?: number,"created_at"?: string,"department_code"?: string | null,"email"?: string | null,"email_source"?: string | null,"excluded_reason"?: string | null,"id"?: string,"intervention_zone"?: string,"is_individual_entrepreneur"?: boolean,"keywords"?: (string)[],"last_clicked_at"?: string | null,"last_contacted_at"?: string | null,"legal_basis"?: string,"linkprob2b_company_id"?: string | null,"naf_code"?: string | null,"naf_label"?: string | null,"name": string,"postal_code"?: string | null,"refreshed_at"?: string,"region"?: string | null,"sectors"?: (string)[],"services"?: (string)[],"siren"?: string | null,"siret"?: string | null,"size_range"?: string | null,"source": string,"source_ref"?: string | null,"status"?: string,"updated_at"?: string,"website"?: string | null
+                  }
+                  Update: {
+                    "activity"?: string | null,"city"?: string | null,"contact_name"?: string | null,"contacts_count"?: number,"created_at"?: string,"department_code"?: string | null,"email"?: string | null,"email_source"?: string | null,"excluded_reason"?: string | null,"id"?: string,"intervention_zone"?: string,"is_individual_entrepreneur"?: boolean,"keywords"?: (string)[],"last_clicked_at"?: string | null,"last_contacted_at"?: string | null,"legal_basis"?: string,"linkprob2b_company_id"?: string | null,"naf_code"?: string | null,"naf_label"?: string | null,"name"?: string,"postal_code"?: string | null,"refreshed_at"?: string,"region"?: string | null,"sectors"?: (string)[],"services"?: (string)[],"siren"?: string | null,"siret"?: string | null,"size_range"?: string | null,"source"?: string,"source_ref"?: string | null,"status"?: string,"updated_at"?: string,"website"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "outreach_prospects_linkprob2b_company_id_fkey"
+      columns: ["linkprob2b_company_id"]
+isOneToOne: false
+      referencedRelation: "companies"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"outreach_recipient_opportunities": {
+                  Row: {
+                    "excluded": boolean,"opportunity_id": string,"position": number,"reasons": (string)[],"recipient_id": string,"score": number
+                  }
+                  Insert: {
+                    "excluded"?: boolean,"opportunity_id": string,"position"?: number,"reasons"?: (string)[],"recipient_id": string,"score": number
+                  }
+                  Update: {
+                    "excluded"?: boolean,"opportunity_id"?: string,"position"?: number,"reasons"?: (string)[],"recipient_id"?: string,"score"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "outreach_recipient_opportunities_opportunity_id_fkey"
+      columns: ["opportunity_id"]
+isOneToOne: false
+      referencedRelation: "opportunities"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "outreach_recipient_opportunities_recipient_id_fkey"
+      columns: ["recipient_id"]
+isOneToOne: false
+      referencedRelation: "outreach_recipients"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"outreach_recipients": {
+                  Row: {
+                    "campaign_id": string,"clicked_at": string | null,"converted_at": string | null,"created_at": string,"email": string | null,"error": string | null,"id": string,"intro": string | null,"landing_viewed_at": string | null,"opened_at": string | null,"opportunity_viewed_at": string | null,"prospect_id": string,"provider_id": string | null,"reasons": (string)[],"score": number,"sent_at": string | null,"signed_up_at": string | null,"status": string,"subject": string | null,"unsubscribed_at": string | null,"updated_at": string
+                  }
+                  Insert: {
+                    "campaign_id": string,"clicked_at"?: string | null,"converted_at"?: string | null,"created_at"?: string,"email"?: string | null,"error"?: string | null,"id"?: string,"intro"?: string | null,"landing_viewed_at"?: string | null,"opened_at"?: string | null,"opportunity_viewed_at"?: string | null,"prospect_id": string,"provider_id"?: string | null,"reasons"?: (string)[],"score": number,"sent_at"?: string | null,"signed_up_at"?: string | null,"status"?: string,"subject"?: string | null,"unsubscribed_at"?: string | null,"updated_at"?: string
+                  }
+                  Update: {
+                    "campaign_id"?: string,"clicked_at"?: string | null,"converted_at"?: string | null,"created_at"?: string,"email"?: string | null,"error"?: string | null,"id"?: string,"intro"?: string | null,"landing_viewed_at"?: string | null,"opened_at"?: string | null,"opportunity_viewed_at"?: string | null,"prospect_id"?: string,"provider_id"?: string | null,"reasons"?: (string)[],"score"?: number,"sent_at"?: string | null,"signed_up_at"?: string | null,"status"?: string,"subject"?: string | null,"unsubscribed_at"?: string | null,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "outreach_recipients_campaign_id_fkey"
+      columns: ["campaign_id"]
+isOneToOne: false
+      referencedRelation: "outreach_campaigns"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "outreach_recipients_prospect_id_fkey"
+      columns: ["prospect_id"]
+isOneToOne: false
+      referencedRelation: "outreach_prospects"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"outreach_settings": {
+                  Row: {
+                    "daily_send_cap": number,"discovery_enabled": boolean,"dry_run": boolean,"id": boolean,"include_individual_entrepreneurs": boolean,"intro_template": string,"lookback_days": number,"max_contacts_per_30_days": number,"max_opportunities_per_email": number,"max_prospects_per_opportunity": number,"min_days_before_deadline": number,"min_days_between_contacts": number,"min_score": number,"reply_to": string | null,"require_validation": boolean,"sender_name": string,"subject_template": string,"updated_at": string,"updated_by": string | null
+                  }
+                  Insert: {
+                    "daily_send_cap"?: number,"discovery_enabled"?: boolean,"dry_run"?: boolean,"id"?: boolean,"include_individual_entrepreneurs"?: boolean,"intro_template"?: string,"lookback_days"?: number,"max_contacts_per_30_days"?: number,"max_opportunities_per_email"?: number,"max_prospects_per_opportunity"?: number,"min_days_before_deadline"?: number,"min_days_between_contacts"?: number,"min_score"?: number,"reply_to"?: string | null,"require_validation"?: boolean,"sender_name"?: string,"subject_template"?: string,"updated_at"?: string,"updated_by"?: string | null
+                  }
+                  Update: {
+                    "daily_send_cap"?: number,"discovery_enabled"?: boolean,"dry_run"?: boolean,"id"?: boolean,"include_individual_entrepreneurs"?: boolean,"intro_template"?: string,"lookback_days"?: number,"max_contacts_per_30_days"?: number,"max_opportunities_per_email"?: number,"max_prospects_per_opportunity"?: number,"min_days_before_deadline"?: number,"min_days_between_contacts"?: number,"min_score"?: number,"reply_to"?: string | null,"require_validation"?: boolean,"sender_name"?: string,"subject_template"?: string,"updated_at"?: string,"updated_by"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "outreach_settings_updated_by_fkey"
+      columns: ["updated_by"]
+isOneToOne: false
+      referencedRelation: "users"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"outreach_suppressions": {
+                  Row: {
+                    "created_at": string,"created_by": string | null,"id": string,"kind": string,"note": string | null,"reason": string,"value": string
+                  }
+                  Insert: {
+                    "created_at"?: string,"created_by"?: string | null,"id"?: string,"kind": string,"note"?: string | null,"reason"?: string,"value": string
+                  }
+                  Update: {
+                    "created_at"?: string,"created_by"?: string | null,"id"?: string,"kind"?: string,"note"?: string | null,"reason"?: string,"value"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "outreach_suppressions_created_by_fkey"
+      columns: ["created_by"]
+isOneToOne: false
+      referencedRelation: "users"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"page_views": {
                   Row: {
                     "created_at": string,"device": string,"duration_ms": number,"id": number,"path": string,"referrer_host": string | null,"session_id": string
@@ -1173,6 +1368,9 @@ isOneToOne: false
                            },
 "opportunity_owner_transition_allowed":
 { Args: { "p_from": Database["public"]['Enums']["opportunity_status"],"p_to": Database["public"]['Enums']["opportunity_status"] }; Returns: boolean
+                           },
+"outreach_campaign_stats":
+{ Args: { "p_campaign_id": string }; Returns: Json
                            },
 "pipeline_rank":
 { Args: { "p_stage": Database["public"]['Enums']["pipeline_stage"] }; Returns: number

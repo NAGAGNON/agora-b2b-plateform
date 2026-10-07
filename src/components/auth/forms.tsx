@@ -34,12 +34,13 @@ export function SignInForm({ next }: { next?: string }) {
   );
 }
 
-export function SignUpForm() {
+export function SignUpForm({ referral }: { referral?: string }) {
   const [state, action] = useActionState(signUp, null);
   const fe = state && !state.ok ? state.fieldErrors : undefined;
   if (state?.ok) return <Notice tone="success" title="Vérifiez votre boîte mail">{state.message}</Notice>;
   return (
     <form action={action} className="space-y-5" noValidate>
+      {referral && <input type="hidden" name="ref" value={referral} />}
       <Field label="Nom et prénom" name="fullName" error={fe?.fullName} required>
         {(p) => <Input {...p} autoComplete="name" maxLength={120} />}
       </Field>

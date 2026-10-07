@@ -11,8 +11,11 @@ export const metadata = pageMetadata({
   path: "/inscription",
 });
 
-export default async function SignUpPage() {
+export default async function SignUpPage(props: PageProps<"/inscription">) {
   if (await getSession()) redirect("/dashboard");
+  const ref = (await props.searchParams).ref;
+  // Provenance (sélection LinkProB2B Outreach) : jeton signé, vérifié côté serveur à l'inscription.
+  const referral = typeof ref === "string" && /^o\.[A-Za-z0-9_.-]{20,60}$/.test(ref) ? ref : undefined;
   return (
     <AuthShell
       title="Créer un compte"
@@ -26,7 +29,7 @@ export default async function SignUpPage() {
         </>
       }
     >
-      <SignUpForm />
+      <SignUpForm referral={referral} />
     </AuthShell>
   );
 }

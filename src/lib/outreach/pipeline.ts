@@ -1,0 +1,391 @@
+import "server-only";
+import { logServerError } from "@/lib/errors";
+import { formatDate } from "@/lib/format";
+import { analyzeOpportunity, contentFingerprint, groupByProspect, scoreMatch, type OpportunityAnalysis, type ProspectInput } from "@/lib/outreach/matching";
+import { DISCOVERY_SOURCE, discoverCompanies } from "@/lib/outreach/discovery";
+import { buildEmail, loadRecipientBundles, loadReferentials, loadSettings, realSendBlockers, type Db, type OutreachSettings } from "@/lib/outreach/data";
+import { sendOutreachEmail } from "@/lib/outreach/send";
+
+/**
+ * Chaîne quotidienne de LinkProB2B Outreach :
+ *  1. synchroniser les opportunités LinkProB2B (nouvelles / modifiées / expirées) ;
+ *  2. ne retenir que les nouvelles, ouvertes et dont l'échéance laisse le temps de répondre ;
+ *  3. analyser chaque besoin (métiers et codes NAF concernés) ;
+ *  4. découvrir des entreprises (source publique SIRENE) ;
+ *  5. calculer les scores, éliminer les correspondances faibles ;
+ *  6. regrouper par entreprise (UN e-mail par entreprise) ;
+ *  7. préparer la campagne (prévisualisation) puis, si elle est validée, envoyer
+ *     dans la limite quotidienne — en simulation tant que l'envoi réel n'est pas autorisé.
+ */
+
+const DAY = 86_400_000;
+const chunk = <T,>(arr: T[], n: number) => Array.from({ length: Math.ceil(arr.length / n) }, (_, i) => arr.slice(i * n, i * n + n));
+const today = () => new Date().toISOString().slice(0, 10);
+
+const OPP_FIELDS = "id, title, summary, description, sector_slug, skills, keywords, city, department_code, region, response_deadline, status, visibility, is_demo, published_at";
+
+/** 1. États des opportunités vues par l'outil. */
+export async function syncOpportunityStates(db: Db, settings: OutreachSettings) {
+  const since = new Date(Date.now() - settings.lookback_days * DAY).toISOString();
+  const minDeadline = Date.now() + settings.min_days_before_deadline * DAY;
+  const result = { scanned: 0, new: 0, modified: 0, expired: 0 };
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await db
+      .from("opportunities")
+      .select("id, title, description, response_deadline, department_code, sector_slug, status")
+      .eq("status", "PUBLISHED")
+      .eq("visibility", "PUBLIC")
+      .eq("is_demo", false)
+      .gte("published_at", since)
+      .order("published_at", { ascending: true })
+      .range(from, from + 999);
+    if (error) throw error;
+    const rows = data ?? [];
+    result.scanned += rows.length;
+    for (const part of chunk(rows, 300)) {
+      const { data: states, error: e2 } = await db.from("outreach_opportunity_states").select("opportunity_id, status, content_hash").in("opportunity_id", part.map((o) => o.id));
+      if (e2) throw e2;
+      const known = new Map((states ?? []).map((s) => [s.opportunity_id, s]));
+      const inserts = [];
+      for (const o of part) {
+        const hash = contentFingerprint(o);
+        const tooLate = o.response_deadline !== null && new Date(o.response_deadline).getTime() < minDeadline;
+        const s = known.get(o.id);
+        if (!s) {
+          inserts.push({ opportunity_id: o.id, content_hash: hash, status: tooLate ? "EXPIRED" : "NEW" });
+          if (tooLate) result.expired++;
+          else result.new++;
+        } else if (s.content_hash !== hash && s.status === "PROCESSED") {
+          await db.from("outreach_opportunity_states").update({ status: "MODIFIED", content_hash: hash, updated_at: new Date().toISOString() }).eq("opportunity_id", o.id);
+          result.modified++;
+        } else if (s.content_hash !== hash) {
+          await db.from("outreach_opportunity_states").update({ content_hash: hash, updated_at: new Date().toISOString() }).eq("opportunity_id", o.id);
+        }
+      }
+      if (inserts.length) {
+        const { error: e3 } = await db.from("outreach_opportunity_states").upsert(inserts, { onConflict: "opportunity_id", ignoreDuplicates: true });
+        if (e3) throw e3;
+      }
+    }
+    if (rows.length < 1000) break;
+  }
+  // Expiration : une opportunité fermée, retirée ou dont l'échéance est trop proche n'est plus jamais proposée.
+  const { data: open } = await db
+    .from("outreach_opportunity_states")
+    .select("opportunity_id, opportunity:opportunities(status, response_deadline)")
+    .in("status", ["NEW", "MODIFIED", "PROCESSED"])
+    .limit(5000);
+  const expire = (open ?? [])
+    .filter((s) => {
+      const o = s.opportunity as unknown as { status: string; response_deadline: string | null } | null;
+      return !o || o.status !== "PUBLISHED" || (o.response_deadline !== null && new Date(o.response_deadline).getTime() < Date.now());
+    })
+    .map((s) => s.opportunity_id);
+  for (const ids of chunk(expire, 300)) {
+    await db.from("outreach_opportunity_states").update({ status: "EXPIRED", updated_at: new Date().toISOString() }).in("opportunity_id", ids);
+  }
+  result.expired += expire.length;
+  return result;
+}
+
+/** 4. Découverte d'entreprises (API publique), limitée et mise en cache 30 jours par couple NAF × département. */
+export async function discoverProspects(db: Db, analyses: OpportunityAnalysis[], deadline: number, maxCalls = 25) {
+  const pairs: [string, string][] = [];
+  for (const a of analyses) {
+    if (!a.department) continue;
+    for (const naf of [...a.primaryNaf.slice(0, 2), ...a.sectorNaf.slice(0, 1)]) {
+      if (!pairs.some(([n, d]) => n === naf && d === a.department)) pairs.push([naf, a.department]);
+    }
+  }
+  if (pairs.length === 0) return { calls: 0, added: 0, errors: 0 };
+  const { data: runs } = await db
+    .from("outreach_discovery_runs")
+    .select("naf_code, department_code, ran_at, error")
+    .gte("ran_at", new Date(Date.now() - 30 * DAY).toISOString());
+  const fresh = new Set((runs ?? []).filter((r) => !r.error).map((r) => `${r.naf_code}|${r.department_code}`));
+  const ref = await loadReferentials(db);
+  const result = { calls: 0, added: 0, errors: 0 };
+  for (const [naf, dept] of pairs.filter(([n, d]) => !fresh.has(`${n}|${d}`))) {
+    if (result.calls >= maxCalls || Date.now() > deadline) break;
+    result.calls++;
+    try {
+      const { companies } = await discoverCompanies(naf, dept);
+      const rows = companies.map((c) => ({
+        name: c.name,
+        siren: c.siren,
+        siret: c.siret,
+        naf_code: c.naf_code,
+        city: c.city,
+        postal_code: c.postal_code,
+        department_code: c.department_code,
+        region: ref.department(c.department_code)?.region ?? null,
+        size_range: c.size_range,
+        is_individual_entrepreneur: c.is_individual_entrepreneur,
+        intervention_zone: "REGIONAL",
+        source: DISCOVERY_SOURCE,
+        source_ref: c.source_ref,
+      }));
+      if (rows.length) {
+        const { data, error } = await db.from("outreach_prospects").upsert(rows, { onConflict: "siren", ignoreDuplicates: true }).select("id");
+        if (error) throw error;
+        result.added += data?.length ?? 0;
+      }
+      await db.from("outreach_discovery_runs").upsert({ naf_code: naf, department_code: dept, fetched: rows.length, error: null, ran_at: new Date().toISOString() }, { onConflict: "naf_code,department_code" });
+    } catch (e) {
+      result.errors++;
+      await db
+        .from("outreach_discovery_runs")
+        .upsert({ naf_code: naf, department_code: dept, fetched: 0, error: e instanceof Error ? e.message.slice(0, 300) : "Erreur", ran_at: new Date().toISOString() }, { onConflict: "naf_code,department_code" });
+      if (e instanceof Error && /429/.test(e.message)) break;
+    }
+    await new Promise((r) => setTimeout(r, 200)); // ≤ 5 requêtes/seconde (limite de l'API : 7)
+  }
+  return result;
+}
+
+const PROSPECT_FIELDS =
+  "id, name, email, siren, naf_code, naf_label, sectors, activity, services, keywords, department_code, region, intervention_zone, contacts_count, last_clicked_at, last_contacted_at, is_individual_entrepreneur, status";
+
+/** Entreprises candidates pour une opportunité : même activité ET zone compatible. */
+async function candidates(db: Db, a: OpportunityAnalysis, settings: OutreachSettings) {
+  const naf = [...new Set([...a.primaryNaf, ...a.sectorNaf])];
+  const activity = [naf.length ? `naf_code.in.(${naf.map((n) => `"${n}"`).join(",")})` : null, a.sector ? `sectors.cs.{${a.sector}}` : null].filter(Boolean).join(",");
+  if (!activity) return [];
+  let q = db.from("outreach_prospects").select(PROSPECT_FIELDS).eq("status", "ACTIVE").or(activity);
+  if (!settings.include_individual_entrepreneurs) q = q.eq("is_individual_entrepreneur", false);
+  const zone = [
+    a.department ? `department_code.eq.${a.department}` : null,
+    a.region ? `region.eq."${a.region.replace(/"/g, "")}"` : null,
+    "intervention_zone.eq.NATIONAL",
+  ].filter(Boolean);
+  if (a.department || a.region) q = q.or(zone.join(","));
+  const { data, error } = await q.limit(settings.max_prospects_per_opportunity);
+  if (error) throw error;
+  return data ?? [];
+}
+
+export type BuildResult = { campaignId: string | null; skipped?: string; stats?: Record<string, number> };
+
+/** 3–9. Construction de la campagne du jour (prévisualisation). */
+export async function buildDailyCampaign(db: Db, { date = today(), force = false, deadline = Date.now() + 120_000 }: { date?: string; force?: boolean; deadline?: number } = {}): Promise<BuildResult> {
+  const settings = await loadSettings(db);
+  const { data: existing } = await db.from("outreach_campaigns").select("id, status").eq("campaign_date", date).maybeSingle();
+  if (existing) {
+    const rebuildable = ["BUILDING", "FAILED"].includes(existing.status) || (force && existing.status === "READY");
+    if (!rebuildable) return { campaignId: existing.id, skipped: existing.status === "READY" ? "Campagne du jour déjà préparée" : "Campagne du jour déjà validée ou envoyée" };
+  }
+  const base = { campaign_date: date, status: "BUILDING", dry_run: settings.dry_run, min_score: settings.min_score, subject_template: settings.subject_template, intro_template: settings.intro_template, error: null, updated_at: new Date().toISOString() };
+  let campaignId = existing?.id ?? null;
+  if (campaignId) {
+    // Reconstruction : les opportunités de cette campagne redeviennent « nouvelles ».
+    await db.from("outreach_opportunity_states").update({ status: "NEW", processed_at: null }).eq("last_campaign_id", campaignId).eq("status", "PROCESSED");
+    await db.from("outreach_recipients").delete().eq("campaign_id", campaignId);
+    await db.from("outreach_campaigns").update(base).eq("id", campaignId);
+  } else {
+    const { data, error } = await db.from("outreach_campaigns").insert(base).select("id").single();
+    if (error) throw error;
+    campaignId = data.id;
+  }
+
+  try {
+    const ref = await loadReferentials(db);
+    const minDeadline = new Date(Date.now() + settings.min_days_before_deadline * DAY).toISOString();
+    const { data: states } = await db.from("outreach_opportunity_states").select("opportunity_id").eq("status", "NEW").order("first_seen_at").limit(2000);
+    const ids = (states ?? []).map((s) => s.opportunity_id);
+    const opps = [];
+    for (const part of chunk(ids, 300)) {
+      const { data, error } = await db.from("opportunities").select(OPP_FIELDS).in("id", part).eq("status", "PUBLISHED").or(`response_deadline.is.null,response_deadline.gte.${minDeadline}`);
+      if (error) throw error;
+      opps.push(...(data ?? []));
+    }
+    const analyses = opps.map((o) => analyzeOpportunity(o));
+    const discovery = settings.discovery_enabled ? await discoverProspects(db, analyses, deadline - 30_000) : { calls: 0, added: 0, errors: 0 };
+
+    const [{ data: suppressions }, { data: customers }] = await Promise.all([
+      db.from("outreach_suppressions").select("kind, value").limit(100_000),
+      db.from("companies").select("siren").not("siren", "is", null).limit(100_000),
+    ]);
+    const supp = { EMAIL: new Set<string>(), DOMAIN: new Set<string>(), SIREN: new Set<string>() };
+    for (const s of suppressions ?? []) supp[s.kind as keyof typeof supp]?.add(s.value.toLowerCase());
+    const customerSirens = new Set((customers ?? []).map((c) => c.siren!));
+
+    const analyzed = new Set<string>();
+    const prospects = new Map<string, Awaited<ReturnType<typeof candidates>>[number]>();
+    const pairs: { prospectId: string; opportunityId: string; score: number; reasons: string[]; deadline: string | null }[] = [];
+    const perOpp = new Map<string, number>();
+    for (const a of analyses) {
+      if (Date.now() > deadline) break;
+      const o = opps.find((x) => x.id === a.id)!;
+      for (const p of await candidates(db, a, settings)) {
+        analyzed.add(p.id);
+        prospects.set(p.id, p);
+        const m = scoreMatch(a, p as ProspectInput, (s) => ref.sectorLabel(s) ?? s);
+        if (m.score >= settings.min_score) {
+          pairs.push({ prospectId: p.id, opportunityId: a.id, score: m.score, reasons: m.reasons, deadline: o.response_deadline });
+          perOpp.set(a.id, (perOpp.get(a.id) ?? 0) + 1);
+        }
+      }
+    }
+    const groups = groupByProspect(pairs, settings.min_score, settings.max_opportunities_per_email);
+
+    // Historique des contacts (fréquence maximale sur 30 jours)
+    const recentCounts = new Map<string, number>();
+    for (const part of chunk(groups.map((g) => g.prospectId), 300)) {
+      const { data } = await db.from("outreach_recipients").select("prospect_id").in("prospect_id", part).eq("status", "SENT").gte("sent_at", new Date(Date.now() - 30 * DAY).toISOString());
+      for (const r of data ?? []) recentCounts.set(r.prospect_id, (recentCounts.get(r.prospect_id) ?? 0) + 1);
+    }
+    const minGap = Date.now() - settings.min_days_between_contacts * DAY;
+    const rows = groups.map((g) => {
+      const p = prospects.get(g.prospectId)!;
+      const email = p.email?.toLowerCase() ?? null;
+      const domain = email?.split("@")[1] ?? null;
+      let status = "PENDING";
+      if ((p.siren && (supp.SIREN.has(p.siren) || customerSirens.has(p.siren))) || (email && supp.EMAIL.has(email)) || (domain && supp.DOMAIN.has(domain))) status = "SUPPRESSED";
+      else if ((p.last_contacted_at && new Date(p.last_contacted_at).getTime() > minGap) || (recentCounts.get(p.id) ?? 0) >= settings.max_contacts_per_30_days) status = "FREQUENCY";
+      else if (!email) status = "NO_EMAIL";
+      return { campaign_id: campaignId!, prospect_id: g.prospectId, email, score: g.score, reasons: g.reasons, status };
+    });
+    for (const part of chunk(rows, 200)) {
+      const { data: inserted, error } = await db.from("outreach_recipients").insert(part).select("id, prospect_id");
+      if (error) throw error;
+      const links = (inserted ?? []).flatMap((r) =>
+        groups.find((g) => g.prospectId === r.prospect_id)!.opportunities.map((o, position) => ({ recipient_id: r.id, opportunity_id: o.id, score: o.score, reasons: o.reasons, position })),
+      );
+      for (const lp of chunk(links, 500)) {
+        const { error: e2 } = await db.from("outreach_recipient_opportunities").insert(lp);
+        if (e2) throw e2;
+      }
+      await db.from("outreach_events").insert((inserted ?? []).map((r) => ({ recipient_id: r.id, campaign_id: campaignId!, type: "PREPARED" })));
+    }
+
+    // Opportunités traitées : profils ciblés et nombre de correspondances
+    for (const a of analyses) {
+      await db
+        .from("outreach_opportunity_states")
+        .update({ status: "PROCESSED", processed_at: new Date().toISOString(), last_campaign_id: campaignId, target_profiles: a.profiles, target_naf: [...new Set([...a.primaryNaf, ...a.sectorNaf])], matches_count: perOpp.get(a.id) ?? 0, updated_at: new Date().toISOString() })
+        .eq("opportunity_id", a.id);
+    }
+
+    const stats = {
+      opportunities_new: ids.length,
+      opportunities_eligible: opps.length,
+      prospects_analyzed: analyzed.size,
+      matches: pairs.length,
+      companies_selected: rows.filter((r) => r.status !== "SUPPRESSED" && r.status !== "FREQUENCY").length,
+      emails_prepared: rows.filter((r) => r.status === "PENDING").length,
+      no_email: rows.filter((r) => r.status === "NO_EMAIL").length,
+      excluded_frequency: rows.filter((r) => r.status === "FREQUENCY").length,
+      excluded_suppressed: rows.filter((r) => r.status === "SUPPRESSED").length,
+      discovery_calls: discovery.calls,
+      discovery_added: discovery.added,
+    };
+    const report = [
+      `Campagne du ${formatDate(date)} : ${stats.opportunities_eligible} opportunité(s) nouvelle(s) éligible(s) sur ${stats.opportunities_new} détectée(s).`,
+      `${stats.prospects_analyzed} entreprise(s) analysée(s), ${stats.matches} correspondance(s) d'au moins ${settings.min_score}/100.`,
+      `${stats.companies_selected} entreprise(s) sélectionnée(s), ${stats.emails_prepared} e-mail(s) préparé(s), ${stats.no_email} sans adresse e-mail.`,
+      stats.excluded_frequency + stats.excluded_suppressed > 0 ? `${stats.excluded_frequency} écartée(s) (fréquence), ${stats.excluded_suppressed} écartée(s) (liste d'exclusion ou déjà utilisatrices).` : null,
+      settings.discovery_enabled ? `Découverte : ${stats.discovery_added} entreprise(s) ajoutée(s) (${stats.discovery_calls} requête(s) à la source publique).` : null,
+    ]
+      .filter(Boolean)
+      .join("\n");
+    await db.from("outreach_campaigns").update({ status: "READY", stats, report, updated_at: new Date().toISOString() }).eq("id", campaignId);
+    return { campaignId, stats };
+  } catch (e) {
+    logServerError("outreach build", e);
+    await db.from("outreach_campaigns").update({ status: "FAILED", error: e instanceof Error ? e.message.slice(0, 500) : String(e) }).eq("id", campaignId);
+    throw e;
+  }
+}
+
+/** 11–13. File d'envoi : campagnes validées, dans la limite quotidienne. */
+export async function processSendQueue(db: Db, { deadline = Date.now() + 60_000 }: { deadline?: number } = {}) {
+  const settings = await loadSettings(db);
+  const startOfDay = `${today()}T00:00:00Z`;
+  const { count: sentToday } = await db.from("outreach_recipients").select("id", { count: "exact", head: true }).in("status", ["SENT", "SIMULATED"]).gte("sent_at", startOfDay);
+  let remaining = Math.max(0, settings.daily_send_cap - (sentToday ?? 0));
+  const result = { sent: 0, simulated: 0, failed: 0, remaining_cap: remaining };
+  const { data: campaigns } = await db.from("outreach_campaigns").select("id, dry_run").in("status", ["VALIDATED", "SENDING"]).order("campaign_date");
+  const ref = await loadReferentials(db);
+  const blockers = realSendBlockers(settings);
+  for (const c of campaigns ?? []) {
+    // Simulation si la campagne a été validée en simulation OU si l'envoi réel n'est pas possible.
+    const simulate = c.dry_run || blockers.length > 0;
+    await db.from("outreach_campaigns").update({ status: "SENDING" }).eq("id", c.id);
+    while (remaining > 0 && Date.now() < deadline) {
+      const { data: batch } = await db.from("outreach_recipients").select("id").eq("campaign_id", c.id).in("status", ["PENDING", "QUEUED"]).order("score", { ascending: false }).limit(Math.min(25, remaining));
+      if (!batch?.length) break;
+      const bundles = await loadRecipientBundles(db, batch.map((b) => b.id));
+      for (const b of bundles) {
+        const now = new Date().toISOString();
+        const opps = b.opportunities.filter((o) => !o.excluded && o.status === "PUBLISHED" && (!o.response_deadline || new Date(o.response_deadline).getTime() > Date.now()));
+        if (opps.length === 0 || !b.recipient.email) {
+          await db.from("outreach_recipients").update({ status: "EXCLUDED", error: "Plus aucune opportunité ouverte", updated_at: now }).eq("id", b.recipient.id);
+          continue;
+        }
+        const email = buildEmail({ ...b, opportunities: opps }, ref);
+        if (simulate) {
+          await db.from("outreach_recipients").update({ status: "SIMULATED", subject: b.recipient.subject, sent_at: now, updated_at: now }).eq("id", b.recipient.id);
+          await db.from("outreach_events").insert({ recipient_id: b.recipient.id, campaign_id: c.id, type: "SIMULATED" });
+          result.simulated++;
+        } else {
+          const r = await sendOutreachEmail({ to: b.recipient.email, subject: email.subject, html: email.html, text: email.text, senderName: settings.sender_name, replyTo: settings.reply_to, unsubscribeUrl: email.urls.unsubscribeOneClick, idempotencyKey: `outreach-${b.recipient.id}` });
+          if (r.status === "SENT") {
+            await db.from("outreach_recipients").update({ status: "SENT", sent_at: now, provider_id: r.id ?? null, updated_at: now }).eq("id", b.recipient.id);
+            await db.from("outreach_prospects").update({ last_contacted_at: now, contacts_count: b.prospect.contacts_count + 1, updated_at: now }).eq("id", b.prospect.id);
+            await db.from("outreach_events").insert({ recipient_id: b.recipient.id, campaign_id: c.id, type: "SENT" });
+            result.sent++;
+          } else {
+            await db.from("outreach_recipients").update({ status: r.retryable ? "QUEUED" : "FAILED", error: r.error?.slice(0, 300) ?? null, updated_at: now }).eq("id", b.recipient.id);
+            await db.from("outreach_events").insert({ recipient_id: b.recipient.id, campaign_id: c.id, type: "FAILED", meta: { error: r.error ?? null } });
+            result.failed++;
+            if (r.retryable) break;
+          }
+        }
+        remaining--;
+      }
+    }
+    const { count: left } = await db.from("outreach_recipients").select("id", { count: "exact", head: true }).eq("campaign_id", c.id).in("status", ["PENDING", "QUEUED"]);
+    if (!left) await db.from("outreach_campaigns").update({ status: simulate ? "SIMULATED" : "SENT", sent_at: new Date().toISOString() }).eq("id", c.id);
+  }
+  result.remaining_cap = remaining;
+  return result;
+}
+
+/**
+ * Conversions : une inscription venue d'Outreach dont l'entreprise a souscrit
+ * un abonnement payant (actif ou en essai) — calculé à partir des données réelles.
+ */
+export async function updateConversions(db: Db) {
+  const { data: signups } = await db.from("outreach_events").select("recipient_id, campaign_id, user_id").eq("type", "SIGNUP").not("user_id", "is", null).limit(5000);
+  const pending = signups ?? [];
+  if (!pending.length) return { converted: 0 };
+  const { data: done } = await db.from("outreach_recipients").select("id").in("id", pending.map((s) => s.recipient_id!)).not("converted_at", "is", null);
+  const already = new Set((done ?? []).map((r) => r.id));
+  let converted = 0;
+  for (const s of pending.filter((x) => !already.has(x.recipient_id!))) {
+    const { data: members } = await db.from("company_members").select("company_id").eq("user_id", s.user_id!);
+    const companies = (members ?? []).map((m) => m.company_id);
+    if (!companies.length) continue;
+    const { count } = await db.from("subscriptions").select("id", { count: "exact", head: true }).in("company_id", companies).in("status", ["active", "trialing"]);
+    if (!count) continue;
+    const now = new Date().toISOString();
+    await db.from("outreach_recipients").update({ converted_at: now }).eq("id", s.recipient_id!).is("converted_at", null);
+    await db.from("outreach_events").insert({ recipient_id: s.recipient_id, campaign_id: s.campaign_id, type: "CONVERSION", user_id: s.user_id });
+    converted++;
+  }
+  return { converted };
+}
+
+/** Tâche quotidienne complète (appelée par /api/cron/outreach). */
+export async function runOutreachDaily(db: Db, { budgetMs = 240_000 }: { budgetMs?: number } = {}) {
+  const deadline = Date.now() + budgetMs;
+  const settings = await loadSettings(db);
+  const sync = await syncOpportunityStates(db, settings);
+  const build = await buildDailyCampaign(db, { deadline: deadline - 60_000 });
+  if (build.campaignId && !build.skipped && !settings.require_validation) {
+    await db.from("outreach_campaigns").update({ status: "VALIDATED", validated_at: new Date().toISOString() }).eq("id", build.campaignId).eq("status", "READY");
+  }
+  const send = await processSendQueue(db, { deadline });
+  const conversions = await updateConversions(db).catch((e) => (logServerError("outreach conversions", e), { converted: 0 }));
+  return { sync, build, send, conversions };
+}

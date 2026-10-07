@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, Building2, ClipboardCheck, FileStack, Flag, History, Settings, Users, Database, RefreshCw, Tags, Inbox, Mail, Newspaper } from "lucide-react";
+import { BarChart3, Building2, ClipboardCheck, FileStack, Flag, History, Settings, Users, Database, RefreshCw, Tags, Inbox, Mail, Newspaper, Megaphone } from "lucide-react";
 import { cn } from "@/lib/cn";
 
 const LINKS = [
@@ -20,6 +20,7 @@ const LINKS = [
   { href: "/admin/emails", label: "E-mails", icon: Mail, admin: true },
   { href: "/admin/audit", label: "Journal d'audit", icon: History, admin: true },
   { href: "/admin/parametres", label: "Paramètres", icon: Settings, admin: true },
+  { href: "/outreach", label: "Outreach (prospection)", icon: Megaphone, admin: true },
 ];
 
 export function AdminNav({ isAdmin, pending, reports }: { isAdmin: boolean; pending: number; reports: number }) {
