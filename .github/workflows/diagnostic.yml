@@ -1,0 +1,16 @@
+name: Diagnostic production
+on:
+  push:
+    branches: [claude/zealous-archimedes-ui0kph]
+    paths: [.github/workflows/diagnostic.yml]
+jobs:
+  sante:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          for h in linkprob2b.com www.linkprob2b.com agora-b2b-plateform.vercel.app; do
+            echo "=== $h /api/sante"; curl -sS -m 30 -w "\nHTTP %{http_code}\n" "https://$h/api/sante" | head -c 1500; echo
+            echo "=== $h /inscription"; curl -sS -m 30 -o /dev/null -w "HTTP %{http_code} -> %{redirect_url}\n" "https://$h/inscription"
+            echo "=== $h /opportunites"; curl -sS -m 30 "https://$h/opportunites" | grep -o "La recherche n'a pas pu aboutir\|[0-9]* opportunité" | head -3
+          done
+          echo "=== DNS"; dig +short linkprob2b.com A; dig +short www.linkprob2b.com
