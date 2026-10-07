@@ -22,7 +22,8 @@ function authorized(req: Request): boolean {
  * 1. collecte des sources externes dont l'échéance est atteinte ;
  * 2. expiration des opportunités ;
  * 3. résumés d'alertes ;
- * 4. envoi de la file d'e-mails.
+ * 4. envoi de la file d'e-mails ;
+ * 5. purge de la mesure d'audience de plus de 13 mois.
  * Chaque étape est isolée : l'échec de l'une n'empêche pas les suivantes.
  */
 export async function GET(req: Request) {
@@ -40,6 +41,7 @@ export async function GET(req: Request) {
   await step("expired", async () => (await createAdminClient().rpc("expire_opportunities")).data);
   await step("digests", () => processAlertDigests());
   await step("emails", () => processEmailOutbox(200));
+  await step("audience", async () => (await createAdminClient().rpc("purge_page_views")).data);
   const failed = Object.entries(report).filter(([, v]) => v && typeof v === "object" && "error" in v).map(([k]) => k);
   // Trace de la dernière exécution (supervision : /api/sante et Administration → Synchronisations)
   await createAdminClient()

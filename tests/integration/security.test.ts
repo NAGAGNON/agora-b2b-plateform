@@ -321,6 +321,29 @@ describe("administration et confidentialité", () => {
     expect(d.proposals.length).toBe(1);
   });
 
+  it("protège la mesure d'audience : aucune lecture ni écriture publique, statistiques réservées à l'équipe", async () => {
+    const sid = "00000000-0000-4000-8000-" + RUN.padStart(12, "0");
+    expect((await anon().from("page_views").insert({ session_id: sid, path: "/" })).error).not.toBeNull();
+    expect((await buyer.client.from("page_views").insert({ session_id: sid, path: "/" })).error).not.toBeNull();
+    await admin.from("page_views").insert([
+      { session_id: sid, path: "/", duration_ms: 30000, referrer_host: "google.com", device: "mobile" },
+      { session_id: sid, path: "/opportunites", duration_ms: 60000, device: "mobile" },
+    ]);
+    expect((await anon().from("page_views").select("id")).data ?? []).toEqual([]);
+    expect((await buyer.client.from("page_views").select("id")).data ?? []).toEqual([]);
+    expect((await buyer.client.rpc("admin_audience_stats", { p_days: 30 })).error).not.toBeNull();
+    expect((await anon().rpc("admin_audience_stats", { p_days: 30 })).error).not.toBeNull();
+    const { data, error } = await moderator.client.rpc("admin_audience_stats", { p_days: 7 });
+    expect(error).toBeNull();
+    const a = data as { visits: number; page_views: number; daily: unknown[]; referrers: { source: string }[] };
+    expect(a.visits).toBeGreaterThanOrEqual(1);
+    expect(a.page_views).toBeGreaterThanOrEqual(2);
+    expect(a.daily.length).toBeGreaterThanOrEqual(7);
+    expect(a.referrers.some((r) => r.source === "google.com")).toBe(true);
+    expect((await buyer.client.rpc("purge_page_views")).error).not.toBeNull();
+    await admin.from("page_views").delete().eq("session_id", sid);
+  });
+
   it("expire automatiquement les opportunités dépassées", async () => {
     const { data: o } = await admin
       .from("opportunities")

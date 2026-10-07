@@ -38,6 +38,13 @@ export default function CookiesPage() {
         Aucun cookie publicitaire ni de mesure d&apos;audience tiers n&apos;est déposé. Si un outil de mesure d&apos;audience nécessitant un consentement est
         ajouté ultérieurement, un bandeau de choix sera mis en place au préalable.
       </p>
+      <p>
+        Mesure d&apos;audience interne, sans cookie : pour connaître la fréquentation du site, LinkProB2B enregistre la page consultée, le site
+        d&apos;origine (par exemple un moteur de recherche), le type d&apos;appareil et la durée de lecture. Un identifiant aléatoire, conservé dans
+        l&apos;onglet (stockage de session) et effacé à sa fermeture, relie les pages d&apos;une même visite. Ni l&apos;adresse IP, ni le compte, ni aucune
+        donnée personnelle ne sont enregistrés ; les données servent uniquement à des statistiques agrégées et sont supprimées après 13 mois. Les
+        navigateurs qui envoient le signal « Do Not Track » ou « Global Privacy Control » ne sont pas mesurés.
+      </p>
     </ContentPage>
   );
 }
