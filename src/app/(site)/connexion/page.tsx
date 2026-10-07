@@ -6,7 +6,7 @@ import { getSession } from "@/lib/auth";
 import { pageMetadata } from "@/lib/seo";
 import { Notice } from "@/components/ui/notice";
 
-export const metadata = pageMetadata({ title: "Connexion", description: "Connectez-vous à votre espace LinkProB2B.", path: "/connexion", noindex: true });
+export const metadata = pageMetadata({ title: "Connexion", description: "Connectez-vous à votre espace LinkProB2B : opportunités, alertes, recommandations, messagerie et pipeline commercial.", path: "/connexion", noindex: true });
 
 export default async function LoginPage(props: PageProps<"/connexion">) {
   const sp = await props.searchParams;

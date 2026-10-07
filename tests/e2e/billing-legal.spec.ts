@@ -20,8 +20,10 @@ test("page Tarifs : trois offres, prix HT, comparatif et appels à l'action", as
 test("page d'accueil : message et appels à l'action", async ({ browser }) => {
   const page = await newPage(browser);
   await page.goto("/");
-  await expect(page.getByRole("heading", { level: 1 })).toContainText("Trouvez vos prochaines opportunités B2B partout en France");
-  await expect(page.getByText("Découvrez des appels d'offres, opportunités commerciales, partenaires")).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("La plateforme B2B pour trouver des opportunités commerciales");
+  await expect(page.getByText("Découvrez chaque jour de nouvelles opportunités")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Des opportunités actualisées chaque jour" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Découvrir les opportunités" }).first()).toHaveAttribute("href", "/opportunites");
   await expect(page.getByRole("link", { name: "Découvrir LinkProB2B Pro" }).first()).toHaveAttribute("href", "/tarifs");
 });
 

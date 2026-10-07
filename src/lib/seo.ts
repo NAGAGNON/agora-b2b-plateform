@@ -17,7 +17,8 @@ export function siteUrl(): string {
 /** Métadonnées d'une page publique indexable (title, description, canonical, Open Graph). */
 export function pageMetadata({ title, description, path, noindex = false }: { title: string; description: string; path: string; noindex?: boolean }): Metadata {
   return {
-    title,
+    // Titres longs : sans le suffixe « | LinkProB2B » pour rester lisibles dans Google (~60 caractères)
+    title: title.length > 50 ? { absolute: title } : title,
     description,
     alternates: { canonical: path },
     openGraph: { title, description, url: path, type: "website", siteName: "LinkProB2B", locale: "fr_FR" },

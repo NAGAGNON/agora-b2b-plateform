@@ -79,16 +79,16 @@ export async function FilterFields({ f, departments, places, idPrefix }: { f: Op
         <legend className="mb-1.5 text-sm font-semibold text-navy">Autour de</legend>
         <div>
           <label htmlFor={id("lieu")} className="sr-only">
-            Ville
+            Ville (recherche par rayon)
           </label>
-          <select id={id("lieu")} name="lieu" defaultValue={f.place ?? ""} className={sel}>
-            <option value="">Ville…</option>
-            {places.map((p) => (
-              <option key={p.slug} value={p.slug}>
-                {p.name} ({p.department_code})
-              </option>
-            ))}
-          </select>
+          <input
+            id={id("lieu")}
+            name="lieu"
+            defaultValue={(f.place && places.find((p) => p.slug === f.place)?.name) ?? f.place ?? ""}
+            placeholder="Ville, ex. Lyon"
+            autoComplete="address-level2"
+            className={sel}
+          />
         </div>
         <div>
           <label htmlFor={id("rayon")} className="sr-only">

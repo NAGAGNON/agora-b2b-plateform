@@ -21,6 +21,9 @@ import { OpportunityTypeBadge, OriginBadge } from "@/components/opportunities/op
 import { InterestPanel } from "@/components/opportunities/interest-panel";
 import { FavoriteButton } from "@/components/opportunities/favorite-button";
 import { OpportunityCard } from "@/components/opportunities/opportunity-card";
+import { CompanyCard } from "@/components/companies/company-card";
+import { searchCompanies } from "@/lib/queries/companies";
+import { parseCompanyFilters } from "@/lib/search-params";
 import { LandingPage, landingMetadata } from "@/components/opportunities/landing-page";
 import { resolveLanding } from "@/lib/landing";
 import { ReportButton } from "@/components/report-button";
@@ -38,7 +41,7 @@ import { createClient } from "@/lib/supabase/server";
 import { track } from "@/lib/analytics";
 import { pageMetadata } from "@/lib/seo";
 import { DEMO_NOTICE, OPPORTUNITY_TYPE_HELP, sectorLabel, VERIFICATION_STATUS_LABELS, COMPANY_SIZE_LABELS } from "@/lib/constants";
-import { deadlineLabel, formatBudget, formatBytes, formatDate, formatDateTime, isUuid } from "@/lib/format";
+import { clip, deadlineLabel, formatBudget, formatBytes, formatDate, formatDateTime, isUuid } from "@/lib/format";
 
 export async function generateMetadata(props: PageProps<"/opportunites/[id]">): Promise<Metadata> {
   const { id } = await props.params;
@@ -50,9 +53,16 @@ export async function generateMetadata(props: PageProps<"/opportunites/[id]">): 
   const o = await getOpportunityDetail(id);
   if (!o) return { title: "Opportunité introuvable", robots: { index: false } };
   const indexable = o.status === "PUBLISHED" && o.visibility === "PUBLIC" && !o.is_demo;
+  const location = (await getLocationLabel())(o.city, o.department_code);
+  const details = [
+    o.origin === "EXTERNAL" && o.external_buyer_name ? `Acheteur : ${o.external_buyer_name}` : null,
+    location ? `Lieu : ${location}` : null,
+    o.response_deadline ? `Échéance : ${formatDate(o.response_deadline)}` : null,
+  ].filter(Boolean);
+  const intro = clip((o.summary ?? o.description ?? "").replace(/\s+/g, " ").trim(), 90);
   return pageMetadata({
-    title: o.title,
-    description: (o.summary ?? o.description).slice(0, 160),
+    title: clip(o.title, 60),
+    description: clip([intro, ...details].filter(Boolean).join(" · "), 160),
     path: `/opportunites/${o.id}`,
     noindex: !indexable,
   });
@@ -160,8 +170,8 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
           </Notice>
         )}
 
-        <div className="grid gap-6 lg:grid-cols-[1fr_22rem]">
-          <article className="min-w-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_22rem]">
+          <article className="min-w-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm [overflow-wrap:anywhere] sm:p-8">
             <div className="flex flex-wrap items-center gap-2">
               <OriginBadge origin={o.origin} type={o.type} />
               {o.type !== "EXTERNAL_OPPORTUNITY" && <OpportunityTypeBadge type={o.type} />}
@@ -173,7 +183,7 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
               )}
               {o.is_demo && <DemoBadge />}
             </div>
-            <h1 className="mt-4 text-2xl leading-tight font-bold sm:text-3xl">{o.title}</h1>
+            <h1 className="mt-4 text-2xl leading-tight font-bold [overflow-wrap:anywhere] sm:text-3xl">{o.title}</h1>
 
             {external ? (
               <p className="mt-2 text-slate-600">
@@ -281,22 +291,22 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
             </div>
           </article>
 
-          <aside className="space-y-4 lg:sticky lg:top-20 lg:self-start">
+          <aside className="min-w-0 space-y-4 [overflow-wrap:anywhere] lg:sticky lg:top-20 lg:self-start">
             {external ? (
               <div className="rounded-2xl border-2 border-amber-300 bg-white p-5 shadow-sm">
                 <p className="flex items-center gap-2 font-heading text-lg font-bold text-navy">
                   <ExternalLink className="size-5 text-amber-600" aria-hidden /> Opportunité externe
                 </p>
                 <p className="mt-2 text-sm text-slate-600">
-                  Référencée depuis une source externe — candidature et conditions sur le site source. Elle n&apos;a pas été publiée par un membre de
-                  LinkProB2B.
+                  Cette opportunité est issue d&apos;une source externe. Consultez la source officielle pour les informations définitives et les modalités
+                  de candidature. LinkProB2B n&apos;est pas l&apos;organisme qui publie ce marché.
                 </p>
                 <dl className="mt-4 space-y-2 text-sm">
                   <Row label="Source" value={source?.external_source?.name ?? "—"} />
                   {source?.external_id && <Row label="Référence" value={source.external_id} />}
                   <Row label="Publication (source)" value={formatDate(source?.source_published_at)} />
                   <Row label="Référencée le" value={formatDate(source?.imported_at)} />
-                  <Row label="Dernière vérification" value={formatDate(source?.last_verified_at)} />
+                  <Row label="Dernière actualisation" value={formatDate(source?.last_verified_at)} />
                   {source?.verification_status && source.verification_status !== "VERIFIED" && (
                     <Row label="État" value={VERIFICATION_STATUS_LABELS[source.verification_status] ?? source.verification_status} />
                   )}
@@ -310,7 +320,7 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
                     rel="noopener noreferrer nofollow"
                     className={buttonClasses({ full: true, size: "lg", className: "mt-5" })}
                   >
-                    Consulter l&apos;annonce originale <ExternalLink className="size-4" aria-hidden />
+                    Consulter l&apos;opportunité originale <ExternalLink className="size-4" aria-hidden />
                   </a>
                 )}
                 <p className="mt-2 text-center text-xs text-slate-500">Ouvre le site source dans un nouvel onglet.</p>
@@ -359,9 +369,55 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
             </div>
           </aside>
         </div>
+        <PartnersBlock sector={o.sector_slug} department={o.department_code} external={external} />
         <SimilarOpportunities id={o.id} sector={o.sector_slug} region={o.region} signedIn={Boolean(session)} />
       </div>
     </div>
+  );
+}
+
+/**
+ * Entreprises du même secteur (annuaire public) : prestataires et partenaires
+ * potentiels pour cette opportunité — de préférence dans le même département.
+ */
+async function PartnersBlock({ sector, department, external }: { sector: string | null; department: string | null; external: boolean }) {
+  if (!sector) return null;
+  const labels = await getSectorLabels();
+  const local = department ? await searchCompanies(parseCompanyFilters({ secteur: sector, departement: department }), 4) : { rows: [] };
+  const rows = local.rows.length >= 2 ? local.rows : (await searchCompanies(parseCompanyFilters({ secteur: sector }), 4)).rows;
+  return (
+    <section className="mt-12" aria-labelledby="partenaires">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 id="partenaires" className="text-xl font-bold">
+            Trouver des partenaires
+          </h2>
+          <p className="mt-1 text-sm text-slate-600">
+            {external
+              ? "Entreprises du même secteur inscrites sur LinkProB2B : sous-traitants, co-traitants ou partenaires pour répondre à plusieurs."
+              : "Entreprises inscrites sur LinkProB2B dont l'activité correspond à ce besoin."}
+          </p>
+        </div>
+        <Link href={`/entreprises/${sector}`} className={buttonClasses({ variant: "outline", size: "sm", className: "min-h-9 h-auto! max-w-full py-1.5 text-left whitespace-normal!" })}>
+          Voir les entreprises — {sectorLabel(sector, labels)}
+        </Link>
+      </div>
+      {rows.length > 0 ? (
+        <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+          {rows.slice(0, 4).map((c) => (
+            <CompanyCard key={c.id} c={c} />
+          ))}
+        </div>
+      ) : (
+        <p className="mt-4 rounded-xl border border-dashed border-slate-300 p-4 text-sm text-slate-600">
+          Aucune entreprise de ce secteur n&apos;est encore inscrite dans l&apos;annuaire. Vous proposez ce type de prestation ?{" "}
+          <Link href="/inscription" className="font-semibold text-teal-700 underline">
+            Créez votre profil
+          </Link>{" "}
+          pour être visible des acheteurs et des partenaires.
+        </p>
+      )}
+    </section>
   );
 }
 
@@ -379,7 +435,7 @@ async function SimilarOpportunities({ id, sector, region, signedIn }: { id: stri
       <h2 id="similaires" className="mb-4 text-xl font-bold">
         Opportunités similaires
       </h2>
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {rows.map((r) => (
           <OpportunityCard key={r.id} o={r} headingLevel={3} />
         ))}
@@ -400,7 +456,7 @@ function Fact({ icon: Icon, label, value }: { icon: typeof MapPin; label: string
   return (
     <div className="flex items-start gap-2">
       <Icon className="mt-0.5 size-4 shrink-0 text-teal-700" aria-hidden />
-      <div>
+      <div className="min-w-0">
         <dt className="text-xs font-semibold text-slate-500 uppercase">{label}</dt>
         <dd className="font-medium text-navy">{value}</dd>
       </div>
@@ -411,8 +467,8 @@ function Fact({ icon: Icon, label, value }: { icon: typeof MapPin; label: string
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex justify-between gap-3">
-      <dt className="text-slate-500">{label}</dt>
-      <dd className="text-right font-medium text-navy">{value}</dd>
+      <dt className="shrink-0 text-slate-500">{label}</dt>
+      <dd className="min-w-0 text-right font-medium text-navy">{value}</dd>
     </div>
   );
 }

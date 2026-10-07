@@ -5,7 +5,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { DemoBadge } from "@/components/demo";
 import { sectorLabel, type OpportunityOrigin, type OpportunityType } from "@/lib/constants";
 import { getLocationLabel, getSectorLabels } from "@/lib/queries/platform";
-import { deadlineLabel, formatBudget, formatDate } from "@/lib/format";
+import { deadlineLabel, formatBudget, formatDate, isRecent } from "@/lib/format";
 
 export type OpportunityCardData = {
   id: string;
@@ -34,27 +34,30 @@ export async function OpportunityCard({ o, headingLevel = 3 }: { o: OpportunityC
   const budget = formatBudget(o.budget_min ?? null, o.budget_max ?? null);
   const deadline = deadlineLabel(o.response_deadline);
   const closed = o.effective_status && o.effective_status !== "PUBLISHED";
-  const by = o.origin === "EXTERNAL" ? (o.source_name ? `Source : ${o.source_name}` : "Source externe") : o.company_name;
+  const by = o.origin === "EXTERNAL" ? o.external_buyer_name : o.company_name;
+  const isNew = isRecent(o.published_at) && !closed;
   return (
     <article className="group relative flex h-full flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-teal hover:shadow-md">
       <div className="flex flex-wrap items-center gap-1.5">
         <OriginBadge origin={o.origin} type={o.type} />
         {o.type !== "EXTERNAL_OPPORTUNITY" && <OpportunityTypeBadge type={o.type} />}
+        {isNew && <span className="rounded-full bg-teal px-2 py-0.5 text-xs font-bold text-navy">Nouveau</span>}
         {closed && <StatusBadge kind="opportunity" status={o.effective_status!} />}
         {o.is_demo && <DemoBadge />}
       </div>
-      <H className="mt-3 text-lg leading-snug font-bold">
+      <H className="mt-3 text-lg leading-snug font-bold [overflow-wrap:anywhere]">
         <Link href={`/opportunites/${o.id}`} className="after:absolute after:inset-0 group-hover:text-teal-700 focus:outline-none">
           {o.title}
         </Link>
       </H>
       {by && (
-        <p className="mt-1 flex items-center gap-1 text-sm text-slate-600">
+        <p className="mt-1 flex items-center gap-1 text-sm text-slate-600 [overflow-wrap:anywhere]">
+          {o.origin === "EXTERNAL" && <span className="sr-only">Acheteur : </span>}
           {by}
           {o.origin === "INTERNAL" && o.company_verified && <BadgeCheck className="size-4 text-teal-600" aria-label="Entreprise vérifiée" />}
         </p>
       )}
-      {o.summary && <p className="mt-2 line-clamp-3 text-sm text-slate-600">{o.summary}</p>}
+      {o.summary && <p className="mt-2 line-clamp-3 text-sm text-slate-600 [overflow-wrap:anywhere]">{o.summary}</p>}
       <dl className="mt-auto grid gap-1.5 pt-4 text-sm text-slate-600">
         {(o.city || o.department_code) && (
           <div className="flex items-center gap-2">
@@ -81,8 +84,11 @@ export async function OpportunityCard({ o, headingLevel = 3 }: { o: OpportunityC
           </div>
         )}
       </dl>
-      <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3 text-xs text-slate-500">
-        <span>Publiée le {formatDate(o.published_at)}</span>
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-slate-100 pt-3 text-xs text-slate-500">
+        <span>
+          Publiée le {formatDate(o.published_at)}
+          {o.origin === "EXTERNAL" && ` · Source : ${o.source_name ?? "externe"}`}
+        </span>
         {budget && <span className="font-semibold text-navy">{budget}</span>}
       </div>
     </article>

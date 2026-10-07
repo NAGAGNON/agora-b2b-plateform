@@ -8,6 +8,8 @@ import { parseOpportunityFilters, type RawSearchParams } from "@/lib/search-para
 import { pageMetadata } from "@/lib/seo";
 import { MIN_INDEXABLE, type Landing } from "@/lib/landing";
 import { getSession } from "@/lib/auth";
+import { getPlatformStats } from "@/lib/queries/platform";
+import { FreshnessBar } from "@/components/opportunities/freshness";
 
 export async function landingMetadata(landing: Landing, path: string, sp: RawSearchParams): Promise<Metadata> {
   const { total } = await searchOpportunities(parseOpportunityFilters(landing.fixed), 1);
@@ -44,7 +46,8 @@ export async function LandingPage({ landing, path, sp }: { landing: Landing; pat
         ))}
       </nav>
       <h1 className="text-2xl font-bold sm:text-3xl">{landing.heading}</h1>
-      <p className="mt-1 mb-4 max-w-3xl text-slate-600">{landing.intro}</p>
+      <p className="mt-1 max-w-3xl text-slate-600">{landing.intro}</p>
+      <FreshnessBar stats={await getPlatformStats()} className="mt-3 mb-4" />
       {landing.children && landing.children.length > 0 && (
         <details className="mb-6 rounded-xl border border-slate-200 bg-white p-4 text-sm">
           <summary className="cursor-pointer font-semibold text-navy">{landing.kind === "region" ? "Par département" : "Par région"}</summary>

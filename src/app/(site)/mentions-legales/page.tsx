@@ -3,7 +3,7 @@ import { LegalPage, Todo } from "@/components/legal-page";
 import { LEGAL, legalValue } from "@/lib/legal";
 import { pageMetadata } from "@/lib/seo";
 
-export const metadata = pageMetadata({ title: "Mentions légales", description: "Éditeur, hébergement et propriété intellectuelle du site LinkProB2B.", path: "/mentions-legales" });
+export const metadata = pageMetadata({ title: "Mentions légales", description: "Mentions légales de LinkProB2B : éditeur du site, hébergement, propriété intellectuelle, responsabilité et signalement de contenu.", path: "/mentions-legales" });
 
 const v = (value: string | null, label: string) => (value ? value : <Todo>{legalValue(value, label)}</Todo>);
 

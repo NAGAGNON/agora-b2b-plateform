@@ -16,7 +16,7 @@ test("recherche nationale : France entière par défaut, filtre région, pages S
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Opportunités B2B partout en France");
   await page.goto("/opportunites/bretagne");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Opportunités B2B en Bretagne");
-  await expect(page).toHaveTitle(/Opportunités B2B et appels d'offres en Bretagne/);
+  await expect(page).toHaveTitle(/Appels d'offres et marchés en Bretagne/);
   await page.goto("/opportunites/bretagne/finistere");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Opportunités dans le département Finistère");
   // Canonique de l'ancienne adresse département

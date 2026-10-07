@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { daysUntil, deadlineLabel, formatBudget, formatBytes, initials, isUuid, slugify, splitList } from "@/lib/format";
+import { clip, daysUntil, deadlineLabel, formatBudget, formatBytes, initials, isUuid, slugify, splitList } from "@/lib/format";
 
 describe("format", () => {
   it("formate un budget selon les bornes disponibles", () => {
@@ -29,6 +29,15 @@ describe("format", () => {
   it("produit des slugs ASCII", () => {
     expect(slugify("Côtes-d'Armor")).toBe("cotes-d-armor");
     expect(slugify("  Démo Usinage de Cornouaille ")).toBe("demo-usinage-de-cornouaille");
+  });
+
+  it("tronque un texte sur une limite de mot", () => {
+    expect(clip("Court", 60)).toBe("Court");
+    const long = "Travaux de rénovation énergétique des bâtiments communaux, lot n° 3 : menuiseries extérieures";
+    const out = clip(long, 60);
+    expect(out.length).toBeLessThanOrEqual(60);
+    expect(out.endsWith("…")).toBe(true);
+    expect(out).toBe("Travaux de rénovation énergétique des bâtiments communaux…");
   });
 
   it("divers", () => {

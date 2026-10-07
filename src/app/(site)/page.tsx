@@ -28,6 +28,12 @@ import {
   Landmark,
   Megaphone as MegaphoneIcon,
   UtensilsCrossed,
+  RefreshCw,
+  Filter,
+  Bell,
+  Layers,
+  CalendarX,
+  Database,
 } from "lucide-react";
 import { SearchBar } from "@/components/opportunities/search-bar";
 import { OpportunityCard } from "@/components/opportunities/opportunity-card";
@@ -36,16 +42,17 @@ import { EmptyState } from "@/components/ui/states";
 import { Notice } from "@/components/ui/notice";
 import { recentOpportunities, searchOpportunities } from "@/lib/queries/opportunities";
 import { parseOpportunityFilters } from "@/lib/search-params";
-import { getSectors } from "@/lib/queries/platform";
+import { getPlatformStats, getSectors } from "@/lib/queries/platform";
+import { FreshnessBar } from "@/components/opportunities/freshness";
 import { pageMetadata } from "@/lib/seo";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/format";
 
 export const metadata = pageMetadata({
-  title: "LinkProB2B — Opportunités B2B, marchés et partenaires partout en France",
+  title: "LinkProB2B — Opportunités B2B et appels d'offres en France",
   description:
-    "La plateforme B2B française : appels d'offres, opportunités commerciales, partenaires, fournisseurs et prestataires issus de sources fiables, partout en France.",
+    "La plateforme B2B pour trouver des opportunités commerciales, des appels d'offres et des partenaires partout en France. Données actualisées chaque jour.",
   path: "/",
 });
 
@@ -76,12 +83,13 @@ const SECTOR_ICONS: Record<string, typeof Wrench> = {
 export default async function HomePage(props: PageProps<"/">) {
   const sp = await props.searchParams;
   const supabase = await createClient();
-  const [recent, sectors, { data: analyses }, { total: openTotal }] = await Promise.all([
+  const [recent, sectors, { data: analyses }, { total: openTotal }, stats] = await Promise.all([
     recentOpportunities(6),
     getSectors(),
     supabase.from("articles").select("slug, title, description, published_at").eq("status", "PUBLISHED").order("published_at", { ascending: false }).limit(3),
     // Même calcul que la page « Explorer les opportunités » (opportunités ouvertes)
     searchOpportunities(parseOpportunityFilters({}), 1),
+    getPlatformStats(),
   ]);
   const openCount = Number(openTotal);
   return (
@@ -110,17 +118,17 @@ export default async function HomePage(props: PageProps<"/">) {
             {openCount ? `${openCount.toLocaleString("fr-FR")} opportunité${openCount > 1 ? "s" : ""} disponible${openCount > 1 ? "s" : ""} aujourd'hui partout en France` : "Opportunités B2B partout en France"}
           </p>
           <h1 className="mt-5 max-w-3xl text-3xl leading-tight font-extrabold text-white sm:text-5xl">
-            Trouvez vos prochaines opportunités B2B <span className="text-teal">partout en France</span>.
+            La plateforme B2B pour trouver des <span className="text-teal">opportunités commerciales</span> et des partenaires.
           </h1>
           <p className="mt-4 max-w-2xl text-base text-slate-200 sm:text-lg">
-            Découvrez des appels d&apos;offres, opportunités commerciales, partenaires, fournisseurs et prestataires issus de sources fiables.
+            Découvrez chaque jour de nouvelles opportunités, appels d&apos;offres, besoins d&apos;entreprises et partenaires partout en France.
           </p>
           <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-            <ButtonLink href="/inscription" size="lg">
-              Créer mon compte gratuitement
+            <ButtonLink href="/opportunites" size="lg">
+              Découvrir les opportunités
             </ButtonLink>
-            <ButtonLink href="/tarifs" size="lg" variant="light">
-              Découvrir LinkProB2B Pro
+            <ButtonLink href="/inscription" size="lg" variant="light">
+              Créer mon profil gratuit
             </ButtonLink>
           </div>
           <div className="mt-8 max-w-5xl">
@@ -164,6 +172,105 @@ export default async function HomePage(props: PageProps<"/">) {
               <ArrowRight className="size-5 transition group-hover:translate-x-0.5" aria-hidden />
             </Link>
           </div>
+        </div>
+      </section>
+
+      {/* Activité de la plateforme : chiffres réels */}
+      {stats && stats.active > 0 && (
+        <section className="border-b border-slate-200 bg-white" aria-label="Activité de la plateforme">
+          <div className="container-page py-6">
+            <dl className="grid grid-cols-2 gap-4 md:grid-cols-4">
+              {[
+                { label: "opportunités ouvertes", value: stats.active },
+                { label: "ajoutées ces 7 derniers jours", value: stats.new_7d },
+                { label: "régions couvertes", value: stats.regions },
+                { label: "départements couverts", value: stats.departments },
+              ].map((k) => (
+                <div key={k.label} className="flex flex-col">
+                  <dt className="text-sm text-slate-600">{k.label}</dt>
+                  <dd className="order-first font-heading text-2xl font-bold text-navy tabular-nums sm:text-3xl">{k.value.toLocaleString("fr-FR")}</dd>
+                </div>
+              ))}
+            </dl>
+            <FreshnessBar stats={stats} className="mt-4" />
+          </div>
+        </section>
+      )}
+
+      {/* Pour qui ? */}
+      <section className="container-page py-14 sm:py-16" aria-labelledby="pour-qui">
+        <div className="grid gap-8 lg:grid-cols-[1fr_1.2fr] lg:items-start">
+          <div>
+            <h2 id="pour-qui" className="text-2xl font-bold sm:text-3xl">
+              Une plateforme B2B pour développer votre activité
+            </h2>
+            <p className="mt-3 text-slate-600">
+              LinkProB2B centralise les opportunités commerciales — appels d&apos;offres publics, consultations et besoins publiés par des entreprises —
+              et facilite la mise en relation entre entreprises. Vous recherchez, filtrez et suivez les opportunités qui correspondent à votre activité,
+              puis échangez directement avec les entreprises.
+            </p>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <ButtonLink href="/opportunites">Découvrir les opportunités</ButtonLink>
+              <ButtonLink href="/entreprises" variant="outline">
+                Trouver un prestataire
+              </ButtonLink>
+            </div>
+          </div>
+          <div>
+            <h3 className="text-sm font-bold tracking-wide text-slate-500 uppercase">Pour qui ?</h3>
+            <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+              {[
+                "PME et TPE",
+                "Indépendants",
+                "Fournisseurs",
+                "Prestataires de services",
+                "Industriels et sous-traitants",
+                "Entreprises du BTP",
+                "Entreprises de services et du numérique",
+                "Entreprises qui cherchent des partenaires",
+              ].map((t) => (
+                <li key={t} className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-navy">
+                  <CheckCircle2 className="size-4 shrink-0 text-teal-600" aria-hidden /> {t}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      {/* Actualisation quotidienne */}
+      <section className="bg-sky py-14 sm:py-16" aria-labelledby="actualisation">
+        <div className="container-page">
+          <h2 id="actualisation" className="text-2xl font-bold sm:text-3xl">
+            Des opportunités actualisées chaque jour
+          </h2>
+          <p className="mt-1 max-w-3xl text-slate-600">
+            Chaque matin, LinkProB2B interroge automatiquement ses sources officielles et met la base à jour. Les résultats affichés sont donc toujours
+            des opportunités ouvertes.
+          </p>
+          <ol className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {[
+              { icon: Database, title: "Collecte", text: "Les opportunités sont collectées depuis des sources officielles (BOAMP, TED) et publiées par les entreprises inscrites." },
+              { icon: Layers, title: "Normalisation et dédoublonnage", text: "Un même marché publié sur plusieurs sources n'apparaît qu'une fois, avec toutes ses sources." },
+              { icon: CalendarX, title: "Expiration", text: "Les opportunités dont la date limite est passée sont retirées des résultats actifs (l'historique reste consultable)." },
+              { icon: RefreshCw, title: "Ajout quotidien", text: "Les nouvelles opportunités sont ajoutées automatiquement, et les annonces modifiées à la source sont mises à jour." },
+              { icon: Filter, title: "Recherche", text: "Vous filtrez par secteur, région, département, ville, type, date limite ou source pour trouver celles qui vous concernent." },
+              { icon: Bell, title: "Alertes et recommandations", text: "Avec votre profil, recevez les opportunités adaptées à votre activité par e-mail et dans votre espace." },
+            ].map((step, i) => (
+              <li key={step.title} className="rounded-2xl border border-white bg-white p-5 shadow-sm">
+                <div className="flex items-center gap-3">
+                  <span className="flex size-9 items-center justify-center rounded-full bg-navy font-heading text-sm font-bold text-white">{i + 1}</span>
+                  <step.icon className="size-5 text-teal-600" aria-hidden />
+                </div>
+                <h3 className="mt-3 font-bold">{step.title}</h3>
+                <p className="mt-1 text-sm text-slate-600">{step.text}</p>
+              </li>
+            ))}
+          </ol>
+          <p className="mt-6 text-xs text-slate-700">
+            Les opportunités externes renvoient toujours vers l&apos;annonce officielle, qui fait foi. LinkProB2B ne garantit ni l&apos;obtention d&apos;un
+            marché ni un résultat commercial.
+          </p>
         </div>
       </section>
 
@@ -261,7 +368,7 @@ export default async function HomePage(props: PageProps<"/">) {
       {/* Comment ça marche */}
       <section className="container-page py-14 sm:py-16" aria-labelledby="fonctionnement">
         <h2 id="fonctionnement" className="text-2xl font-bold sm:text-3xl">
-          Comment ça marche
+          Comment utiliser LinkProB2B
         </h2>
         <ol className="mt-8 grid gap-4 md:grid-cols-3">
           {[
@@ -284,7 +391,7 @@ export default async function HomePage(props: PageProps<"/">) {
             "Provenance toujours affichée",
             "Opportunités externes redirigées vers la source",
             "Publications modérées avant diffusion",
-            "Inscription gratuite",
+            "Consultation et recherche gratuites",
           ].map((t) => (
             <p key={t} className="flex items-center gap-2">
               <CheckCircle2 className="size-5 shrink-0 text-teal-600" aria-hidden /> {t}
@@ -298,14 +405,14 @@ export default async function HomePage(props: PageProps<"/">) {
         <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-navy to-navy-700 px-6 py-10 text-white sm:px-12 sm:py-14">
           <div className="absolute -right-24 -bottom-24 size-72 rounded-full bg-teal/30 blur-3xl" aria-hidden />
           <div className="relative max-w-2xl">
-            <h2 className="text-2xl font-bold text-white sm:text-3xl">Rejoignez LinkProB2B.</h2>
+            <h2 className="text-2xl font-bold text-white sm:text-3xl">Recevez les opportunités adaptées à votre activité.</h2>
             <p className="mt-3 text-slate-200">
-              Acheteurs et fournisseurs de toute la France y publient leurs besoins, répondent aux consultations et suivent les marchés publics. L&apos;inscription
-              est gratuite.
+              Créez votre profil gratuitement : secteur, zone et compétences. LinkProB2B vous recommande alors les opportunités correspondantes et vous
+              alerte des nouvelles publications. Passez à Pro pour les alertes illimitées, les recommandations complètes et le pipeline commercial.
             </p>
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
               <ButtonLink href="/inscription" size="lg">
-                Créer mon compte gratuitement
+                Recevoir mes opportunités
               </ButtonLink>
               <ButtonLink href="/tarifs" size="lg" variant="light">
                 Découvrir LinkProB2B Pro

@@ -1,6 +1,6 @@
 import { PAGE_SIZE, type CompanyKind, type CompanySize, type OpportunityOrigin, type OpportunityType } from "@/lib/constants";
 import { splitList } from "@/lib/format";
-import { regionBySlug } from "@/lib/geo";
+import { regionBySlug, slugify } from "@/lib/geo";
 
 export type RawSearchParams = Record<string, string | string[] | undefined>;
 
@@ -59,7 +59,9 @@ export function parseOpportunityFilters(sp: RawSearchParams, now: Date = new Dat
   const pageRaw = Number(first(sp.page));
   const sizeRaw = first(sp.taille);
   const q = first(sp.q)?.slice(0, 200);
-  const place = first(sp.lieu);
+  // Ville saisie librement (« Saint-Malo ») ou identifiant (« saint-malo »)
+  const placeRaw = first(sp.lieu);
+  const place = placeRaw && /^[\p{L}0-9' ’-]{2,80}$/u.test(placeRaw) ? slugify(placeRaw) : undefined;
   const region = first(sp.region);
   const city = first(sp.ville)?.slice(0, 80);
   const source = first(sp.source);
@@ -70,7 +72,7 @@ export function parseOpportunityFilters(sp: RawSearchParams, now: Date = new Dat
     source: source && /^[a-z0-9-]{2,40}$/.test(source) ? source : undefined,
     sector: sector && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(sector) && sector.length <= 60 ? sector : undefined,
     department: department && /^(\d{2,3}|2[AB])$/.test(department) ? department : undefined,
-    place: place && /^[a-z0-9-]{2,80}$/.test(place) ? place : undefined,
+    place: place && place.length >= 2 ? place : undefined,
     radius: Number.isFinite(radiusRaw) && radiusRaw > 0 ? Math.min(Math.round(radiusRaw), 500) : undefined,
     types,
     status: statusRaw === "CLOSED" || statusRaw === "ALL" ? statusRaw : "OPEN",
