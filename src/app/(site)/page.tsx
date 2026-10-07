@@ -75,10 +75,18 @@ const SECTOR_ICONS: Record<string, typeof Wrench> = {
 export default async function HomePage(props: PageProps<"/">) {
   const sp = await props.searchParams;
   const supabase = await createClient();
-  const [recent, sectors, { data: analyses }] = await Promise.all([
+  const nowIso = new Date().toISOString();
+  const [recent, sectors, { data: analyses }, { count: openCount }] = await Promise.all([
     recentOpportunities(6),
     getSectors(),
     supabase.from("articles").select("slug, title, description, published_at").eq("status", "PUBLISHED").order("published_at", { ascending: false }).limit(3),
+    // Opportunités ouvertes aujourd'hui (réelles : hors démonstration, date limite non dépassée)
+    supabase
+      .from("opportunities")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "PUBLISHED")
+      .eq("is_demo", false)
+      .or(`response_deadline.is.null,response_deadline.gt.${nowIso}`),
   ]);
   return (
     <>
@@ -102,7 +110,8 @@ export default async function HomePage(props: PageProps<"/">) {
         </svg>
         <div className="container-page relative py-14 sm:py-20 lg:py-24">
           <p className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold tracking-wide text-teal-50 uppercase ring-1 ring-white/20">
-            <span className="size-2 rounded-full bg-teal" aria-hidden /> France entière · Métropole et outre-mer
+            <span className="size-2 rounded-full bg-teal" aria-hidden />{" "}
+            {openCount ? `${openCount.toLocaleString("fr-FR")} opportunité${openCount > 1 ? "s" : ""} disponible${openCount > 1 ? "s" : ""} aujourd'hui partout en France` : "Opportunités B2B partout en France"}
           </p>
           <h1 className="mt-5 max-w-3xl text-3xl leading-tight font-extrabold text-white sm:text-5xl">
             Trouvez vos prochaines opportunités B2B <span className="text-teal">partout en France</span>.
