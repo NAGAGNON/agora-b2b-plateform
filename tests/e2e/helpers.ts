@@ -25,7 +25,7 @@ export async function signUpWithCompany(page: Page, label: string, companyName: 
   await page.getByLabel("Nom et prénom").fill(`E2E ${label}`);
   await page.getByLabel("Adresse e-mail professionnelle").fill(email);
   await page.getByLabel("Mot de passe").fill("E2e-Password-123");
-  await page.getByText("J'accepte les conditions d'utilisation", { exact: false }).click();
+  await page.getByText("J'ai lu et j'accepte les Conditions Générales d'Utilisation", { exact: false }).click();
   await page.getByRole("button", { name: "Créer mon compte" }).click();
   await expect(page).toHaveURL(/onboarding\/entreprise/);
   await page.getByLabel("Nom de l'entreprise").fill(companyName);

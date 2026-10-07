@@ -6,6 +6,7 @@ import { requestPasswordReset, signIn, signUp, updatePassword } from "@/app/acti
 import { Checkbox, Field, FieldError, Input } from "@/components/ui/form";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { Notice } from "@/components/ui/notice";
+import { LegalNote } from "@/components/legal-note";
 
 export function SignInForm({ next }: { next?: string }) {
   const [state, action] = useActionState(signIn, null);
@@ -28,6 +29,7 @@ export function SignInForm({ next }: { next?: string }) {
       <SubmitButton full size="lg" pendingLabel="Connexion…">
         Se connecter
       </SubmitButton>
+      <LegalNote />
     </form>
   );
 }
@@ -52,13 +54,13 @@ export function SignUpForm() {
           name="terms"
           label={
             <>
-              J&apos;accepte les{" "}
+              J&apos;ai lu et j&apos;accepte les{" "}
               <Link href="/cgu" target="_blank" className="font-semibold text-teal-700 underline">
-                conditions d&apos;utilisation
+                Conditions Générales d&apos;Utilisation
               </Link>{" "}
               et j&apos;ai pris connaissance de la{" "}
               <Link href="/confidentialite" target="_blank" className="font-semibold text-teal-700 underline">
-                politique de confidentialité
+                Politique de confidentialité
               </Link>
               .
             </>

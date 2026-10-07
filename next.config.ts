@@ -23,7 +23,8 @@ const csp = [
   "font-src 'self' data:",
   `connect-src 'self' ${supabaseOrigin} ${supabaseWs}${isDev ? " ws: wss:" : ""}`.replace(/\s+/g, " ").trim(),
   "frame-ancestors 'none'",
-  "form-action 'self'",
+  // Redirections vers Stripe Checkout et le portail client Stripe après validation du formulaire
+  "form-action 'self' https://checkout.stripe.com https://billing.stripe.com",
   "base-uri 'self'",
   "object-src 'none'",
 ].join("; ");

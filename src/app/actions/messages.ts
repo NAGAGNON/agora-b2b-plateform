@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { userMessage } from "@/lib/errors";
+import { actionError } from "@/lib/errors";
 import { flushEmailsAfterResponse } from "@/lib/email/flush";
 import { messageSchema, parseForm, type ActionResult } from "@/lib/validation";
 
@@ -24,7 +24,7 @@ export async function startConversation(_prev: ActionResult | null, fd: FormData
     p_supplier_company_id: parsed.data.supplierCompanyId,
     p_body: parsed.data.body,
   });
-  if (error || !data) return { ok: false, error: userMessage(error) };
+  if (error || !data) return actionError(error);
   await supabase.rpc("track_event", { p_event_name: "contact_company", p_properties: { opportunity_id: parsed.data.opportunityId } });
   redirect(`/dashboard/messages/${data}`);
 }
@@ -43,7 +43,7 @@ export async function sendMessage(_prev: ActionResult | null, fd: FormData): Pro
     p_attachment_path: attachmentPath,
     p_attachment_name: attachmentName,
   });
-  if (error) return { ok: false, error: userMessage(error) };
+  if (error) return actionError(error);
   flushEmailsAfterResponse();
   revalidatePath(`/dashboard/messages/${conversationId}`);
   revalidatePath("/dashboard/messages");

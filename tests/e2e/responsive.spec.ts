@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { login, newPage } from "./helpers";
 
 const WIDTHS = [375, 390, 768, 1024, 1440];
-const PUBLIC_PAGES = ["/", "/opportunites", "/entreprises", "/publier", "/connexion", "/comment-ca-marche"];
+const PUBLIC_PAGES = ["/", "/opportunites", "/entreprises", "/publier", "/connexion", "/comment-ca-marche", "/tarifs", "/confidentialite", "/cookies"];
 
 for (const width of WIDTHS) {
   test(`aucun défilement horizontal à ${width}px`, async ({ browser }) => {

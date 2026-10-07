@@ -6,6 +6,7 @@ import { Checkbox, Field, Input, Select, Textarea } from "@/components/ui/form";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { Notice } from "@/components/ui/notice";
 import { COMPANY_KIND_LABELS, COMPANY_SIZE_LABELS, type SectorOption, type CompanyKind, type CompanySize } from "@/lib/constants";
+import { LegalNote } from "@/components/legal-note";
 
 export type CompanyFormValues = {
   name?: string;
@@ -185,6 +186,7 @@ export function CompanyForm({ mode, values = {}, places, departments, sectors, n
       <SubmitButton size="lg" className="w-full sm:w-auto" pendingLabel="Enregistrement…">
         {mode === "create" ? "Créer mon entreprise" : "Enregistrer le profil"}
       </SubmitButton>
+      <LegalNote>Les informations de la fiche entreprise sont publiques dans l&apos;annuaire, conformément aux</LegalNote>
     </form>
   );
 }

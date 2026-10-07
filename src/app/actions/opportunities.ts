@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getSession } from "@/lib/auth";
-import { logServerError, userMessage } from "@/lib/errors";
+import { logServerError, actionError } from "@/lib/errors";
 import { flushEmailsAfterResponse } from "@/lib/email/flush";
 import { interestSchema, opportunitySchema, parseForm, proposalSchema, reportSchema, type ActionResult } from "@/lib/validation";
 import type { Database } from "@/lib/database.types";
@@ -34,7 +34,7 @@ export async function expressInterest(_prev: ActionResult | null, fd: FormData):
     p_company_id: session.activeCompany.company.id,
     p_message: parsed.data.message,
   });
-  if (error) return { ok: false, error: userMessage(error) };
+  if (error) return actionError(error);
   flushEmailsAfterResponse();
   revalidatePath(`/opportunites/${parsed.data.opportunityId}`);
   return { ok: true, message: "Votre intérêt a été transmis au demandeur." };
@@ -44,7 +44,7 @@ export async function withdrawInterest(interestId: string, opportunityId: string
   if (!uuid.safeParse(interestId).success) return { ok: false, error: "Identifiant invalide." };
   const { supabase } = await ctx();
   const { error } = await supabase.rpc("withdraw_interest", { p_interest_id: interestId });
-  if (error) return { ok: false, error: userMessage(error) };
+  if (error) return actionError(error);
   revalidatePath(`/opportunites/${opportunityId}`);
   revalidatePath("/dashboard/opportunites");
   return { ok: true, message: "Intérêt retiré." };
@@ -69,7 +69,7 @@ export async function submitProposal(_prev: ActionResult<{ id: string }> | null,
     p_valid_until: d.validUntil,
     p_additional_info: d.additionalInfo,
   });
-  if (error || !proposalId) return { ok: false, error: userMessage(error) };
+  if (error || !proposalId) return actionError(error);
 
   flushEmailsAfterResponse();
   revalidatePath(`/opportunites/${d.opportunityId}`);
@@ -80,7 +80,7 @@ export async function withdrawProposal(proposalId: string, opportunityId: string
   if (!uuid.safeParse(proposalId).success) return { ok: false, error: "Identifiant invalide." };
   const { supabase } = await ctx();
   const { error } = await supabase.rpc("withdraw_proposal", { p_proposal_id: proposalId });
-  if (error) return { ok: false, error: userMessage(error) };
+  if (error) return actionError(error);
   revalidatePath(`/opportunites/${opportunityId}`);
   revalidatePath("/dashboard/opportunites");
   return { ok: true, message: "Réponse retirée." };
@@ -96,7 +96,7 @@ export async function trackInPipeline(opportunityId: string): Promise<ActionResu
     { company_id: session.activeCompany.company.id, opportunity_id: opportunityId, stage: "DETECTED", updated_by: session.userId },
     { onConflict: "company_id,opportunity_id", ignoreDuplicates: true },
   );
-  if (error) return { ok: false, error: userMessage(error) };
+  if (error) return actionError(error);
   revalidatePath("/dashboard/pipeline");
   return { ok: true, message: "Ajoutée à votre pipeline." };
 }
@@ -122,7 +122,7 @@ export async function updatePipelineItem(_prev: ActionResult | null, fd: FormDat
   if (fd.has("nextActionAt")) patch.next_action_at = d.nextActionAt ?? null;
   if (fd.has("estimatedValue")) patch.estimated_value = d.estimatedValue ?? null;
   const { error } = await supabase.from("pipeline_items").update(patch).eq("id", d.id);
-  if (error) return { ok: false, error: userMessage(error) };
+  if (error) return actionError(error);
   revalidatePath("/dashboard/pipeline");
   revalidatePath("/dashboard");
   return { ok: true, message: "Pipeline mis à jour." };
@@ -139,7 +139,7 @@ export async function removePipelineItem(id: string): Promise<ActionResult> {
   if (!uuid.safeParse(id).success) return { ok: false, error: "Identifiant invalide." };
   const { supabase } = await ctx();
   const { error } = await supabase.from("pipeline_items").delete().eq("id", id);
-  if (error) return { ok: false, error: userMessage(error) };
+  if (error) return actionError(error);
   revalidatePath("/dashboard/pipeline");
   return { ok: true, message: "Retirée du pipeline." };
 }
@@ -158,7 +158,7 @@ export async function createReport(_prev: ActionResult | null, fd: FormData): Pr
     p_reason: parsed.data.reason,
     p_details: parsed.data.details ?? "",
   });
-  if (error) return { ok: false, error: userMessage(error) };
+  if (error) return actionError(error);
   return { ok: true, message: "Merci, votre signalement a été transmis à l'équipe de modération." };
 }
 
@@ -208,7 +208,7 @@ export async function createOpportunity(_prev: ActionResult<{ id: string; intent
     .single();
   if (error || !data) {
     logServerError("createOpportunity", error);
-    return { ok: false, error: userMessage(error) };
+    return actionError(error);
   }
   revalidatePath("/dashboard/opportunites");
   // Les documents sont ensuite envoyés directement au stockage par le navigateur.
@@ -229,12 +229,12 @@ export async function updateOpportunity(_prev: ActionResult<{ id: string; intent
   if (current.status === "REJECTED") {
     // Une publication refusée repasse en brouillon pour être corrigée puis resoumise.
     const { error: e } = await supabase.from("opportunities").update({ status: "DRAFT" }).eq("id", id);
-    if (e) return { ok: false, error: userMessage(e) };
+    if (e) return actionError(e);
     status = "DRAFT";
   }
   if (d.intent === "submit" && ["DRAFT", "CHANGES_REQUESTED"].includes(status)) status = "PENDING_REVIEW";
   const { error } = await supabase.from("opportunities").update({ ...toRow(d), status }).eq("id", id);
-  if (error) return { ok: false, error: userMessage(error) };
+  if (error) return actionError(error);
   revalidatePath(`/dashboard/opportunites/${id}`);
   revalidatePath(`/opportunites/${id}`);
   return { ok: true, data: { id, intent: d.intent } };
@@ -254,7 +254,7 @@ export async function changeOpportunityStatus(id: string, to: "PENDING_REVIEW" |
     }
   }
   const { error } = await supabase.from("opportunities").update({ status: to }).eq("id", id);
-  if (error) return { ok: false, error: userMessage(error) };
+  if (error) return actionError(error);
   revalidatePath(`/dashboard/opportunites/${id}`);
   revalidatePath("/dashboard/opportunites");
   const labels = { PENDING_REVIEW: "Envoyée en validation.", DRAFT: "Repassée en brouillon.", ARCHIVED: "Archivée." };
@@ -266,7 +266,7 @@ export async function deleteDraft(id: string): Promise<ActionResult> {
   const { supabase } = await ctx();
   const { data: docs } = await supabase.from("opportunity_documents").select("storage_path").eq("opportunity_id", id);
   const { error } = await supabase.from("opportunities").delete().eq("id", id).eq("status", "DRAFT");
-  if (error) return { ok: false, error: userMessage(error) };
+  if (error) return actionError(error);
   if (docs?.length) await supabase.storage.from("opportunity-documents").remove(docs.map((d) => d.storage_path));
   revalidatePath("/dashboard/opportunites");
   redirect("/dashboard/opportunites?supprime=1");
@@ -278,7 +278,7 @@ export async function deleteOpportunityDocument(docId: string, opportunityId: st
   const { data: doc } = await supabase.from("opportunity_documents").select("storage_path").eq("id", docId).maybeSingle();
   if (!doc) return { ok: false, error: "Document introuvable." };
   const { error } = await supabase.from("opportunity_documents").delete().eq("id", docId);
-  if (error) return { ok: false, error: userMessage(error) };
+  if (error) return actionError(error);
   await supabase.storage.from("opportunity-documents").remove([doc.storage_path]);
   revalidatePath(`/dashboard/opportunites/${opportunityId}`);
   return { ok: true, message: "Document supprimé." };
@@ -305,7 +305,7 @@ export async function closeOpportunity(_prev: ActionResult | null, fd: FormData)
     p_selected_proposal_id: d.outcome === "AWARDED" ? d.selectedProposalId : undefined,
     p_note: d.note ?? "",
   });
-  if (error) return { ok: false, error: userMessage(error) };
+  if (error) return actionError(error);
   flushEmailsAfterResponse();
   revalidatePath(`/dashboard/opportunites/${d.id}`);
   return { ok: true, message: "Consultation clôturée. Les fournisseurs ayant répondu ont été informés." };
@@ -339,7 +339,7 @@ export async function buyerDecision(_prev: ActionResult | null, fd: FormData): P
           p_status: d.status as Enums["proposal_status"],
           p_message: d.message ?? "",
         });
-  if (error) return { ok: false, error: userMessage(error) };
+  if (error) return actionError(error);
   flushEmailsAfterResponse();
   revalidatePath(`/dashboard/opportunites/${d.opportunityId}`);
   return { ok: true, message: "Décision enregistrée. Le fournisseur a été notifié." };
@@ -358,7 +358,7 @@ export async function saveEvaluation(_prev: ActionResult | null, fd: FormData): 
   const { supabase } = await ctx();
   const d = parsed.data;
   const { error } = await supabase.rpc("save_proposal_evaluation", { p_proposal_id: d.proposalId, p_score: (d.score ?? null) as unknown as number, p_note: d.note ?? "" });
-  if (error) return { ok: false, error: userMessage(error) };
+  if (error) return actionError(error);
   revalidatePath(`/dashboard/opportunites/${d.opportunityId}`);
   return { ok: true, message: "Évaluation enregistrée (visible uniquement par votre entreprise)." };
 }

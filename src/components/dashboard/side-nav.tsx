@@ -15,6 +15,7 @@ import {
   BellRing,
   PlusCircle,
   Sparkles,
+  CreditCard,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 
@@ -29,6 +30,7 @@ const LINKS = [
   { href: "/dashboard/notifications", label: "Notifications", icon: Bell },
   { href: "/dashboard/profil", label: "Profil", icon: User },
   { href: "/dashboard/entreprise", label: "Entreprise", icon: Building2 },
+  { href: "/dashboard/abonnement", label: "Mon abonnement", icon: CreditCard },
   { href: "/dashboard/parametres", label: "Paramètres", icon: Settings },
 ];
 

@@ -9,13 +9,13 @@ import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Textarea } from "@/components/ui/form";
 import { SubmitButton } from "@/components/ui/submit-button";
-import { Notice } from "@/components/ui/notice";
 import { useToast } from "@/components/ui/toast";
 import { OriginBadge } from "@/components/opportunities/opportunity-badge";
 import { DemoBadge } from "@/components/demo";
 import { PIPELINE_STAGES, type OpportunityOrigin, type OpportunityType, type PipelineStage } from "@/lib/constants";
 import { deadlineLabel, formatDate, formatMoney } from "@/lib/format";
 import { cn } from "@/lib/cn";
+import { ActionError } from "@/components/billing/upgrade-prompt";
 
 export type PipelineCard = {
   id: string;
@@ -193,7 +193,7 @@ function EditModal({ card, onClose }: { card: PipelineCard; onClose: () => void 
         <Field label="Valeur estimée (€ HT)" name="estimatedValue">
           {(p) => <Input {...p} type="number" min={0} step="100" defaultValue={card.estimated_value ?? ""} />}
         </Field>
-        {state && !state.ok && <Notice tone="error">{state.error}</Notice>}
+        <ActionError state={state} />
         <div className="flex justify-end gap-2">
           <Button variant="ghost" onClick={onClose}>
             Annuler

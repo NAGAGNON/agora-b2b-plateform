@@ -44,7 +44,7 @@ import { formatDate } from "@/lib/format";
 export const metadata = pageMetadata({
   title: "LinkProB2B — Trouvez le bon partenaire industriel en Bretagne",
   description:
-    "Identifiez des fournisseurs, découvrez des besoins et développez de nouvelles opportunités commerciales. Plateforme B2B en Bretagne.",
+    "Identifiez des fournisseurs, trouvez des prestataires, recevez des opportunités adaptées à votre activité et développez votre réseau professionnel en Bretagne.",
   path: "/",
 });
 
@@ -108,8 +108,17 @@ export default async function HomePage(props: PageProps<"/">) {
             Trouvez le bon partenaire industriel en <span className="text-teal">Bretagne</span>.
           </h1>
           <p className="mt-4 max-w-2xl text-base text-slate-200 sm:text-lg">
-            Identifiez des fournisseurs, découvrez des besoins et développez de nouvelles opportunités commerciales.
+            Identifiez des fournisseurs, trouvez des prestataires, recevez des opportunités adaptées à votre activité et développez votre réseau
+            professionnel.
           </p>
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+            <ButtonLink href="/inscription" size="lg">
+              Créer mon compte gratuitement
+            </ButtonLink>
+            <ButtonLink href="/tarifs" size="lg" variant="light">
+              Découvrir LinkProB2B Pro
+            </ButtonLink>
+          </div>
           <div className="mt-8 max-w-5xl">
             <SearchBar />
           </div>
@@ -276,10 +285,10 @@ export default async function HomePage(props: PageProps<"/">) {
             </p>
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
               <ButtonLink href="/inscription" size="lg">
-                Créer un compte gratuit
+                Créer mon compte gratuitement
               </ButtonLink>
-              <ButtonLink href="/comment-ca-marche" size="lg" variant="light">
-                Comment ça marche
+              <ButtonLink href="/tarifs" size="lg" variant="light">
+                Découvrir LinkProB2B Pro
               </ButtonLink>
             </div>
           </div>

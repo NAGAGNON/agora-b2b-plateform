@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState } from "react";
 import { sendContactMessage, unsubscribeAlert } from "@/app/actions/public";
 import { Field, Input, Select, Textarea } from "@/components/ui/form";
@@ -49,7 +50,11 @@ export function ContactForm({ defaultSubject, reference }: { defaultSubject?: st
         </label>
       </div>
       <p className="text-xs text-slate-500">
-        Vos coordonnées servent uniquement à répondre à votre message. Voir la politique de confidentialité.
+        Vos coordonnées servent uniquement à répondre à votre message. Voir la{" "}
+        <Link href="/confidentialite" className="underline hover:text-navy">
+          Politique de confidentialité
+        </Link>
+        .
       </p>
       {state && !state.ok && !fe && <Notice tone="error">{state.error}</Notice>}
       <SubmitButton>Envoyer</SubmitButton>

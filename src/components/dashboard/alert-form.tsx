@@ -6,6 +6,7 @@ import { Checkbox, Field, Input, Select } from "@/components/ui/form";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { Notice } from "@/components/ui/notice";
 import { ALERT_FREQUENCY_LABELS, COMPANY_SIZE_LABELS, OPPORTUNITY_TYPE_LABELS, type CompanySize, type SectorOption, type AlertFrequency, type OpportunityType } from "@/lib/constants";
+import { ActionError } from "@/components/billing/upgrade-prompt";
 
 export function AlertForm({ departments, places, sectors, defaults }: { departments: { code: string; name: string }[]; places: { name: string; slug: string; department_code: string }[]; sectors: SectorOption[]; defaults: { secteur?: string; departement?: string; type?: string; motscles?: string; lieu?: string; rayon?: string } }) {
   const [state, action] = useActionState(createAlert, null);
@@ -110,7 +111,8 @@ export function AlertForm({ departments, places, sectors, defaults }: { departme
       <div className="sm:col-span-2">
         <Checkbox name="includeExternal" defaultChecked label="Inclure les opportunités externes (marchés publics BOAMP, TED…)" hint="Décochez pour ne recevoir que les demandes publiées directement sur LinkProB2B." />
       </div>
-      {state && <Notice tone={state.ok ? "success" : "error"} className="sm:col-span-2">{state.ok ? state.message : state.error}</Notice>}
+      {state?.ok && <Notice tone="success" className="sm:col-span-2">{state.message}</Notice>}
+      <ActionError state={state} className="sm:col-span-2" />
       <div className="sm:col-span-2">
         <SubmitButton>Créer l&apos;alerte</SubmitButton>
       </div>

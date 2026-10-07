@@ -13,6 +13,7 @@ import { Notice } from "@/components/ui/notice";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { useToast } from "@/components/ui/toast";
 import type { InterestStatus, ProposalStatus } from "@/lib/constants";
+import { ActionError } from "@/components/billing/upgrade-prompt";
 
 type Props = {
   opportunityId: string;
@@ -157,7 +158,7 @@ export function InterestPanel(p: Props) {
           <Field label="Message au demandeur (facultatif)" name="message" hint="Présentez brièvement votre entreprise et votre capacité à répondre.">
             {(f) => <Textarea {...f} rows={5} maxLength={2000} />}
           </Field>
-          {state && !state.ok && <Notice tone="error">{state.error}</Notice>}
+          <ActionError state={state} />
           <div className="flex justify-end gap-2">
             <Button variant="ghost" onClick={() => setOpen(false)}>
               Annuler

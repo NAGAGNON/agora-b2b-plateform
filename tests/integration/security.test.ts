@@ -22,6 +22,8 @@ beforeAll(async () => {
   buyerCo = await company(buyer.client, "Acheteur", "BUYER");
   supplierCo = await company(supplier.client, "Fournisseur", "SUPPLIER");
   strangerCo = await company(stranger.client, "Tiers", "SUPPLIER");
+  // Le fournisseur a l'offre Pro (pipeline) ; l'acheteur et le tiers restent en Gratuit.
+  await admin.from("companies").update({ plan_code: "PRO" }).eq("id", supplierCo);
 });
 
 afterAll(cleanup);

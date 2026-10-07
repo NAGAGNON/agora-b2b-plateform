@@ -24,6 +24,8 @@ import {
 import { formatBudget, formatDate } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import type { ActionResult } from "@/lib/validation";
+import { ActionError } from "@/components/billing/upgrade-prompt";
+import { LegalNote } from "@/components/legal-note";
 
 export type WizardValues = {
   id?: string;
@@ -430,7 +432,8 @@ export function PublishWizard({
           {fe?.attest && <p className="text-sm text-red-600">{fe.attest}</p>}
         </section>
 
-        {state && !state.ok && (
+        {state && !state.ok && state.upgrade && <ActionError state={state} />}
+        {state && !state.ok && !state.upgrade && (
           <Notice tone="error" title="La publication n'a pas pu être enregistrée">
             {state.error}
             {fe && Object.keys(fe).length > 0 && (
@@ -466,6 +469,9 @@ export function PublishWizard({
                 <Send className="size-4" aria-hidden /> {uploading ? "Envoi des documents…" : pending ? "Envoi…" : "Soumettre à validation"}
               </Button>
             )}
+          </div>
+          <div className="mt-3">
+            <LegalNote>Chaque publication est modérée et doit respecter les règles de publication des</LegalNote>
           </div>
         </div>
       </form>

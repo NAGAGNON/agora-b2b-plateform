@@ -35,9 +35,10 @@ const COLUMNS = [
     title: "Informations légales",
     links: [
       { href: "/mentions-legales", label: "Mentions légales" },
-      { href: "/cgu", label: "Conditions d'utilisation" },
-      { href: "/confidentialite", label: "Confidentialité" },
-      { href: "/cookies", label: "Cookies" },
+      { href: "/cgu", label: "Conditions générales d'utilisation" },
+      { href: "/confidentialite", label: "Politique de confidentialité" },
+      { href: "/cookies", label: "Politique cookies" },
+      { href: "/conditions-abonnement", label: "Conditions d'abonnement" },
     ],
   },
 ];
@@ -45,7 +46,7 @@ const COLUMNS = [
 export function Footer() {
   return (
     <footer className="mt-auto bg-navy text-slate-300">
-      <div className="container-page grid gap-10 py-12 md:grid-cols-[1.4fr_repeat(4,1fr)]">
+      <div className="container-page grid gap-10 py-12 sm:grid-cols-2 lg:grid-cols-[1.4fr_repeat(4,1fr)]">
         <div>
           <Logo variant="white" />
           <p className="mt-3 max-w-xs text-sm">{SLOGAN}</p>
@@ -67,7 +68,15 @@ export function Footer() {
         ))}
       </div>
       <div className="border-t border-white/10">
-        <p className="container-page py-4 text-xs text-slate-400">© {new Date().getFullYear()} LinkProB2B.</p>
+        <div className="container-page flex flex-col gap-2 py-4 text-xs text-slate-400 sm:flex-row sm:items-center sm:justify-between">
+          <p>© {new Date().getFullYear()} LinkProB2B.</p>
+          <nav aria-label="Liens légaux" className="flex flex-wrap gap-x-4 gap-y-1">
+            <Link href="/mentions-legales" className="hover:text-white hover:underline">Mentions légales</Link>
+            <Link href="/cgu" className="hover:text-white hover:underline">CGU</Link>
+            <Link href="/confidentialite" className="hover:text-white hover:underline">Confidentialité</Link>
+            <Link href="/cookies" className="hover:text-white hover:underline">Cookies</Link>
+          </nav>
+        </div>
       </div>
     </footer>
   );

@@ -314,7 +314,7 @@ export type FieldErrors = Record<string, string>;
 
 export type ActionResult<T = undefined> =
   | { ok: true; message?: string; data?: T }
-  | { ok: false; error: string; fieldErrors?: FieldErrors };
+  | { ok: false; error: string; fieldErrors?: FieldErrors; /** Limite d'offre atteinte (clé) : l'interface propose de passer à Pro */ upgrade?: string };
 
 /** Convertit un FormData en objet ; les clés répétées deviennent des tableaux. */
 export function formDataToObject(fd: FormData): Record<string, unknown> {

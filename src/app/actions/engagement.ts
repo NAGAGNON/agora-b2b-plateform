@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { userMessage } from "@/lib/errors";
+import { actionError } from "@/lib/errors";
 import { alertSchema, parseForm, type ActionResult } from "@/lib/validation";
 
 async function currentUserId() {
@@ -29,7 +29,7 @@ export async function toggleFavorite(target: "opportunity" | "company", id: stri
   const { error } = await supabase
     .from("favorites")
     .insert(target === "opportunity" ? { user_id: userId, opportunity_id: id } : { user_id: userId, company_id: id });
-  if (error) return { ok: false, error: userMessage(error) };
+  if (error) return actionError(error);
   await supabase.rpc("track_event", { p_event_name: "save_favorite", p_properties: { target } });
   revalidatePath("/dashboard/favoris");
   return { ok: true, data: { favorited: true }, message: "Ajouté aux favoris." };
@@ -51,7 +51,7 @@ export async function saveSearch(_prev: ActionResult | null, fd: FormData): Prom
   const { error } = await supabase
     .from("saved_searches")
     .insert({ user_id: userId, name: parsed.data.name, scope: parsed.data.scope, query: params as { [key: string]: string } });
-  if (error) return { ok: false, error: userMessage(error) };
+  if (error) return actionError(error);
   revalidatePath("/dashboard/favoris");
   return { ok: true, message: "Recherche sauvegardée. Retrouvez-la dans vos favoris." };
 }
@@ -85,7 +85,7 @@ export async function createAlert(_prev: ActionResult | null, fd: FormData): Pro
     company_size: d.companySize ?? null,
     include_external: d.includeExternal,
   });
-  if (error) return { ok: false, error: userMessage(error) };
+  if (error) return actionError(error);
   await supabase.rpc("track_event", { p_event_name: "create_alert", p_properties: { frequency: d.frequency } });
   revalidatePath("/dashboard/alertes");
   return { ok: true, message: "Alerte créée." };
