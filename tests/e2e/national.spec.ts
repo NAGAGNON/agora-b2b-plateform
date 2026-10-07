@@ -37,3 +37,12 @@ test("mobile : pages nationales sans défilement horizontal", async ({ browser }
     expect(overflow, `${path} déborde`).toBeLessThanOrEqual(0);
   }
 });
+
+test("accueil : le nombre d'opportunités disponibles est celui de la page Opportunités", async ({ browser }) => {
+  const page = await newPage(browser);
+  await page.goto("/opportunites");
+  const listed = (await page.locator('p[aria-live="polite"] strong').first().textContent())!.replace(/\s/g, "");
+  await page.goto("/");
+  const pill = await page.getByText(/disponibles? aujourd'hui partout en France/).textContent();
+  expect(pill!.replace(/\s/g, "")).toContain(listed);
+});

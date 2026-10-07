@@ -34,7 +34,8 @@ import { OpportunityCard } from "@/components/opportunities/opportunity-card";
 import { ButtonLink } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/states";
 import { Notice } from "@/components/ui/notice";
-import { recentOpportunities } from "@/lib/queries/opportunities";
+import { recentOpportunities, searchOpportunities } from "@/lib/queries/opportunities";
+import { parseOpportunityFilters } from "@/lib/search-params";
 import { getSectors } from "@/lib/queries/platform";
 import { pageMetadata } from "@/lib/seo";
 import Image from "next/image";
@@ -75,19 +76,14 @@ const SECTOR_ICONS: Record<string, typeof Wrench> = {
 export default async function HomePage(props: PageProps<"/">) {
   const sp = await props.searchParams;
   const supabase = await createClient();
-  const nowIso = new Date().toISOString();
-  const [recent, sectors, { data: analyses }, { count: openCount }] = await Promise.all([
+  const [recent, sectors, { data: analyses }, { total: openTotal }] = await Promise.all([
     recentOpportunities(6),
     getSectors(),
     supabase.from("articles").select("slug, title, description, published_at").eq("status", "PUBLISHED").order("published_at", { ascending: false }).limit(3),
-    // Opportunités ouvertes aujourd'hui (réelles : hors démonstration, date limite non dépassée)
-    supabase
-      .from("opportunities")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "PUBLISHED")
-      .eq("is_demo", false)
-      .or(`response_deadline.is.null,response_deadline.gt.${nowIso}`),
+    // Même calcul que la page « Explorer les opportunités » (opportunités ouvertes)
+    searchOpportunities(parseOpportunityFilters({}), 1),
   ]);
+  const openCount = Number(openTotal);
   return (
     <>
       {sp.compte === "supprime" && (

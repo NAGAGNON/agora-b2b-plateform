@@ -80,6 +80,10 @@ export default function CookiesPage() {
                 <strong>Vercel Web Analytics :</strong> statistiques de fréquentation agrégées et anonymes, sans cookie et sans identifiant persistant (les
                 visiteurs ne sont pas suivis d&apos;un site à l&apos;autre ni d&apos;un jour à l&apos;autre).
               </p>
+              <p>
+                <strong>Vercel Speed Insights :</strong> mesure anonyme de la vitesse d&apos;affichage des pages (temps de chargement, réactivité), sans
+                cookie ni identifiant persistant, utilisée uniquement pour améliorer les performances du site.
+              </p>
             </>
           ),
         },
