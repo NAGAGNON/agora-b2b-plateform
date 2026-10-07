@@ -13,7 +13,7 @@ jobs:
           curl -sS -m 30 $B/analyses > a.html
           links=$(grep -o 'href="/analyses/[^"]*"' a.html | sort -u | sed 's/href="//;s/"//')
           echo "=== articles publiés:"; echo "$links"
-          for l in $(echo "$links" | head -3); do
+          for l in /analyses/marches-publics-en-ille-et-vilaine-128-opportunites-en-octobre-2026-2026-10; do
             echo; echo "################ $l"
             curl -sS -m 30 "$B$l" > p.html
             grep -o '"@type":"[A-Za-z]*"' p.html | sort -u | tr '\n' ' '; echo
@@ -24,6 +24,6 @@ jobs:
           t=re.sub(r'<script.*?</script>','',m.group(1) if m else s,flags=re.S)
           t=re.sub(r'<(h1|h2|h3|p|li)[^>]*>',r'\n[\1] ',t)
           t=html.unescape(re.sub(r'<[^>]+>','',t))
-          print(re.sub(r'\n\s*\n+','\n',t)[:6000])
+          print(re.sub(r'\n\s*\n+','\n',t)[:12000])
           PY
           done
