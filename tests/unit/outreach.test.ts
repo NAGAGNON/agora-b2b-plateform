@@ -193,9 +193,27 @@ describe("outreach — découverte (registre SIRENE)", () => {
     expect(JSON.stringify(c)).not.toContain("Dupont");
   });
 
+  it("retient l'établissement situé dans le département demandé, pas le siège", () => {
+    const c = mapApiCompany(
+      {
+        siren: "552081317",
+        nom_complet: "SNEF",
+        etat_administratif: "A",
+        siege: { siret: "55208131700010", code_postal: "13015", libelle_commune: "MARSEILLE", departement: "13", activite_principale: "43.21A", etat_administratif: "A", est_siege: true },
+        matching_etablissements: [
+          { siret: "55208131700099", code_postal: "29200", libelle_commune: "BREST", commune: "29019", activite_principale: "43.21A", etat_administratif: "A", est_siege: false },
+        ],
+      },
+      "29",
+    );
+    expect(c).toMatchObject({ department_code: "29", city: "BREST", siret: "55208131700099" });
+    // Aucun établissement actif dans le département : écartée
+    expect(mapApiCompany({ siren: "552081317", nom_complet: "SNEF", siege: { departement: "13", code_postal: "13015" } }, "29")).toBeNull();
+  });
+
   it("écarte les entreprises fermées et signale les entrepreneurs individuels", () => {
     expect(mapApiCompany({ siren: "123456789", nom_complet: "X", etat_administratif: "C" })).toBeNull();
     expect(mapApiCompany({ siren: "12", nom_complet: "X" })).toBeNull();
-    expect(mapApiCompany({ siren: "123456789", nom_complet: "JEAN DUPONT", nature_juridique: "1000" })?.is_individual_entrepreneur).toBe(true);
+    expect(mapApiCompany({ siren: "123456789", nom_complet: "JEAN DUPONT", nature_juridique: "1000", siege: { departement: "29", etat_administratif: "A" } })?.is_individual_entrepreneur).toBe(true);
   });
 });

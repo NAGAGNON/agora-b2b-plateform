@@ -26,6 +26,17 @@ export type DiscoveredCompany = {
   source_ref: string;
 };
 
+type ApiEstablishment = {
+  siret?: string | null;
+  code_postal?: string | null;
+  libelle_commune?: string | null;
+  commune?: string | null;
+  departement?: string | null;
+  activite_principale?: string | null;
+  etat_administratif?: string | null;
+  est_siege?: boolean | null;
+};
+
 type ApiCompany = {
   siren?: string;
   nom_complet?: string;
@@ -35,16 +46,23 @@ type ApiCompany = {
   nature_juridique?: string | null;
   etat_administratif?: string | null;
   complements?: { est_entrepreneur_individuel?: boolean | null } | null;
-  siege?: {
-    siret?: string | null;
-    code_postal?: string | null;
-    libelle_commune?: string | null;
-    commune?: string | null;
-    departement?: string | null;
-    activite_principale?: string | null;
-    etat_administratif?: string | null;
-  } | null;
+  siege?: ApiEstablishment | null;
+  /** Établissements correspondant aux filtres de la recherche (ex. le département demandé). */
+  matching_etablissements?: ApiEstablishment[] | null;
 };
+
+/** Département d'un établissement : champ fourni, sinon code commune INSEE, sinon code postal. */
+export function establishmentDepartment(e: ApiEstablishment | null | undefined): string | null {
+  if (!e) return null;
+  if (e.departement) return e.departement;
+  const insee = e.commune ?? "";
+  if (/^(97\d|2[AB])/.test(insee)) return insee.slice(0, 3).replace(/^(2[AB]).*/, "$1");
+  if (/^\d{5}$/.test(insee)) return insee.slice(0, 2);
+  const cp = e.code_postal ?? "";
+  if (/^97\d{3}$/.test(cp)) return cp.slice(0, 3);
+  if (/^\d{5}$/.test(cp) && !cp.startsWith("20")) return cp.slice(0, 2);
+  return null;
+}
 
 /** Tranches d'effectif INSEE → libellé. */
 const SIZE: Record<string, string> = {
@@ -53,23 +71,33 @@ const SIZE: Record<string, string> = {
   "41": "500 à 999 salariés", "42": "1 000 à 1 999 salariés", "51": "2 000 à 4 999 salariés", "52": "5 000 à 9 999 salariés", "53": "10 000 salariés et plus",
 };
 
-export function mapApiCompany(c: ApiCompany): DiscoveredCompany | null {
+/**
+ * Fiche professionnelle d'une entreprise. Lorsque `department` est indiqué, la
+ * localisation retenue est celle de l'établissement actif situé dans ce
+ * département (le siège peut être ailleurs) ; sans établissement local, l'entreprise
+ * est écartée : elle n'est pas réellement présente sur ce territoire.
+ */
+export function mapApiCompany(c: ApiCompany, department?: string): DiscoveredCompany | null {
   if (!c.siren || !/^\d{9}$/.test(c.siren)) return null;
-  if ((c.etat_administratif ?? "A") !== "A" || (c.siege?.etat_administratif ?? "A") !== "A") return null;
+  if ((c.etat_administratif ?? "A") !== "A") return null;
   const name = (c.nom_raison_sociale || c.nom_complet || "").trim();
   if (!name) return null;
+  const active = (e: ApiEstablishment | null | undefined) => Boolean(e) && (e!.etat_administratif ?? "A") === "A";
+  const candidates = [...(c.matching_etablissements ?? []), ...(c.siege ? [c.siege] : [])].filter(active);
+  const place = department ? candidates.find((e) => establishmentDepartment(e) === department) : candidates.find((e) => e.est_siege) ?? candidates[0];
+  if (!place) return null;
   const ei = Boolean(c.complements?.est_entrepreneur_individuel) || c.nature_juridique === "1000";
   return {
     name: name.slice(0, 200),
     siren: c.siren,
-    siret: c.siege?.siret && /^\d{14}$/.test(c.siege.siret) ? c.siege.siret : null,
-    naf_code: c.siege?.activite_principale ?? c.activite_principale ?? null,
-    city: c.siege?.libelle_commune ?? null,
-    postal_code: c.siege?.code_postal ?? null,
-    department_code: c.siege?.departement ?? null,
+    siret: place.siret && /^\d{14}$/.test(place.siret) ? place.siret : null,
+    naf_code: place.activite_principale ?? c.activite_principale ?? null,
+    city: place.libelle_commune ?? null,
+    postal_code: place.code_postal ?? null,
+    department_code: establishmentDepartment(place),
     size_range: c.tranche_effectif_salarie ? (SIZE[c.tranche_effectif_salarie] ?? null) : null,
     is_individual_entrepreneur: ei,
-    source_ref: `SIREN ${c.siren}`,
+    source_ref: `SIREN ${c.siren}${place.siret ? ` — établissement ${place.siret}` : ""}`,
   };
 }
 
@@ -87,6 +115,6 @@ export async function discoverCompanies(
   if (res.status === 429) throw new Error("Limite de requêtes de l'API atteinte (429)");
   if (!res.ok) throw new Error(`API Recherche d'entreprises : HTTP ${res.status}`);
   const body = (await res.json()) as { results?: ApiCompany[]; total_pages?: number };
-  const companies = (body.results ?? []).map(mapApiCompany).filter((c): c is DiscoveredCompany => c !== null);
+  const companies = (body.results ?? []).map((c) => mapApiCompany(c, department)).filter((c): c is DiscoveredCompany => c !== null);
   return { companies, totalPages: body.total_pages ?? 1 };
 }

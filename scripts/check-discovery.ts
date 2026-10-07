@@ -11,6 +11,11 @@ const cases: [string, string][] = [
   ["62.01Z", "69"],
 ];
 async function main() {
+  // Structure brute d'un résultat (sans les dirigeants) : aide au diagnostic si l'API évolue.
+  const raw = (await (await fetch("https://recherche-entreprises.api.gouv.fr/search?activite_principale=43.21A&departement=29&etat_administratif=A&per_page=1")).json()) as { results?: Record<string, unknown>[] };
+  const first = raw.results?.[0] ?? {};
+  console.log("Champs :", Object.keys(first).join(", "));
+  console.log("Établissement correspondant :", JSON.stringify((first.matching_etablissements as unknown[] | undefined)?.[0] ?? null));
   let failed = 0;
   for (const [naf, dept] of cases) {
     try {
