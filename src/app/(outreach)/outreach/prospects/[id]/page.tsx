@@ -4,7 +4,16 @@ import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, isUuid } from "@/lib/format";
 import { PageHead, Panel, PROSPECT_STATUS, RECIPIENT_STATUS, ScoreBadge, StatusBadge } from "@/components/outreach/ui";
-import { ProspectForm, ProspectStatusButtons } from "@/components/outreach/prospect-forms";
+import { EnrichButton, ProspectForm, ProspectStatusButtons } from "@/components/outreach/prospect-forms";
+
+const ENRICH_LABELS: Record<string, string> = {
+  PENDING: "Pas encore recherchée",
+  FOUND: "Adresse trouvée",
+  NO_WEBSITE: "Aucun site officiel identifié",
+  NO_EMAIL: "Site trouvé, mais aucune adresse générique publiée",
+  BLOCKED: "Le site refuse l'exploration automatique (respecté)",
+  ERROR: "Recherche en erreur",
+};
 import { Notice } from "@/components/ui/notice";
 
 export const metadata = { title: "Fiche entreprise" };
@@ -44,6 +53,18 @@ export default async function ProspectPage(props: PageProps<"/outreach/prospects
       {p.excluded_reason && (
         <Notice tone="warning" className="mb-6">
           {p.excluded_reason}
+        </Notice>
+      )}
+      {!p.email && (
+        <Notice tone="info" className="mb-6" title="Adresse e-mail à trouver">
+          <p>
+            {ENRICH_LABELS[p.enrichment_status] ?? p.enrichment_status}
+            {p.enriched_at ? ` (dernière recherche le ${formatDate(p.enriched_at)})` : ""}
+            {p.enrichment_note ? ` — ${p.enrichment_note}` : ""}.
+          </p>
+          <div className="mt-3">
+            <EnrichButton id={p.id} />
+          </div>
         </Notice>
       )}
       {p.is_individual_entrepreneur && (

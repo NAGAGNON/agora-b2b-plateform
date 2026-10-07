@@ -1,10 +1,10 @@
 "use client";
 
-import { Upload } from "lucide-react";
+import { Search, Upload } from "lucide-react";
 import { ActionForm } from "@/components/admin/action-form";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { Checkbox, Input, Label, Select, Textarea } from "@/components/ui/form";
-import { addSuppression, importProspects, removeSuppression, saveProspect, setProspectStatus } from "@/app/actions/outreach";
+import { addSuppression, enrichProspectNow, importProspects, removeSuppression, saveProspect, setProspectStatus } from "@/app/actions/outreach";
 
 type Prospect = {
   id?: string;
@@ -154,6 +154,16 @@ export function ProspectStatusButtons({ id, status }: { id: string; status: stri
         </ActionForm>
       )}
     </div>
+  );
+}
+
+export function EnrichButton({ id }: { id: string }) {
+  return (
+    <ActionForm action={enrichProspectNow} hidden={{ id }}>
+      <SubmitButton variant="secondary" size="sm" pendingLabel="Recherche…">
+        <Search className="size-4" aria-hidden /> Rechercher l&apos;adresse e-mail
+      </SubmitButton>
+    </ActionForm>
   );
 }
 

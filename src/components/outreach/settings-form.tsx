@@ -44,6 +44,15 @@ export function OutreachSettingsForm({ s }: { s: S }) {
         <Checkbox name="dry_run" defaultChecked={s.dry_run} label="Mode simulation (dry-run)" hint="Tout est préparé et suivi, mais aucun e-mail réel n'est envoyé." />
         <Checkbox name="require_validation" defaultChecked={s.require_validation} label="Validation manuelle de chaque campagne" hint="Décochez pour un fonctionnement entièrement automatique (la campagne du jour part après sa préparation)." />
         <Checkbox name="discovery_enabled" defaultChecked={s.discovery_enabled} label="Découverte automatique d'entreprises (registre public SIRENE)" hint="Ajoute les entreprises actives des métiers concernés dans le département de chaque opportunité. Cette source ne fournit pas d'e-mail." />
+        <Checkbox
+          name="enrichment_enabled"
+          defaultChecked={s.enrichment_enabled}
+          label="Recherche automatique des adresses e-mail"
+          hint="Site officiel (Brave Search ou Dropcontact), puis adresse générique (contact@, info@…) publiée sur la page Contact. Jamais d'adresse nominative ; robots.txt respecté."
+        />
+        <div className="max-w-xs">
+          <NumberField name="enrichment_daily_limit" label="Entreprises analysées par jour (recherche d'e-mail)" value={s.enrichment_daily_limit} min={0} max={5000} />
+        </div>
         <Checkbox name="include_individual_entrepreneurs" defaultChecked={s.include_individual_entrepreneurs} label="Inclure les entrepreneurs individuels" hint="Désactivé par défaut : leurs coordonnées sont des données personnelles (RGPD)." />
       </section>
       <section>

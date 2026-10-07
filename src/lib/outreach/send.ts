@@ -19,7 +19,7 @@ export async function sendOutreachEmail(msg: {
   idempotencyKey: string;
 }): Promise<SendResult> {
   const key = process.env.RESEND_API_KEY;
-  if (!key || process.env.OUTREACH_SEND_ENABLED !== "true") return { status: "SKIPPED", error: "Envoi réel non autorisé" };
+  if (!key || process.env.OUTREACH_SEND_ENABLED === "false") return { status: "SKIPPED", error: "Envoi réel non autorisé" };
   const fromAddress = process.env.OUTREACH_EMAIL_FROM?.trim() || (env.emailFrom.match(/<(.+)>/)?.[1] ?? env.emailFrom).replace(/^notifications@/, "veille@");
   const from = /</.test(fromAddress) ? fromAddress : `${msg.senderName.replace(/[<>"]/g, "")} <${fromAddress}>`;
   try {

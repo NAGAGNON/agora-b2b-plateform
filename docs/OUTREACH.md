@@ -35,20 +35,32 @@ Sources → LinkProB2B → nouvelles opportunités → Outreach → entreprises 
 
 ## Origine des adresses e-mail
 
-Outreach n'invente aucune adresse et ne collecte rien automatiquement sur des sites. Une entreprise devient
-contactable quand une adresse professionnelle d'origine autorisée est ajoutée :
+Outreach n'invente aucune adresse. Une entreprise devient contactable de trois façons :
+- **recherche automatique** (chaque jour, et bouton « Rechercher l'adresse e-mail » sur la fiche) :
+  1. site officiel trouvé via l'**API Brave Search** (`BRAVE_SEARCH_API_KEY`) ou **Dropcontact** (`DROPCONTACT_API_KEY`) —
+     services payants dont les conditions autorisent cet usage ; aucun moteur de recherche n'est lu sans API ;
+  2. lecture de l'accueil, de la page Contact et des mentions légales de **ce site uniquement**, agent identifié
+     (`LinkProB2B-Outreach/1.0`), **robots.txt respecté**, abandon si le site refuse (403, CAPTCHA, anti-robot) ;
+  3. seule une **adresse générique** de l'entreprise est retenue (contact@, info@, accueil@, devis@…), jamais une adresse
+     nominative ; l'origine (page consultée, date, service) est notée sur la fiche et rappelée dans l'e-mail ;
+  priorité aux entreprises sélectionnées sans e-mail de la campagne du jour, limite quotidienne réglable (100 par défaut) ;
 - import CSV (fichier B2B acquis légalement, export CRM, contacts de salon…) avec origine déclarée ;
 - saisie manuelle sur la fiche, avec l'origine de l'adresse.
 Les entreprises sélectionnées sans adresse apparaissent dans l'onglet « Sans e-mail » de chaque campagne.
 
-## Envoi réel : garde-fous (tous requis)
+## Envoi réel
+
+Par décision du propriétaire, Outreach fonctionne **en réel et automatiquement** (pas de simulation, pas de
+validation manuelle, SIRET non exigé).
 
 | Condition | Où |
 | --- | --- |
-| Mode simulation désactivé | Outreach → Paramètres |
-| `OUTREACH_SEND_ENABLED=true` | Vercel → variables d'environnement |
+| Mode simulation désactivé (par défaut) | Outreach → Paramètres |
 | `RESEND_API_KEY` | déjà utilisé par LinkProB2B |
-| Identification complète de l'expéditeur | `src/lib/legal.ts` (dénomination, forme, adresse, SIRET, contact) |
+| Coupure d'urgence : `OUTREACH_SEND_ENABLED=false` | Vercel → variables d'environnement |
+
+L'expéditeur est identifié dans chaque e-mail (LinkProB2B, site, page Contact ; dénomination, adresse et SIRET
+ajoutés automatiquement dès qu'ils sont renseignés dans `src/lib/legal.ts`).
 | Recommandé : `OUTREACH_EMAIL_FROM` | ex. `LinkProB2B Veille <veille@linkprob2b.com>` (domaine vérifié dans Resend) |
 | Facultatif : `OUTREACH_TOKEN_SECRET` | secret des liens personnalisés (sinon dérivé de la clé Supabase) |
 

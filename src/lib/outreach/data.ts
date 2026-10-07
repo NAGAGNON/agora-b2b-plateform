@@ -2,7 +2,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
 import { siteUrl } from "@/lib/seo";
-import { LEGAL, legalIncomplete } from "@/lib/legal";
+import { LEGAL } from "@/lib/legal";
 import { clip, formatDate } from "@/lib/format";
 import { fillTemplate, renderOutreachEmail, type EmailOpportunity } from "@/lib/outreach/email";
 import { recipientToken } from "@/lib/outreach/token";
@@ -62,7 +62,7 @@ export function senderLines(): string[] {
   const lines = [
     [LEGAL.companyName ?? LEGAL.brand, LEGAL.legalForm, LEGAL.siret ? `SIRET ${LEGAL.siret}` : null].filter(Boolean).join(" — "),
     LEGAL.address,
-    `${LEGAL.website.replace("https://", "")}${LEGAL.contactEmail ? ` · ${LEGAL.contactEmail}` : ""}`,
+    `${LEGAL.website.replace("https://", "")} · contact : ${LEGAL.contactEmail ?? `${LEGAL.website.replace("https://", "")}/contact`}`,
   ];
   return lines.filter((l): l is string => Boolean(l && l.trim()));
 }
@@ -71,9 +71,9 @@ export function senderLines(): string[] {
 export function realSendBlockers(settings: OutreachSettings): string[] {
   const out: string[] = [];
   if (settings.dry_run) out.push("Le mode simulation est activé (Paramètres).");
-  if (process.env.OUTREACH_SEND_ENABLED !== "true") out.push("L'envoi réel n'est pas autorisé sur le serveur (variable OUTREACH_SEND_ENABLED).");
+  // Interrupteur d'urgence côté serveur : OUTREACH_SEND_ENABLED=false coupe tout envoi réel.
+  if (process.env.OUTREACH_SEND_ENABLED === "false") out.push("L'envoi réel est coupé sur le serveur (variable OUTREACH_SEND_ENABLED=false).");
   if (!process.env.RESEND_API_KEY) out.push("Aucun fournisseur d'e-mail configuré (RESEND_API_KEY).");
-  if (legalIncomplete()) out.push("Les informations légales de l'expéditeur (dénomination, adresse, SIRET, contact) ne sont pas complètes.");
   return out;
 }
 

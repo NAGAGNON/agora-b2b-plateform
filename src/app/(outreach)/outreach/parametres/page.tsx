@@ -1,7 +1,6 @@
 import { CheckCircle2, XCircle } from "lucide-react";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { loadSettings, realSendBlockers, senderLines } from "@/lib/outreach/data";
-import { legalIncomplete } from "@/lib/legal";
 import { PageHead, Panel } from "@/components/outreach/ui";
 import { OutreachSettingsForm } from "@/components/outreach/settings-form";
 
@@ -12,10 +11,14 @@ export default async function OutreachSettingsPage() {
   const s = await loadSettings(createAdminClient());
   const checks = [
     { ok: !s.dry_run, label: "Mode simulation désactivé", hint: "Paramètres ci-dessous." },
-    { ok: process.env.OUTREACH_SEND_ENABLED === "true", label: "Envoi réel autorisé sur le serveur", hint: "Variable d'environnement OUTREACH_SEND_ENABLED=true (Vercel)." },
+    { ok: process.env.OUTREACH_SEND_ENABLED !== "false", label: "Envoi réel autorisé sur le serveur", hint: "Actif par défaut ; OUTREACH_SEND_ENABLED=false (Vercel) coupe tout envoi en urgence." },
     { ok: Boolean(process.env.RESEND_API_KEY), label: "Fournisseur d'e-mails configuré", hint: "RESEND_API_KEY (déjà utilisé par LinkProB2B)." },
+    {
+      ok: Boolean(process.env.BRAVE_SEARCH_API_KEY || process.env.DROPCONTACT_API_KEY),
+      label: "Recherche des adresses e-mail",
+      hint: "BRAVE_SEARCH_API_KEY (brave.com/search/api) et/ou DROPCONTACT_API_KEY (dropcontact.com) dans Vercel.",
+    },
     { ok: Boolean(process.env.OUTREACH_EMAIL_FROM), label: "Adresse d'expédition dédiée", hint: "OUTREACH_EMAIL_FROM, ex. « LinkProB2B Veille <veille@linkprob2b.com> » (recommandé ; à défaut veille@<domaine>)." },
-    { ok: !legalIncomplete(), label: "Identification complète de l'expéditeur", hint: "Dénomination, forme juridique, adresse, SIRET, contact : à renseigner dans les mentions légales." },
   ];
   const blockers = realSendBlockers(s);
   return (
