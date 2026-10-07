@@ -2,7 +2,7 @@ import { AuthShell } from "@/components/auth/auth-shell";
 import { ResetRequestForm } from "@/components/auth/forms";
 import { pageMetadata } from "@/lib/seo";
 
-export const metadata = pageMetadata({ title: "Mot de passe oublié", description: "Réinitialiser votre mot de passe.", path: "/mot-de-passe-oublie", noindex: true });
+export const metadata = pageMetadata({ title: "Mot de passe oublié", description: "Recevez par e-mail un lien sécurisé pour réinitialiser le mot de passe de votre compte LinkProB2B.", path: "/mot-de-passe-oublie", noindex: true });
 
 export default function ForgotPasswordPage() {
   return (

@@ -1,0 +1,25 @@
+name: Audit du site en production
+
+# Parcours en lecture seule de www.linkprob2b.com (pages, SEO, liens, mobile).
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "scripts/audit-site.mjs"
+      - ".github/workflows/audit.yml"
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: node scripts/audit-site.mjs https://www.linkprob2b.com 140
+        env:
+          SUMMARY: "1"

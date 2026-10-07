@@ -75,3 +75,22 @@ export const getPublicSources = cache(async () => {
   const { data } = await supabase.from("external_sources").select("code, name").eq("status", "APPROVED").not("code", "is", null).order("name");
   return (data ?? []).filter((s): s is { code: string; name: string } => Boolean(s.code));
 });
+
+export type PlatformStats = {
+  active: number;
+  new_24h: number;
+  new_7d: number;
+  regions: number;
+  departments: number;
+  last_sync_at: string | null;
+  sources: string[];
+  companies: number;
+};
+
+/** Indicateurs publics de fraîcheur (agrégats réels, jamais estimés). */
+export const getPlatformStats = cache(async (): Promise<PlatformStats | null> => {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("public_platform_stats");
+  if (error || !data) return null;
+  return data as unknown as PlatformStats;
+});

@@ -36,6 +36,17 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
   const supplier = company.kind !== "BUYER";
   const buyer = company.kind !== "SUPPLIER";
 
+  const [{ data: prof }, { data: comp }] = await Promise.all([
+    supabase.from("company_profiles").select("description, sectors, skills").eq("company_id", cid).maybeSingle(),
+    supabase.from("companies").select("city, department_code").eq("id", cid).maybeSingle(),
+  ]);
+  const missing = [
+    !prof?.sectors?.length && "vos secteurs d'activité",
+    !(comp?.city || comp?.department_code) && "votre localisation",
+    !prof?.skills?.length && "vos compétences et services (mots-clés)",
+    !(prof?.description && prof.description.length >= 30) && "une description de l'entreprise",
+  ].filter(Boolean) as string[];
+
   const [recommended, favs, alerts, interests, proposals, pipeline, myOpps, receivedInterests, receivedProposals, latestProposals] = await Promise.all([
     supplier ? supabase.rpc("recommended_opportunities", { p_company_id: cid, p_limit: 5, p_include_demo: await showDemoData() }) : null,
     supabase.from("favorites").select("id", { count: "exact", head: true }).eq("user_id", session.userId),
@@ -77,6 +88,14 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
           Votre entreprise est créée. Complétez son profil pour apparaître dans l&apos;annuaire et recevoir des recommandations pertinentes.{" "}
           <Link href="/dashboard/entreprise" className="font-semibold underline">
             Compléter le profil
+          </Link>
+        </Notice>
+      )}
+      {missing.length > 0 && !sp.bienvenue && (
+        <Notice tone="info" title="Complétez votre profil pour recevoir des opportunités adaptées à votre activité">
+          Il manque : {missing.join(", ")}. Ces informations servent aux recommandations, aux alertes et à votre visibilité dans l&apos;annuaire.{" "}
+          <Link href="/dashboard/entreprise" className="font-semibold underline">
+            Compléter mon profil
           </Link>
         </Notice>
       )}
@@ -133,7 +152,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
             <CardHeader
               title={
                 <span className="flex items-center gap-2">
-                  <Sparkles className="size-5 text-teal-600" aria-hidden /> Opportunités recommandées
+                  <Sparkles className="size-5 text-teal-600" aria-hidden /> Opportunités correspondant à votre activité
                 </span>
               }
               description="Selon les secteurs, la localisation et les compétences de votre profil."

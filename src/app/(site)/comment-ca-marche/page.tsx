@@ -5,7 +5,7 @@ import { PIPELINE_STAGES } from "@/lib/constants";
 
 export const metadata = pageMetadata({
   title: "Comment ça marche",
-  description: "Publier un besoin, trouver des opportunités, répondre, échanger et suivre son pipeline sur LinkProB2B.",
+  description: "Comment fonctionne LinkProB2B : opportunités actualisées chaque jour, recherche, alertes, publication de besoins, réponses, messagerie et pipeline.",
   path: "/comment-ca-marche",
 });
 
@@ -38,8 +38,10 @@ export default function HowItWorksPage() {
       </p>
       <h2>4. Opportunités externes</h2>
       <p>
-        Certaines opportunités proviennent de sources extérieures autorisées. Elles sont toujours signalées comme « Opportunité externe », avec la source et la
-        date de dernière vérification. La candidature se fait sur le site source : LinkProB2B ne transmet pas de candidature à leur place.
+        Les appels d&apos;offres publics proviennent de sources officielles (BOAMP, TED) et sont actualisés automatiquement chaque jour : nouvelles
+        annonces ajoutées, annonces modifiées mises à jour, doublons entre sources regroupés, opportunités expirées retirées des résultats actifs. Elles
+        sont toujours signalées comme « Opportunité externe », avec la source, la référence et la date de dernière actualisation. La candidature se fait
+        sur le site source : LinkProB2B n&apos;est pas l&apos;organisme qui publie ces marchés et ne transmet pas de candidature à votre place.
       </p>
       <h2>5. Échangez et suivez votre pipeline</h2>
       <p>
@@ -53,7 +55,7 @@ export default function HowItWorksPage() {
         <li>Signalement possible sur chaque fiche, chaque profil et chaque message.</li>
       </ul>
       <p>
-        <Link href="/inscription">Créer un compte gratuit</Link> · <Link href="/faq">Questions fréquentes</Link>
+        <Link href="/opportunites">Découvrir les opportunités</Link> · <Link href="/inscription">Créer mon profil gratuit</Link> · <Link href="/tarifs">Tarifs</Link> · <Link href="/faq">Questions fréquentes</Link>
       </p>
     </ContentPage>
   );

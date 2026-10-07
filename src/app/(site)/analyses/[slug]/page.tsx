@@ -10,6 +10,8 @@ import Image from "next/image";
 import type { ArticleBody } from "@/lib/articles";
 import { articleFigures, type ArticleFacts } from "@/lib/article-figures";
 import { BarChart, KeyFigures } from "@/components/article-charts";
+import { buttonClasses } from "@/components/ui/button";
+import { REGIONS } from "@/lib/geo";
 import { ARTICLE_AUTHOR } from "@/lib/seo";
 
 export const revalidate = 3600;
@@ -195,6 +197,32 @@ export default async function AnalysePage(
         {facts.date_des_donnees ? `, d'après les données publiées sur LinkProB2B au ${facts.date_des_donnees}` : ""}. Sources :{" "}
         {facts.sources ?? "BOAMP et TED"} Vérifiez toujours les conditions sur l&apos;avis officiel avant de répondre.
       </p>
+      <aside className="not-prose mt-8 rounded-2xl bg-sky p-6">
+        <p className="font-heading text-lg font-bold text-navy">Recevez les opportunités de votre secteur</p>
+        <p className="mt-1 text-sm text-slate-700">
+          Les opportunités citées sont actualisées chaque jour sur LinkProB2B. Créez votre profil pour être alerté des nouvelles publications
+          correspondant à votre activité et à votre zone.
+        </p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Link href={facts.page_de_la_plateforme ? internal(facts.page_de_la_plateforme) : "/opportunites"} className={buttonClasses({ size: "sm", className: "no-underline" })}>
+            Voir les opportunités correspondantes
+          </Link>
+          <Link href="/inscription" className={buttonClasses({ size: "sm", variant: "outline", className: "no-underline" })}>
+            Créer une alerte gratuite
+          </Link>
+        </div>
+        <p className="mt-4 text-sm text-slate-600">
+          Par région :{" "}
+          {REGIONS.slice(0, 13).map((r, i) => (
+            <span key={r.slug}>
+              {i > 0 && " · "}
+              <Link href={`/opportunites/${r.slug}`} className="text-teal-700 underline">
+                {r.name}
+              </Link>
+            </span>
+          ))}
+        </p>
+      </aside>
       <p>
         <Link href="/analyses">← Toutes les analyses</Link>
       </p>

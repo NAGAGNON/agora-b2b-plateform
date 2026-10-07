@@ -5,11 +5,12 @@ import { createClient } from "@/lib/supabase/server";
 import { pageMetadata } from "@/lib/seo";
 import { formatDate } from "@/lib/format";
 import { EmptyState } from "@/components/ui/states";
+import { REGIONS } from "@/lib/geo";
 
 export const revalidate = 3600;
 
 export const metadata = pageMetadata({
-  title: "Analyses des marchés publics en France",
+  title: "Analyses des marchés publics et appels d'offres",
   description:
     "Analyses des marchés publics et des besoins d'entreprises en France, par région, secteur et département, à partir des données BOAMP et TED.",
   path: "/analyses",
@@ -27,9 +28,31 @@ export default async function AnalysesPage() {
     <div className="container-page py-10 sm:py-14">
       <h1 className="text-3xl font-bold sm:text-4xl">Analyses des marchés</h1>
       <p className="mt-3 max-w-2xl text-lg text-slate-600">
-        Chaque analyse est établie à partir des opportunités réellement publiées
-        (BOAMP, TED et besoins des entreprises inscrites), à la date indiquée.
+        Chaque jour, une nouvelle analyse des marchés publics et des besoins
+        d&apos;entreprises : par région, par département, par secteur ou par
+        acheteur. Chaque chiffre est établi à partir des opportunités réellement
+        publiées (BOAMP, TED et besoins des entreprises inscrites), à la date
+        indiquée, avec des liens vers les opportunités concernées.
       </p>
+      <nav aria-label="Opportunités par région" className="mt-6">
+        <h2 className="text-sm font-bold tracking-wide text-slate-500 uppercase">
+          Explorer les opportunités par région
+        </h2>
+        <ul className="mt-3 flex flex-wrap gap-2 text-sm">
+          <li>
+            <Link href="/opportunites/france" className="inline-block rounded-full bg-navy px-3 py-1 font-semibold text-white">
+              France entière
+            </Link>
+          </li>
+          {REGIONS.map((r) => (
+            <li key={r.slug}>
+              <Link href={`/opportunites/${r.slug}`} className="inline-block rounded-full bg-sky px-3 py-1 text-navy hover:bg-sky-200">
+                {r.name}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </nav>
       {data && data.length > 0 ? (
         <ul className="mt-10 grid gap-4 md:grid-cols-2">
           {data.map((a) => (

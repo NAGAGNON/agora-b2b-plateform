@@ -36,7 +36,7 @@ export async function resolveLanding(slug: string, sub?: string): Promise<Landin
     return {
       kind: "region-sector",
       fixed: { region: region.slug, secteur: sector.slug },
-      title: `Opportunités ${sector.label.toLowerCase()} en ${region.name}`,
+      title: `${sector.label} : appels d'offres en ${region.name}`,
       heading: `${sector.label} — ${region.name}`,
       intro: `Appels d'offres, consultations et besoins d'entreprises en ${sector.label.toLowerCase()} dans la région ${region.name}.`,
       description: `Opportunités B2B et marchés publics en ${sector.label.toLowerCase()} en ${region.name} : appels d'offres, consultations et besoins d'entreprises, mis à jour chaque jour.`,
@@ -47,7 +47,7 @@ export async function resolveLanding(slug: string, sub?: string): Promise<Landin
     return {
       kind: "france",
       fixed: {},
-      title: "Opportunités B2B et appels d'offres en France",
+      title: "Appels d'offres et opportunités B2B en France",
       heading: "Opportunités B2B partout en France",
       intro: "Appels d'offres, marchés publics, consultations et besoins d'entreprises dans toutes les régions, métropole et outre-mer.",
       description: "Toutes les opportunités B2B en France : appels d'offres publics (BOAMP, TED), consultations et besoins d'entreprises, par région, département et secteur.",
@@ -60,7 +60,7 @@ export async function resolveLanding(slug: string, sub?: string): Promise<Landin
     return {
       kind: "region",
       fixed: { region: region.slug },
-      title: `Opportunités B2B et appels d'offres en ${region.name}`,
+      title: `Appels d'offres et marchés en ${region.name}`,
       heading: `Opportunités B2B en ${region.name}`,
       intro: `Appels d'offres, marchés publics, consultations et besoins d'entreprises dans la région ${region.name}.`,
       description: `Opportunités B2B en ${region.name} : appels d'offres publics, consultations et besoins d'entreprises, par département et par secteur, mis à jour chaque jour.`,
@@ -73,7 +73,7 @@ export async function resolveLanding(slug: string, sub?: string): Promise<Landin
     return {
       kind: "sector",
       fixed: { secteur: sector.slug },
-      title: `Opportunités ${sector.label.toLowerCase()} en France`,
+      title: `Appels d'offres ${sector.label.toLowerCase()} en France`,
       heading: `Opportunités — ${sector.label}`,
       intro: `Besoins publiés par des entreprises et marchés publics référencés dans le secteur ${sector.label.toLowerCase()}, partout en France.`,
       description: `Besoins d'entreprises, appels d'offres et consultations en ${sector.label.toLowerCase()} partout en France, par région et département.`,
@@ -90,7 +90,7 @@ function departmentLanding(dep: { code: string; name: string; slug: string; regi
   return {
     kind: "department",
     fixed: { departement: dep.code },
-    title: `Opportunités B2B — ${dep.name} (${dep.code})`,
+    title: `Appels d'offres ${dep.name} (${dep.code})`,
     heading: `Opportunités dans le département ${dep.name}`,
     intro: `Besoins publiés par des entreprises et marchés publics référencés dans le département ${dep.name} (${dep.code}).`,
     description: `Besoins d'entreprises, appels d'offres et opportunités professionnelles dans le département ${dep.name} (${dep.code}), ${dep.region}.`,

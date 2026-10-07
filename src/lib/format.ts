@@ -115,3 +115,16 @@ export function splitList(input: string | null | undefined, max = 30): string[] 
 export function isUuid(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 }
+
+/** Vrai si la date est dans les `days` derniers jours (badge « Nouveau »). */
+export function isRecent(value: string | null | undefined, days = 3): boolean {
+  return Boolean(value) && Date.now() - new Date(value!).getTime() < days * 86_400_000;
+}
+
+/** Tronque un texte à `max` caractères sur une limite de mot, avec « … ». */
+export function clip(text: string, max: number): string {
+  if (text.length <= max) return text;
+  const cut = text.slice(0, max - 1);
+  const space = cut.lastIndexOf(" ");
+  return `${(space > max * 0.6 ? cut.slice(0, space) : cut).replace(/[\s,;:.–—-]+$/, "")}…`;
+}

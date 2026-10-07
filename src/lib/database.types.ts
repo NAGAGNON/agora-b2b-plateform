@@ -1183,6 +1183,9 @@ isOneToOne: false
 "prepare_account_deletion":
 { Args: Record<PropertyKey, never>; Returns: number
                            },
+"public_platform_stats":
+{ Args: Record<PropertyKey, never>; Returns: Json
+                           },
 "purge_page_views":
 { Args: Record<PropertyKey, never>; Returns: number
                            },
