@@ -26,4 +26,4 @@ jobs:
       - run: npm ci
       - run: npm run sources:check -- --dump --candidates --places
         env:
-          CHECK_MAX: "1500"
+          CHECK_MAX: "500"

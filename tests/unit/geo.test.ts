@@ -38,3 +38,18 @@ describe("référentiel géographique national", () => {
     expect(slugify("Provence-Alpes-Côte d'Azur")).toBe("provence-alpes-cote-d-azur");
   });
 });
+
+describe("limitation de débit des sources", () => {
+  it("attend puis réessaie la même page après un HTTP 429", async () => {
+    const { collectTed } = await import("@/lib/collect/connectors");
+    let calls = 0;
+    const fetchImpl = async () => {
+      calls++;
+      if (calls === 1) return new Response("Too Many Requests", { status: 429, headers: { "Retry-After": "1" } });
+      return new Response(JSON.stringify({ totalNoticeCount: 0, notices: [] }), { status: 200 });
+    };
+    const r = await collectTed({ config: {}, since: new Date(), fetchImpl });
+    expect(calls).toBe(2);
+    expect(r.records).toEqual([]);
+  });
+});
