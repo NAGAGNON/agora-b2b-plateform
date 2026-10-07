@@ -10,12 +10,23 @@ export type ConnectorBatch = { records: unknown[]; mapped: MapResult[] };
 const USER_AGENT = "LinkProB2B/1.0 (plateforme B2B ; collecte de données ouvertes)";
 const TIMEOUT_MS = 25_000;
 
-async function getJson(fetchImpl: FetchLike, url: string, init: RequestInit = {}): Promise<unknown> {
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Requête JSON. Limitation de débit de la source (HTTP 429) : attente du délai
+ * indiqué (Retry-After, 30 s au plus) puis nouvelle tentative de la même page.
+ */
+async function getJson(fetchImpl: FetchLike, url: string, init: RequestInit = {}, attempt = 0): Promise<unknown> {
   const res = await fetchImpl(url, {
     ...init,
     headers: { Accept: "application/json", "User-Agent": USER_AGENT, ...(init.headers ?? {}) },
     signal: AbortSignal.timeout(TIMEOUT_MS),
   });
+  if (res.status === 429 && attempt < 4) {
+    const retryAfter = Number(res.headers.get("retry-after"));
+    await sleep(Math.min(Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 3000 * 2 ** attempt, 30_000));
+    return getJson(fetchImpl, url, init, attempt + 1);
+  }
   if (!res.ok) {
     const body = await res.text().catch(() => "");
     throw new Error(`HTTP ${res.status} sur ${new URL(url).host} : ${body.slice(0, 300)}`);
@@ -197,6 +208,8 @@ export async function collectTed(ctx: ConnectorContext): Promise<ConnectorBatch>
     const notices = data.notices ?? [];
     records.push(...notices);
     if (notices.length < 100 || records.length >= (data.totalNoticeCount ?? Infinity)) break;
+    // Respect de la limite de débit de l'API TED entre deux pages
+    await sleep(num(ctx.config.pageDelayMs, 1000, 10_000));
   }
   return { records, mapped: records.map((r) => mapTedNotice(r as Record<string, unknown>, nuts)) };
 }
