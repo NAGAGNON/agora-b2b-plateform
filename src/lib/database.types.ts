@@ -85,6 +85,19 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"articles": {
+                  Row: {
+                    "body": NonNullable<Json>,"created_at": string,"description": string,"facts": NonNullable<Json>,"id": string,"model": string | null,"published_at": string | null,"slug": string,"status": string,"title": string,"topic_key": string,"updated_at": string,"validation_note": string | null
+                  }
+                  Insert: {
+                    "body": NonNullable<Json>,"created_at"?: string,"description": string,"facts": NonNullable<Json>,"id"?: string,"model"?: string | null,"published_at"?: string | null,"slug": string,"status"?: string,"title": string,"topic_key": string,"updated_at"?: string,"validation_note"?: string | null
+                  }
+                  Update: {
+                    "body"?: NonNullable<Json>,"created_at"?: string,"description"?: string,"facts"?: NonNullable<Json>,"id"?: string,"model"?: string | null,"published_at"?: string | null,"slug"?: string,"status"?: string,"title"?: string,"topic_key"?: string,"updated_at"?: string,"validation_note"?: string | null
+                  }
+                  Relationships: [
+                    
+                  ]
                 },"audit_logs": {
                   Row: {
                     "action": string,"actor_user_id": string | null,"created_at": string,"entity_id": string | null,"entity_type": string,"id": number,"metadata": NonNullable<Json>
@@ -566,6 +579,19 @@ isOneToOne: false
                   Relationships: [
                     
                   ]
+                },"page_views": {
+                  Row: {
+                    "created_at": string,"device": string,"duration_ms": number,"id": number,"path": string,"referrer_host": string | null,"session_id": string
+                  }
+                  Insert: {
+                    "created_at"?: string,"device"?: string,"duration_ms"?: number,"id"?: never,"path": string,"referrer_host"?: string | null,"session_id": string
+                  }
+                  Update: {
+                    "created_at"?: string,"device"?: string,"duration_ms"?: number,"id"?: never,"path"?: string,"referrer_host"?: string | null,"session_id"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
                 },"pipeline_items": {
                   Row: {
                     "company_id": string,"created_at": string,"estimated_value": number | null,"id": string,"next_action": string | null,"next_action_at": string | null,"notes": string | null,"opportunity_id": string,"stage": Database["public"]['Enums']["pipeline_stage"],"updated_at": string,"updated_by": string | null
@@ -846,6 +872,9 @@ isOneToOne: false
             "accept_pending_invitations":
 { Args: Record<PropertyKey, never>; Returns: number
                            },
+"admin_audience_stats":
+{ Args: { "p_days"?: number }; Returns: Json
+                           },
 "admin_create_external_opportunity":
 { Args: { "p_city": string,"p_department_code": string,"p_description": string,"p_external_buyer_name": string,"p_external_id": string,"p_is_demo"?: boolean,"p_original_url": string,"p_response_deadline": string,"p_sector_slug": string,"p_source_id": string,"p_source_published_at": string,"p_summary": string,"p_title": string,"p_type": Database["public"]['Enums']["opportunity_type"] }; Returns: string
                            },
@@ -1066,6 +1095,9 @@ isOneToOne: false
 { Args: { "p_stage": Database["public"]['Enums']["pipeline_stage"] }; Returns: number
                            },
 "prepare_account_deletion":
+{ Args: Record<PropertyKey, never>; Returns: number
+                           },
+"purge_page_views":
 { Args: Record<PropertyKey, never>; Returns: number
                            },
 "recommended_opportunities":

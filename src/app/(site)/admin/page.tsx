@@ -3,6 +3,7 @@ import { requireStaff } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { DashboardCard, Card, CardHeader } from "@/components/ui/card";
 import { Notice } from "@/components/ui/notice";
+import { AudiencePanel, PERIODS, type AudienceStats } from "@/components/admin/audience-panel";
 
 export const metadata = { title: "Vue d'ensemble" };
 
@@ -16,7 +17,11 @@ export default async function AdminHome(props: PageProps<"/admin">) {
   await requireStaff();
   const sp = await props.searchParams;
   const supabase = await createClient();
-  const { data } = await supabase.rpc("admin_stats");
+  const period = PERIODS.find((p) => String(p) === sp.periode) ?? 30;
+  const [{ data }, { data: audience }] = await Promise.all([
+    supabase.rpc("admin_stats"),
+    supabase.rpc("admin_audience_stats", { p_days: period }),
+  ]);
   const s = (data ?? {}) as Stats;
   return (
     <div className="space-y-8">
@@ -44,6 +49,11 @@ export default async function AdminHome(props: PageProps<"/admin">) {
             </Link>
           )}
         </Notice>
+      )}
+      {audience ? (
+        <AudiencePanel stats={audience as unknown as AudienceStats} period={period} />
+      ) : (
+        <Notice tone="error">Mesure d&apos;audience indisponible.</Notice>
       )}
       <section>
         <h2 className="mb-3 text-lg font-bold">Utilisateurs et entreprises</h2>

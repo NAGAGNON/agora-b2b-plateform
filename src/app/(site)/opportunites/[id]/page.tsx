@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { JsonLd, breadcrumbLd } from "@/components/json-ld";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import {
@@ -90,6 +91,12 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
     const title = landing.kind === "sector" ? `Opportunités — ${landing.label}` : `Opportunités dans le département ${landing.name}`;
     return (
       <div className="container-page py-8 sm:py-10">
+        <JsonLd
+          data={breadcrumbLd([
+            { name: "Opportunités", path: "/opportunites" },
+            { name: landing.kind === "sector" ? landing.label : landing.name, path: `/opportunites/${id}` },
+          ])}
+        />
         <nav aria-label="Fil d'Ariane" className="mb-3 text-sm text-slate-500">
           <Link href="/opportunites" className="hover:underline">
             Opportunités
@@ -140,10 +147,18 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
           : null;
   const budget = o.budget_visible ? formatBudget(o.budget_min, o.budget_max) : null;
   const deadline = deadlineLabel(o.response_deadline);
+  const crumbSector = o.sector_slug ? sectorLabel(o.sector_slug, await getSectorLabels()) : null;
 
   return (
     <div className="bg-slate-50/60">
       <div className="container-page py-6 sm:py-10">
+        <JsonLd
+          data={breadcrumbLd([
+            { name: "Opportunités", path: "/opportunites" },
+            ...(o.sector_slug && crumbSector ? [{ name: crumbSector, path: `/opportunites/${o.sector_slug}` }] : []),
+            { name: o.title, path: `/opportunites/${o.id}` },
+          ])}
+        />
         <nav aria-label="Fil d'Ariane" className="mb-4 text-sm text-slate-500">
           <Link href="/opportunites" className="hover:underline">
             Opportunités
@@ -152,7 +167,7 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
             <>
               {" / "}
               <Link href={`/opportunites/${o.sector_slug}`} className="hover:underline">
-                {sectorLabel(o.sector_slug, await getSectorLabels())}
+                {crumbSector}
               </Link>
             </>
           )}

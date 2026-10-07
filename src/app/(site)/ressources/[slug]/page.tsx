@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { GUIDES } from "@/content/guides";
 import { ContentPage } from "@/components/content-page";
 import { pageMetadata } from "@/lib/seo";
+import { JsonLd, articleLd, breadcrumbLd } from "@/components/json-ld";
 
 export function generateStaticParams() {
   return GUIDES.map((g) => ({ slug: g.slug }));
@@ -21,6 +22,15 @@ export default async function GuidePage(props: PageProps<"/ressources/[slug]">) 
   if (!g) notFound();
   return (
     <ContentPage title={g.title} intro={g.description}>
+      <JsonLd
+        data={[
+          articleLd({ title: g.title, description: g.description, path: `/ressources/${g.slug}` }),
+          breadcrumbLd([
+            { name: "Ressources", path: "/ressources" },
+            { name: g.title, path: `/ressources/${g.slug}` },
+          ]),
+        ]}
+      />
       {g.sections.map((s) => (
         <section key={s.heading}>
           <h2>{s.heading}</h2>
