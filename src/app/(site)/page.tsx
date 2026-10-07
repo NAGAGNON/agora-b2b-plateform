@@ -37,6 +37,9 @@ import { Notice } from "@/components/ui/notice";
 import { recentOpportunities } from "@/lib/queries/opportunities";
 import { getSectors } from "@/lib/queries/platform";
 import { pageMetadata } from "@/lib/seo";
+import Image from "next/image";
+import { createClient } from "@/lib/supabase/server";
+import { formatDate } from "@/lib/format";
 
 export const metadata = pageMetadata({
   title: "LinkProB2B — Trouvez le bon partenaire industriel en Bretagne",
@@ -71,7 +74,12 @@ const SECTOR_ICONS: Record<string, typeof Wrench> = {
 
 export default async function HomePage(props: PageProps<"/">) {
   const sp = await props.searchParams;
-  const [recent, sectors] = await Promise.all([recentOpportunities(6), getSectors()]);
+  const supabase = await createClient();
+  const [recent, sectors, { data: analyses }] = await Promise.all([
+    recentOpportunities(6),
+    getSectors(),
+    supabase.from("articles").select("slug, title, description, published_at").eq("status", "PUBLISHED").order("published_at", { ascending: false }).limit(3),
+  ]);
   return (
     <>
       {sp.compte === "supprime" && (
@@ -159,6 +167,39 @@ export default async function HomePage(props: PageProps<"/">) {
           )}
         </div>
       </section>
+
+      {/* Dernières analyses de marché */}
+      {analyses && analyses.length > 0 && (
+        <section className="container-page pb-14 sm:pb-16" aria-labelledby="analyses">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <h2 id="analyses" className="text-2xl font-bold sm:text-3xl">
+                Analyses des marchés
+              </h2>
+              <p className="mt-1 text-slate-600">Chaque jour, une analyse par secteur ou département, établie à partir des avis BOAMP et TED.</p>
+            </div>
+            <ButtonLink href="/analyses" variant="outline">
+              Toutes les analyses <ArrowRight className="size-4" aria-hidden />
+            </ButtonLink>
+          </div>
+          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {analyses.map((a) => (
+              <Link
+                key={a.slug}
+                href={`/analyses/${a.slug}`}
+                className="group flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:border-teal hover:shadow-md"
+              >
+                <Image src={`/visuels/analyses/${a.slug}`} alt="" width={1200} height={630} unoptimized className="h-auto w-full border-b border-slate-100" />
+                <div className="flex flex-1 flex-col p-5">
+                  {a.published_at && <p className="text-xs text-slate-500">{formatDate(a.published_at)}</p>}
+                  <h3 className="mt-1 font-bold text-navy group-hover:text-teal-700">{a.title}</h3>
+                  <p className="mt-2 line-clamp-3 text-sm text-slate-600">{a.description}</p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Secteurs */}
       <section className="bg-sky py-14 sm:py-16" aria-labelledby="secteurs">

@@ -6,6 +6,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { siteUrl } from "@/lib/seo";
 import { logServerError } from "@/lib/errors";
 import type { Json } from "@/lib/database.types";
+import { mergeNames } from "@/lib/article-figures";
 
 /**
  * Analyses de marché rédigées automatiquement à partir des opportunités réellement
@@ -130,12 +131,13 @@ function buildFacts(t: Topic, ctx: Awaited<ReturnType<typeof loadContext>>) {
     date_des_donnees: dateFmt.format(new Date()),
     opportunites_ouvertes: t.opps.length,
     dont_marches_publics_externes: t.opps.filter((o) => o.origin === "EXTERNAL").length,
-    dont_besoins_publies_par_des_entreprises: t.opps.filter((o) => o.origin === "INTERNAL").length,
+    // Omis lorsqu'il vaut 0 (évite les tournures du type « aucun besoin (0) »)
+    dont_besoins_publies_par_des_entreprises: t.opps.filter((o) => o.origin === "INTERNAL").length || undefined,
     date_limite_dans_les_30_jours: t.opps.filter((o) => o.response_deadline && Date.parse(o.response_deadline) < in30).length,
     par_type: countBy(t.opps, (o) => o.type, (k) => ctx.types.get(k) ?? k),
     par_departement: t.kind === "secteur" ? countBy(t.opps, (o) => o.department_code, (k) => ctx.departments.get(k)?.name ?? k) : undefined,
     par_secteur: t.kind === "departement" ? countBy(t.opps, (o) => o.sector_slug, (k) => ctx.sectors.get(k) ?? k) : undefined,
-    principaux_acheteurs: countBy(t.opps, (o) => o.external_buyer_name, undefined, 6),
+    principaux_acheteurs: mergeNames(countBy(t.opps, (o) => o.external_buyer_name, undefined, 20), 6),
     prochaines_dates_limites: upcoming.map((o) => ({
       intitule: o.title,
       acheteur: o.external_buyer_name,
@@ -164,7 +166,9 @@ Règles absolues :
 - Si une information n'est pas dans les faits, ne l'évoque pas.
 - Pas de conseil juridique personnalisé ; des conseils pratiques généraux pour répondre à un marché sont permis, sans chiffres.
 - Ton neutre et factuel, pas de superlatifs ni de promesses.
-- Mentionne que les données proviennent de BOAMP et TED et qu'elles sont à jour à la date indiquée.`;
+- Mentionne que les données proviennent de BOAMP et TED et qu'elles sont à jour à la date indiquée.
+- N'écris aucune adresse web : les liens sont ajoutés automatiquement sous l'article.
+- Des graphiques (répartition, principaux acheteurs) et une couverture sont générés automatiquement à partir des mêmes faits : commente-les en mots, sans tableau.`;
 
 async function writeArticle(facts: ReturnType<typeof buildFacts>) {
   const client = new Anthropic();
@@ -201,7 +205,9 @@ export async function generateArticles(count: number, opts: { autoPublish: boole
       const lengthOk = article.title.length >= 10 && article.title.length <= 160 && article.description.length >= 30 && article.description.length <= 300;
       const note = unknown.length ? `Chiffres absents des données : ${unknown.join(", ")}` : lengthOk ? null : "Titre ou description hors limites";
       const publish = opts.autoPublish && !note;
-      const slug = `${slugify(article.title)}-${t.key.split(":").at(-1)}`;
+      const month = t.key.split(":").at(-1)!;
+      const base = slugify(article.title);
+      const slug = base.includes(month.slice(0, 4)) ? base : `${base}-${month}`;
       const { error } = await db.from("articles").insert({
         slug,
         topic_key: t.key,

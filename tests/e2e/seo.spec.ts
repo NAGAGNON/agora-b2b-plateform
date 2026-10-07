@@ -20,7 +20,18 @@ test.beforeAll(async () => {
       sections: [{ heading: "Vue d'ensemble", paragraphs: ["Données BOAMP et TED."] }],
       faq: [{ question: "D'où viennent les données ?", answer: "Des avis officiels BOAMP et TED." }],
     },
-    facts: { date_des_donnees: "7 octobre 2026", prochaines_dates_limites: [], sources: "BOAMP et TED." },
+    facts: {
+      theme: "Département : Finistère",
+      periode: "octobre 2026",
+      date_des_donnees: "7 octobre 2026",
+      opportunites_ouvertes: 6,
+      dont_marches_publics_externes: 6,
+      date_limite_dans_les_30_jours: 4,
+      par_secteur: [{ name: "Informatique", count: 4 }, { name: "Nettoyage", count: 2 }],
+      principaux_acheteurs: [{ name: "REGION BRETAGNE", count: 2 }, { name: "Région Bretagne", count: 1 }, { name: "Ville de Brest", count: 1 }],
+      prochaines_dates_limites: [],
+      sources: "BOAMP et TED.",
+    },
     status: "PUBLISHED",
     published_at: new Date().toISOString(),
   });
@@ -42,9 +53,18 @@ test("SEO : analyses publiées, données structurées, sitemap et clé IndexNow"
   await page.getByRole("link", { name: new RegExp(`Analyse E2E ${RUN}`) }).click();
   await expect(page.getByRole("heading", { level: 1 })).toContainText(`Analyse E2E ${RUN}`);
   await expect(page.getByText(/rédigée avec l'aide d'une intelligence artificielle/)).toBeVisible();
+  // Couverture générée et graphiques issus des données (libellés fusionnés : Région Bretagne = 3)
+  const cover = await page.request.get(`/visuels/analyses/${slug}`);
+  expect(cover.status()).toBe(200);
+  expect(cover.headers()["content-type"]).toContain("image/png");
+  await expect(page.getByRole("img", { name: /opportunités ouvertes/ })).toBeVisible();
+  await expect(page.locator("figcaption", { hasText: "Opportunités par secteur" })).toBeVisible();
+  await expect(page.getByRole("row", { name: /Région Bretagne 3 consultations/ })).toBeAttached();
   const types = (await jsonLd(page)).map((d) => d["@type"]);
   expect(types).toEqual(expect.arrayContaining(["Organization", "WebSite", "Article", "BreadcrumbList", "FAQPage"]));
 
+  await page.goto("/");
+  await expect(page.getByRole("heading", { name: "Analyses des marchés" })).toBeVisible();
   await page.goto("/faq");
   expect((await jsonLd(page)).map((d) => d["@type"])).toContain("FAQPage");
   await page.goto("/opportunites");
