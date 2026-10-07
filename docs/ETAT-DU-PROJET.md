@@ -7,7 +7,7 @@ Légende : 🟢 terminé et fonctionnel · 🟡 nécessite une information ou un
 | | Où |
 |---|---|
 | **Application interactive (staging)** | URL publiée dans l'issue « Prévisualisation LinkProB2B » et dans l'onglet **Deployments** du dépôt. Elle est relancée à chaque commit marqué `[preview]` ou via **Actions → Prévisualisation → Run workflow**, et reste en ligne 5 h 30 au plus. |
-| **Production** | après fusion de la PR vers `main` et un clic sur « Deploy with Vercel » ([DEPLOIEMENT.md](DEPLOIEMENT.md)) |
+| **Production** | https://www.linkprob2b.com (Vercel + Supabase, en ligne depuis le 7 octobre 2026 ; 355 opportunités réelles BOAMP/TED à la mise en ligne) |
 | Aperçu statique (archive) | artefact claude.ai, 27 écrans |
 
 ## 🟢 Terminé et fonctionnel
