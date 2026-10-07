@@ -173,8 +173,10 @@ export async function runSource(
   if (opts.trigger === "test") {
     // Test de configuration : aucune écriture d'opportunité, retour d'un échantillon.
     for (const m of batch.mapped) if (!m.ok) { stats.skipped++; if (stats.errors.length < 10) stats.errors.push(m.reason); }
+    const okCount = batch.mapped.filter((m) => m.ok).length;
     const sample = batch.mapped.filter((m) => m.ok).slice(0, 5).map((m) => (m.ok ? m.item : null));
-    return finish(stats.skipped && !sample.length ? "FAILED" : "SUCCESS", { records: batch.records.slice(0, 2), mapped: sample } as unknown as Json);
+    // Majorité d'annonces écartées : test « partiel » (la correspondance des champs est à revoir)
+    return finish(!okCount && stats.skipped ? "FAILED" : stats.skipped > okCount ? "PARTIAL" : "SUCCESS", { records: batch.records.slice(0, 2), mapped: sample } as unknown as Json);
   }
 
   const [{ data: sectorRows }, { data: deptRows }] = await Promise.all([
@@ -333,6 +335,12 @@ export async function runSource(
 export async function runDueSources(opts: { force?: boolean; budgetMs?: number; fetchImpl?: FetchLike; retryDelays?: number[]; codes?: string[] } = {}) {
   const startedAt = Date.now();
   const db = createAdminClient();
+  // Collectes interrompues (fin de processus, délai dépassé) : clôturées comme en échec
+  await db
+    .from("source_sync_runs")
+    .update({ status: "FAILED", finished_at: new Date().toISOString(), errors: ["Synchronisation interrompue avant la fin (délai d'exécution dépassé ?) : nouvelle tentative au passage suivant."] })
+    .eq("status", "RUNNING")
+    .lt("started_at", new Date(Date.now() - 30 * 60_000).toISOString());
   const { data: sources } = await db.from("external_sources").select("*").eq("is_active", true).eq("status", "APPROVED").neq("connector", "manual");
   const now = new Date();
   const results: { source: string; status: string; created: number; updated: number; duplicates: number; errors: number }[] = [];

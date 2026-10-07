@@ -108,6 +108,14 @@ describe("synchronisation nationale", () => {
     expect(data?.last_error).toMatch(/HTTP 500/);
   });
 
+  it("une synchronisation interrompue ne reste pas « En cours »", async () => {
+    const { data: run } = await admin.from("source_sync_runs").insert({ source_id: bo.id, trigger: "cron", started_at: new Date(Date.now() - 2 * 3600_000).toISOString() }).select("id").single();
+    await runDueSources({ codes: [] });
+    const { data } = await admin.from("source_sync_runs").select("status, errors").eq("id", run!.id).single();
+    expect(data?.status).toBe("FAILED");
+    expect(JSON.stringify(data?.errors)).toMatch(/interrompue/);
+  });
+
   it("une opportunité dont la date limite est dépassée passe en « Expirée » et sort des résultats actifs", async () => {
     const { data: o } = await admin.from("opportunities").select("id").eq("external_reference", `${T}-1`).single();
     await admin.from("opportunities").update({ response_deadline: new Date(Date.now() - 3600_000).toISOString() }).eq("id", o!.id);
