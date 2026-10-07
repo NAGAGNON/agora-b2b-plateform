@@ -53,7 +53,7 @@ export default async function AdminReferencesPage() {
                   <td className="px-5 py-3">
                     <div className="flex flex-wrap gap-1">
                       {s.is_active ? <Badge tone="green">Actif</Badge> : <Badge tone="slate">Inactif</Badge>}
-                      {s.is_pilot_priority && <Badge tone="teal">Pilote</Badge>}
+                      {s.is_pilot_priority && <Badge tone="teal">Prioritaire</Badge>}
                     </div>
                   </td>
                   <td className="px-5 py-3 text-right">

@@ -64,7 +64,7 @@ export default async function AdminSettingsPage() {
           <SettingToggle settingKey="security" value={s.security ?? {}} field="admin_mfa_required" label="Double authentification obligatoire pour l'administration" hint="Activez-la seulement après avoir configuré votre propre 2FA (Paramètres du compte)." />
           <div className="py-3 text-sm text-slate-600">
             <p className="font-semibold text-navy">Modération</p>
-            <p>Toutes les publications internes passent par la modération pendant le pilote (règle appliquée en base de données).</p>
+            <p>Toutes les publications internes passent par la modération (règle appliquée en base de données).</p>
           </div>
         </div>
       </Card>
@@ -80,7 +80,7 @@ export default async function AdminSettingsPage() {
         </div>
       </Card>
       <Card>
-        <CardHeader title="Zone pilote" />
+        <CardHeader title="Zone de lancement" />
         <pre className="overflow-x-auto p-5 text-xs text-slate-600">{JSON.stringify(s.pilot ?? {}, null, 2)}</pre>
       </Card>
     </div>

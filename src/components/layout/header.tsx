@@ -15,6 +15,7 @@ export const PUBLIC_NAV = [
   { href: "/opportunites", label: "Explorer les opportunités" },
   { href: "/publier", label: "Publier un besoin" },
   { href: "/entreprises", label: "Annuaire" },
+  { href: "/analyses", label: "Analyses", wide: true },
   { href: "/ressources", label: "Ressources" },
 ];
 
@@ -62,7 +63,8 @@ export async function Header() {
         <nav aria-label="Navigation principale" className="ml-4 hidden items-center gap-1 lg:flex">
           {session && <NavLink href="/dashboard">Tableau de bord</NavLink>}
           {PUBLIC_NAV.map((l) => (
-            <NavLink key={l.href} href={l.href}>
+            // Lien « Analyses » affiché à partir de 1280 px dans la barre (toujours présent dans le menu mobile et le pied de page)
+            <NavLink key={l.href} href={l.href} className={"wide" in l ? "hidden xl:inline-block" : undefined}>
               {l.label}
             </NavLink>
           ))}

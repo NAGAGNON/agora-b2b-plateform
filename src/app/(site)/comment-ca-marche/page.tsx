@@ -14,7 +14,7 @@ export default function HowItWorksPage() {
     <ContentPage title="Comment ça marche" intro="LinkProB2B connecte les entreprises qui ont un besoin avec les entreprises capables d'y répondre.">
       <h2>1. Créez votre compte et le profil de votre entreprise</h2>
       <p>
-        L&apos;inscription est gratuite pendant le pilote. Le profil de l&apos;entreprise (secteurs, compétences, zone d&apos;intervention) apparaît dans
+        L&apos;inscription est gratuite. Le profil de l&apos;entreprise (secteurs, compétences, zone d&apos;intervention) apparaît dans
         l&apos;annuaire si vous le souhaitez et sert aux recommandations d&apos;opportunités. Plusieurs collègues peuvent rejoindre la même entreprise.
       </p>
       <h2>2. Côté demandeur : publiez un besoin</h2>

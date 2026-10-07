@@ -21,7 +21,7 @@ export default function PrivacyPage() {
         <li>Fourniture du service de mise en relation — exécution du contrat (CGU) ;</li>
         <li>Sécurité, prévention des abus, modération — intérêt légitime ;</li>
         <li>Notifications et alertes par e-mail — exécution du contrat, désactivables à tout moment ;</li>
-        <li>Informations sur le pilote — consentement (case facultative) ;</li>
+        <li>Actualités de LinkProB2B — consentement (case facultative) ;</li>
         <li>Amélioration du service par statistiques d&apos;usage agrégées — intérêt légitime.</li>
       </ul>
       <h2>Destinataires</h2>

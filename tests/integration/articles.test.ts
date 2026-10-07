@@ -5,14 +5,16 @@ import { admin, anon, RUN } from "./helpers";
 const parse = vi.fn();
 vi.mock("@anthropic-ai/sdk", () => ({ default: class { beta = { messages: { parse } }; } }));
 
-const { generateArticles, unknownNumbers } = await import("@/lib/articles");
+const { generateArticles, runDailyArticles, unknownNumbers } = await import("@/lib/articles");
 
 type Facts = { opportunites_ouvertes: number; theme: string; date_des_donnees: string };
+// Étiquette sans chiffre : un chiffre du titre serait (à raison) refusé par le contrôle
+const TAG = RUN.replace(/\d/g, (d) => "abcdefghij"[Number(d)]);
 const factsOf = (req: { messages: { content: string }[] }) => JSON.parse(req.messages[0].content.split("\n\n")[1]) as Facts;
 
 function article(f: Facts, extra = "") {
   return {
-    title: `Marchés publics en Bretagne : ${f.theme} (${RUN})`,
+    title: `Marchés publics en Bretagne : ${f.theme} (${TAG})`,
     description: `${f.opportunites_ouvertes} opportunités ouvertes recensées par LinkProB2B, à partir des avis BOAMP et TED. ${extra}`.trim(),
     intro: `Au ${f.date_des_donnees}, ${f.opportunites_ouvertes} opportunités sont ouvertes.`,
     sections: [{ heading: "Vue d'ensemble", paragraphs: [`Les données proviennent de BOAMP et TED. ${extra}`] }],
@@ -43,7 +45,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await admin.from("articles").delete().like("title", `%(${RUN})%`);
+  await admin.from("articles").delete().like("title", `%(${TAG})%`);
   await admin.from("opportunities").delete().in("id", ids);
 });
 
@@ -54,7 +56,7 @@ describe("analyses de marché", () => {
     expect(r.generated?.[0]?.status).toBe("PUBLISHED");
     const facts = factsOf(parse.mock.calls[0][0]);
     expect(facts.opportunites_ouvertes).toBeGreaterThanOrEqual(5);
-    const { data } = await anon().from("articles").select("slug, status, facts").like("title", `%(${RUN})%`);
+    const { data } = await anon().from("articles").select("slug, status, facts").like("title", `%(${TAG})%`);
     expect(data?.length).toBe(1);
     expect(data?.[0].status).toBe("PUBLISHED");
   });
@@ -71,7 +73,47 @@ describe("analyses de marché", () => {
     expect(g.note).toMatch(/987654/);
     // Brouillon invisible du public
     expect((await anon().from("articles").select("id").eq("slug", g.slug!)).data).toEqual([]);
-    await admin.from("articles").delete().eq("slug", g.slug!);
+    // Libère les thèmes consommés par les tentatives (chaque brouillon refusé passe au thème suivant)
+    expect(r.generated?.every((x) => x.status === "DRAFT")).toBe(true);
+    await admin.from("articles").delete().in("slug", (r.generated ?? []).map((x) => x.slug!).filter(Boolean));
+  });
+
+  it("réécrit l'article quand un chiffre est bloqué, puis le publie s'il devient conforme", async () => {
+    parse.mockReset();
+    let call = 0;
+    parse.mockImplementation(async (req) => {
+      call++;
+      const f = factsOf(req);
+      // 1re rédaction : chiffre inventé ; 2e : la consigne de correction est reçue et l'article est conforme
+      if (call === 1) return { stop_reason: "end_turn", parsed_output: article(f, "Hausse de 424242 %."), model: "claude-opus-5-5" };
+      expect(req.messages[0].content).toMatch(/424242/);
+      return { stop_reason: "end_turn", parsed_output: article(f), model: "claude-opus-5-5" };
+    });
+    const r = await generateArticles(1, { autoPublish: true });
+    expect(call).toBe(2);
+    expect(r.generated?.[0]?.status).toBe("PUBLISHED");
+  });
+
+  it("garantit au moins un article publié par jour : thème de secours et quota calculé sur les articles publiés", async () => {
+    parse.mockReset();
+    parse.mockImplementation(async (req) => ({ stop_reason: "end_turn", parsed_output: article(factsOf(req)), model: "claude-opus-5-5" }));
+    // Tous les thèmes mensuels déjà traités : seule reste la synthèse bretonne du jour
+    const month = new Date().toISOString().slice(0, 7);
+    const { candidateTopics } = await import("@/lib/articles");
+    const topics = candidateTopics({ opps: [], sectors: new Map(), departments: new Map(), types: new Map(), used: new Set() } as never);
+    expect(topics).toEqual([]); // aucune donnée : aucun thème, rien n'est inventé
+    const day = new Date().toISOString().slice(0, 10);
+    const fake = Array.from({ length: 6 }, (_, i) => ({ id: String(i), title: "t", type: "PUBLIC_TENDER", origin: "EXTERNAL", external_buyer_name: null, city: null, department_code: null, sector_slug: null, response_deadline: null, published_at: null }));
+    const only = candidateTopics({ opps: fake, sectors: new Map(), departments: new Map(), types: new Map(), used: new Set([`secteur:x:${month}`]) } as never);
+    expect(only.map((t) => t.key)).toEqual([`bretagne:${day}`]);
+
+    // Un brouillon créé aujourd'hui ne remplit pas le quota : la tâche quotidienne publie quand même un article
+    await admin.from("platform_settings").upsert({ key: "seo", value: { articles_enabled: true, articles_auto_publish: true, articles_per_day: 1 } });
+    const since = new Date();
+    since.setUTCHours(0, 0, 0, 0);
+    await admin.from("articles").update({ published_at: new Date(since.getTime() - 3600_000).toISOString() }).gte("published_at", since.toISOString());
+    const r = await runDailyArticles();
+    expect(r.generated?.filter((g) => g.status === "PUBLISHED").length).toBe(1);
   });
 
   it("refuse toute écriture publique", async () => {

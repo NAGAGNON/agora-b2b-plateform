@@ -69,7 +69,7 @@ export async function createAlert(_prev: ActionResult | null, fd: FormData): Pro
   const { supabase, userId } = await currentUserId();
   if (!userId) return { ok: false, error: "Connectez-vous pour créer une alerte." };
   const { count } = await supabase.from("alerts").select("id", { count: "exact", head: true }).eq("user_id", userId);
-  if ((count ?? 0) >= 20) return { ok: false, error: "Vous avez atteint le nombre maximum d'alertes (20) pendant le pilote." };
+  if ((count ?? 0) >= 20) return { ok: false, error: "Vous avez atteint le nombre maximum d'alertes (20)." };
   const d = parsed.data;
   const { error } = await supabase.from("alerts").insert({
     user_id: userId,

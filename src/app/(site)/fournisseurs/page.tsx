@@ -27,7 +27,7 @@ export default function SuppliersPage() {
         <li>Pas d&apos;opportunité externe présentée comme un besoin déposé par un membre.</li>
       </ul>
       <h2>Tarif</h2>
-      <p>Gratuit pendant la phase pilote, sans carte bancaire.</p>
+      <p>Inscription gratuite, sans carte bancaire.</p>
       <div className="mt-6 flex flex-wrap gap-3 not-prose">
         <ButtonLink href="/inscription">Créer mon compte fournisseur</ButtonLink>
         <ButtonLink href="/opportunites" variant="outline">

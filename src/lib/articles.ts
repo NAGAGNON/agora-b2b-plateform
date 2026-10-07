@@ -6,6 +6,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { siteUrl } from "@/lib/seo";
 import { logServerError } from "@/lib/errors";
 import type { Json } from "@/lib/database.types";
+import { mergeNames } from "@/lib/article-figures";
 
 /**
  * Analyses de marché rédigées automatiquement à partir des opportunités réellement
@@ -39,9 +40,19 @@ type Opp = {
   department_code: string | null;
   sector_slug: string | null;
   response_deadline: string | null;
+  published_at: string | null;
 };
 
-type Topic = { key: string; kind: "secteur" | "departement"; label: string; slug: string; opps: Opp[] };
+type TopicKind = "secteur" | "departement" | "secteur-departement" | "acheteur" | "bretagne";
+type Topic = {
+  key: string;
+  kind: TopicKind;
+  /** Thème lisible, ex. « Secteur : Informatique » */
+  theme: string;
+  /** Page de la plateforme correspondante (chemin) */
+  page: string;
+  opps: Opp[];
+};
 
 const monthFmt = new Intl.DateTimeFormat("fr-FR", { month: "long", year: "numeric", timeZone: "Europe/Paris" });
 const dateFmt = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Paris" });
@@ -74,7 +85,7 @@ async function loadContext() {
   const [opps, sectors, departments, types, existing] = await Promise.all([
     db
       .from("opportunities")
-      .select("id, title, type, origin, external_buyer_name, city, department_code, sector_slug, response_deadline")
+      .select("id, title, type, origin, external_buyer_name, city, department_code, sector_slug, response_deadline, published_at")
       .eq("status", "PUBLISHED")
       .eq("visibility", "PUBLIC")
       .eq("is_demo", false)
@@ -95,47 +106,87 @@ async function loadContext() {
   };
 }
 
-/** Thèmes possibles ce mois-ci (secteur ou département ayant assez d'opportunités réelles), du plus fourni au moins fourni. */
-function candidateTopics(ctx: Awaited<ReturnType<typeof loadContext>>): Topic[] {
-  const month = new Date().toISOString().slice(0, 7);
-  const topics: Topic[] = [];
-  const bySector = new Map<string, Opp[]>();
-  const byDept = new Map<string, Opp[]>();
-  for (const o of ctx.opps) {
-    if (o.sector_slug) bySector.set(o.sector_slug, [...(bySector.get(o.sector_slug) ?? []), o]);
-    if (o.department_code) byDept.set(o.department_code, [...(byDept.get(o.department_code) ?? []), o]);
+const buyerKey = (s: string) =>
+  s
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+
+function groupBy(opps: Opp[], key: (o: Opp) => string | null | undefined) {
+  const m = new Map<string, Opp[]>();
+  for (const o of opps) {
+    const k = key(o);
+    if (k) m.set(k, [...(m.get(k) ?? []), o]);
   }
-  for (const [slug, opps] of bySector) {
+  return m;
+}
+
+/**
+ * Thèmes disponibles, des plus fournis aux moins fournis, en alternant les familles
+ * (secteur, département, secteur × département, acheteur) : chacun au plus une fois
+ * par mois, avec au moins 5 opportunités ouvertes. En dernier recours, la synthèse
+ * bretonne du jour (un thème par date) garantit au moins un article quotidien.
+ */
+export function candidateTopics(ctx: Awaited<ReturnType<typeof loadContext>>, now = new Date()): Topic[] {
+  const month = now.toISOString().slice(0, 7);
+  const day = now.toISOString().slice(0, 10);
+  const families: Topic[][] = [[], [], [], []];
+  for (const [slug, opps] of groupBy(ctx.opps, (o) => o.sector_slug)) {
     const label = ctx.sectors.get(slug);
-    if (label && opps.length >= MIN_OPPORTUNITIES) topics.push({ key: `secteur:${slug}:${month}`, kind: "secteur", label, slug, opps });
+    if (label && opps.length >= MIN_OPPORTUNITIES) families[0].push({ key: `secteur:${slug}:${month}`, kind: "secteur", theme: `Secteur : ${label}`, page: `/opportunites/${slug}`, opps });
   }
-  for (const [code, opps] of byDept) {
+  for (const [code, opps] of groupBy(ctx.opps, (o) => o.department_code)) {
     const d = ctx.departments.get(code);
-    if (d && opps.length >= MIN_OPPORTUNITIES) topics.push({ key: `departement:${code}:${month}`, kind: "departement", label: d.name, slug: d.slug, opps });
+    if (d && opps.length >= MIN_OPPORTUNITIES) families[1].push({ key: `departement:${code}:${month}`, kind: "departement", theme: `Département : ${d.name}`, page: `/opportunites/${d.slug}`, opps });
   }
-  return topics.filter((t) => !ctx.used.has(t.key)).sort((a, b) => b.opps.length - a.opps.length);
+  for (const [k, opps] of groupBy(ctx.opps, (o) => (o.sector_slug && o.department_code ? `${o.sector_slug}|${o.department_code}` : null))) {
+    const [slug, code] = k.split("|");
+    const label = ctx.sectors.get(slug);
+    const d = ctx.departments.get(code);
+    if (label && d && opps.length >= MIN_OPPORTUNITIES)
+      families[2].push({ key: `secteur-departement:${slug}:${code}:${month}`, kind: "secteur-departement", theme: `Secteur : ${label} — Département : ${d.name}`, page: `/opportunites?secteur=${slug}&departement=${code}`, opps });
+  }
+  for (const [k, opps] of groupBy(ctx.opps, (o) => (o.external_buyer_name ? buyerKey(o.external_buyer_name) : null))) {
+    if (opps.length < MIN_OPPORTUNITIES) continue;
+    const name = opps.map((o) => o.external_buyer_name!).find((n) => n !== n.toUpperCase()) ?? opps[0].external_buyer_name!;
+    families[3].push({ key: `acheteur:${k.replace(/ /g, "-").slice(0, 60)}:${month}`, kind: "acheteur", theme: `Acheteur public : ${name}`, page: `/opportunites?q=${encodeURIComponent(name)}`, opps });
+  }
+  const queues = families.map((f) => f.filter((t) => !ctx.used.has(t.key)).sort((a, b) => b.opps.length - a.opps.length));
+  // Alternance des familles : secteur, département, croisement, acheteur, secteur…
+  const ordered: Topic[] = [];
+  while (queues.some((q) => q.length)) for (const q of queues) if (q.length) ordered.push(q.shift()!);
+  const daily: Topic = { key: `bretagne:${day}`, kind: "bretagne", theme: "Bretagne : marchés publics ouverts", page: "/opportunites", opps: ctx.opps };
+  if (!ctx.used.has(daily.key) && ctx.opps.length >= MIN_OPPORTUNITIES) ordered.push(daily);
+  return ordered;
 }
 
 function buildFacts(t: Topic, ctx: Awaited<ReturnType<typeof loadContext>>) {
   const base = siteUrl();
   const in30 = Date.now() + 30 * 86400_000;
+  const week = Date.now() - 7 * 86400_000;
   const upcoming = [...t.opps]
     .filter((o) => o.response_deadline)
     .sort((a, b) => a.response_deadline!.localeCompare(b.response_deadline!))
     .slice(0, 10);
+  const bySector = t.kind !== "secteur" && t.kind !== "secteur-departement";
+  const byDept = t.kind !== "departement" && t.kind !== "secteur-departement";
   return {
-    theme: t.kind === "secteur" ? `Secteur : ${t.label}` : `Département : ${t.label}`,
-    zone: "Bretagne (pilote LinkProB2B)",
-    periode: monthFmt.format(new Date()),
+    theme: t.theme,
+    zone: "Bretagne",
+    periode: t.kind === "bretagne" ? dateFmt.format(new Date()) : monthFmt.format(new Date()),
     date_des_donnees: dateFmt.format(new Date()),
     opportunites_ouvertes: t.opps.length,
     dont_marches_publics_externes: t.opps.filter((o) => o.origin === "EXTERNAL").length,
-    dont_besoins_publies_par_des_entreprises: t.opps.filter((o) => o.origin === "INTERNAL").length,
+    // Omis lorsqu'il vaut 0 (évite les tournures du type « aucun besoin (0) »)
+    dont_besoins_publies_par_des_entreprises: t.opps.filter((o) => o.origin === "INTERNAL").length || undefined,
+    publiees_ces_7_derniers_jours: t.opps.filter((o) => o.published_at && Date.parse(o.published_at) > week).length || undefined,
     date_limite_dans_les_30_jours: t.opps.filter((o) => o.response_deadline && Date.parse(o.response_deadline) < in30).length,
     par_type: countBy(t.opps, (o) => o.type, (k) => ctx.types.get(k) ?? k),
-    par_departement: t.kind === "secteur" ? countBy(t.opps, (o) => o.department_code, (k) => ctx.departments.get(k)?.name ?? k) : undefined,
-    par_secteur: t.kind === "departement" ? countBy(t.opps, (o) => o.sector_slug, (k) => ctx.sectors.get(k) ?? k) : undefined,
-    principaux_acheteurs: countBy(t.opps, (o) => o.external_buyer_name, undefined, 6),
+    par_secteur: bySector ? countBy(t.opps, (o) => o.sector_slug, (k) => ctx.sectors.get(k) ?? k) : undefined,
+    par_departement: byDept && !bySector ? countBy(t.opps, (o) => o.department_code, (k) => ctx.departments.get(k)?.name ?? k) : undefined,
+    principaux_acheteurs: t.kind === "acheteur" ? undefined : mergeNames(countBy(t.opps, (o) => o.external_buyer_name, undefined, 20), 6),
     prochaines_dates_limites: upcoming.map((o) => ({
       intitule: o.title,
       acheteur: o.external_buyer_name,
@@ -143,7 +194,7 @@ function buildFacts(t: Topic, ctx: Awaited<ReturnType<typeof loadContext>>) {
       date_limite: dateFmt.format(new Date(o.response_deadline!)),
       lien: `${base}/opportunites/${o.id}`,
     })),
-    page_de_la_plateforme: `${base}/opportunites/${t.slug}`,
+    page_de_la_plateforme: `${base}${t.page}`,
     sources: "BOAMP (Licence Ouverte 2.0) et TED (Office des publications de l'UE), collectés et dédupliqués par LinkProB2B ; besoins publiés par des entreprises inscrites.",
   };
 }
@@ -164,9 +215,11 @@ Règles absolues :
 - Si une information n'est pas dans les faits, ne l'évoque pas.
 - Pas de conseil juridique personnalisé ; des conseils pratiques généraux pour répondre à un marché sont permis, sans chiffres.
 - Ton neutre et factuel, pas de superlatifs ni de promesses.
-- Mentionne que les données proviennent de BOAMP et TED et qu'elles sont à jour à la date indiquée.`;
+- Mentionne que les données proviennent de BOAMP et TED et qu'elles sont à jour à la date indiquée.
+- N'écris aucune adresse web : les liens sont ajoutés automatiquement sous l'article.
+- Des graphiques (répartition, principaux acheteurs) et une couverture sont générés automatiquement à partir des mêmes faits : commente-les en mots, sans tableau.`;
 
-async function writeArticle(facts: ReturnType<typeof buildFacts>) {
+async function writeArticle(facts: ReturnType<typeof buildFacts>, correction?: string) {
   const client = new Anthropic();
   const response = await client.beta.messages.parse({
     model: ARTICLE_MODEL,
@@ -178,7 +231,9 @@ async function writeArticle(facts: ReturnType<typeof buildFacts>) {
     messages: [
       {
         role: "user",
-        content: `Rédige une analyse de marché de 500 à 800 mots à partir de ces faits (JSON) :\n\n${JSON.stringify(facts, null, 2)}\n\nLa liste détaillée des opportunités sera affichée automatiquement sous l'article : cite au plus 3 d'entre elles dans le texte.`,
+        content:
+          `Rédige une analyse de marché de 500 à 800 mots à partir de ces faits (JSON) :\n\n${JSON.stringify(facts, null, 2)}\n\nLa liste détaillée des opportunités sera affichée automatiquement sous l'article : cite au plus 3 d'entre elles dans le texte.` +
+          (correction ? `\n\nIMPORTANT : ${correction}` : ""),
       },
     ],
   });
@@ -186,53 +241,86 @@ async function writeArticle(facts: ReturnType<typeof buildFacts>) {
   return { article: response.parsed_output, model: response.model };
 }
 
-/** Génère jusqu'à `count` articles. Retourne le détail pour le journal de la tâche planifiée. */
+type Outcome = { topic: string; status: "PUBLISHED" | "DRAFT" | "ERROR"; slug?: string; note?: string };
+
+/** Rédige un article sur un thème ; une seconde rédaction corrige les chiffres non retrouvés. */
+async function writeTopic(t: Topic, ctx: Awaited<ReturnType<typeof loadContext>>, autoPublish: boolean): Promise<Outcome> {
+  const db = createAdminClient();
+  const facts = buildFacts(t, ctx);
+  let { article, model } = await writeArticle(facts);
+  let unknown = unknownNumbers(article, facts);
+  if (unknown.length) {
+    ({ article, model } = await writeArticle(
+      facts,
+      `une première version contenait des nombres absents des faits (${unknown.join(", ")}). Supprime-les ou remplace-les par des nombres présents dans les faits.`,
+    ));
+    unknown = unknownNumbers(article, facts);
+  }
+  const lengthOk = article.title.length >= 10 && article.title.length <= 160 && article.description.length >= 30 && article.description.length <= 300;
+  const note = unknown.length ? `Chiffres absents des données : ${unknown.join(", ")}` : lengthOk ? null : "Titre ou description hors limites";
+  const publish = autoPublish && !note;
+  const year = new Date().toISOString().slice(0, 4);
+  const base = slugify(article.title);
+  let slug = base.includes(year) ? base : `${base}-${t.key.split(":").at(-1)}`;
+  const insert = (s: string) =>
+    db.from("articles").insert({
+      slug: s,
+      topic_key: t.key,
+      title: article.title.slice(0, 160),
+      description: article.description.slice(0, 300).padEnd(30, "."),
+      body: article as unknown as NonNullable<Json>,
+      facts: facts as unknown as NonNullable<Json>,
+      status: publish ? "PUBLISHED" : "DRAFT",
+      published_at: publish ? new Date().toISOString() : null,
+      validation_note: note,
+      model,
+    });
+  let { error } = await insert(slug);
+  if (error?.code === "23505" && error.message.includes("slug")) {
+    slug = `${base}-${t.key.split(":").at(-1)}-${Date.now().toString(36).slice(-4)}`;
+    ({ error } = await insert(slug));
+  }
+  if (error) throw error;
+  return { topic: t.key, status: publish ? "PUBLISHED" : "DRAFT", slug, note: note ?? undefined };
+}
+
+/**
+ * Génère des articles jusqu'à en avoir `count` publiés (ou `count` brouillons si la
+ * publication automatique est désactivée). Un thème en échec ou bloqué par le contrôle
+ * des chiffres est remplacé par le suivant, dans la limite de `count + 3` tentatives.
+ */
 export async function generateArticles(count: number, opts: { autoPublish: boolean }) {
   if (!process.env.ANTHROPIC_API_KEY) return { skipped: "ANTHROPIC_API_KEY absente" };
+  if (count <= 0) return { generated: [] as Outcome[] };
   const ctx = await loadContext();
-  const topics = candidateTopics(ctx).slice(0, Math.max(0, count));
-  const db = createAdminClient();
-  const results: { topic: string; status: string; slug?: string; note?: string }[] = [];
+  const topics = candidateTopics(ctx);
+  const results: Outcome[] = [];
+  const done = () => results.filter((r) => r.status === (opts.autoPublish ? "PUBLISHED" : "DRAFT")).length;
   for (const t of topics) {
+    if (done() >= count || results.length >= count + 3) break;
     try {
-      const facts = buildFacts(t, ctx);
-      const { article, model } = await writeArticle(facts);
-      const unknown = unknownNumbers(article, facts);
-      const lengthOk = article.title.length >= 10 && article.title.length <= 160 && article.description.length >= 30 && article.description.length <= 300;
-      const note = unknown.length ? `Chiffres absents des données : ${unknown.join(", ")}` : lengthOk ? null : "Titre ou description hors limites";
-      const publish = opts.autoPublish && !note;
-      const slug = `${slugify(article.title)}-${t.key.split(":").at(-1)}`;
-      const { error } = await db.from("articles").insert({
-        slug,
-        topic_key: t.key,
-        title: article.title.slice(0, 160),
-        description: article.description.slice(0, 300).padEnd(30, "."),
-        body: article as unknown as NonNullable<Json>,
-        facts: facts as unknown as NonNullable<Json>,
-        status: publish ? "PUBLISHED" : "DRAFT",
-        published_at: publish ? new Date().toISOString() : null,
-        validation_note: note,
-        model,
-      });
-      if (error) throw error;
-      results.push({ topic: t.key, status: publish ? "PUBLISHED" : "DRAFT", slug, note: note ?? undefined });
+      results.push(await writeTopic(t, ctx, opts.autoPublish));
     } catch (e) {
       logServerError(`article ${t.key}`, e);
       results.push({ topic: t.key, status: "ERROR", note: e instanceof Error ? e.message : String(e) });
     }
   }
-  return { generated: results, remainingTopics: Math.max(0, candidateTopics(ctx).length - topics.length) };
+  return { generated: results };
 }
 
-/** Étape de la tâche quotidienne : respecte les réglages Administration → Articles. */
+/** Étape de la tâche quotidienne : au moins un article publié par jour (réglable dans Administration → Articles). */
 export async function runDailyArticles() {
   const db = createAdminClient();
   const { data } = await db.from("platform_settings").select("value").eq("key", "seo").maybeSingle();
   const s = (data?.value ?? {}) as { articles_enabled?: boolean; articles_auto_publish?: boolean; articles_per_day?: number };
   if (s.articles_enabled === false) return { skipped: "désactivé" };
+  const autoPublish = s.articles_auto_publish !== false;
   const since = new Date();
   since.setUTCHours(0, 0, 0, 0);
-  const { count } = await db.from("articles").select("id", { count: "exact", head: true }).gte("created_at", since.toISOString());
+  // Avec publication automatique, seuls les articles publiés aujourd'hui comptent : un brouillon ne remplit pas le quota.
+  let q = db.from("articles").select("id", { count: "exact", head: true });
+  q = autoPublish ? q.gte("published_at", since.toISOString()) : q.gte("created_at", since.toISOString());
+  const { count } = await q;
   const perDay = Math.min(3, Math.max(1, s.articles_per_day ?? 1));
-  return generateArticles(perDay - (count ?? 0), { autoPublish: s.articles_auto_publish !== false });
+  return generateArticles(perDay - (count ?? 0), { autoPublish });
 }

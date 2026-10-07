@@ -29,7 +29,7 @@ export function ContactForm({ defaultSubject, reference }: { defaultSubject?: st
             <option value="" disabled>
               Choisir un objet
             </option>
-            <option value="Rejoindre le pilote">Rejoindre le pilote</option>
+            <option value="Inscrire mon entreprise">Inscrire mon entreprise</option>
             <option value="Question sur la plateforme">Question sur la plateforme</option>
             <option value="Signalement d'un contenu">Signalement d&apos;un contenu</option>
             <option value="Demande de retrait ou de rectification">Demande de retrait ou de rectification</option>

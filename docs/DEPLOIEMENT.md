@@ -87,7 +87,7 @@ Côté application, rien à régler : URL canoniques, sitemap et liens des e-mai
 Chaque jour, la tâche planifiée (`/api/cron/quotidien`, 06:00 UTC) :
 
 1. collecte BOAMP et TED, puis expire les annonces échues ;
-2. **rédige une analyse de marché** (secteur ou département ayant au moins 5 opportunités ouvertes, un thème par mois) avec Claude, à partir des seules données de la plateforme. Chaque chiffre de l'article est comparé au jeu de données transmis : un article non conforme reste en brouillon. Publication automatique activable dans **Administration → Articles** (1 à 3 articles par jour) ;
+2. **publie au moins une analyse de marché** rédigée par Claude à partir des seules données de la plateforme. Thèmes en alternance (secteur, département, secteur × département, acheteur public ; chacun une fois par mois, au moins 5 opportunités ouvertes), puis, en dernier recours, la synthèse bretonne du jour. Chaque chiffre est comparé au jeu de données transmis : en cas d'écart, l'article est réécrit une fois, puis le thème suivant est essayé ; un article non conforme reste en brouillon et ne compte pas dans le quota quotidien. Couverture et graphiques générés à partir des mêmes données. Réglages dans **Administration → Articles** (1 à 3 articles par jour, publication automatique) ;
 3. **signale à IndexNow** (Bing, Yandex, Seznam…) les annonces et articles nouveaux ou modifiés depuis le dernier envoi (production, domaine personnalisé uniquement).
 
 Les pages publiques portent des données structurées schema.org (Organization, WebSite avec recherche, BreadcrumbList, Article, FAQPage). Les analyses sont sur `/analyses` et dans le sitemap.

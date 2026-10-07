@@ -67,7 +67,7 @@ export function SignUpForm() {
         />
         <FieldError message={fe?.terms} />
       </div>
-      <Checkbox name="marketing" label="J'accepte de recevoir occasionnellement des informations sur le pilote LinkProB2B (facultatif)." />
+      <Checkbox name="marketing" label="J'accepte de recevoir occasionnellement les actualités de LinkProB2B (facultatif)." />
       {state && !state.ok && !fe && <Notice tone="error">{state.error}</Notice>}
       <SubmitButton full size="lg" pendingLabel="Création du compte…">
         Créer mon compte

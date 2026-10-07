@@ -45,6 +45,10 @@ export default function CookiesPage() {
         donnée personnelle ne sont enregistrés ; les données servent uniquement à des statistiques agrégées et sont supprimées après 13 mois. Les
         navigateurs qui envoient le signal « Do Not Track » ou « Global Privacy Control » ne sont pas mesurés.
       </p>
+      <p>
+        Statistiques de l&apos;hébergeur : Vercel Web Analytics mesure également la fréquentation de manière agrégée et anonyme, sans cookie et sans
+        identifiant persistant (les visiteurs ne sont pas suivis d&apos;un site à l&apos;autre ni d&apos;un jour à l&apos;autre).
+      </p>
     </ContentPage>
   );
 }
