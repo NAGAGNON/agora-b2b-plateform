@@ -1,5 +1,6 @@
 import { ContentPage } from "@/components/content-page";
 import { pageMetadata } from "@/lib/seo";
+import { JsonLd, faqLd } from "@/components/json-ld";
 
 export const metadata = pageMetadata({ title: "Questions fréquentes", description: "Réponses aux questions fréquentes sur LinkProB2B.", path: "/faq" });
 
@@ -18,6 +19,7 @@ const FAQ: [string, string][] = [
 export default function FaqPage() {
   return (
     <ContentPage title="Questions fréquentes">
+      <JsonLd data={faqLd(FAQ.map(([question, answer]) => ({ question, answer })))} />
       <div className="space-y-3">
         {FAQ.map(([q, a]) => (
           <details key={q} className="group rounded-xl border border-slate-200 bg-white p-4">

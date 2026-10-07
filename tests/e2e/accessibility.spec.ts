@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 import { login, newPage } from "./helpers";
 
 /** Audit automatique (axe-core, WCAG 2.1 A/AA) : aucune violation grave ou critique. */
-const PUBLIC = ["/", "/opportunites", "/entreprises", "/publier", "/connexion", "/inscription", "/contact", "/comment-ca-marche", "/tarifs", "/faq"];
+const PUBLIC = ["/", "/opportunites", "/entreprises", "/publier", "/connexion", "/inscription", "/contact", "/comment-ca-marche", "/tarifs", "/faq", "/analyses"];
 const PRIVATE = ["/dashboard", "/dashboard/alertes", "/dashboard/recommandations", "/dashboard/messages", "/dashboard/pipeline"];
 
 async function audit(page: import("@playwright/test").Page, path: string) {

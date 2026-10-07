@@ -30,8 +30,9 @@ export default function ResourcesPage() {
           </li>
         ))}
       </ul>
-      <div className="mt-12 grid gap-4 md:grid-cols-3">
+      <div className="mt-12 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {[
+          { href: "/analyses", t: "Analyses des marchés", d: "Marchés publics et besoins par secteur et par département, chaque mois." },
           { href: "/comment-ca-marche", t: "Comment ça marche", d: "Le fonctionnement de la plateforme en détail." },
           { href: "/faq", t: "Questions fréquentes", d: "Provenance, modération, tarifs, données." },
           { href: "/contact", t: "Une question ?", d: "Écrivez-nous, nous enrichirons ces ressources." },

@@ -5,6 +5,8 @@ import { env } from "@/lib/env";
 import { processAlertDigests, processEmailOutbox } from "@/lib/email/outbox";
 import { runDueSources } from "@/lib/collect/run";
 import { logServerError } from "@/lib/errors";
+import { runDailyArticles } from "@/lib/articles";
+import { submitChangedUrls } from "@/lib/indexnow";
 
 // La collecte de plusieurs sources peut prendre du temps.
 export const maxDuration = 300;
@@ -21,9 +23,11 @@ function authorized(req: Request): boolean {
  * Tâche planifiée (Vercel Cron — vercel.json) :
  * 1. collecte des sources externes dont l'échéance est atteinte ;
  * 2. expiration des opportunités ;
- * 3. résumés d'alertes ;
- * 4. envoi de la file d'e-mails ;
- * 5. purge de la mesure d'audience de plus de 13 mois.
+ * 3. analyses de marché rédigées à partir des données (Administration → Articles) ;
+ * 4. IndexNow : signalement des pages nouvelles ou modifiées aux moteurs de recherche ;
+ * 5. résumés d'alertes ;
+ * 6. envoi de la file d'e-mails ;
+ * 7. purge de la mesure d'audience de plus de 13 mois.
  * Chaque étape est isolée : l'échec de l'une n'empêche pas les suivantes.
  */
 export async function GET(req: Request) {
@@ -39,6 +43,8 @@ export async function GET(req: Request) {
   };
   await step("sources", () => runDueSources());
   await step("expired", async () => (await createAdminClient().rpc("expire_opportunities")).data);
+  await step("articles", () => runDailyArticles());
+  await step("indexnow", () => submitChangedUrls());
   await step("digests", () => processAlertDigests());
   await step("emails", () => processEmailOutbox(200));
   await step("audience", async () => (await createAdminClient().rpc("purge_page_views")).data);

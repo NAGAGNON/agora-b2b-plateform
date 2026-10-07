@@ -85,6 +85,19 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"articles": {
+                  Row: {
+                    "body": NonNullable<Json>,"created_at": string,"description": string,"facts": NonNullable<Json>,"id": string,"model": string | null,"published_at": string | null,"slug": string,"status": string,"title": string,"topic_key": string,"updated_at": string,"validation_note": string | null
+                  }
+                  Insert: {
+                    "body": NonNullable<Json>,"created_at"?: string,"description": string,"facts": NonNullable<Json>,"id"?: string,"model"?: string | null,"published_at"?: string | null,"slug": string,"status"?: string,"title": string,"topic_key": string,"updated_at"?: string,"validation_note"?: string | null
+                  }
+                  Update: {
+                    "body"?: NonNullable<Json>,"created_at"?: string,"description"?: string,"facts"?: NonNullable<Json>,"id"?: string,"model"?: string | null,"published_at"?: string | null,"slug"?: string,"status"?: string,"title"?: string,"topic_key"?: string,"updated_at"?: string,"validation_note"?: string | null
+                  }
+                  Relationships: [
+                    
+                  ]
                 },"audit_logs": {
                   Row: {
                     "action": string,"actor_user_id": string | null,"created_at": string,"entity_id": string | null,"entity_type": string,"id": number,"metadata": NonNullable<Json>

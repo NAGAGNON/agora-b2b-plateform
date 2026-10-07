@@ -55,6 +55,8 @@ Ensuite : ouvrez l'URL fournie par Vercel, inscrivez-vous avec `INITIAL_ADMIN_EM
 | `INITIAL_ADMIN_EMAIL` | votre adresse | votre adresse | premier super-administrateur |
 | `CRON_SECRET` | aléatoire | aléatoire | tâche planifiée `/api/cron/quotidien` |
 | `RESEND_API_KEY` | **requis** | facultatif | e-mails : confirmation, mot de passe, notifications, alertes |
+| `ANTHROPIC_API_KEY` | conseillé | — | analyses de marché quotidiennes rédigées par IA (Administration → Articles) |
+| `INDEXNOW_KEY` | facultatif | — | clé IndexNow ; à défaut, dérivée de `CRON_SECRET` et publiée sur `/indexnow.txt` |
 | `EMAIL_FROM` | `LinkProB2B <notifications@votre-domaine.fr>` | idem | domaine vérifié chez Resend (SPF, DKIM, DMARC) |
 | `SITE_URL` | `https://votre-domaine.fr` | — (déduit de l'URL Vercel) | liens des e-mails, sitemap, URL canoniques |
 | `MIGRATIONS_ON_PREVIEW` | — | `1` si base de staging dédiée | migrations au déploiement des branches |
@@ -79,6 +81,16 @@ Côté application, rien à régler : URL canoniques, sitemap et liens des e-mai
 2. **Chez le registraire** : les enregistrements affichés par Vercel pour chaque domaine (A pour `@`, CNAME pour `www`).
 3. **Supabase → Authentication → URL Configuration** : Site URL `https://www.linkprob2b.com`.
 4. **Resend → Domains → Add domain** `linkprob2b.com` : copier chez le registraire les enregistrements affichés (SPF, DKIM, retour).
+
+## SEO automatique
+
+Chaque jour, la tâche planifiée (`/api/cron/quotidien`, 06:00 UTC) :
+
+1. collecte BOAMP et TED, puis expire les annonces échues ;
+2. **rédige une analyse de marché** (secteur ou département ayant au moins 5 opportunités ouvertes, un thème par mois) avec Claude, à partir des seules données de la plateforme. Chaque chiffre de l'article est comparé au jeu de données transmis : un article non conforme reste en brouillon. Publication automatique activable dans **Administration → Articles** (1 à 3 articles par jour) ;
+3. **signale à IndexNow** (Bing, Yandex, Seznam…) les annonces et articles nouveaux ou modifiés depuis le dernier envoi (production, domaine personnalisé uniquement).
+
+Les pages publiques portent des données structurées schema.org (Organization, WebSite avec recherche, BreadcrumbList, Article, FAQPage). Les analyses sont sur `/analyses` et dans le sitemap.
 
 ## Migrations
 
