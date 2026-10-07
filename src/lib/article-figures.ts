@@ -14,6 +14,7 @@ export type ArticleFacts = {
   dont_marches_publics_externes?: number;
   dont_besoins_publies_par_des_entreprises?: number;
   date_limite_dans_les_30_jours?: number;
+  publiees_ces_7_derniers_jours?: number;
   par_type?: NamedCount[];
   par_departement?: NamedCount[];
   par_secteur?: NamedCount[];
@@ -45,7 +46,10 @@ export function mergeNames(items: NamedCount[] | undefined, limit = 8): NamedCou
 }
 
 export function articleFigures(f: ArticleFacts) {
-  const label = (f.theme ?? "").replace(/^(Secteur|Département) : /, "");
+  const theme = f.theme ?? "";
+  const label = theme.startsWith("Bretagne")
+    ? "Bretagne"
+    : theme.replace(/^(Secteur|Département|Acheteur public) : /, "").replace(" — Département : ", " · ");
   return {
     label,
     kind: f.theme?.startsWith("Département") ? ("departement" as const) : ("secteur" as const),

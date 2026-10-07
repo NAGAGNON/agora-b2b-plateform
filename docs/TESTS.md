@@ -35,7 +35,7 @@ npx tsx --conditions=react-server scripts/replay-sources.ts journal.txt
 | Suite | Résultat |
 |---|---|
 | Unitaires | 61 / 61 |
-| Base de données, RLS et sécurité (dont e-mails d'authentification, alertes sur collecte, audience, analyses de marché) | 72 / 72 |
+| Base de données, RLS et sécurité (dont e-mails d'authentification, alertes sur collecte, audience, analyses de marché) | 74 / 74 |
 | E2E : parcours, permissions, déconnexion, audience, SEO (analyses, JSON-LD, IndexNow) | 11 / 11 |
 | Temps réel (messagerie, notifications) | 2 / 2 |
 | Responsive | 6 / 6 |
