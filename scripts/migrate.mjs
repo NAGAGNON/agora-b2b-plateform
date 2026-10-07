@@ -23,6 +23,21 @@ import pg from "pg";
 const statusOnly = process.argv.includes("--status");
 const raw = process.env.DATABASE_URL || process.env.POSTGRES_URL_NON_POOLING || process.env.SUPABASE_DB_URL;
 
+// Production Vercel sans base : on fait échouer le build (Vercel garde alors la version
+// précédente) plutôt que de mettre en ligne un site sans données.
+if (process.env.VERCEL_ENV === "production" && !statusOnly) {
+  const missing = [
+    !raw && "POSTGRES_URL_NON_POOLING (ou DATABASE_URL)",
+    !(process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL) && "SUPABASE_URL",
+    !(process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY) && "SUPABASE_SECRET_KEY (ou SUPABASE_SERVICE_ROLE_KEY)",
+  ].filter(Boolean);
+  if (missing.length) {
+    console.error(`[migrations] Base Supabase non connectée à ce projet Vercel. Variables absentes : ${missing.join(", ")}.`);
+    console.error("[migrations] Vercel → Storage → Create Database → Supabase (ou Connect sur un projet existant), environnements Production + Preview, sans préfixe ; puis Redeploy.");
+    process.exit(1);
+  }
+}
+
 if (!raw) {
   if (process.env.MIGRATIONS_REQUIRED === "1") {
     console.error("[migrations] Aucune URL de base de données (DATABASE_URL / POSTGRES_URL_NON_POOLING).");
