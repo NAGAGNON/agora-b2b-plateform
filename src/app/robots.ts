@@ -7,7 +7,7 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: "*",
         allow: "/",
-        disallow: ["/dashboard", "/admin", "/onboarding", "/api/", "/go/", "/auth/", "/connexion", "/mot-de-passe-oublie", "/reinitialiser-mot-de-passe", "/alertes/"],
+        disallow: ["/dashboard", "/admin", "/onboarding", "/api/", "/go/", "/auth/", "/connexion", "/mot-de-passe-oublie", "/reinitialiser-mot-de-passe", "/alertes/", "/outreach", "/opportunites/selection/", "/desinscription/"],
       },
     ],
     sitemap: `${siteUrl()}/sitemap.xml`,
