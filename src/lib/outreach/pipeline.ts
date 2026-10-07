@@ -5,6 +5,7 @@ import { analyzeOpportunity, contentFingerprint, groupByProspect, scoreMatch, ty
 import { DISCOVERY_SOURCE, discoverCompanies } from "@/lib/outreach/discovery";
 import { buildEmail, loadRecipientBundles, loadReferentials, loadSettings, realSendBlockers, type Db, type OutreachSettings } from "@/lib/outreach/data";
 import { sendOutreachEmail } from "@/lib/outreach/send";
+import { configuredSearchers, enrichCompany } from "@/lib/outreach/enrich";
 
 /**
  * Chaîne quotidienne de LinkProB2B Outreach :
@@ -352,6 +353,74 @@ export async function processSendQueue(db: Db, { deadline = Date.now() + 60_000 
 }
 
 /**
+ * Recherche des adresses génériques des entreprises sélectionnées sans e-mail
+ * (puis des autres entreprises actives), dans la limite quotidienne. Une adresse
+ * trouvée rend le destinataire de la campagne en cours « prêt à envoyer », sauf
+ * exclusion.
+ */
+export async function enrichProspects(db: Db, { campaignId = null, deadline = Date.now() + 60_000 }: { campaignId?: string | null; deadline?: number } = {}) {
+  const settings = await loadSettings(db);
+  const searchers = configuredSearchers();
+  const result = { searched: 0, found: 0, no_website: 0, no_email: 0, blocked: 0, errors: 0, skipped: searchers.length === 0 ? "Aucune clé BRAVE_SEARCH_API_KEY ni DROPCONTACT_API_KEY" : null as string | null };
+  if (!settings.enrichment_enabled || searchers.length === 0) return result;
+  const { count: today } = await db.from("outreach_prospects").select("id", { count: "exact", head: true }).gte("enriched_at", `${today_()}T00:00:00Z`);
+  let budget = Math.max(0, settings.enrichment_daily_limit - (today ?? 0));
+  if (!budget) return result;
+  // Priorité : entreprises de la campagne sans e-mail, puis les autres
+  const ids: string[] = [];
+  if (campaignId) {
+    const { data } = await db.from("outreach_recipients").select("prospect_id").eq("campaign_id", campaignId).eq("status", "NO_EMAIL").order("score", { ascending: false }).limit(budget);
+    ids.push(...(data ?? []).map((r) => r.prospect_id));
+  }
+  const { data: rows } = await db
+    .from("outreach_prospects")
+    .select("id, name, city, siren, website, enrichment_status")
+    .in("id", ids.length ? ids : ["00000000-0000-0000-0000-000000000000"])
+    .is("email", null)
+    .eq("status", "ACTIVE");
+  const queue = (rows ?? []).filter((p) => p.enrichment_status === "PENDING" || p.enrichment_status === "ERROR");
+  if (queue.length < budget) {
+    const { data: more } = await db
+      .from("outreach_prospects")
+      .select("id, name, city, siren, website, enrichment_status")
+      .is("email", null)
+      .eq("status", "ACTIVE")
+      .eq("enrichment_status", "PENDING")
+      .eq("is_individual_entrepreneur", false)
+      .order("updated_at", { ascending: false })
+      .limit(budget - queue.length);
+    for (const p of more ?? []) if (!queue.some((q) => q.id === p.id)) queue.push(p);
+  }
+  const { data: supp } = await db.from("outreach_suppressions").select("kind, value").in("kind", ["EMAIL", "DOMAIN"]).limit(100_000);
+  const blocked = new Set((supp ?? []).map((s) => s.value.toLowerCase()));
+  for (const p of queue) {
+    if (budget-- <= 0 || Date.now() > deadline) break;
+    result.searched++;
+    const r = await enrichCompany(p, searchers);
+    const now = new Date().toISOString();
+    const email = r.email && !blocked.has(r.email) && !blocked.has(r.email.split("@")[1]) ? r.email : null;
+    const { error } = await db
+      .from("outreach_prospects")
+      .update({ enrichment_status: email ? "FOUND" : r.status === "FOUND" ? "NO_EMAIL" : r.status, enriched_at: now, enrichment_note: r.note || null, website: r.website ?? p.website, ...(email ? { email, email_source: r.source } : {}), updated_at: now })
+      .eq("id", p.id);
+    if (error?.code === "23505") {
+      await db.from("outreach_prospects").update({ enrichment_status: "NO_EMAIL", enriched_at: now, enrichment_note: "Adresse déjà utilisée par une autre entreprise" }).eq("id", p.id);
+      continue;
+    }
+    if (email) {
+      result.found++;
+      if (campaignId) await db.from("outreach_recipients").update({ email, status: "PENDING", updated_at: now }).eq("campaign_id", campaignId).eq("prospect_id", p.id).eq("status", "NO_EMAIL");
+    } else if (r.status === "NO_WEBSITE") result.no_website++;
+    else if (r.status === "BLOCKED") result.blocked++;
+    else if (r.status === "ERROR") result.errors++;
+    else result.no_email++;
+  }
+  return result;
+}
+
+const today_ = () => new Date().toISOString().slice(0, 10);
+
+/**
  * Conversions : une inscription venue d'Outreach dont l'entreprise a souscrit
  * un abonnement payant (actif ou en essai) — calculé à partir des données réelles.
  */
@@ -381,11 +450,12 @@ export async function runOutreachDaily(db: Db, { budgetMs = 240_000 }: { budgetM
   const deadline = Date.now() + budgetMs;
   const settings = await loadSettings(db);
   const sync = await syncOpportunityStates(db, settings);
-  const build = await buildDailyCampaign(db, { deadline: deadline - 60_000 });
+  const build = await buildDailyCampaign(db, { deadline: deadline - 120_000 });
+  const enrichment = await enrichProspects(db, { campaignId: build.campaignId, deadline: deadline - 45_000 }).catch((e) => (logServerError("outreach enrichment", e), null));
   if (build.campaignId && !build.skipped && !settings.require_validation) {
     await db.from("outreach_campaigns").update({ status: "VALIDATED", validated_at: new Date().toISOString() }).eq("id", build.campaignId).eq("status", "READY");
   }
   const send = await processSendQueue(db, { deadline });
   const conversions = await updateConversions(db).catch((e) => (logServerError("outreach conversions", e), { converted: 0 }));
-  return { sync, build, send, conversions };
+  return { sync, build, enrichment, send, conversions };
 }

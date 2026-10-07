@@ -51,7 +51,7 @@ test("tableau de bord, prévisualisation de campagne et paramètres", async ({ b
   await login(page, "admin@demo.linkprob2b.test");
   await page.goto("/outreach");
   await expect(page.getByRole("heading", { name: "Vue d'ensemble", level: 1 })).toBeVisible();
-  await expect(page.getByText("Mode simulation").first()).toBeVisible();
+  await expect(page.getByText(/Mode simulation|Envoi réel/).first()).toBeVisible();
   await page.goto(`/outreach/campagnes/${campaignId}`);
   await expect(page.getByRole("heading", { level: 1 })).toContainText("Campagne du");
   await expect(page.getByRole("link", { name: `${T} Élec Ouest` })).toBeVisible();

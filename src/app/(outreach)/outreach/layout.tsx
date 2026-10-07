@@ -20,7 +20,7 @@ export default async function OutreachLayout({ children }: { children: React.Rea
   if (settings.security?.admin_mfa_required === true && session.mfaLevel !== "aal2") redirect("/dashboard/parametres?mfa=requis");
   const supabase = await createClient();
   const { data: s } = await supabase.from("outreach_settings").select("dry_run").eq("id", true).maybeSingle();
-  const dryRun = s?.dry_run !== false || process.env.OUTREACH_SEND_ENABLED !== "true";
+  const dryRun = s?.dry_run !== false || process.env.OUTREACH_SEND_ENABLED === "false" || !process.env.RESEND_API_KEY;
   return (
     <div className="min-h-dvh bg-slate-50 lg:grid lg:grid-cols-[16rem_minmax(0,1fr)]">
       <aside className="bg-navy px-4 py-4 text-white lg:sticky lg:top-0 lg:flex lg:h-dvh lg:flex-col lg:py-6">
@@ -31,7 +31,7 @@ export default async function OutreachLayout({ children }: { children: React.Rea
           </Link>
           <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold lg:mt-4 ${dryRun ? "bg-violet-500/20 text-violet-100" : "bg-teal/20 text-teal-100"}`}>
             {dryRun ? <FlaskConical className="size-3.5" aria-hidden /> : <Send className="size-3.5" aria-hidden />}
-            {dryRun ? "Mode simulation" : "Envoi réel actif"}
+            {dryRun ? (s?.dry_run ? "Mode simulation" : "Envoi réel indisponible") : "Envoi réel actif"}
           </span>
         </div>
         <OutreachNav />

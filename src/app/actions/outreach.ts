@@ -10,6 +10,7 @@ import { parseForm, type ActionResult } from "@/lib/validation";
 import { buildDailyCampaign, processSendQueue, syncOpportunityStates } from "@/lib/outreach/pipeline";
 import { loadReferentials, loadSettings, realSendBlockers } from "@/lib/outreach/data";
 import { mapProspectRows, parseCsv } from "@/lib/outreach/csv";
+import { configuredSearchers, enrichCompany } from "@/lib/outreach/enrich";
 
 /** Réservé aux administrateurs de la plateforme (contrôle répété en base par la RLS). */
 async function admin() {
@@ -42,6 +43,8 @@ const settingsSchema = z.object({
   require_validation: bool,
   discovery_enabled: bool,
   include_individual_entrepreneurs: bool,
+  enrichment_enabled: bool,
+  enrichment_daily_limit: z.coerce.number().int().min(0).max(5000),
   sender_name: z.string().trim().min(2).max(120),
   reply_to: z.union([z.literal(""), z.email({ error: "Adresse de réponse invalide" })]),
   subject_template: z.string().trim().min(5).max(200),
@@ -304,6 +307,31 @@ export async function importProspects(_prev: ActionResult | null, fd: FormData):
   await audit(session.userId, "outreach.import", source, { created, updated, errors: errors.length });
   revalidatePath("/outreach", "layout");
   return { ok: true, message: `${created} entreprise(s) ajoutée(s), ${updated} mise(s) à jour${errors.length ? `, ${errors.length} ligne(s) ignorée(s) : ${errors.slice(0, 3).join(" ; ")}` : ""}.` };
+}
+
+/** Recherche immédiate de l'adresse générique d'une entreprise (site officiel → page Contact). */
+export async function enrichProspectNow(_prev: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  const parsed = parseForm(z.object({ id: z.uuid() }), fd);
+  if (!parsed.success) return parsed.result;
+  const { session, supabase } = await admin();
+  const searchers = configuredSearchers();
+  const { data: p } = await supabase.from("outreach_prospects").select("id, name, city, siren, website, email, status").eq("id", parsed.data.id).single();
+  if (!p) return { ok: false, error: "Entreprise introuvable." };
+  if (p.status !== "ACTIVE") return { ok: false, error: "Cette entreprise n'est pas active (exclue ou « Ne plus contacter »)." };
+  if (!p.website && searchers.length === 0) return { ok: false, error: "Renseignez le site internet de l'entreprise, ou ajoutez une clé BRAVE_SEARCH_API_KEY ou DROPCONTACT_API_KEY dans Vercel." };
+  const r = await enrichCompany(p, searchers);
+  const now = new Date().toISOString();
+  const { data: blocked } = r.email ? await supabase.from("outreach_suppressions").select("id").in("value", [r.email, r.email.split("@")[1]]).limit(1) : { data: [] };
+  const email = r.email && !(blocked ?? []).length ? r.email : null;
+  const { error } = await supabase
+    .from("outreach_prospects")
+    .update({ enrichment_status: email ? "FOUND" : r.status === "FOUND" ? "NO_EMAIL" : r.status, enriched_at: now, enrichment_note: r.note || null, website: r.website ?? p.website, ...(email && !p.email ? { email, email_source: r.source } : {}), updated_at: now })
+    .eq("id", p.id);
+  if (error) return { ok: false, error: error.code === "23505" ? "Cette adresse est déjà utilisée par une autre entreprise." : userMessage(error) };
+  await audit(session.userId, "outreach.prospect.enrich", p.id, { status: r.status });
+  revalidatePath("/outreach", "layout");
+  if (email) return { ok: true, message: `Adresse trouvée : ${email}` };
+  return { ok: true, message: r.note || "Aucune adresse générique trouvée." };
 }
 
 // ---------------------------------------------------------------- Liste d'exclusion
