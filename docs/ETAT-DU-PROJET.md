@@ -25,13 +25,13 @@ Légende : 🟢 terminé et fonctionnel · 🟡 nécessite une information ou un
 - Séparation démo / réel : la production n'affiche que le réel et refuse le seed ; en staging, le réel et la démo sont affichés, la démo avec un indicateur clair.
 - Sécurité : voir [SECURITE.md](SECURITE.md) (audit final).
 - SEO, responsive (375 → 1440 px), accessibilité (axe-core WCAG 2.1 AA sur 23 pages).
-- Déploiement : migrations transactionnelles au build, supervision `/api/sante`, tâche planifiée, domaine `linkprob2b.fr` préparé, PR vers `main` ouverte.
+- Déploiement : migrations transactionnelles au build, supervision `/api/sante`, tâche planifiée, domaine `linkprob2b.com`.
 
 ## 🟡 À fournir
 
 1. **Compte Vercel et compte Supabase** : fusionner la PR, cliquer « Deploy with Vercel » et répondre aux 3 questions → URL de production permanente.
 2. **`RESEND_API_KEY`** : il me faut cette clé pour activer l'envoi réel des e-mails. Le reste est opérationnel.
-3. **Domaine `linkprob2b.fr`** : 2 enregistrements DNS (voir [DEPLOIEMENT.md](DEPLOIEMENT.md#domaine-linkprob2bfr)).
+3. **Domaine `linkprob2b.com`** : voir [DEPLOIEMENT.md](DEPLOIEMENT.md#domaine-linkprob2bcom).
 
 ## 🔴 Bloqué par l'environnement
 

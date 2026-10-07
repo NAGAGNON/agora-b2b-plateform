@@ -38,10 +38,20 @@ describe("environnement applicatif", () => {
     vi.stubEnv("SITE_URL", "");
     vi.stubEnv("NEXT_PUBLIC_SITE_URL", "");
     vi.stubEnv("VERCEL_ENV", "production");
-    vi.stubEnv("VERCEL_PROJECT_PRODUCTION_URL", "linkprob2b.fr");
+    vi.stubEnv("VERCEL_PROJECT_PRODUCTION_URL", "www.linkprob2b.com");
     const { siteUrl } = await import("@/lib/seo");
-    expect(siteUrl()).toBe("https://linkprob2b.fr");
-    expect(env.siteUrl).toBe("https://linkprob2b.fr");
+    expect(siteUrl()).toBe("https://www.linkprob2b.com");
+    expect(env.siteUrl).toBe("https://www.linkprob2b.com");
+  });
+
+  it("déduit l'expéditeur du domaine du site, sauf EMAIL_FROM explicite", () => {
+    vi.stubEnv("EMAIL_FROM", "");
+    vi.stubEnv("SITE_URL", "https://www.linkprob2b.com");
+    expect(env.emailFrom).toBe("LinkProB2B <notifications@linkprob2b.com>");
+    vi.stubEnv("SITE_URL", "https://agora-b2b-plateform.vercel.app");
+    expect(env.emailFrom).toBe("LinkProB2B <notifications@linkprob2b.com>");
+    vi.stubEnv("EMAIL_FROM", "X <a@b.fr>");
+    expect(env.emailFrom).toBe("X <a@b.fr>");
   });
 
   it("normalise l'adresse du premier administrateur", () => {
