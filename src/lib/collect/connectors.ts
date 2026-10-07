@@ -1,6 +1,6 @@
 import { classifySector, extractKeywords } from "@/lib/collect/classify";
 import { asArray, cleanString, isSafeUrl, toDate, toIsoDeadline, type MapResult } from "@/lib/collect/normalize";
-import { locateNuts } from "@/lib/geo";
+import { locateNuts, normalizeDepartment } from "@/lib/geo";
 
 export type FetchLike = (url: string, init?: RequestInit) => Promise<Response>;
 export type SourceConfig = Record<string, unknown>;
@@ -48,7 +48,7 @@ export function mapBoampRecord(r: Record<string, unknown>): MapResult {
   if (!id) return { ok: false, reason: "idweb manquant" };
   if (!title || title.length < 5) return { ok: false, reason: `objet manquant (${id})` };
   const buyer = cleanString(r.nomacheteur, 200);
-  const deps = asArray(r.code_departement);
+  const deps = asArray(r.code_departement).map(normalizeDepartment).filter((d): d is string => Boolean(d));
   const descriptors = asArray(r.descripteur_libelle);
   const types = asArray(r.type_marche ?? r.type_marche_facette);
   const nature = cleanString(r.nature_libelle ?? r.nature, 100) ?? "";
@@ -232,7 +232,7 @@ export function mapGenericRecord(r: Record<string, unknown>, config: SourceConfi
       originalUrl: url,
       publishedAt: toDate(get("published")),
       deadline: toIsoDeadline(get("deadline")),
-      departmentCode: cleanString(asArray(get("department"))[0], 3),
+      departmentCode: normalizeDepartment(asArray(get("department"))[0]),
       region: null,
       city: cleanString(get("city"), 120),
       cpv,

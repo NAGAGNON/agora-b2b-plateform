@@ -10,7 +10,7 @@
 -- -----------------------------------------------------------------------------
 update public.external_sources
 set config = (coalesce(config, '{}'::jsonb) - 'departments')
-  || jsonb_build_object('maxRecords', greatest(coalesce((config ->> 'maxRecords')::int, 0), 4000), 'lookbackDays', 14)
+  || jsonb_build_object('maxRecords', greatest(coalesce((config ->> 'maxRecords')::int, 0), 6000), 'lookbackDays', 14)
 where code = 'boamp';
 
 update public.external_sources

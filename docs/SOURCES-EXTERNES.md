@@ -14,7 +14,7 @@ Mention affichée sur chaque fiche : « Source : BOAMP — Direction de l'inform
 ### Paramétrage actuel (modifiable dans *Administration → Sources → Réglages*)
 
 - **Couverture : France entière** (métropole et outre-mer) depuis la migration `20261015000001_national.sql`.
-- **BOAMP** : tous départements ; fenêtre initiale de 14 jours ; 4 000 annonces au plus par synchronisation (plafond technique 9 900) ; uniquement les avis dont la date limite n'est pas passée.
+- **BOAMP** : tous départements ; fenêtre initiale de 14 jours ; 6 000 annonces au plus par synchronisation (plafond technique 9 900) ; uniquement les avis dont la date limite n'est pas passée.
 - **TED** : pays FRA (acheteurs français), tous lieux d'exécution ; fenêtre initiale de 14 jours ; 2 000 avis au plus.
 - Un filtre géographique reste possible (`departments` pour BOAMP, `nuts` pour TED) dans les réglages de la source.
 

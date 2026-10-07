@@ -74,3 +74,12 @@ export function slugify(s: string): string {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 }
+
+/** Code département normalisé (« 6 » → « 06 », « 20B » → « 2B », « 971 » inchangé), sinon null. */
+export function normalizeDepartment(v: string | null | undefined): string | null {
+  const s = (v ?? "").trim().toUpperCase();
+  if (/^\d$/.test(s)) return `0${s}`;
+  if (/^\d{2,3}$/.test(s)) return s;
+  const corse = s.match(/^20?([AB])$/);
+  return corse ? `2${corse[1]}` : null;
+}

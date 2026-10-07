@@ -18,6 +18,13 @@ describe("référentiel géographique national", () => {
     expect(locateNuts(["FRH02", "FR101"]).region).toBeNull();
     expect(regionForNuts("DE300")).toBeNull();
   });
+  it("normalise les codes département de BOAMP (« 6 », « 20B »)", async () => {
+    const { normalizeDepartment } = await import("@/lib/geo");
+    expect(["6", "06", "20B", "2a", "971", "x", ""].map(normalizeDepartment)).toEqual(["06", "06", "2B", "2A", "971", null, null]);
+    const { mapBoampRecord } = await import("@/lib/collect/connectors");
+    const r = mapBoampRecord({ idweb: "26-1", objet: "Aménagement du carrefour de Neru", code_departement: ["20B"], url_avis: "https://www.boamp.fr/x" });
+    expect(r.ok && r.item.departmentCode).toBe("2B");
+  });
   it("mappe une annonce TED hors Bretagne", () => {
     const r = mapTedNotice({ "publication-number": "1-2026", "notice-title": { fra: "France – Travaux – Rénovation d'un collège à Lyon" }, "place-of-performance": ["FRK26"] }, []);
     expect(r.ok && r.item).toMatchObject({ departmentCode: "69", region: "Auvergne-Rhône-Alpes" });
