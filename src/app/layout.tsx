@@ -11,6 +11,8 @@ export const metadata: Metadata = {
   title: { default: "LinkProB2B — Des opportunités qui créent des connexions", template: "%s | LinkProB2B" },
   description: `Plateforme B2B qui met en relation les entreprises qui ont un besoin avec celles capables d'y répondre. ${PROMISE}`,
   applicationName: "LinkProB2B",
+  // Vérification de propriété : Bing Webmaster Tools (également /BingSiteAuth.xml)
+  verification: { other: { "msvalidate.01": "E96AB03143F3D93960FF218E3B517EDE" } },
   openGraph: {
     siteName: "LinkProB2B",
     locale: "fr_FR",
