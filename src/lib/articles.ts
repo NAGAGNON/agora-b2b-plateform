@@ -217,6 +217,7 @@ Règles absolues :
 - Ton neutre et factuel, pas de superlatifs ni de promesses.
 - Mentionne que les données proviennent de BOAMP et TED et qu'elles sont à jour à la date indiquée.
 - N'écris aucune adresse web : les liens sont ajoutés automatiquement sous l'article.
+- Ne parle jamais de la manière dont l'article est rédigé (ni intelligence artificielle, ni outil, ni automatisation).
 - Des graphiques (répartition, principaux acheteurs) et une couverture sont générés automatiquement à partir des mêmes faits : commente-les en mots, sans tableau.`;
 
 async function writeArticle(facts: ReturnType<typeof buildFacts>, correction?: string) {

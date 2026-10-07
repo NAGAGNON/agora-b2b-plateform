@@ -121,12 +121,12 @@ export default function TermsPage() {
           ),
         },
         {
-          id: "ia",
-          title: "Analyses et recommandations automatisées",
+          id: "analyses",
+          title: "Analyses et recommandations",
           content: (
             <p>
-              Les recommandations sont calculées selon un barème transparent (secteurs, zone, compétences) et les analyses de marché sont rédigées avec
-              l&apos;aide d&apos;une intelligence artificielle à partir des seules données publiées sur la plateforme. Elles sont fournies à titre indicatif
+              Les recommandations sont calculées selon un barème transparent (secteurs, zone, compétences) et les analyses de marché sont établies à partir des
+              seules données publiées sur la plateforme. Elles sont fournies à titre indicatif
               et ne constituent ni un conseil ni une garantie.
             </p>
           ),
@@ -147,7 +147,7 @@ export default function TermsPage() {
           content: (
             <p>
               Le service s&apos;appuie sur des prestataires techniques : Vercel (hébergement), Supabase (base de données, authentification, fichiers), Resend
-              (e-mails), Stripe (paiement des abonnements) et Anthropic (aide à la rédaction des analyses). Le paiement est effectué sur les pages de Stripe,
+              (e-mails) et Stripe (paiement des abonnements). Le paiement est effectué sur les pages de Stripe,
               selon ses propres conditions. Le détail figure dans la <Link href="/confidentialite">politique de confidentialité</Link>.
             </p>
           ),

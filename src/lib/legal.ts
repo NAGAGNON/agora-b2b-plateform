@@ -53,7 +53,8 @@ export function legalIncomplete(): boolean {
 
 /**
  * Prestataires réellement utilisés par l'application (vérifié dans le code) :
- * hébergement, base de données, e-mails, paiement, rédaction assistée, statistiques.
+ * hébergement, base de données, e-mails, paiement, statistiques. Les prestataires qui ne
+ * reçoivent aucune donnée personnelle des utilisateurs ne sont pas listés.
  */
 export const PROCESSORS = [
   {
@@ -83,12 +84,5 @@ export const PROCESSORS = [
     data: "Nom de l'entreprise, adresse e-mail, adresse de facturation, numéro de TVA le cas échéant, données de carte (saisies et conservées par Stripe uniquement)",
     location: "Stripe Payments Europe, Ltd. (Irlande) et ses sous-traitants",
     url: "https://stripe.com/fr/privacy",
-  },
-  {
-    name: "Anthropic, PBC",
-    role: "Aide à la rédaction des « Analyses des marchés » à partir de statistiques sur les opportunités publiées",
-    data: "Aucune donnée de compte ni donnée personnelle des utilisateurs : uniquement des chiffres agrégés et des informations d'avis publics",
-    location: "États-Unis",
-    url: "https://www.anthropic.com/legal/privacy",
   },
 ] as const;
