@@ -1,5 +1,6 @@
 import { PAGE_SIZE, type CompanyKind, type CompanySize, type OpportunityOrigin, type OpportunityType } from "@/lib/constants";
 import { splitList } from "@/lib/format";
+import { regionBySlug } from "@/lib/geo";
 
 export type RawSearchParams = Record<string, string | string[] | undefined>;
 
@@ -19,9 +20,15 @@ function all(v: string | string[] | undefined): string[] {
 export type OpportunityFilters = {
   q?: string;
   sector?: string;
+  /** Slug de région (France entière si absent) */
+  region?: string;
   department?: string;
+  /** Ville ou code postal saisi librement */
+  city?: string;
   place?: string;
   radius?: number;
+  /** Code de la source externe */
+  source?: string;
   types: OpportunityType[];
   status: "OPEN" | "CLOSED" | "ALL";
   origin?: OpportunityOrigin;
@@ -53,8 +60,14 @@ export function parseOpportunityFilters(sp: RawSearchParams, now: Date = new Dat
   const sizeRaw = first(sp.taille);
   const q = first(sp.q)?.slice(0, 200);
   const place = first(sp.lieu);
+  const region = first(sp.region);
+  const city = first(sp.ville)?.slice(0, 80);
+  const source = first(sp.source);
   return {
     q,
+    region: region && regionBySlug(region) ? region : undefined,
+    city: city && /^[\p{L}0-9' -]{2,80}$/u.test(city) ? city : undefined,
+    source: source && /^[a-z0-9-]{2,40}$/.test(source) ? source : undefined,
     sector: sector && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(sector) && sector.length <= 60 ? sector : undefined,
     department: department && /^(\d{2,3}|2[AB])$/.test(department) ? department : undefined,
     place: place && /^[a-z0-9-]{2,80}$/.test(place) ? place : undefined,
@@ -77,6 +90,9 @@ export function filtersToRpcArgs(f: OpportunityFilters, pageSize = PAGE_SIZE) {
     p_q: f.q,
     p_sector: f.sector,
     p_department: f.department,
+    p_region: f.region ? regionBySlug(f.region)?.name : undefined,
+    p_city: f.city,
+    p_source: f.source,
     p_place: f.place,
     p_radius_km: f.place ? f.radius : undefined,
     p_types: f.types.length ? f.types : undefined,
@@ -94,7 +110,7 @@ export function filtersToRpcArgs(f: OpportunityFilters, pageSize = PAGE_SIZE) {
 
 /** Nombre de filtres actifs (hors recherche texte, tri et page). */
 export function activeFilterCount(f: OpportunityFilters): number {
-  return [f.sector, f.department, f.place, f.origin, f.publishedSince, f.deadlineBefore, f.size].filter(Boolean).length +
+  return [f.sector, f.region, f.department, f.city, f.source, f.place, f.origin, f.publishedSince, f.deadlineBefore, f.size].filter(Boolean).length +
     (f.types.length ? 1 : 0) + (f.skills.length ? 1 : 0) + (f.status !== "OPEN" ? 1 : 0);
 }
 

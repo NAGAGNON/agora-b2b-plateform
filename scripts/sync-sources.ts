@@ -19,6 +19,10 @@ async function main() {
     console.log("[sources] Supabase non configuré : étape ignorée.");
     return;
   }
+  const { importPlaces } = await import("../src/lib/collect/places");
+  await importPlaces()
+    .then((r) => console.log(`[villes] ${r.skipped ? "référentiel déjà présent" : `${r.inserted} ville(s) importée(s) depuis geo.api.gouv.fr`}`))
+    .catch((e) => console.error("[villes] Import impossible (non bloquant) :", e instanceof Error ? e.message : e));
   const { runDueSources } = await import("../src/lib/collect/run");
   const results = await runDueSources();
   if (!results.length) console.log("[sources] Aucune source à synchroniser (déjà à jour).");

@@ -11,15 +11,14 @@
 import { collectBoamp, collectTed, type SourceConfig } from "../src/lib/collect/connectors";
 
 const SOURCES: { name: string; run: typeof collectBoamp; config: SourceConfig }[] = [
-  { name: "BOAMP", run: collectBoamp, config: { departments: ["22", "29", "35", "56"], lookbackDays: 21, maxRecords: 200 } },
+  { name: "BOAMP", run: collectBoamp, config: { lookbackDays: 14, maxRecords: Number(process.env.CHECK_MAX ?? 200) } },
   {
     name: "TED",
     run: collectTed,
     config: {
       country: "FRA",
-      nuts: ["FRH01", "FRH02", "FRH03", "FRH04"],
-      lookbackDays: 21,
-      maxRecords: 200,
+      lookbackDays: 14,
+      maxRecords: Number(process.env.CHECK_MAX ?? 200),
       fields: ["publication-number", "notice-title", "buyer-name", "publication-date", "deadline-receipt-tender-date-lot", "deadline-receipt-request-date-lot", "place-of-performance", "classification-cpv", "contract-nature"],
     },
   },
@@ -73,15 +72,24 @@ async function exploreCandidates() {
   console.log(`\n[candidat data.gouv.fr] HTTP ${dg.status}\n  ${items.join("\n  ")}`);
 }
 
+/** Référentiel des villes (geo.api.gouv.fr) : communes importées par la tâche planifiée. */
+async function checkPlaces() {
+  const res = await fetch("https://geo.api.gouv.fr/communes?fields=nom,code,codesPostaux,centre,population,codeDepartement&format=json&geometry=centre", { signal: AbortSignal.timeout(60_000) });
+  const all = (await res.json()) as { population?: number; codeDepartement?: string; centre?: unknown }[];
+  const big = all.filter((c) => (c.population ?? 0) >= 10_000 && c.centre);
+  console.log(`\n## geo.api.gouv.fr — HTTP ${res.status}, ${all.length} communes, ${big.length} de 10 000 habitants ou plus, ${new Set(big.map((c) => c.codeDepartement)).size} départements`);
+}
+
 async function main() {
   const now = new Date();
+  if (process.argv.includes("--places")) await checkPlaces().catch((e) => console.error("villes", e));
   if (process.argv.includes("--candidates")) await exploreCandidates().catch((e) => console.error("candidats", e));
   if (process.argv.includes("--explore")) await exploreTed(new Date(now.getTime() - 21 * 86_400_000).toISOString().slice(0, 10).replace(/-/g, "")).catch((e) => console.error("diagnostic", e));
   let failures = 0;
   for (const s of SOURCES) {
     const started = Date.now();
     try {
-      const batch = await s.run({ config: s.config, since: new Date(now.getTime() - 21 * 86_400_000), fetchImpl: fetch, now });
+      const batch = await s.run({ config: s.config, since: new Date(now.getTime() - 14 * 86_400_000), fetchImpl: fetch, now });
       const ok = batch.mapped.filter((m) => m.ok);
       const reasons = new Map<string, number>();
       for (const m of batch.mapped) if (!m.ok) {
@@ -91,6 +99,9 @@ async function main() {
       const sectors = new Map<string, number>();
       for (const m of ok) if (m.ok) sectors.set(m.item.sectorSlug ?? "(non classé)", (sectors.get(m.item.sectorSlug ?? "(non classé)") ?? 0) + 1);
       const withDeadline = ok.filter((m) => m.ok && m.item.deadline).length;
+      const byDep = new Map<string, number>();
+      for (const m of ok) if (m.ok) byDep.set(m.item.departmentCode ?? m.item.region ?? "(non localisé)", (byDep.get(m.item.departmentCode ?? m.item.region ?? "(non localisé)") ?? 0) + 1);
+      console.log(`Localisation (${byDep.size} zones) :`, Object.fromEntries([...byDep.entries()].sort((a, b) => b[1] - a[1]).slice(0, 25)));
       console.log(`\n## ${s.name} — ${batch.records.length} enregistrement(s) lus, ${ok.length} exploitable(s) (${withDeadline} avec date limite) en ${Date.now() - started} ms`);
       if (reasons.size) console.log("Écartés :", Object.fromEntries(reasons));
       console.log("Secteurs :", Object.fromEntries(sectors));

@@ -42,9 +42,9 @@ import { createClient } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/format";
 
 export const metadata = pageMetadata({
-  title: "LinkProB2B — Trouvez le bon partenaire industriel en Bretagne",
+  title: "LinkProB2B — Opportunités B2B, marchés et partenaires partout en France",
   description:
-    "Identifiez des fournisseurs, trouvez des prestataires, recevez des opportunités adaptées à votre activité et développez votre réseau professionnel en Bretagne.",
+    "La plateforme B2B française : appels d'offres, opportunités commerciales, partenaires, fournisseurs et prestataires issus de sources fiables, partout en France.",
   path: "/",
 });
 
@@ -102,14 +102,13 @@ export default async function HomePage(props: PageProps<"/">) {
         </svg>
         <div className="container-page relative py-14 sm:py-20 lg:py-24">
           <p className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold tracking-wide text-teal-50 uppercase ring-1 ring-white/20">
-            <span className="size-2 rounded-full bg-teal" aria-hidden /> Bretagne · Finistère
+            <span className="size-2 rounded-full bg-teal" aria-hidden /> France entière · Métropole et outre-mer
           </p>
           <h1 className="mt-5 max-w-3xl text-3xl leading-tight font-extrabold text-white sm:text-5xl">
-            Trouvez le bon partenaire industriel en <span className="text-teal">Bretagne</span>.
+            Trouvez vos prochaines opportunités B2B <span className="text-teal">partout en France</span>.
           </h1>
           <p className="mt-4 max-w-2xl text-base text-slate-200 sm:text-lg">
-            Identifiez des fournisseurs, trouvez des prestataires, recevez des opportunités adaptées à votre activité et développez votre réseau
-            professionnel.
+            Découvrez des appels d&apos;offres, opportunités commerciales, partenaires, fournisseurs et prestataires issus de sources fiables.
           </p>
           <div className="mt-6 flex flex-col gap-3 sm:flex-row">
             <ButtonLink href="/inscription" size="lg">
@@ -122,6 +121,22 @@ export default async function HomePage(props: PageProps<"/">) {
           <div className="mt-8 max-w-5xl">
             <SearchBar />
           </div>
+          <nav aria-label="Opportunités par région" className="mt-4 flex max-w-5xl flex-wrap gap-2 text-sm">
+            {[
+              ["france", "France entière"],
+              ["bretagne", "Bretagne"],
+              ["ile-de-france", "Île-de-France"],
+              ["auvergne-rhone-alpes", "Auvergne-Rhône-Alpes"],
+              ["nouvelle-aquitaine", "Nouvelle-Aquitaine"],
+              ["occitanie", "Occitanie"],
+              ["hauts-de-france", "Hauts-de-France"],
+              ["provence-alpes-cote-d-azur", "Provence-Alpes-Côte d'Azur"],
+            ].map(([slug, label]) => (
+              <Link key={slug} href={`/opportunites/${slug}`} className="rounded-full bg-white/10 px-3 py-1 font-medium text-white ring-1 ring-white/20 hover:bg-white/20">
+                {label}
+              </Link>
+            ))}
+          </nav>
           <div className="mt-6 grid max-w-3xl gap-3 sm:grid-cols-2">
             <Link href="/entreprises" className="group flex items-center gap-3 rounded-xl bg-white/10 p-4 ring-1 ring-white/15 transition hover:bg-white/15">
               <span className="flex size-10 items-center justify-center rounded-lg bg-teal text-navy">
@@ -280,7 +295,7 @@ export default async function HomePage(props: PageProps<"/">) {
           <div className="relative max-w-2xl">
             <h2 className="text-2xl font-bold text-white sm:text-3xl">Rejoignez LinkProB2B.</h2>
             <p className="mt-3 text-slate-200">
-              Acheteurs et fournisseurs bretons y publient leurs besoins, répondent aux consultations et suivent les marchés publics. L&apos;inscription
+              Acheteurs et fournisseurs de toute la France y publient leurs besoins, répondent aux consultations et suivent les marchés publics. L&apos;inscription
               est gratuite.
             </p>
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">

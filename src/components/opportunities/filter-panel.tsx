@@ -1,6 +1,7 @@
 import { OPPORTUNITY_TYPE_LABELS, COMPANY_SIZE_LABELS, type OpportunityType, type CompanySize } from "@/lib/constants";
 import type { OpportunityFilters } from "@/lib/search-params";
-import { getSectors } from "@/lib/queries/platform";
+import { getPublicSources, getSectors } from "@/lib/queries/platform";
+import { REGIONS } from "@/lib/geo";
 import { Label } from "@/components/ui/form";
 
 type Dept = { code: string; name: string; region: string };
@@ -15,8 +16,7 @@ const sel =
  */
 export async function FilterFields({ f, departments, places, idPrefix }: { f: OpportunityFilters; departments: Dept[]; places: Place[]; idPrefix: string }) {
   const id = (n: string) => `${idPrefix}-${n}`;
-  const brittany = departments.filter((d) => d.region === "Bretagne");
-  const others = departments.filter((d) => d.region !== "Bretagne");
+  const sources = await getPublicSources();
   return (
     <div className="space-y-5">
       <div>
@@ -34,26 +34,47 @@ export async function FilterFields({ f, departments, places, idPrefix }: { f: Op
           ))}
         </select>
       </div>
-      <div>
-        <Label htmlFor={id("departement")}>Département</Label>
-        <select id={id("departement")} name="departement" defaultValue={f.department ?? ""} className={sel}>
-          <option value="">Toute la France</option>
-          <optgroup label="Bretagne">
-            {brittany.map((d) => (
-              <option key={d.code} value={d.code}>
-                {d.name} ({d.code})
+      <fieldset className="space-y-3">
+        <legend className="mb-1.5 text-sm font-semibold text-navy">Localisation</legend>
+        <div>
+          <Label htmlFor={id("region")} className="text-xs font-medium text-slate-600">
+            Région
+          </Label>
+          <select id={id("region")} name="region" defaultValue={f.region ?? ""} className={sel}>
+            <option value="">France entière</option>
+            {REGIONS.map((r) => (
+              <option key={r.slug} value={r.slug}>
+                {r.name}
               </option>
             ))}
-          </optgroup>
-          <optgroup label="Autres départements">
-            {others.map((d) => (
-              <option key={d.code} value={d.code}>
-                {d.name} ({d.code})
-              </option>
+          </select>
+        </div>
+        <div>
+          <Label htmlFor={id("departement")} className="text-xs font-medium text-slate-600">
+            Département
+          </Label>
+          <select id={id("departement")} name="departement" defaultValue={f.department ?? ""} className={sel}>
+            <option value="">Tous les départements</option>
+            {REGIONS.map((r) => (
+              <optgroup key={r.slug} label={r.name}>
+                {departments
+                  .filter((d) => d.region === r.name)
+                  .map((d) => (
+                    <option key={d.code} value={d.code}>
+                      {d.name} ({d.code})
+                    </option>
+                  ))}
+              </optgroup>
             ))}
-          </optgroup>
-        </select>
-      </div>
+          </select>
+        </div>
+        <div>
+          <Label htmlFor={id("ville")} className="text-xs font-medium text-slate-600">
+            Ville ou code postal
+          </Label>
+          <input id={id("ville")} name="ville" defaultValue={f.city} placeholder="ex. Lyon ou 69003" className={sel} />
+        </div>
+      </fieldset>
       <fieldset className="grid grid-cols-[1fr_7rem] gap-2">
         <legend className="mb-1.5 text-sm font-semibold text-navy">Autour de</legend>
         <div>
@@ -108,6 +129,19 @@ export async function FilterFields({ f, departments, places, idPrefix }: { f: Op
           ))}
         </div>
       </fieldset>
+      {sources.length > 0 && (
+        <div>
+          <Label htmlFor={id("source")}>Source</Label>
+          <select id={id("source")} name="source" defaultValue={f.source ?? ""} className={sel}>
+            <option value="">Toutes les sources</option>
+            {sources.map((src) => (
+              <option key={src.code} value={src.code}>
+                {src.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
       <div>
         <Label htmlFor={id("statut")}>Statut</Label>
         <select id={id("statut")} name="statut" defaultValue={f.status} className={sel}>

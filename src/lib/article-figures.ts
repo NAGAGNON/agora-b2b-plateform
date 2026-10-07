@@ -49,7 +49,9 @@ export function articleFigures(f: ArticleFacts) {
   const theme = f.theme ?? "";
   const label = theme.startsWith("Bretagne")
     ? "Bretagne"
-    : theme.replace(/^(Secteur|Département|Acheteur public) : /, "").replace(" — Département : ", " · ");
+    : theme.startsWith("France")
+      ? "France"
+      : theme.replace(/^(Secteur|Département|Acheteur public|Région) : /, "").replace(" — Département : ", " · ");
   return {
     label,
     kind: f.theme?.startsWith("Département") ? ("departement" as const) : ("secteur" as const),

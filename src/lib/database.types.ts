@@ -25,13 +25,13 @@ export type Database = {
           Tables: {
             "alerts": {
                   Row: {
-                    "company_size": Database["public"]['Enums']["company_size"] | null,"created_at": string,"department_code": string | null,"frequency": Database["public"]['Enums']["alert_frequency"],"id": string,"include_external": boolean,"is_active": boolean,"keywords": string | null,"last_sent_at": string | null,"name": string,"place_slug": string | null,"radius_km": number | null,"sector_slug": string | null,"skills": (string)[],"type": Database["public"]['Enums']["opportunity_type"] | null,"unsubscribe_token": string,"user_id": string
+                    "company_size": Database["public"]['Enums']["company_size"] | null,"created_at": string,"department_code": string | null,"frequency": Database["public"]['Enums']["alert_frequency"],"id": string,"include_external": boolean,"is_active": boolean,"keywords": string | null,"last_sent_at": string | null,"name": string,"place_slug": string | null,"radius_km": number | null,"region": string | null,"sector_slug": string | null,"skills": (string)[],"type": Database["public"]['Enums']["opportunity_type"] | null,"unsubscribe_token": string,"user_id": string
                   }
                   Insert: {
-                    "company_size"?: Database["public"]['Enums']["company_size"] | null,"created_at"?: string,"department_code"?: string | null,"frequency"?: Database["public"]['Enums']["alert_frequency"],"id"?: string,"include_external"?: boolean,"is_active"?: boolean,"keywords"?: string | null,"last_sent_at"?: string | null,"name": string,"place_slug"?: string | null,"radius_km"?: number | null,"sector_slug"?: string | null,"skills"?: (string)[],"type"?: Database["public"]['Enums']["opportunity_type"] | null,"unsubscribe_token"?: string,"user_id": string
+                    "company_size"?: Database["public"]['Enums']["company_size"] | null,"created_at"?: string,"department_code"?: string | null,"frequency"?: Database["public"]['Enums']["alert_frequency"],"id"?: string,"include_external"?: boolean,"is_active"?: boolean,"keywords"?: string | null,"last_sent_at"?: string | null,"name": string,"place_slug"?: string | null,"radius_km"?: number | null,"region"?: string | null,"sector_slug"?: string | null,"skills"?: (string)[],"type"?: Database["public"]['Enums']["opportunity_type"] | null,"unsubscribe_token"?: string,"user_id": string
                   }
                   Update: {
-                    "company_size"?: Database["public"]['Enums']["company_size"] | null,"created_at"?: string,"department_code"?: string | null,"frequency"?: Database["public"]['Enums']["alert_frequency"],"id"?: string,"include_external"?: boolean,"is_active"?: boolean,"keywords"?: string | null,"last_sent_at"?: string | null,"name"?: string,"place_slug"?: string | null,"radius_km"?: number | null,"sector_slug"?: string | null,"skills"?: (string)[],"type"?: Database["public"]['Enums']["opportunity_type"] | null,"unsubscribe_token"?: string,"user_id"?: string
+                    "company_size"?: Database["public"]['Enums']["company_size"] | null,"created_at"?: string,"department_code"?: string | null,"frequency"?: Database["public"]['Enums']["alert_frequency"],"id"?: string,"include_external"?: boolean,"is_active"?: boolean,"keywords"?: string | null,"last_sent_at"?: string | null,"name"?: string,"place_slug"?: string | null,"radius_km"?: number | null,"region"?: string | null,"sector_slug"?: string | null,"skills"?: (string)[],"type"?: Database["public"]['Enums']["opportunity_type"] | null,"unsubscribe_token"?: string,"user_id"?: string
                   }
                   Relationships: [
                     {
@@ -663,13 +663,13 @@ isOneToOne: false
                   ]
                 },"places": {
                   Row: {
-                    "department_code": string,"department_name": string,"id": number,"lat": number,"lng": number,"name": string,"postal_code": string,"region": string,"slug": string
+                    "department_code": string,"department_name": string,"id": number,"insee_code": string | null,"lat": number,"lng": number,"name": string,"population": number | null,"postal_code": string,"region": string,"slug": string
                   }
                   Insert: {
-                    "department_code": string,"department_name": string,"id"?: number,"lat": number,"lng": number,"name": string,"postal_code": string,"region": string,"slug": string
+                    "department_code": string,"department_name": string,"id"?: number,"insee_code"?: string | null,"lat": number,"lng": number,"name": string,"population"?: number | null,"postal_code": string,"region": string,"slug": string
                   }
                   Update: {
-                    "department_code"?: string,"department_name"?: string,"id"?: number,"lat"?: number,"lng"?: number,"name"?: string,"postal_code"?: string,"region"?: string,"slug"?: string
+                    "department_code"?: string,"department_name"?: string,"id"?: number,"insee_code"?: string | null,"lat"?: number,"lng"?: number,"name"?: string,"population"?: number | null,"postal_code"?: string,"region"?: string,"slug"?: string
                   }
                   Relationships: [
                     
@@ -949,6 +949,9 @@ isOneToOne: false
               "body": string,"created_at": string,"id": string,"sender_company": string
             }[]
                            },
+"admin_opportunity_overview":
+{ Args: Record<PropertyKey, never>; Returns: Json
+                           },
 "admin_proposals_overview":
 { Args: { "p_limit"?: number,"p_status"?: Database["public"]['Enums']["proposal_status"] }; Returns: {
               "buyer_name": string,"documents": number,"id": string,"is_demo": boolean,"opportunity_id": string,"opportunity_status": Database["public"]['Enums']["opportunity_status"],"opportunity_title": string,"status": Database["public"]['Enums']["proposal_status"],"submitted_at": string,"supplier_name": string,"supplier_slug": string,"updated_at": string
@@ -1160,6 +1163,11 @@ isOneToOne: false
 "notify_user":
 { Args: { "p_body": string,"p_link": string,"p_send_email"?: boolean,"p_title": string,"p_type": string,"p_user_id": string }; Returns: undefined
                            },
+"open_opportunity_counts":
+{ Args: Record<PropertyKey, never>; Returns: {
+              "dimension": string,"key": string,"n": number
+            }[]
+                           },
 "opportunity_matches_alert":
 { Args: { "p_alert_id": string,"p_opportunity_id": string }; Returns: boolean
                            },
@@ -1209,9 +1217,11 @@ isOneToOne: false
               "department_code": string,
 "department_name": string,
 "id": number,
+"insee_code": string | null,
 "lat": number,
 "lng": number,
 "name": string,
+"population": number | null,
 "postal_code": string,
 "region": string,
 "slug": string
@@ -1234,8 +1244,8 @@ isOneToOne: false
             }[]
                            },
 "search_opportunities":
-{ Args: { "p_company_size"?: Database["public"]['Enums']["company_size"],"p_deadline_before"?: string,"p_department"?: string,"p_include_demo"?: boolean,"p_limit"?: number,"p_offset"?: number,"p_origin"?: Database["public"]['Enums']["opportunity_origin"],"p_place"?: string,"p_published_since"?: string,"p_q"?: string,"p_radius_km"?: number,"p_sector"?: string,"p_skills"?: (string)[],"p_sort"?: string,"p_status"?: string,"p_types"?: (Database["public"]['Enums']["opportunity_type"])[] }; Returns: {
-              "budget_max": number,"budget_min": number,"budget_visible": boolean,"city": string,"company_id": string,"company_name": string,"company_slug": string,"company_verified": boolean,"department_code": string,"distance_km": number,"effective_status": string,"external_buyer_name": string,"id": string,"is_demo": boolean,"origin": Database["public"]['Enums']["opportunity_origin"],"published_at": string,"rank": number,"response_deadline": string,"sector_slug": string,"skills": (string)[],"source_name": string,"status": Database["public"]['Enums']["opportunity_status"],"summary": string,"title": string,"total_count": number,"type": Database["public"]['Enums']["opportunity_type"],"visibility": Database["public"]['Enums']["opportunity_visibility"]
+{ Args: { "p_city"?: string,"p_company_size"?: Database["public"]['Enums']["company_size"],"p_deadline_before"?: string,"p_department"?: string,"p_include_demo"?: boolean,"p_limit"?: number,"p_offset"?: number,"p_origin"?: Database["public"]['Enums']["opportunity_origin"],"p_place"?: string,"p_published_since"?: string,"p_q"?: string,"p_radius_km"?: number,"p_region"?: string,"p_sector"?: string,"p_skills"?: (string)[],"p_sort"?: string,"p_source"?: string,"p_status"?: string,"p_types"?: (Database["public"]['Enums']["opportunity_type"])[] }; Returns: {
+              "budget_max": number,"budget_min": number,"budget_visible": boolean,"city": string,"company_id": string,"company_name": string,"company_slug": string,"company_verified": boolean,"department_code": string,"distance_km": number,"effective_status": string,"external_buyer_name": string,"id": string,"is_demo": boolean,"origin": Database["public"]['Enums']["opportunity_origin"],"published_at": string,"rank": number,"region": string,"response_deadline": string,"sector_slug": string,"skills": (string)[],"source_name": string,"status": Database["public"]['Enums']["opportunity_status"],"summary": string,"title": string,"total_count": number,"type": Database["public"]['Enums']["opportunity_type"],"visibility": Database["public"]['Enums']["opportunity_visibility"]
             }[]
                            },
 "send_message":
@@ -1261,6 +1271,9 @@ isOneToOne: false
                            },
 "trusted":
 { Args: Record<PropertyKey, never>; Returns: undefined
+                           },
+"unaccent_simple":
+{ Args: { "p": string }; Returns: string
                            },
 "unique_company_slug":
 { Args: { "p_name": string }; Returns: string

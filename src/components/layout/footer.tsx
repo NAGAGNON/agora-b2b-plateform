@@ -50,7 +50,7 @@ export function Footer() {
         <div>
           <Logo variant="white" />
           <p className="mt-3 max-w-xs text-sm">{SLOGAN}</p>
-          <p className="mt-4 text-xs text-slate-400">Plateforme B2B — Bretagne.</p>
+          <p className="mt-4 text-xs text-slate-400">La plateforme B2B française.</p>
         </div>
         {COLUMNS.map((c) => (
           <nav key={c.title} aria-label={c.title}>

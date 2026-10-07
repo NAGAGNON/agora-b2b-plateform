@@ -30,7 +30,7 @@ export default function TermsPage() {
           content: (
             <>
               <p>
-                {LEGAL.brand} est une plateforme de mise en relation entre professionnels, centrée sur la Bretagne. Elle permet notamment de :
+                {LEGAL.brand} est une plateforme de mise en relation entre professionnels, couvrant toute la France. Elle permet notamment de :
               </p>
               <ul>
                 <li>créer un compte et une fiche entreprise, consultable dans l&apos;annuaire ;</li>

@@ -1,5 +1,6 @@
 import { classifySector, extractKeywords } from "@/lib/collect/classify";
 import { asArray, cleanString, isSafeUrl, toDate, toIsoDeadline, type MapResult } from "@/lib/collect/normalize";
+import { locateNuts, normalizeDepartment } from "@/lib/geo";
 
 export type FetchLike = (url: string, init?: RequestInit) => Promise<Response>;
 export type SourceConfig = Record<string, unknown>;
@@ -47,7 +48,7 @@ export function mapBoampRecord(r: Record<string, unknown>): MapResult {
   if (!id) return { ok: false, reason: "idweb manquant" };
   if (!title || title.length < 5) return { ok: false, reason: `objet manquant (${id})` };
   const buyer = cleanString(r.nomacheteur, 200);
-  const deps = asArray(r.code_departement);
+  const deps = asArray(r.code_departement).map(normalizeDepartment).filter((d): d is string => Boolean(d));
   const descriptors = asArray(r.descripteur_libelle);
   const types = asArray(r.type_marche ?? r.type_marche_facette);
   const nature = cleanString(r.nature_libelle ?? r.nature, 100) ?? "";
@@ -80,6 +81,7 @@ export function mapBoampRecord(r: Record<string, unknown>): MapResult {
       publishedAt: toDate(r.dateparution),
       deadline,
       departmentCode: deps[0] ?? null,
+      region: null,
       city: null,
       cpv: [],
       keywords: extractKeywords(descriptors),
@@ -90,7 +92,7 @@ export function mapBoampRecord(r: Record<string, unknown>): MapResult {
 }
 
 export async function collectBoamp(ctx: ConnectorContext): Promise<ConnectorBatch> {
-  const max = num(ctx.config.maxRecords, 500, 5000);
+  const max = num(ctx.config.maxRecords, 500, 9900);
   const where = boampWhere(ctx.config, ctx.since, ctx.now);
   const records: unknown[] = [];
   for (let offset = 0; offset < max; offset += 100) {
@@ -108,7 +110,6 @@ export async function collectBoamp(ctx: ConnectorContext): Promise<ConnectorBatc
 // POST https://api.ted.europa.eu/v3/notices/search
 // ---------------------------------------------------------------------------
 export const TED_ENDPOINT = "https://api.ted.europa.eu/v3/notices/search";
-export const NUTS_TO_DEPARTMENT: Record<string, string> = { FRH01: "22", FRH02: "29", FRH03: "35", FRH04: "56" };
 
 /** Texte d'un champ multilingue TED : français, puis anglais, puis première langue disponible. */
 export function tedText(v: unknown): string | null {
@@ -146,7 +147,7 @@ export function mapTedNotice(n: Record<string, unknown>, nutsFilter: string[]): 
   const cpv = [...new Set(asArray(n["classification-cpv"]).map((c) => c.replace(/\D/g, "")).filter((c) => c.length >= 2))];
   // Date limite de remise des offres ; à défaut (procédures restreintes), date limite de candidature.
   const deadline = toIsoDeadline(asArray(n["deadline-receipt-tender-date-lot"] ?? n["deadline-receipt-request-date-lot"] ?? n.deadline)[0]);
-  const department = nuts.map((c) => NUTS_TO_DEPARTMENT[c]).find(Boolean) ?? null;
+  const { departmentCode: department, region } = locateNuts(nuts);
   const nature = cleanString(asArray(n["contract-nature"])[0], 60);
   const { sector } = classifySector(cpv, title);
   const url = `https://ted.europa.eu/fr/notice/-/detail/${encodeURIComponent(pub)}`;
@@ -170,6 +171,7 @@ export function mapTedNotice(n: Record<string, unknown>, nutsFilter: string[]): 
       publishedAt: toDate(asArray(n["publication-date"])[0]),
       deadline,
       departmentCode: department,
+      region,
       city: null,
       cpv,
       keywords: [],
@@ -180,7 +182,7 @@ export function mapTedNotice(n: Record<string, unknown>, nutsFilter: string[]): 
 }
 
 export async function collectTed(ctx: ConnectorContext): Promise<ConnectorBatch> {
-  const max = num(ctx.config.maxRecords, 300, 2000);
+  const max = num(ctx.config.maxRecords, 300, 5000);
   const fields = asArray(ctx.config.fields).length
     ? asArray(ctx.config.fields)
     : ["publication-number", "notice-title", "buyer-name", "publication-date", "deadline-receipt-tender-date-lot", "deadline-receipt-request-date-lot", "place-of-performance", "classification-cpv", "contract-nature"];
@@ -230,7 +232,8 @@ export function mapGenericRecord(r: Record<string, unknown>, config: SourceConfi
       originalUrl: url,
       publishedAt: toDate(get("published")),
       deadline: toIsoDeadline(get("deadline")),
-      departmentCode: cleanString(asArray(get("department"))[0], 3),
+      departmentCode: normalizeDepartment(asArray(get("department"))[0]),
+      region: null,
       city: cleanString(get("city"), 120),
       cpv,
       keywords: [],

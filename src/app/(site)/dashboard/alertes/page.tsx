@@ -36,7 +36,7 @@ export default async function AlertsPage(props: PageProps<"/dashboard/alertes">)
       <Card>
         <CardHeader title="Nouvelle alerte" />
         <div className="p-5">
-          <AlertForm departments={departments} places={places} sectors={await getSectors()} defaults={{ secteur: str(sp.secteur), departement: str(sp.departement), type: str(sp.type), motscles: str(sp.motscles), lieu: str(sp.lieu), rayon: str(sp.rayon) }} />
+          <AlertForm departments={departments} places={places} sectors={await getSectors()} defaults={{ secteur: str(sp.secteur), region: str(sp.region), departement: str(sp.departement), type: str(sp.type), motscles: str(sp.motscles), lieu: str(sp.lieu), rayon: str(sp.rayon) }} />
         </div>
       </Card>
       <Card>
@@ -54,6 +54,7 @@ export default async function AlertsPage(props: PageProps<"/dashboard/alertes">)
                   <div className="mt-1 flex flex-wrap gap-1.5">
                     <Badge tone="navy">{ALERT_FREQUENCY_LABELS[a.frequency]}</Badge>
                     {a.sector_slug && <Badge tone="sky">{sectorLabel(a.sector_slug, sectorLabels)}</Badge>}
+                    {a.region && <Badge tone="sky">{a.region}</Badge>}
                     {a.department_code && <Badge tone="sky">Dép. {a.department_code}</Badge>}
                     {a.type && <Badge tone="sky">{OPPORTUNITY_TYPE_LABELS[a.type]}</Badge>}
                     {a.place_slug && <Badge tone="sky">{placeName.get(a.place_slug) ?? a.place_slug} · {a.radius_km ?? 50} km</Badge>}

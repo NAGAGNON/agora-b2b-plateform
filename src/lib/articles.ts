@@ -1,4 +1,5 @@
 import "server-only";
+import { regionByName } from "@/lib/geo";
 import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
@@ -38,12 +39,13 @@ type Opp = {
   external_buyer_name: string | null;
   city: string | null;
   department_code: string | null;
+  region?: string | null;
   sector_slug: string | null;
   response_deadline: string | null;
   published_at: string | null;
 };
 
-type TopicKind = "secteur" | "departement" | "secteur-departement" | "acheteur" | "bretagne";
+type TopicKind = "secteur" | "departement" | "secteur-departement" | "acheteur" | "region" | "france";
 type Topic = {
   key: string;
   kind: TopicKind;
@@ -82,15 +84,27 @@ function countBy<T>(items: T[], key: (t: T) => string | null | undefined, label:
 async function loadContext() {
   const db = createAdminClient();
   const now = new Date().toISOString();
+  // Opportunités ouvertes, lues par pages (volume national)
+  const loadOpps = async () => {
+    const all: Opp[] = [];
+    for (let page = 0; page < 30; page++) {
+      const { data, error } = await db
+        .from("opportunities")
+        .select("id, title, type, origin, external_buyer_name, city, department_code, region, sector_slug, response_deadline, published_at")
+        .eq("status", "PUBLISHED")
+        .eq("visibility", "PUBLIC")
+        .eq("is_demo", false)
+        .or(`response_deadline.is.null,response_deadline.gt.${now}`)
+        .order("id")
+        .range(page * 1000, page * 1000 + 999);
+      if (error) return { data: null, error };
+      all.push(...((data ?? []) as Opp[]));
+      if ((data ?? []).length < 1000) break;
+    }
+    return { data: all, error: null };
+  };
   const [opps, sectors, departments, types, existing] = await Promise.all([
-    db
-      .from("opportunities")
-      .select("id, title, type, origin, external_buyer_name, city, department_code, sector_slug, response_deadline, published_at")
-      .eq("status", "PUBLISHED")
-      .eq("visibility", "PUBLIC")
-      .eq("is_demo", false)
-      .or(`response_deadline.is.null,response_deadline.gt.${now}`)
-      .limit(5000),
+    loadOpps(),
     db.from("sectors").select("slug, label"),
     db.from("departments").select("code, name, slug"),
     db.from("opportunity_types").select("code, label"),
@@ -127,12 +141,12 @@ function groupBy(opps: Opp[], key: (o: Opp) => string | null | undefined) {
  * Thèmes disponibles, des plus fournis aux moins fournis, en alternant les familles
  * (secteur, département, secteur × département, acheteur) : chacun au plus une fois
  * par mois, avec au moins 5 opportunités ouvertes. En dernier recours, la synthèse
- * bretonne du jour (un thème par date) garantit au moins un article quotidien.
+ * nationale du jour (un thème par date) garantit au moins un article quotidien.
  */
 export function candidateTopics(ctx: Awaited<ReturnType<typeof loadContext>>, now = new Date()): Topic[] {
   const month = now.toISOString().slice(0, 7);
   const day = now.toISOString().slice(0, 10);
-  const families: Topic[][] = [[], [], [], []];
+  const families: Topic[][] = [[], [], [], [], []];
   for (const [slug, opps] of groupBy(ctx.opps, (o) => o.sector_slug)) {
     const label = ctx.sectors.get(slug);
     if (label && opps.length >= MIN_OPPORTUNITIES) families[0].push({ key: `secteur:${slug}:${month}`, kind: "secteur", theme: `Secteur : ${label}`, page: `/opportunites/${slug}`, opps });
@@ -153,11 +167,15 @@ export function candidateTopics(ctx: Awaited<ReturnType<typeof loadContext>>, no
     const name = opps.map((o) => o.external_buyer_name!).find((n) => n !== n.toUpperCase()) ?? opps[0].external_buyer_name!;
     families[3].push({ key: `acheteur:${k.replace(/ /g, "-").slice(0, 60)}:${month}`, kind: "acheteur", theme: `Acheteur public : ${name}`, page: `/opportunites?q=${encodeURIComponent(name)}`, opps });
   }
+  for (const [name, opps] of groupBy(ctx.opps, (o) => o.region)) {
+    const r = regionByName(name);
+    if (r && opps.length >= MIN_OPPORTUNITIES) families[4].push({ key: `region:${r.slug}:${month}`, kind: "region", theme: `Région : ${r.name}`, page: `/opportunites/${r.slug}`, opps });
+  }
   const queues = families.map((f) => f.filter((t) => !ctx.used.has(t.key)).sort((a, b) => b.opps.length - a.opps.length));
   // Alternance des familles : secteur, département, croisement, acheteur, secteur…
   const ordered: Topic[] = [];
   while (queues.some((q) => q.length)) for (const q of queues) if (q.length) ordered.push(q.shift()!);
-  const daily: Topic = { key: `bretagne:${day}`, kind: "bretagne", theme: "Bretagne : marchés publics ouverts", page: "/opportunites", opps: ctx.opps };
+  const daily: Topic = { key: `france:${day}`, kind: "france", theme: "France : marchés publics ouverts", page: "/opportunites", opps: ctx.opps };
   if (!ctx.used.has(daily.key) && ctx.opps.length >= MIN_OPPORTUNITIES) ordered.push(daily);
   return ordered;
 }
@@ -174,8 +192,8 @@ function buildFacts(t: Topic, ctx: Awaited<ReturnType<typeof loadContext>>) {
   const byDept = t.kind !== "departement" && t.kind !== "secteur-departement";
   return {
     theme: t.theme,
-    zone: "Bretagne",
-    periode: t.kind === "bretagne" ? dateFmt.format(new Date()) : monthFmt.format(new Date()),
+    zone: t.kind === "region" ? t.theme.replace("Région : ", "") : t.kind === "departement" || t.kind === "secteur-departement" ? t.theme.replace(/^.*Département : /, "") : "France",
+    periode: t.kind === "france" ? dateFmt.format(new Date()) : monthFmt.format(new Date()),
     date_des_donnees: dateFmt.format(new Date()),
     opportunites_ouvertes: t.opps.length,
     dont_marches_publics_externes: t.opps.filter((o) => o.origin === "EXTERNAL").length,
@@ -185,6 +203,7 @@ function buildFacts(t: Topic, ctx: Awaited<ReturnType<typeof loadContext>>) {
     date_limite_dans_les_30_jours: t.opps.filter((o) => o.response_deadline && Date.parse(o.response_deadline) < in30).length,
     par_type: countBy(t.opps, (o) => o.type, (k) => ctx.types.get(k) ?? k),
     par_secteur: bySector ? countBy(t.opps, (o) => o.sector_slug, (k) => ctx.sectors.get(k) ?? k) : undefined,
+    par_region: t.kind === "france" || (t.kind === "secteur" && !bySector) ? countBy(t.opps, (o) => o.region) : undefined,
     par_departement: byDept && !bySector ? countBy(t.opps, (o) => o.department_code, (k) => ctx.departments.get(k)?.name ?? k) : undefined,
     principaux_acheteurs: t.kind === "acheteur" ? undefined : mergeNames(countBy(t.opps, (o) => o.external_buyer_name, undefined, 20), 6),
     prochaines_dates_limites: upcoming.map((o) => ({
@@ -207,7 +226,7 @@ export function unknownNumbers(article: ArticleBody, facts: unknown): string[] {
   return [...new Set(found.filter((n) => !allowed.has(n)))];
 }
 
-const SYSTEM = `Tu es rédacteur pour LinkProB2B, plateforme B2B qui met en relation acheteurs et fournisseurs en Bretagne et recense les marchés publics (BOAMP, TED).
+const SYSTEM = `Tu es rédacteur pour LinkProB2B, plateforme B2B française qui met en relation acheteurs et fournisseurs partout en France et recense les marchés publics (BOAMP, TED).
 Tu écris en français, pour des dirigeants de PME et des responsables commerciaux, des analyses courtes, utiles et sobres.
 Règles absolues :
 - Utilise UNIQUEMENT les faits fournis. N'invente aucun chiffre, montant, pourcentage, date, nom d'acheteur, tendance ou comparaison avec une autre période.
