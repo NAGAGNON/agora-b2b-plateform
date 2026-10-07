@@ -1,0 +1,18 @@
+name: Diagnostic production
+on:
+  push:
+    branches: [claude/zealous-archimedes-ui0kph]
+    paths: [.github/workflows/diagnostic.yml]
+jobs:
+  sante:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          B=https://www.linkprob2b.com
+          echo "=== sante"; curl -sS -m 30 -w "\nHTTP %{http_code}\n" "$B/api/sante"
+          for p in / /opportunites /opportunites?externes=1 /entreprises /inscription /connexion /sitemap.xml /robots.txt /mentions-legales; do
+            echo "=== $p $(curl -sS -m 30 -o /tmp/p.html -w '%{http_code}' "$B$p")"
+            grep -o "La recherche n'a pas pu aboutir\|Un problème technique\|<strong[^>]*>[0-9 ]*</strong> opportunit[ée]s\?\|[0-9][0-9 ]* opportunités\|<link rel=\"canonical\" href=\"[^\"]*\"" /tmp/p.html | sort -u | head -5
+          done
+          echo "=== https apex"; curl -sS -m 30 -o /dev/null -w "%{http_code} -> %{redirect_url}\n" https://linkprob2b.com/
+          echo "=== http"; curl -sS -m 30 -o /dev/null -w "%{http_code} -> %{redirect_url}\n" http://www.linkprob2b.com/
