@@ -143,7 +143,7 @@ export function CompanyForm({ mode, values = {}, places, departments, sectors, n
             <legend className="mb-1 text-lg font-bold text-navy">Zone et références</legend>
             <div className="grid gap-5 sm:grid-cols-3">
               <Field label="Zone d'intervention" name="interventionZone" error={fe?.interventionZone} className="sm:col-span-2">
-                {(p) => <Input {...p} defaultValue={values.intervention_zone ?? ""} placeholder="ex. Finistère et Côtes-d'Armor" />}
+                {(p) => <Input {...p} defaultValue={values.intervention_zone ?? ""} placeholder="ex. Île-de-France, ou France entière" />}
               </Field>
               <Field label="Rayon (km)" name="interventionRadiusKm" error={fe?.interventionRadiusKm}>
                 {(p) => <Input {...p} type="number" min={0} max={2000} defaultValue={values.intervention_radius_km ?? ""} />}

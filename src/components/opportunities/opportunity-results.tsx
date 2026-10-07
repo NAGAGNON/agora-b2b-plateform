@@ -28,6 +28,7 @@ export async function OpportunityResults({ filters, rawParams, basePath }: { fil
   query.delete("page");
   const alertParams = new URLSearchParams();
   if (filters.sector) alertParams.set("secteur", filters.sector);
+  if (filters.region) alertParams.set("region", filters.region);
   if (filters.department) alertParams.set("departement", filters.department);
   if (filters.q) alertParams.set("motscles", filters.q);
   if (filters.types.length === 1) alertParams.set("type", filters.types[0]);

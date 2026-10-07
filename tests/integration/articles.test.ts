@@ -105,7 +105,7 @@ describe("analyses de marché", () => {
     const day = new Date().toISOString().slice(0, 10);
     const fake = Array.from({ length: 6 }, (_, i) => ({ id: String(i), title: "t", type: "PUBLIC_TENDER", origin: "EXTERNAL", external_buyer_name: null, city: null, department_code: null, sector_slug: null, response_deadline: null, published_at: null }));
     const only = candidateTopics({ opps: fake, sectors: new Map(), departments: new Map(), types: new Map(), used: new Set([`secteur:x:${month}`]) } as never);
-    expect(only.map((t) => t.key)).toEqual([`bretagne:${day}`]);
+    expect(only.map((t) => t.key)).toEqual([`france:${day}`]);
 
     // Un brouillon créé aujourd'hui ne remplit pas le quota : la tâche quotidienne publie quand même un article
     await admin.from("platform_settings").upsert({ key: "seo", value: { articles_enabled: true, articles_auto_publish: true, articles_per_day: 1 } });
@@ -113,7 +113,7 @@ describe("analyses de marché", () => {
     since.setUTCHours(0, 0, 0, 0);
     await admin.from("articles").update({ published_at: new Date(since.getTime() - 3600_000).toISOString() }).gte("published_at", since.toISOString());
     const r = await runDailyArticles();
-    expect(r.generated?.filter((g) => g.status === "PUBLISHED").length).toBe(1);
+    expect(("generated" in r ? r.generated : [])?.filter((g) => g.status === "PUBLISHED").length).toBe(1);
   });
 
   it("refuse toute écriture publique", async () => {

@@ -3,6 +3,9 @@ import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
 import { siteUrl } from "@/lib/seo";
 import { GUIDES } from "@/content/guides";
+import { REGIONS } from "@/lib/geo";
+
+const MIN_INDEXABLE = 3;
 
 export const revalidate = 3600;
 
@@ -14,7 +17,7 @@ export const revalidate = 3600;
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = siteUrl();
   const now = new Date();
-  const staticPaths = ["", "/opportunites", "/entreprises", "/publier", "/comment-ca-marche", "/ressources", "/analyses", "/fournisseurs", "/demandeurs", "/faq", "/a-propos", "/tarifs", "/contact", "/mentions-legales", "/cgu", "/confidentialite", "/cookies"];
+  const staticPaths = ["", "/opportunites", "/entreprises", "/publier", "/comment-ca-marche", "/ressources", "/analyses", "/fournisseurs", "/demandeurs", "/faq", "/a-propos", "/tarifs", "/contact", "/mentions-legales", "/cgu", "/confidentialite", "/cookies", "/conditions-abonnement"];
   const entries: MetadataRoute.Sitemap = staticPaths.map((p) => ({ url: `${base}${p}`, lastModified: now, changeFrequency: p === "/opportunites" ? "daily" : "monthly", priority: p === "" ? 1 : 0.6 }));
   entries.push(...GUIDES.map((g) => ({ url: `${base}/ressources/${g.slug}`, changeFrequency: "monthly" as const, priority: 0.5 })));
 
@@ -23,21 +26,42 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   if (!url || !key) return entries;
   // Client anonyme : seules les données publiques sont lisibles (RLS).
   const db = createClient<Database>(url, key, { auth: { persistSession: false } });
-  const [{ data: opps }, { data: companies }, { data: sectorRows }, { data: deptRows }, { data: articles }] = await Promise.all([
-    db.from("opportunities").select("id, updated_at, sector_slug, department_code").eq("status", "PUBLISHED").eq("visibility", "PUBLIC").eq("is_demo", false).limit(5000),
+  // Opportunités ouvertes, lues par pages (un seul fichier : 50 000 adresses au plus)
+  const loadOpps = async () => {
+    const all: { id: string; updated_at: string }[] = [];
+    for (let page = 0; page < 40; page++) {
+      const { data } = await db.from("opportunities").select("id, updated_at").eq("status", "PUBLISHED").eq("visibility", "PUBLIC").eq("is_demo", false)
+        .order("published_at", { ascending: false }).range(page * 1000, page * 1000 + 999);
+      all.push(...(data ?? []));
+      if ((data ?? []).length < 1000) break;
+    }
+    return { data: all };
+  };
+  const [{ data: opps }, { data: companies }, { data: sectorRows }, { data: deptRows }, { data: articles }, { data: counts }] = await Promise.all([
+    loadOpps(),
     db.from("companies").select("slug, updated_at, department_code, company_profiles!inner(is_public, sectors)").eq("status", "ACTIVE").eq("is_demo", false).eq("company_profiles.is_public", true).limit(5000),
     db.from("sectors").select("slug").eq("is_active", true),
-    db.from("departments").select("code, slug"),
+    db.from("departments").select("code, slug, region"),
     db.from("articles").select("slug, updated_at").eq("status", "PUBLISHED").limit(5000),
+    db.rpc("open_opportunity_counts"),
   ]);
+  // Pages d'atterrissage avec suffisamment d'opportunités ouvertes (pas de pages vides)
+  const n = (dimension: string, key: string | null) => (counts ?? []).find((c) => c.dimension === dimension && c.key === key)?.n ?? 0;
+  const landing = (path: string) => entries.push({ url: `${base}${path}`, changeFrequency: "daily", priority: 0.6 });
   const SECTORS = sectorRows ?? [];
   const DEPARTMENTS = deptRows ?? [];
   for (const o of opps ?? []) entries.push({ url: `${base}/opportunites/${o.id}`, lastModified: new Date(o.updated_at), changeFrequency: "weekly", priority: 0.7 });
   for (const a of articles ?? []) entries.push({ url: `${base}/analyses/${a.slug}`, lastModified: new Date(a.updated_at), changeFrequency: "monthly", priority: 0.6 });
   for (const c of companies ?? []) entries.push({ url: `${base}/entreprises/${c.slug}`, lastModified: new Date(c.updated_at), changeFrequency: "monthly", priority: 0.5 });
 
-  for (const s of SECTORS) if ((opps ?? []).some((o) => o.sector_slug === s.slug)) entries.push({ url: `${base}/opportunites/${s.slug}`, changeFrequency: "daily", priority: 0.6 });
-  for (const d of DEPARTMENTS) if ((opps ?? []).some((o) => o.department_code === d.code)) entries.push({ url: `${base}/opportunites/${d.slug}`, changeFrequency: "daily", priority: 0.6 });
+  if (n("total", null) >= MIN_INDEXABLE) landing("/opportunites/france");
+  for (const r of REGIONS) {
+    if (n("region", r.name) < MIN_INDEXABLE) continue;
+    landing(`/opportunites/${r.slug}`);
+    for (const d of DEPARTMENTS.filter((d) => d.region === r.name)) if (n("department", d.code) >= MIN_INDEXABLE) landing(`/opportunites/${r.slug}/${d.slug}`);
+    for (const s of SECTORS) if (n("region_sector", `${r.name}|${s.slug}`) >= MIN_INDEXABLE) landing(`/opportunites/${r.slug}/${s.slug}`);
+  }
+  for (const s of SECTORS) if (n("sector", s.slug) >= MIN_INDEXABLE) landing(`/opportunites/${s.slug}`);
   for (const s of SECTORS) {
     const inSector = (companies ?? []).filter((c) => {
       const prof = c.company_profiles as unknown as { sectors: string[] } | { sectors: string[] }[];

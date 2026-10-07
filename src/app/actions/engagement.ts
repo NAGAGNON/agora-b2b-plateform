@@ -76,6 +76,7 @@ export async function createAlert(_prev: ActionResult | null, fd: FormData): Pro
     name: d.name,
     sector_slug: d.sector ?? null,
     department_code: d.departmentCode ?? null,
+    region: d.region ?? null,
     type: d.type ?? null,
     keywords: d.keywords ?? null,
     frequency: d.frequency,

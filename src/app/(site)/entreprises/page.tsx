@@ -6,7 +6,7 @@ export async function generateMetadata(props: PageProps<"/entreprises">) {
   const sp = await props.searchParams;
   return pageMetadata({
     title: "Annuaire des entreprises",
-    description: "Trouvez des fournisseurs et prestataires B2B en Bretagne : maintenance industrielle, sous-traitance, informatique, cybersécurité, logistique.",
+    description: "Trouvez des fournisseurs et prestataires B2B partout en France : industrie, sous-traitance, informatique, cybersécurité, BTP, logistique.",
     path: "/entreprises",
     noindex: Object.keys(sp).length > 0,
   });

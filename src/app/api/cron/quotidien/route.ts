@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { env } from "@/lib/env";
 import { processAlertDigests, processEmailOutbox } from "@/lib/email/outbox";
 import { runDueSources } from "@/lib/collect/run";
+import { importPlaces } from "@/lib/collect/places";
 import { logServerError } from "@/lib/errors";
 import { runDailyArticles } from "@/lib/articles";
 import { submitChangedUrls } from "@/lib/indexnow";
@@ -21,7 +22,8 @@ function authorized(req: Request): boolean {
 
 /**
  * Tâche planifiée (Vercel Cron — vercel.json) :
- * 1. collecte des sources externes dont l'échéance est atteinte ;
+ * 0. référentiel des villes de France (une seule fois, geo.api.gouv.fr) ;
+ * 1. collecte des sources externes dont l'échéance est atteinte (France entière) ;
  * 2. expiration des opportunités ;
  * 3. analyses de marché rédigées à partir des données (Administration → Articles) ;
  * 4. IndexNow : signalement des pages nouvelles ou modifiées aux moteurs de recherche ;
@@ -41,7 +43,9 @@ export async function GET(req: Request) {
       report[name] = { error: e instanceof Error ? e.message : String(e) };
     }
   };
-  await step("sources", () => runDueSources());
+  await step("referentiel", () => importPlaces());
+  // Une source en panne n'empêche pas les autres (erreur journalisée par source, nouvelle tentative au passage suivant)
+  await step("sources", () => runDueSources({ budgetMs: 180_000 }));
   await step("expired", async () => (await createAdminClient().rpc("expire_opportunities")).data);
   await step("articles", () => runDailyArticles());
   await step("indexnow", () => submitChangedUrls());

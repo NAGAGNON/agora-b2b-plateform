@@ -9,9 +9,9 @@ import { EmptyState } from "@/components/ui/states";
 export const revalidate = 3600;
 
 export const metadata = pageMetadata({
-  title: "Analyses des marchés en Bretagne",
+  title: "Analyses des marchés publics en France",
   description:
-    "Analyses mensuelles des marchés publics et des besoins d'entreprises en Bretagne, par secteur et par département, à partir des données BOAMP et TED.",
+    "Analyses des marchés publics et des besoins d'entreprises en France, par région, secteur et département, à partir des données BOAMP et TED.",
   path: "/analyses",
 });
 

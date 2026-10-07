@@ -47,7 +47,7 @@ export function SearchActions({ query, signedIn, alertHref, scope = "OPPORTUNITI
           <input type="hidden" name="query" value={query} />
           <input type="hidden" name="scope" value={scope} />
           <Field label="Nom de la recherche" name="name" required error={state && !state.ok ? state.fieldErrors?.name : undefined}>
-            {(p) => <Input {...p} placeholder="ex. Maintenance Finistère" maxLength={120} />}
+            {(p) => <Input {...p} placeholder="ex. Informatique Île-de-France" maxLength={120} />}
           </Field>
           {state && !state.ok && !state.fieldErrors?.name && <Notice tone="error">{state.error}</Notice>}
           <div className="flex justify-end gap-2">

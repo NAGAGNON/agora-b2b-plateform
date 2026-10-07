@@ -1,3 +1,4 @@
+import { REGIONS } from "@/lib/geo";
 import { z } from "zod";
 import { splitList } from "@/lib/format";
 
@@ -234,6 +235,7 @@ export const proposalSchema = z.object({
 export const alertSchema = z.object({
   name: requiredText(1, 120, "Le nom de l'alerte"),
   sector: optionalSector,
+  region: z.preprocess((v) => (v === "" ? undefined : v), z.string().refine((r) => REGIONS.some((x) => x.name === r), { error: "Région invalide" }).optional()),
   departmentCode,
   type: z.preprocess(
     (v) => (v === "" ? undefined : v),

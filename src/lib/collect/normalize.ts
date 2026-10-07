@@ -13,6 +13,7 @@ export type NormalizedOpportunity = {
   publishedAt: string | null; // AAAA-MM-JJ
   deadline: string | null; // ISO 8601
   departmentCode: string | null;
+  region: string | null; // nom de région (référentiel) si connu sans département
   city: string | null;
   cpv: string[];
   keywords: string[];

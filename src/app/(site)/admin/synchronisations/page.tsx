@@ -6,6 +6,8 @@ import { DataTable } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/states";
 import { Badge, type BadgeTone } from "@/components/ui/badge";
 import { formatDateTime } from "@/lib/format";
+import { getSectorLabels } from "@/lib/queries/platform";
+import { OpportunityOverview, type Overview, type SourceState } from "@/components/admin/opportunity-overview";
 
 export const metadata = { title: "Synchronisations" };
 
@@ -16,10 +18,18 @@ const TRIGGERS: Record<string, string> = { cron: "Planifiée", manual: "Manuelle
 export default async function SyncRunsPage() {
   await requireStaff();
   const supabase = await createClient();
-  const [{ data }, { data: cronRow }] = await Promise.all([
+  const [{ data }, { data: cronRow }, { data: overview }, { data: sourceRows }, sectorLabels] = await Promise.all([
     supabase.from("source_sync_runs").select("*, source:external_sources(name)").order("started_at", { ascending: false }).limit(100),
     supabase.from("platform_settings").select("value").eq("key", "private.cron").maybeSingle(),
+    supabase.rpc("admin_opportunity_overview"),
+    supabase.from("external_sources").select("id, name, next_sync_at, last_error, source_sync_runs(status, finished_at, started_at)").eq("is_active", true).neq("connector", "manual")
+      .order("started_at", { referencedTable: "source_sync_runs", ascending: false }).limit(1, { referencedTable: "source_sync_runs" }),
+    getSectorLabels(),
   ]);
+  const sources: SourceState[] = (sourceRows ?? []).map((s) => {
+    const last = (s.source_sync_runs as { status: string; finished_at: string | null }[])[0];
+    return { name: s.name, status: last?.status ?? null, finished_at: last?.finished_at ?? null, next_sync_at: s.next_sync_at, last_error: s.last_error };
+  });
   const cron = cronRow?.value as { last_run_at?: string; failed_steps?: string[] } | undefined;
   return (
     <div>
@@ -31,7 +41,7 @@ export default async function SyncRunsPage() {
         </Link>
       </p>
       <p className="-mt-3 mb-6 text-sm text-slate-600">
-        Tâche planifiée quotidienne (06:00 UTC) :{" "}
+        Tâche planifiée quotidienne (06:00 UTC, Vercel Cron) — collecte France entière :{" "}
         {cron?.last_run_at ? (
           <>
             dernière exécution le <strong>{formatDateTime(cron.last_run_at)}</strong>{" "}
@@ -41,6 +51,12 @@ export default async function SyncRunsPage() {
           <Badge tone="amber">jamais exécutée sur cet environnement</Badge>
         )}
       </p>
+      {overview && (
+        <div className="mb-10">
+          <OpportunityOverview o={overview as unknown as Overview} sources={sources} sectorLabel={(k) => sectorLabels[k] ?? k} />
+        </div>
+      )}
+      <h2 className="mb-3 text-lg font-bold">Journal des synchronisations</h2>
       <DataTable
         rows={data ?? []}
         rowKey={(r) => r.id}

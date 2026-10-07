@@ -28,7 +28,7 @@ export function organizationLd() {
       url: base,
       logo: `${base}/brand/logo.png`,
       description: "Plateforme B2B qui met en relation les entreprises qui ont un besoin avec celles capables d'y répondre, et recense les marchés publics.",
-      areaServed: { "@type": "AdministrativeArea", name: "Bretagne" },
+      areaServed: { "@type": "Country", name: "France" },
     },
     {
       "@context": "https://schema.org",

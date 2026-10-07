@@ -20,7 +20,9 @@ import {
 import { OpportunityTypeBadge, OriginBadge } from "@/components/opportunities/opportunity-badge";
 import { InterestPanel } from "@/components/opportunities/interest-panel";
 import { FavoriteButton } from "@/components/opportunities/favorite-button";
-import { OpportunityResults } from "@/components/opportunities/opportunity-results";
+import { OpportunityCard } from "@/components/opportunities/opportunity-card";
+import { LandingPage, landingMetadata } from "@/components/opportunities/landing-page";
+import { resolveLanding } from "@/lib/landing";
 import { ReportButton } from "@/components/report-button";
 import { PipelineButton } from "@/components/opportunities/pipeline-button";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -29,44 +31,21 @@ import { Notice } from "@/components/ui/notice";
 import { DemoBadge } from "@/components/demo";
 import { CompanyLogo } from "@/components/companies/company-card";
 import { buttonClasses } from "@/components/ui/button";
-import { getOpportunityDetail, searchOpportunities } from "@/lib/queries/opportunities";
-import { getDepartments, getSectors, getSectorLabels, showDemoData, getLocationLabel } from "@/lib/queries/platform";
+import { getOpportunityDetail } from "@/lib/queries/opportunities";
+import { getSectorLabels, showDemoData, getLocationLabel } from "@/lib/queries/platform";
 import { getSession } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { track } from "@/lib/analytics";
-import { parseOpportunityFilters } from "@/lib/search-params";
 import { pageMetadata } from "@/lib/seo";
 import { DEMO_NOTICE, OPPORTUNITY_TYPE_HELP, sectorLabel, VERIFICATION_STATUS_LABELS, COMPANY_SIZE_LABELS } from "@/lib/constants";
 import { deadlineLabel, formatBudget, formatBytes, formatDate, formatDateTime, isUuid } from "@/lib/format";
-
-type Landing = { kind: "sector"; slug: string; label: string } | { kind: "department"; code: string; name: string; slug: string };
-
-async function resolveLanding(slug: string): Promise<Landing | null> {
-  const sector = (await getSectors()).find((s) => s.slug === slug);
-  if (sector) return { kind: "sector", slug: sector.slug, label: sector.label };
-  const dep = (await getDepartments()).find((d) => d.slug === slug);
-  if (dep) return { kind: "department", code: dep.code, name: dep.name, slug: dep.slug };
-  return null;
-}
 
 export async function generateMetadata(props: PageProps<"/opportunites/[id]">): Promise<Metadata> {
   const { id } = await props.params;
   if (!isUuid(id)) {
     const landing = await resolveLanding(id);
     if (!landing) return { title: "Page introuvable" };
-    const filters = parseOpportunityFilters(landing.kind === "sector" ? { secteur: landing.slug } : { departement: landing.code });
-    const { total } = await searchOpportunities(filters, 1);
-    const sp = await props.searchParams;
-    return pageMetadata({
-      title: landing.kind === "sector" ? `Opportunités ${landing.label.toLowerCase()}` : `Opportunités B2B — ${landing.name}`,
-      description:
-        landing.kind === "sector"
-          ? `Besoins d'entreprises et opportunités en ${landing.label.toLowerCase()} : demandes de devis, consultations et opportunités référencées.`
-          : `Besoins d'entreprises et opportunités professionnelles dans le département ${landing.name} (${landing.code}).`,
-      path: `/opportunites/${id}`,
-      // Pas d'indexation des pages sans contenu réel ni des combinaisons de filtres.
-      noindex: total === 0 || Object.keys(sp).length > 0,
-    });
+    return landingMetadata(landing, `/opportunites/${id}`, await props.searchParams);
   }
   const o = await getOpportunityDetail(id);
   if (!o) return { title: "Opportunité introuvable", robots: { index: false } };
@@ -86,32 +65,7 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
   if (!isUuid(id)) {
     const landing = await resolveLanding(id);
     if (!landing) notFound();
-    const fixed = landing.kind === "sector" ? { ...sp, secteur: landing.slug } : { ...sp, departement: landing.code };
-    const filters = parseOpportunityFilters(fixed);
-    const title = landing.kind === "sector" ? `Opportunités — ${landing.label}` : `Opportunités dans le département ${landing.name}`;
-    return (
-      <div className="container-page py-8 sm:py-10">
-        <JsonLd
-          data={breadcrumbLd([
-            { name: "Opportunités", path: "/opportunites" },
-            { name: landing.kind === "sector" ? landing.label : landing.name, path: `/opportunites/${id}` },
-          ])}
-        />
-        <nav aria-label="Fil d'Ariane" className="mb-3 text-sm text-slate-500">
-          <Link href="/opportunites" className="hover:underline">
-            Opportunités
-          </Link>{" "}
-          / <span className="text-navy">{landing.kind === "sector" ? landing.label : landing.name}</span>
-        </nav>
-        <h1 className="text-2xl font-bold sm:text-3xl">{title}</h1>
-        <p className="mt-1 mb-6 max-w-3xl text-slate-600">
-          {landing.kind === "sector"
-            ? `Besoins publiés par des entreprises et opportunités externes référencées dans le secteur ${landing.label.toLowerCase()}.`
-            : `Besoins publiés par des entreprises et opportunités externes référencées dans le département ${landing.name} (${landing.code}).`}
-        </p>
-        <OpportunityResults filters={filters} rawParams={sp} basePath={`/opportunites/${id}`} />
-      </div>
-    );
+    return <LandingPage landing={landing} path={`/opportunites/${id}`} sp={sp} />;
   }
 
   const o = await getOpportunityDetail(id);
@@ -405,8 +359,40 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
             </div>
           </aside>
         </div>
+        <SimilarOpportunities id={o.id} sector={o.sector_slug} region={o.region} signedIn={Boolean(session)} />
       </div>
     </div>
+  );
+}
+
+/** Opportunités ouvertes du même secteur, de préférence dans la même région. */
+async function SimilarOpportunities({ id, sector, region, signedIn }: { id: string; sector: string | null; region: string | null; signedIn: boolean }) {
+  if (!sector) return null;
+  const supabase = await createClient();
+  const base = { p_sector: sector, p_status: "OPEN", p_sort: "recent", p_limit: 5, p_include_demo: await showDemoData() };
+  let { data } = await supabase.rpc("search_opportunities", { ...base, ...(region ? { p_region: region } : {}) });
+  if ((data ?? []).filter((r) => r.id !== id).length < 2 && region) ({ data } = await supabase.rpc("search_opportunities", base));
+  const rows = (data ?? []).filter((r) => r.id !== id).slice(0, 4);
+  if (rows.length === 0) return null;
+  return (
+    <section className="mt-12" aria-labelledby="similaires">
+      <h2 id="similaires" className="mb-4 text-xl font-bold">
+        Opportunités similaires
+      </h2>
+      <div className="grid gap-4 md:grid-cols-2">
+        {rows.map((r) => (
+          <OpportunityCard key={r.id} o={r} headingLevel={3} />
+        ))}
+      </div>
+      {!signedIn && (
+        <div className="mt-6 flex flex-col items-start gap-3 rounded-2xl bg-sky p-6 sm:flex-row sm:items-center sm:justify-between">
+          <p className="font-semibold text-navy">Vous recherchez des opportunités similaires ? Créez votre compte LinkProB2B.</p>
+          <Link href="/inscription" className={buttonClasses()}>
+            Créer mon compte gratuitement
+          </Link>
+        </div>
+      )}
+    </section>
   );
 }
 

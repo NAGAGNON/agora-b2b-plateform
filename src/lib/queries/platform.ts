@@ -68,3 +68,10 @@ export const getSectorLabels = cache(async (): Promise<Record<string, string>> =
   const { data } = await supabase.from("sectors").select("slug, label");
   return { ...SECTOR_LABELS, ...Object.fromEntries((data ?? []).map((s) => [s.slug, s.label])) };
 });
+
+/** Sources externes approuvées (filtre « Source »). */
+export const getPublicSources = cache(async () => {
+  const supabase = await createClient();
+  const { data } = await supabase.from("external_sources").select("code, name").eq("status", "APPROVED").not("code", "is", null).order("name");
+  return (data ?? []).filter((s): s is { code: string; name: string } => Boolean(s.code));
+});

@@ -8,7 +8,7 @@ export async function generateMetadata(props: PageProps<"/opportunites">) {
   const hasFilters = Object.keys(sp).length > 0;
   return pageMetadata({
     title: "Explorer les opportunités B2B",
-    description: "Besoins d'entreprises, demandes de devis, consultations privées et opportunités externes référencées — Bretagne et France.",
+    description: "Besoins d'entreprises, demandes de devis, consultations et marchés publics partout en France, par région, département, ville et secteur.",
     path: "/opportunites",
     // Les combinaisons de filtres ne sont pas indexées (évite les pages dupliquées).
     noindex: hasFilters,

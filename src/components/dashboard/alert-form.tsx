@@ -7,8 +7,9 @@ import { SubmitButton } from "@/components/ui/submit-button";
 import { Notice } from "@/components/ui/notice";
 import { ALERT_FREQUENCY_LABELS, COMPANY_SIZE_LABELS, OPPORTUNITY_TYPE_LABELS, type CompanySize, type SectorOption, type AlertFrequency, type OpportunityType } from "@/lib/constants";
 import { ActionError } from "@/components/billing/upgrade-prompt";
+import { REGIONS, regionBySlug } from "@/lib/geo";
 
-export function AlertForm({ departments, places, sectors, defaults }: { departments: { code: string; name: string }[]; places: { name: string; slug: string; department_code: string }[]; sectors: SectorOption[]; defaults: { secteur?: string; departement?: string; type?: string; motscles?: string; lieu?: string; rayon?: string } }) {
+export function AlertForm({ departments, places, sectors, defaults }: { departments: { code: string; name: string }[]; places: { name: string; slug: string; department_code: string }[]; sectors: SectorOption[]; defaults: { secteur?: string; region?: string; departement?: string; type?: string; motscles?: string; lieu?: string; rayon?: string } }) {
   const [state, action] = useActionState(createAlert, null);
   const ref = useRef<HTMLFormElement>(null);
   useEffect(() => {
@@ -18,7 +19,7 @@ export function AlertForm({ departments, places, sectors, defaults }: { departme
   return (
     <form ref={ref} action={action} className="grid gap-4 sm:grid-cols-2">
       <Field label="Nom de l'alerte" name="name" error={fe?.name} required className="sm:col-span-2">
-        {(p) => <Input {...p} maxLength={120} placeholder="ex. Maintenance dans le Finistère" />}
+        {(p) => <Input {...p} maxLength={120} placeholder="ex. Informatique en Île-de-France" />}
       </Field>
       <Field label="Secteur" name="sector" error={fe?.sector}>
         {(p) => (
@@ -27,6 +28,18 @@ export function AlertForm({ departments, places, sectors, defaults }: { departme
             {sectors.map((s) => (
               <option key={s.slug} value={s.slug}>
                 {s.label}
+              </option>
+            ))}
+          </Select>
+        )}
+      </Field>
+      <Field label="Région" name="region" error={fe?.region}>
+        {(p) => (
+          <Select {...p} defaultValue={regionBySlug(defaults.region ?? "")?.name ?? ""}>
+            <option value="">France entière</option>
+            {REGIONS.map((r) => (
+              <option key={r.slug} value={r.name}>
+                {r.name}
               </option>
             ))}
           </Select>

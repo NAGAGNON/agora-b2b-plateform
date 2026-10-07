@@ -36,7 +36,8 @@ describe("collecte des sources externes", () => {
     let calledUrl = "";
     const r = await runSource(boamp, { trigger: "manual", fetchImpl: mockFetch((url) => ((calledUrl = url), { total_count: 3, results: boampRecords(tag) })) });
     expect(calledUrl).toContain("boamp-datadila.opendatasoft.com");
-    expect(decodeURIComponent(calledUrl)).toContain('code_departement="29"');
+    // Couverture nationale : aucun filtre départemental
+    expect(decodeURIComponent(calledUrl)).not.toContain("code_departement=");
     expect(r).toMatchObject({ status: "PARTIAL", fetched: 3, created: 2, skipped: 1 });
     const { data: run } = await admin.from("source_sync_runs").select("status, created").eq("id", r.runId!).single();
     expect(run).toMatchObject({ status: "PARTIAL", created: 2 });
@@ -65,9 +66,12 @@ describe("collecte des sources externes", () => {
     expect(src.original_url).toMatch(/^https:\/\/www\.boamp\.fr/);
   });
 
-  it("rattache un doublon TED à l'opportunité BOAMP existante et filtre la zone", async () => {
+  it("rattache un doublon TED à l'opportunité BOAMP existante et collecte toute la France", async () => {
     const r = await runSource(ted, { trigger: "manual", fetchImpl: mockFetch(() => ({ totalNoticeCount: 3, notices: tedNotices(tag) })) });
-    expect(r).toMatchObject({ created: 1, duplicates: 1, skipped: 1 });
+    expect(r).toMatchObject({ created: 2, duplicates: 1, skipped: 0 });
+    // Lieu d'exécution FR101 (Paris) : département et région déduits du code NUTS
+    const { data: paris } = await admin.from("opportunities").select("department_code, region").eq("external_reference", `${tag}-2028`).single();
+    expect(paris).toEqual({ department_code: "75", region: "Île-de-France" });
     const { data } = await admin.from("opportunities").select("id, opportunity_sources(source_id, is_primary)").like("title", `%pompes de relevage ${tag}%`);
     expect(data).toHaveLength(1);
     expect(data![0].opportunity_sources).toHaveLength(2);
@@ -94,7 +98,7 @@ describe("collecte des sources externes", () => {
 
   it("journalise une erreur de source sans interrompre la plateforme", async () => {
     const failing = async () => new Response("indisponible", { status: 503 });
-    const r = await runSource(ted, { trigger: "manual", fetchImpl: failing });
+    const r = await runSource(ted, { trigger: "manual", fetchImpl: failing, retryDelays: [0, 0] });
     expect(r.status).toBe("FAILED");
     const { data } = await admin.from("external_sources").select("last_error").eq("id", ted.id).single();
     expect(data?.last_error).toMatch(/HTTP 503/);
