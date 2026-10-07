@@ -1,0 +1,13 @@
+name: Diagnostic production
+on:
+  push:
+    branches: [claude/zealous-archimedes-ui0kph]
+    paths: [.github/workflows/diagnostic.yml]
+jobs:
+  sante:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          for u in https://agora-b2b-plateform.vercel.app/api/sante https://agora-b2b-plateform.vercel.app/robots.txt https://agora-b2b-plateform.vercel.app/sitemap.xml; do
+            echo "=== $u"; curl -sS -m 30 -w "\nHTTP %{http_code}\n" "$u" | head -c 3000; echo
+          done
