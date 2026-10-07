@@ -18,7 +18,7 @@ export default async function OutreachSettingsPage() {
       label: "Recherche des adresses e-mail",
       hint: "BRAVE_SEARCH_API_KEY (brave.com/search/api) et/ou DROPCONTACT_API_KEY (dropcontact.com) dans Vercel.",
     },
-    { ok: Boolean(process.env.OUTREACH_EMAIL_FROM), label: "Adresse d'expédition dédiée", hint: "OUTREACH_EMAIL_FROM, ex. « LinkProB2B Veille <veille@linkprob2b.com> » (recommandé ; à défaut veille@<domaine>)." },
+    { ok: true, label: "Adresse d'expédition", hint: `${process.env.OUTREACH_EMAIL_FROM?.trim() || "la même que les e-mails d'inscription (notifications@linkprob2b.com)"} — modifiable avec OUTREACH_EMAIL_FROM.` },
   ];
   const blockers = realSendBlockers(s);
   return (

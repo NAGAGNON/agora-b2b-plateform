@@ -61,7 +61,7 @@ validation manuelle, SIRET non exigé).
 
 L'expéditeur est identifié dans chaque e-mail (LinkProB2B, site, page Contact ; dénomination, adresse et SIRET
 ajoutés automatiquement dès qu'ils sont renseignés dans `src/lib/legal.ts`).
-| Recommandé : `OUTREACH_EMAIL_FROM` | ex. `LinkProB2B Veille <veille@linkprob2b.com>` (domaine vérifié dans Resend) |
+| Expéditeur : par défaut l'adresse des e-mails d'inscription (`notifications@linkprob2b.com`), nom « LinkProB2B » | `OUTREACH_EMAIL_FROM` pour en changer |
 | Facultatif : `OUTREACH_TOKEN_SECRET` | secret des liens personnalisés (sinon dérivé de la clé Supabase) |
 
 ## Données

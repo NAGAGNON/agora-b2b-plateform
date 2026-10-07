@@ -20,7 +20,8 @@ export async function sendOutreachEmail(msg: {
 }): Promise<SendResult> {
   const key = process.env.RESEND_API_KEY;
   if (!key || process.env.OUTREACH_SEND_ENABLED === "false") return { status: "SKIPPED", error: "Envoi réel non autorisé" };
-  const fromAddress = process.env.OUTREACH_EMAIL_FROM?.trim() || (env.emailFrom.match(/<(.+)>/)?.[1] ?? env.emailFrom).replace(/^notifications@/, "veille@");
+  // Même adresse que les e-mails transactionnels (inscriptions) : notifications@<domaine>, déjà vérifiée.
+  const fromAddress = process.env.OUTREACH_EMAIL_FROM?.trim() || (env.emailFrom.match(/<(.+)>/)?.[1] ?? env.emailFrom);
   const from = /</.test(fromAddress) ? fromAddress : `${msg.senderName.replace(/[<>"]/g, "")} <${fromAddress}>`;
   try {
     const res = await fetch("https://api.resend.com/emails", {
