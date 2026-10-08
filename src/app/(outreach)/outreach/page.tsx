@@ -23,7 +23,7 @@ export default async function OutreachOverview() {
   const since = windowStart(30);
   const [{ data: settings }, { data: campaigns }, { data: sent }, { data: events }, prospects, withEmail, dnc, { data: cron }] = await Promise.all([
     supabase.from("outreach_settings").select("*").eq("id", true).maybeSingle(),
-    supabase.from("outreach_campaigns").select("id, campaign_date, kind, created_at, status, dry_run, stats").order("campaign_date", { ascending: false }).order("created_at", { ascending: false }).limit(8),
+    supabase.from("outreach_campaigns").select("id, campaign_date, kind, launched_by, created_at, status, dry_run, stats").order("campaign_date", { ascending: false }).order("created_at", { ascending: false }).limit(8),
     supabase.from("outreach_recipients").select("sent_at, status").in("status", ["SENT", "SIMULATED"]).gte("sent_at", since.toISOString()).limit(50_000),
     supabase.from("outreach_events").select("type, created_at, opportunity_id, recipient_id").gte("created_at", since.toISOString()).in("type", ["PREPARED", "SENT", "SIMULATED", "OPEN", "CLICK", "LANDING_VIEW", "OPPORTUNITY_VIEW", "GATE_VIEW", "GATE_SIGNUP_CLICK", "SIGNUP", "LOGIN", "OFFER_ACCESS", "CONVERSION"]).limit(100_000),
     supabase.from("outreach_prospects").select("id", { count: "exact", head: true }),
@@ -32,9 +32,17 @@ export default async function OutreachOverview() {
     supabase.from("platform_settings").select("value").eq("key", "private.outreach_cron").maybeSingle(),
   ]);
   // Journée = campagne automatique + campagnes lancées à la main (chiffres additionnés)
-  const { data: todayCampaigns } = await supabase.from("outreach_campaigns").select("id, kind, status, stats").eq("campaign_date", today);
+  const { data: todayCampaigns } = await supabase.from("outreach_campaigns").select("id, kind, launched_by, status, stats").eq("campaign_date", today);
   const todayCampaign = todayCampaigns?.find((c) => c.kind === "AUTO") ?? null;
   const manualToday = (todayCampaigns ?? []).filter((c) => c.kind === "MANUAL");
+  // Lancées par un administrateur / complémentaires automatiques (midi, après-midi)
+  const extraLabel = [
+    [manualToday.filter((c) => c.launched_by !== null).length, "manuelle"],
+    [manualToday.filter((c) => c.launched_by === null).length, "complémentaire"],
+  ]
+    .filter(([n]) => Number(n) > 0)
+    .map(([n, w]) => `${n} campagne${Number(n) > 1 ? "s" : ""} ${w}${Number(n) > 1 ? "s" : ""}`)
+    .join(" et ");
   const lives = await Promise.all((todayCampaigns ?? []).map(async (c) => ((await supabase.rpc("outreach_campaign_stats", { p_campaign_id: c.id })).data ?? {}) as Stats));
   const live: Stats = {};
   for (const l of lives) for (const [k, v] of Object.entries(l)) live[k] = (live[k] ?? 0) + (Number(v) || 0);
@@ -117,7 +125,7 @@ export default async function OutreachOverview() {
                 <>
                   {todayCampaign ? " · " : ""}
                   <Link href="/outreach/campagnes" className="font-semibold text-teal-700 underline">
-                    {manualToday.length} campagne{manualToday.length > 1 ? "s" : ""} manuelle{manualToday.length > 1 ? "s" : ""}
+                    {extraLabel}
                   </Link>{" "}
                   incluse{manualToday.length > 1 ? "s" : ""} dans les chiffres ci-dessous
                 </>

@@ -77,6 +77,7 @@ test("tableau de bord administrateur : bilan du jour et audience détaillée ; b
   await page.goto("/admin?periode=7");
   await expect(page.getByRole("heading", { name: "Bilan du jour" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Analyser maintenant" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Recevoir le rapport par e-mail" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Audience détaillée (7 derniers jours)" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "D'où viennent les visiteurs" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Jour par jour" })).toBeVisible();

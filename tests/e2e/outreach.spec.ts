@@ -51,7 +51,7 @@ test("Outreach est réservé aux administrateurs", async ({ browser }) => {
 });
 
 test("tableau de bord, prévisualisation de campagne et paramètres", async ({ browser }) => {
-  // Campagne lancée à la main aujourd'hui : comptée dans les chiffres de la journée
+  // Campagne supplémentaire du jour sans administrateur (complémentaire automatique) : comptée dans les chiffres de la journée
   const { data: manual } = await db
     .from("outreach_campaigns")
     .insert({ campaign_date: new Date().toISOString().slice(0, 10), kind: "MANUAL", status: "SENT", min_score: 70, subject_template: "s", intro_template: "i" })
@@ -61,7 +61,7 @@ test("tableau de bord, prévisualisation de campagne et paramètres", async ({ b
   const page = await newPage(browser);
   await login(page, "admin@demo.linkprob2b.test");
   await page.goto("/outreach");
-  await expect(page.getByRole("link", { name: /campagnes? manuelles?/ })).toBeVisible();
+  await expect(page.getByRole("link", { name: /campagnes? complémentaires?/ })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Vue d'ensemble", level: 1 })).toBeVisible();
   await expect(page.getByText(/Mode simulation|Envoi réel/).first()).toBeVisible();
   await expect(page.getByRole("button", { name: "Lancer une campagne maintenant" })).toBeVisible();

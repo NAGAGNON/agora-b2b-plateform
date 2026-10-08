@@ -1,7 +1,7 @@
 /** Collecte de bout en bout sur la base locale, avec réponses d'API simulées. */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { admin, anon, cleanup, RUN, user } from "./helpers";
-import { runSource } from "@/lib/collect/run";
+import { runDueSources, runSource } from "@/lib/collect/run";
 import { boampRecords, mockFetch, tedNotices } from "../fixtures/sources";
 
 type Source = NonNullable<Awaited<ReturnType<typeof loadSource>>>;
@@ -109,5 +109,20 @@ describe("collecte des sources externes", () => {
     const r = await runSource(approch!, { trigger: "manual", fetchImpl: mockFetch(() => ({ results: [] })) });
     expect(r.status).toBe("FAILED");
     expect(r.errors[0]).toMatch(/non approuvée/);
+  });
+
+  it("passages répartis dans la journée : une source quotidienne est reprise après 3 h 30, pas avant", async () => {
+    const empty = mockFetch(() => ({ total_count: 0, results: [] }));
+    const H = 3_600_000;
+    const at = (ms: number) => new Date(Date.now() + ms).toISOString();
+    await admin.from("external_sources").update({ last_sync_at: at(-4 * H), next_sync_at: at(20 * H) }).eq("id", boamp.id);
+    // Rythme normal (une fois par jour) : pas encore due
+    expect(await runDueSources({ codes: ["boamp"], fetchImpl: empty })).toHaveLength(0);
+    // Passage de midi / après-midi / soir : collectée il y a 4 h → reprise
+    const r = await runDueSources({ codes: ["boamp"], fetchImpl: empty, refreshAfterMs: 3.5 * H });
+    expect(r.map((x) => x.source)).toEqual(["boamp"]);
+    // Collectée il y a 1 h : pas reprise
+    await admin.from("external_sources").update({ last_sync_at: at(-1 * H), next_sync_at: at(23 * H) }).eq("id", boamp.id);
+    expect(await runDueSources({ codes: ["boamp"], fetchImpl: empty, refreshAfterMs: 3.5 * H })).toHaveLength(0);
   });
 });

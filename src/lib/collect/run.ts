@@ -332,7 +332,12 @@ export async function runSource(
 }
 
 /** Synchronise toutes les sources actives et approuvées dont l'échéance est atteinte. */
-export async function runDueSources(opts: { force?: boolean; budgetMs?: number; fetchImpl?: FetchLike; retryDelays?: number[]; codes?: string[] } = {}) {
+/**
+ * `refreshAfterMs` : passages répartis dans la journée — une source quotidienne déjà collectée
+ * est reprise si sa dernière collecte date de plus de ce délai (nouvelles annonces publiées
+ * dans la journée). Les sources hebdomadaires gardent leur rythme.
+ */
+export async function runDueSources(opts: { force?: boolean; budgetMs?: number; fetchImpl?: FetchLike; retryDelays?: number[]; codes?: string[]; refreshAfterMs?: number } = {}) {
   const startedAt = Date.now();
   const db = createAdminClient();
   // Collectes interrompues (fin de processus, délai dépassé) : clôturées comme en échec
@@ -346,7 +351,8 @@ export async function runDueSources(opts: { force?: boolean; budgetMs?: number; 
   const results: { source: string; status: string; created: number; updated: number; duplicates: number; errors: number }[] = [];
   for (const s of sources ?? []) {
     if (opts.codes && !opts.codes.includes(s.code ?? "")) continue;
-    if (!opts.force && s.next_sync_at && new Date(s.next_sync_at) > now) continue;
+    const refresh = opts.refreshAfterMs !== undefined && s.sync_frequency !== "weekly" && (!s.last_sync_at || now.getTime() - new Date(s.last_sync_at).getTime() >= opts.refreshAfterMs);
+    if (!opts.force && !refresh && s.next_sync_at && new Date(s.next_sync_at) > now) continue;
     // Budget de temps de la tâche planifiée : les sources restantes passent à l'exécution suivante
     if (opts.budgetMs && Date.now() - startedAt > opts.budgetMs) {
       results.push({ source: s.code ?? s.name, status: "DEFERRED", created: 0, updated: 0, duplicates: 0, errors: 0 });

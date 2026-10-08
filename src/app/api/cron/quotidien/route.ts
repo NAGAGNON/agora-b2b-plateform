@@ -8,6 +8,7 @@ import { importPlaces } from "@/lib/collect/places";
 import { logServerError } from "@/lib/errors";
 import { runDailyArticles } from "@/lib/articles";
 import { submitChangedUrls } from "@/lib/indexnow";
+import type { Json } from "@/lib/database.types";
 
 // La collecte de plusieurs sources peut prendre du temps.
 export const maxDuration = 300;
@@ -31,7 +32,13 @@ function authorized(req: Request): boolean {
  * 6. envoi de la file d'e-mails ;
  * 7. purge de la mesure d'audience de plus de 13 mois.
  * Chaque étape est isolée : l'échec de l'une n'empêche pas les suivantes.
+ *
+ * Plusieurs passages par jour (vercel.json : matin, midi, après-midi, soir) : chaque passage
+ * reprend les sources dont la dernière collecte date de plus de 3 h 30 (annonces publiées dans la
+ * journée), signale les nouvelles pages et envoie les e-mails en attente. Les étapes quotidiennes
+ * (articles, résumés d'alertes) ne refont rien une fois leur quota du jour atteint.
  */
+const REFRESH_AFTER_MS = 3.5 * 3_600_000;
 export async function GET(req: Request) {
   if (!authorized(req)) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
   const report: Record<string, unknown> = {};
@@ -45,7 +52,7 @@ export async function GET(req: Request) {
   };
   await step("referentiel", () => importPlaces());
   // Une source en panne n'empêche pas les autres (erreur journalisée par source, nouvelle tentative au passage suivant)
-  await step("sources", () => runDueSources({ budgetMs: 180_000 }));
+  await step("sources", () => runDueSources({ budgetMs: 180_000, refreshAfterMs: REFRESH_AFTER_MS }));
   await step("expired", async () => (await createAdminClient().rpc("expire_opportunities")).data);
   await step("articles", () => runDailyArticles());
   await step("indexnow", () => submitChangedUrls());
@@ -53,10 +60,14 @@ export async function GET(req: Request) {
   await step("emails", () => processEmailOutbox(200));
   await step("audience", async () => (await createAdminClient().rpc("purge_page_views")).data);
   const failed = Object.entries(report).filter(([, v]) => v && typeof v === "object" && "error" in v).map(([k]) => k);
-  // Trace de la dernière exécution (supervision : /api/sante et Administration → Synchronisations)
-  await createAdminClient()
+  // Trace des exécutions (supervision : /api/sante, Administration → Synchronisations, bilan du jour)
+  const db = createAdminClient();
+  const { data: prev } = await db.from("platform_settings").select("value").eq("key", "private.cron").maybeSingle();
+  const at = new Date().toISOString();
+  const history = [...(((prev?.value ?? {}) as { history?: Json[] }).history ?? []), { at, passe: new URL(req.url).searchParams.get("passe") ?? "matin", failed_steps: failed }].slice(-12);
+  await db
     .from("platform_settings")
-    .upsert({ key: "private.cron", value: { last_run_at: new Date().toISOString(), failed_steps: failed }, description: "Dernière exécution de la tâche planifiée" })
+    .upsert({ key: "private.cron", value: { last_run_at: at, failed_steps: failed, history }, description: "Dernière exécution de la tâche planifiée" })
     .then(({ error }) => error && logServerError("cron trace", error));
   return NextResponse.json({ ok: failed.length === 0, ...report });
 }
