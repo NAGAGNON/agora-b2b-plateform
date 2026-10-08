@@ -147,6 +147,53 @@ describe("Outreach — recherche des adresses", () => {
   });
 });
 
+describe("Outreach — campagnes lancées à la main", () => {
+  const manualIds: string[] = [];
+  afterAll(async () => {
+    if (manualIds.length) await admin.from("outreach_campaigns").delete().in("id", manualIds);
+  });
+
+  it("plusieurs fois dans la journée, sans toucher à la campagne automatique ni à ses opportunités", async () => {
+    const before = (await admin.from("outreach_opportunity_states").select("status, last_campaign_id").eq("opportunity_id", O.elec1).single()).data;
+    expect(before?.status).toBe("PROCESSED");
+    for (let i = 0; i < 2; i++) {
+      const r = await buildDailyCampaign(admin, { manual: { userId: null } });
+      manualIds.push(r.campaignId!);
+      const { data: c } = await admin.from("outreach_campaigns").select("kind, status, report").eq("id", r.campaignId!).single();
+      expect(c?.kind).toBe("MANUAL");
+      expect(c?.status).toBe("READY");
+      expect(c?.report).toContain("Campagne manuelle");
+      // Les opportunités récentes déjà traitées par la campagne automatique sont reprises…
+      const { data: rec } = await admin.from("outreach_recipients").select("status").eq("campaign_id", r.campaignId!).eq("prospect_id", P.elecA).single();
+      expect(rec?.status).toBe("PENDING");
+      // …avec les mêmes garde-fous (liste d'exclusion, fréquence)
+      expect((await admin.from("outreach_recipients").select("status").eq("campaign_id", r.campaignId!).eq("prospect_id", P.elecBlocked).single()).data?.status).toBe("SUPPRESSED");
+      expect((await admin.from("outreach_recipients").select("status").eq("campaign_id", r.campaignId!).eq("prospect_id", P.elecRecent).single()).data?.status).toBe("FREQUENCY");
+    }
+    expect(new Set(manualIds).size).toBe(2);
+    const after = (await admin.from("outreach_opportunity_states").select("status, last_campaign_id").eq("opportunity_id", O.elec1).single()).data;
+    expect(after).toEqual(before);
+    const { data: auto } = await admin.from("outreach_campaigns").select("kind, status").eq("id", campaignId).single();
+    expect(auto).toEqual({ kind: "AUTO", status: "READY" });
+    // La campagne automatique du jour reste unique
+    const again = await buildDailyCampaign(admin, { date: DATE });
+    expect(again.campaignId).toBe(campaignId);
+  });
+
+  it("les envois manuels ne consomment pas la limite quotidienne de la campagne automatique", async () => {
+    await admin.from("outreach_settings").update({ daily_send_cap: 0 }).eq("id", true);
+    try {
+      await admin.from("outreach_campaigns").update({ status: "VALIDATED", dry_run: true }).eq("id", manualIds[0]);
+      const r = await processSendQueue(admin, { deadline: Date.now() + 30_000 });
+      expect(r.simulated).toBeGreaterThanOrEqual(1);
+      expect((await admin.from("outreach_recipients").select("status").eq("campaign_id", manualIds[0]).eq("prospect_id", P.elecA).single()).data?.status).toBe("SIMULATED");
+      expect((await recipient("elecA"))?.status).toBe("PENDING");
+    } finally {
+      await admin.from("outreach_settings").update({ daily_send_cap: 1000 }).eq("id", true);
+    }
+  });
+});
+
 describe("Outreach — envoi simulé et suivi", () => {
   it("automatique : la campagne préparée part sans validation (ici en simulation, statut « simulé »)", async () => {
     await admin.from("outreach_campaigns").update({ dry_run: true }).eq("id", campaignId);

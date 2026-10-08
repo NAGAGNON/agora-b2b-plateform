@@ -1,10 +1,13 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { formatDate } from "@/lib/format";
 import { CAMPAIGN_STATUS, PageHead, Panel, StatusBadge, fmtN, pct } from "@/components/outreach/ui";
-import { RunNowButton } from "@/components/outreach/run-button";
+import { LaunchManualButton, RunNowButton } from "@/components/outreach/run-button";
+import { campaignLabel } from "@/lib/outreach/matching";
 import { EmptyState } from "@/components/ui/states";
 import { Pagination } from "@/components/ui/pagination";
+
+// « Lancer une campagne maintenant » : chaîne complète (jusqu'à 5 minutes)
+export const maxDuration = 300;
 
 export const metadata = { title: "Campagnes" };
 const PER_PAGE = 30;
@@ -16,13 +19,23 @@ export default async function CampaignsPage(props: PageProps<"/outreach/campagne
   const supabase = await createClient();
   const { data, count } = await supabase
     .from("outreach_campaigns")
-    .select("id, campaign_date, status, dry_run, stats", { count: "exact" })
+    .select("id, campaign_date, kind, created_at, status, dry_run, stats", { count: "exact" })
     .order("campaign_date", { ascending: false })
+    .order("created_at", { ascending: false })
     .range((page - 1) * PER_PAGE, page * PER_PAGE - 1);
   const live = await Promise.all((data ?? []).map(async (c) => ((await supabase.rpc("outreach_campaign_stats", { p_campaign_id: c.id })).data ?? {}) as Stats));
   return (
     <>
-      <PageHead title="Campagnes" description="Une campagne par jour, construite à partir des nouvelles opportunités. Chaque campagne est prévisualisée avant tout envoi." action={<RunNowButton />} />
+      <PageHead
+        title="Campagnes"
+        description="Une campagne automatique par jour, construite à partir des nouvelles opportunités, et autant de campagnes manuelles que vous le souhaitez."
+        action={
+          <div className="flex flex-wrap gap-2">
+            <LaunchManualButton />
+            <RunNowButton />
+          </div>
+        }
+      />
       <Panel title={`${fmtN(count ?? 0)} campagne(s)`}>
         {!data?.length ? (
           <EmptyState title="Aucune campagne pour le moment" description="Préparez la campagne du jour pour voir les entreprises sélectionnées et leurs e-mails." />
@@ -47,7 +60,7 @@ export default async function CampaignsPage(props: PageProps<"/outreach/campagne
                     <tr key={c.id} className="hover:bg-slate-50">
                       <td className="py-3 pr-3">
                         <Link href={`/outreach/campagnes/${c.id}`} className="font-semibold text-navy hover:underline">
-                          Campagne du {formatDate(c.campaign_date)}
+                          {campaignLabel(c)}
                         </Link>
                       </td>
                       <td className="py-3 pr-3">

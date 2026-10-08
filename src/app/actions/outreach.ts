@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { logServerError, userMessage } from "@/lib/errors";
 import { parseForm, type ActionResult } from "@/lib/validation";
-import { buildDailyCampaign, enrichCampaignAndSend, enrichmentReport, processSendQueue, syncOpportunityStates } from "@/lib/outreach/pipeline";
+import { buildDailyCampaign, enrichCampaignAndSend, enrichmentReport, processSendQueue, runManualCampaign, syncOpportunityStates } from "@/lib/outreach/pipeline";
 import { loadReferentials, loadSettings, realSendBlockers } from "@/lib/outreach/data";
 import { mapProspectRows, parseCsv } from "@/lib/outreach/csv";
 import { configuredSearchers, enrichCompany } from "@/lib/outreach/enrich";
@@ -80,6 +80,31 @@ export async function runOutreachNow(_prev: ActionResult | null, fd: FormData): 
   } catch (e) {
     logServerError("outreach run", e);
     return { ok: false, error: `La préparation a échoué : ${e instanceof Error ? e.message : "erreur inconnue"}` };
+  }
+}
+
+/**
+ * « Lancer une campagne maintenant » : campagne manuelle complète (entreprises → adresses → envoi),
+ * autant de fois que voulu dans la journée. La campagne automatique n'est pas modifiée.
+ */
+export async function launchManualCampaign(): Promise<ActionResult> {
+  const { session } = await admin();
+  try {
+    const r = await runManualCampaign(createAdminClient(), { userId: session.userId });
+    await audit(session.userId, "outreach.manual_run", r.build.campaignId ?? "none", { ...(r.build.stats ?? {}), sent: r.send?.sent ?? 0 });
+    revalidatePath("/outreach");
+    revalidatePath("/outreach/campagnes");
+    const st = r.build.stats ?? {};
+    const parts = [
+      `Campagne manuelle lancée : ${st.companies_selected ?? 0} entreprise(s) sélectionnée(s)`,
+      r.enrichment ? `${r.enrichment.found} adresse(s) trouvée(s)` : null,
+      r.send ? `${r.send.sent} e-mail(s) envoyé(s)${r.send.simulated ? `, ${r.send.simulated} simulé(s)` : ""}` : "en attente de votre validation (Paramètres)",
+      st.excluded_frequency ? `${st.excluded_frequency} entreprise(s) déjà contactée(s) récemment, non relancée(s)` : null,
+    ].filter(Boolean);
+    return done(`${parts.join(" · ")}.`);
+  } catch (e) {
+    logServerError("outreach manual run", e);
+    return { ok: false, error: `Le lancement a échoué : ${e instanceof Error ? e.message : "erreur inconnue"}` };
   }
 }
 

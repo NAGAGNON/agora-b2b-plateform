@@ -632,16 +632,22 @@ isOneToOne: false
                   ]
                 },"outreach_campaigns": {
                   Row: {
-                    "campaign_date": string,"created_at": string,"dry_run": boolean,"error": string | null,"id": string,"intro_template": string,"min_score": number,"report": string | null,"sent_at": string | null,"stats": NonNullable<Json>,"status": string,"subject_template": string,"updated_at": string,"validated_at": string | null,"validated_by": string | null
+                    "campaign_date": string,"created_at": string,"dry_run": boolean,"error": string | null,"id": string,"intro_template": string,"kind": string,"launched_by": string | null,"min_score": number,"report": string | null,"sent_at": string | null,"stats": NonNullable<Json>,"status": string,"subject_template": string,"updated_at": string,"validated_at": string | null,"validated_by": string | null
                   }
                   Insert: {
-                    "campaign_date": string,"created_at"?: string,"dry_run"?: boolean,"error"?: string | null,"id"?: string,"intro_template": string,"min_score": number,"report"?: string | null,"sent_at"?: string | null,"stats"?: NonNullable<Json>,"status"?: string,"subject_template": string,"updated_at"?: string,"validated_at"?: string | null,"validated_by"?: string | null
+                    "campaign_date": string,"created_at"?: string,"dry_run"?: boolean,"error"?: string | null,"id"?: string,"intro_template": string,"kind"?: string,"launched_by"?: string | null,"min_score": number,"report"?: string | null,"sent_at"?: string | null,"stats"?: NonNullable<Json>,"status"?: string,"subject_template": string,"updated_at"?: string,"validated_at"?: string | null,"validated_by"?: string | null
                   }
                   Update: {
-                    "campaign_date"?: string,"created_at"?: string,"dry_run"?: boolean,"error"?: string | null,"id"?: string,"intro_template"?: string,"min_score"?: number,"report"?: string | null,"sent_at"?: string | null,"stats"?: NonNullable<Json>,"status"?: string,"subject_template"?: string,"updated_at"?: string,"validated_at"?: string | null,"validated_by"?: string | null
+                    "campaign_date"?: string,"created_at"?: string,"dry_run"?: boolean,"error"?: string | null,"id"?: string,"intro_template"?: string,"kind"?: string,"launched_by"?: string | null,"min_score"?: number,"report"?: string | null,"sent_at"?: string | null,"stats"?: NonNullable<Json>,"status"?: string,"subject_template"?: string,"updated_at"?: string,"validated_at"?: string | null,"validated_by"?: string | null
                   }
                   Relationships: [
                     {
+      foreignKeyName: "outreach_campaigns_launched_by_fkey"
+      columns: ["launched_by"]
+isOneToOne: false
+      referencedRelation: "users"
+      referencedColumns: ["id"]
+    },{
       foreignKeyName: "outreach_campaigns_validated_by_fkey"
       columns: ["validated_by"]
 isOneToOne: false
