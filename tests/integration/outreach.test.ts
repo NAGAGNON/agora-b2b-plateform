@@ -147,11 +147,24 @@ describe("Outreach — recherche des adresses", () => {
 });
 
 describe("Outreach — envoi simulé et suivi", () => {
-  it("simulation : aucun envoi réel, statut « simulé »", async () => {
-    await admin.from("outreach_campaigns").update({ status: "VALIDATED", dry_run: true }).eq("id", campaignId);
-    const r = await processSendQueue(admin);
+  it("automatique : la campagne préparée part sans validation (ici en simulation, statut « simulé »)", async () => {
+    await admin.from("outreach_campaigns").update({ dry_run: true }).eq("id", campaignId);
+    await admin.from("outreach_settings").update({ require_validation: false }).eq("id", true);
+    const saved = { brave: process.env.BRAVE_SEARCH_API_KEY, drop: process.env.DROPCONTACT_API_KEY };
+    delete process.env.BRAVE_SEARCH_API_KEY;
+    delete process.env.DROPCONTACT_API_KEY;
+    let r: Awaited<ReturnType<typeof processSendQueue>>;
+    try {
+      r = (await enrichCampaignAndSend(admin, { campaignId, deadline: Date.now() + 20_000 })).send;
+    } finally {
+      if (saved.brave) process.env.BRAVE_SEARCH_API_KEY = saved.brave;
+      if (saved.drop) process.env.DROPCONTACT_API_KEY = saved.drop;
+    }
     expect(r.sent).toBe(0);
     expect(r.simulated).toBeGreaterThanOrEqual(2);
+    const { data: c } = await admin.from("outreach_campaigns").select("status, validated_at").eq("id", campaignId).single();
+    expect(c?.status).toBe("SIMULATED");
+    expect(c?.validated_at).not.toBeNull();
     expect((await recipient("elecA"))?.status).toBe("SIMULATED");
     expect((await recipient("elecNoMail"))?.status).toBe("NO_EMAIL");
   });

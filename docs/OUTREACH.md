@@ -33,6 +33,14 @@ Sources → LinkProB2B → nouvelles opportunités → Outreach → entreprises 
 8. Envoi (Resend), suivi : ouverture (indicative), clic, landing page, opportunité consultée, inscription,
    conversion (abonnement payant), désinscription.
 
+## Relances de la journée (`/api/cron/outreach-contacts`, toutes les heures de 08:20 à 18:20 UTC)
+
+Chaque relance (environ 5 minutes) :
+- prépare la campagne du jour si elle n'existe pas encore, a échoué ou est restée bloquée en préparation ;
+- sinon poursuit la recherche des adresses e-mail des entreprises sélectionnées sans e-mail ;
+- envoie aussitôt les e-mails devenus possibles (fonctionnement automatique : sans validation manuelle),
+  dans la limite d'envois quotidienne. Les e-mails au-delà de cette limite partent les jours suivants.
+
 ## Origine des adresses e-mail
 
 Outreach n'invente aucune adresse. Une entreprise devient contactable de trois façons :
