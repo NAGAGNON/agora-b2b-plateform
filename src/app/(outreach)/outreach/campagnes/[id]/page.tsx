@@ -7,6 +7,7 @@ import { realSendBlockers, type OutreachSettings } from "@/lib/outreach/data";
 import { CAMPAIGN_STATUS, PageHead, Panel, RECIPIENT_STATUS, ScoreBadge, Stat, StatusBadge, fmtN, pct } from "@/components/outreach/ui";
 import { CampaignActions, EnrichCampaignButton, OpportunityToggle, RecipientToggle, TemplateEditor } from "@/components/outreach/campaign-controls";
 import { RunNowButton } from "@/components/outreach/run-button";
+import { campaignLabel } from "@/lib/outreach/matching";
 import { LinkTabs } from "@/components/ui/tabs";
 import { Notice } from "@/components/ui/notice";
 import { Pagination } from "@/components/ui/pagination";
@@ -71,7 +72,7 @@ export default async function CampaignPage(props: PageProps<"/outreach/campagnes
         <ArrowLeft className="size-4" aria-hidden /> Campagnes
       </Link>
       <PageHead
-        title={`Campagne du ${formatDate(c.campaign_date)}`}
+        title={campaignLabel(c)}
         description={
           <span className="flex flex-wrap items-center gap-2">
             <StatusBadge map={CAMPAIGN_STATUS} status={c.status} />
@@ -81,7 +82,7 @@ export default async function CampaignPage(props: PageProps<"/outreach/campagnes
         }
         action={
           <div className="flex flex-wrap gap-2">
-            {c.status === "READY" && <RunNowButton force label="Reconstruire" />}
+            {c.status === "READY" && c.kind === "AUTO" && <RunNowButton force label="Reconstruire" />}
             {(counts[2].count ?? 0) > 0 && c.status !== "CANCELLED" && <EnrichCampaignButton campaignId={c.id} count={counts[2].count ?? 0} />}
             <CampaignActions campaignId={c.id} status={c.status} blockers={blockers} sendable={sendable} />
           </div>

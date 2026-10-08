@@ -4,9 +4,13 @@ import { formatDate, formatDateTime } from "@/lib/format";
 import { realSendBlockers, windowStart, type OutreachSettings } from "@/lib/outreach/data";
 import { BarChart, Funnel } from "@/components/outreach/charts";
 import { CAMPAIGN_STATUS, PageHead, Panel, Stat, StatusBadge, fmtN, pct } from "@/components/outreach/ui";
-import { RunNowButton } from "@/components/outreach/run-button";
+import { LaunchManualButton, RunNowButton } from "@/components/outreach/run-button";
+import { campaignLabel } from "@/lib/outreach/matching";
 import { Notice } from "@/components/ui/notice";
 import { EmptyState } from "@/components/ui/states";
+
+// « Lancer une campagne maintenant » : chaîne complète (jusqu'à 5 minutes)
+export const maxDuration = 300;
 
 export const metadata = { title: "Vue d'ensemble" };
 
@@ -19,7 +23,7 @@ export default async function OutreachOverview() {
   const since = windowStart(30);
   const [{ data: settings }, { data: campaigns }, { data: sent }, { data: events }, prospects, withEmail, dnc, { data: cron }] = await Promise.all([
     supabase.from("outreach_settings").select("*").eq("id", true).maybeSingle(),
-    supabase.from("outreach_campaigns").select("id, campaign_date, status, dry_run, stats").order("campaign_date", { ascending: false }).limit(8),
+    supabase.from("outreach_campaigns").select("id, campaign_date, kind, created_at, status, dry_run, stats").order("campaign_date", { ascending: false }).order("created_at", { ascending: false }).limit(8),
     supabase.from("outreach_recipients").select("sent_at, status").in("status", ["SENT", "SIMULATED"]).gte("sent_at", since.toISOString()).limit(50_000),
     supabase.from("outreach_events").select("type, created_at, opportunity_id, recipient_id").gte("created_at", since.toISOString()).in("type", ["PREPARED", "SENT", "SIMULATED", "OPEN", "CLICK", "LANDING_VIEW", "OPPORTUNITY_VIEW", "GATE_VIEW", "GATE_SIGNUP_CLICK", "SIGNUP", "LOGIN", "OFFER_ACCESS", "CONVERSION"]).limit(100_000),
     supabase.from("outreach_prospects").select("id", { count: "exact", head: true }),
@@ -27,7 +31,7 @@ export default async function OutreachOverview() {
     supabase.from("outreach_suppressions").select("id", { count: "exact", head: true }),
     supabase.from("platform_settings").select("value").eq("key", "private.outreach_cron").maybeSingle(),
   ]);
-  const todayCampaign = campaigns?.find((c) => c.campaign_date === today) ?? null;
+  const todayCampaign = campaigns?.find((c) => c.campaign_date === today && c.kind === "AUTO") ?? null;
   const { data: todayLive } = todayCampaign ? await supabase.rpc("outreach_campaign_stats", { p_campaign_id: todayCampaign.id }) : { data: null };
   const st = (todayCampaign?.stats ?? {}) as Stats;
   const live = (todayLive ?? {}) as Stats;
@@ -73,7 +77,12 @@ export default async function OutreachOverview() {
       <PageHead
         title="Vue d'ensemble"
         description="Chaque jour : nouvelles opportunités LinkProB2B → entreprises réellement concernées → un e-mail personnalisé par entreprise → sélection personnalisée → inscription."
-        action={<RunNowButton />}
+        action={
+          <div className="flex flex-wrap gap-2">
+            <LaunchManualButton />
+            <RunNowButton />
+          </div>
+        }
       />
       {blockers.length > 0 && (
         <Notice tone="info" className="mb-6" title="Aucun e-mail réel ne peut partir pour le moment">
@@ -173,7 +182,7 @@ export default async function OutreachOverview() {
                       <tr key={c.id}>
                         <td className="py-2.5 pr-3">
                           <Link href={`/outreach/campagnes/${c.id}`} className="font-semibold text-navy hover:underline">
-                            {formatDate(c.campaign_date)}
+                            {campaignLabel(c).replace(/^Campagne (du )?/, "")}
                           </Link>
                         </td>
                         <td className="py-2.5 pr-3">

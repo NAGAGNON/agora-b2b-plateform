@@ -210,3 +210,11 @@ export function contentFingerprint(o: { title: string; description: string; resp
   }
   return (h >>> 0).toString(16);
 }
+
+/** Nom affiché d'une campagne (automatique du jour, ou manuelle avec l'heure de lancement). */
+export function campaignLabel(c: { campaign_date: string; kind?: string | null; created_at?: string | null }): string {
+  const day = new Date(`${c.campaign_date}T12:00:00Z`).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
+  if (c.kind !== "MANUAL") return `Campagne du ${day}`;
+  const at = c.created_at ? new Date(c.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" }) : null;
+  return `Campagne manuelle du ${day}${at ? ` à ${at}` : ""}`;
+}

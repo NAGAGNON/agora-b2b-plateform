@@ -167,15 +167,33 @@ async function candidates(db: Db, a: OpportunityAnalysis, settings: OutreachSett
 
 export type BuildResult = { campaignId: string | null; skipped?: string; stats?: Record<string, number> };
 
-/** 3–9. Construction de la campagne du jour (prévisualisation). */
-export async function buildDailyCampaign(db: Db, { date = today(), force = false, deadline = Date.now() + 120_000 }: { date?: string; force?: boolean; deadline?: number } = {}): Promise<BuildResult> {
+/**
+ * 3–9. Construction de la campagne du jour (prévisualisation).
+ * `manual` : campagne lancée à la main (Outreach → « Lancer une campagne maintenant »), sans limite
+ * de nombre par jour. Elle reprend les opportunités récentes (fenêtre de détection) sans changer leur
+ * état : la campagne automatique du jour n'est pas modifiée. Mêmes garde-fous (exclusions, fréquence).
+ */
+export async function buildDailyCampaign(
+  db: Db,
+  { date = today(), force = false, deadline = Date.now() + 120_000, manual }: { date?: string; force?: boolean; deadline?: number; manual?: { userId: string | null } } = {},
+): Promise<BuildResult> {
   const settings = await loadSettings(db);
-  const { data: existing } = await db.from("outreach_campaigns").select("id, status").eq("campaign_date", date).maybeSingle();
+  const { data: existing } = manual ? { data: null } : await db.from("outreach_campaigns").select("id, status").eq("campaign_date", date).eq("kind", "AUTO").maybeSingle();
   if (existing) {
     const rebuildable = ["BUILDING", "FAILED"].includes(existing.status) || (force && existing.status === "READY");
     if (!rebuildable) return { campaignId: existing.id, skipped: existing.status === "READY" ? "Campagne du jour déjà préparée" : "Campagne du jour déjà validée ou envoyée" };
   }
-  const base = { campaign_date: date, status: "BUILDING", dry_run: settings.dry_run, min_score: settings.min_score, subject_template: settings.subject_template, intro_template: settings.intro_template, error: null, updated_at: new Date().toISOString() };
+  const base = {
+    campaign_date: date,
+    status: "BUILDING",
+    dry_run: settings.dry_run,
+    min_score: settings.min_score,
+    subject_template: settings.subject_template,
+    intro_template: settings.intro_template,
+    error: null,
+    updated_at: new Date().toISOString(),
+    ...(manual ? { kind: "MANUAL", launched_by: manual.userId } : {}),
+  };
   let campaignId = existing?.id ?? null;
   if (campaignId) {
     // Reconstruction : les opportunités de cette campagne redeviennent « nouvelles ».
@@ -191,7 +209,15 @@ export async function buildDailyCampaign(db: Db, { date = today(), force = false
   try {
     const ref = await loadReferentials(db);
     const minDeadline = new Date(Date.now() + settings.min_days_before_deadline * DAY).toISOString();
-    const { data: states } = await db.from("outreach_opportunity_states").select("opportunity_id").eq("status", "NEW").order("first_seen_at").limit(2000);
+    const { data: states } = manual
+      ? await db
+          .from("outreach_opportunity_states")
+          .select("opportunity_id")
+          .in("status", ["NEW", "MODIFIED", "PROCESSED"])
+          .gte("first_seen_at", new Date(Date.now() - settings.lookback_days * DAY).toISOString())
+          .order("first_seen_at")
+          .limit(2000)
+      : await db.from("outreach_opportunity_states").select("opportunity_id").eq("status", "NEW").order("first_seen_at").limit(2000);
     const ids = (states ?? []).map((s) => s.opportunity_id);
     const opps = [];
     for (const part of chunk(ids, 300)) {
@@ -259,8 +285,8 @@ export async function buildDailyCampaign(db: Db, { date = today(), force = false
       await db.from("outreach_events").insert((inserted ?? []).map((r) => ({ recipient_id: r.id, campaign_id: campaignId!, type: "PREPARED" })));
     }
 
-    // Opportunités traitées : profils ciblés et nombre de correspondances
-    for (const a of analyses) {
+    // Opportunités traitées : profils ciblés et nombre de correspondances (campagne automatique uniquement)
+    for (const a of manual ? [] : analyses) {
       await db
         .from("outreach_opportunity_states")
         .update({ status: "PROCESSED", processed_at: new Date().toISOString(), last_campaign_id: campaignId, target_profiles: a.profiles, target_naf: [...new Set([...a.primaryNaf, ...a.sectorNaf])], matches_count: perOpp.get(a.id) ?? 0, updated_at: new Date().toISOString() })
@@ -281,7 +307,9 @@ export async function buildDailyCampaign(db: Db, { date = today(), force = false
       discovery_added: discovery.added,
     };
     const report = [
-      `Campagne du ${formatDate(date)} : ${stats.opportunities_eligible} opportunité(s) nouvelle(s) éligible(s) sur ${stats.opportunities_new} détectée(s).`,
+      manual
+        ? `Campagne manuelle du ${formatDate(date)} (${new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" })}) : ${stats.opportunities_eligible} opportunité(s) récente(s) éligible(s) sur ${stats.opportunities_new}.`
+        : `Campagne du ${formatDate(date)} : ${stats.opportunities_eligible} opportunité(s) nouvelle(s) éligible(s) sur ${stats.opportunities_new} détectée(s).`,
       `${stats.prospects_analyzed} entreprise(s) analysée(s), ${stats.matches} correspondance(s) d'au moins ${settings.min_score}/100.`,
       `${stats.companies_selected} entreprise(s) sélectionnée(s), ${stats.emails_prepared} e-mail(s) préparé(s), ${stats.no_email} sans adresse e-mail.`,
       stats.excluded_frequency + stats.excluded_suppressed > 0 ? `${stats.excluded_frequency} écartée(s) (fréquence), ${stats.excluded_suppressed} écartée(s) (liste d'exclusion ou déjà utilisatrices).` : null,
@@ -302,18 +330,25 @@ export async function buildDailyCampaign(db: Db, { date = today(), force = false
 export async function processSendQueue(db: Db, { deadline = Date.now() + 60_000 }: { deadline?: number } = {}) {
   const settings = await loadSettings(db);
   const startOfDay = `${today()}T00:00:00Z`;
-  const { count: sentToday } = await db.from("outreach_recipients").select("id", { count: "exact", head: true }).in("status", ["SENT", "SIMULATED"]).gte("sent_at", startOfDay);
+  // Limite quotidienne : campagnes automatiques uniquement (les campagnes lancées à la main n'en consomment pas)
+  const { count: sentToday } = await db
+    .from("outreach_recipients")
+    .select("id, campaign:outreach_campaigns!inner(kind)", { count: "exact", head: true })
+    .eq("campaign.kind", "AUTO")
+    .in("status", ["SENT", "SIMULATED"])
+    .gte("sent_at", startOfDay);
   let remaining = Math.max(0, settings.daily_send_cap - (sentToday ?? 0));
   const result = { sent: 0, simulated: 0, failed: 0, remaining_cap: remaining };
-  const { data: campaigns } = await db.from("outreach_campaigns").select("id, dry_run").in("status", ["VALIDATED", "SENDING"]).order("campaign_date");
+  const { data: campaigns } = await db.from("outreach_campaigns").select("id, dry_run, kind").in("status", ["VALIDATED", "SENDING"]).order("campaign_date");
   const ref = await loadReferentials(db);
   const blockers = realSendBlockers(settings);
   for (const c of campaigns ?? []) {
     // Simulation si la campagne a été validée en simulation OU si l'envoi réel n'est pas possible.
     const simulate = c.dry_run || blockers.length > 0;
+    const capped = c.kind !== "MANUAL";
     await db.from("outreach_campaigns").update({ status: "SENDING" }).eq("id", c.id);
-    while (remaining > 0 && Date.now() < deadline) {
-      const { data: batch } = await db.from("outreach_recipients").select("id").eq("campaign_id", c.id).in("status", ["PENDING", "QUEUED"]).order("score", { ascending: false }).limit(Math.min(25, remaining));
+    while ((!capped || remaining > 0) && Date.now() < deadline) {
+      const { data: batch } = await db.from("outreach_recipients").select("id").eq("campaign_id", c.id).in("status", ["PENDING", "QUEUED"]).order("score", { ascending: false }).limit(capped ? Math.min(25, remaining) : 25);
       if (!batch?.length) break;
       const bundles = await loadRecipientBundles(db, batch.map((b) => b.id));
       for (const b of bundles) {
@@ -342,7 +377,7 @@ export async function processSendQueue(db: Db, { deadline = Date.now() + 60_000 
             if (r.retryable) break;
           }
         }
-        remaining--;
+        if (capped) remaining--;
       }
     }
     const { count: left } = await db.from("outreach_recipients").select("id", { count: "exact", head: true }).eq("campaign_id", c.id).in("status", ["PENDING", "QUEUED"]);
@@ -513,10 +548,36 @@ export async function runOutreachDaily(db: Db, { budgetMs = 240_000 }: { budgetM
  * recherche d'adresses continue et les e-mails devenus possibles partent aussitôt.
  */
 export async function runOutreachFollowUp(db: Db, { budgetMs = 270_000 }: { budgetMs?: number } = {}) {
-  const { data: campaign } = await db.from("outreach_campaigns").select("id, status, updated_at").eq("campaign_date", today_()).maybeSingle();
+  const { data: campaign } = await db.from("outreach_campaigns").select("id, status, updated_at").eq("campaign_date", today_()).eq("kind", "AUTO").maybeSingle();
   // Préparation interrompue (tâche arrêtée en cours de route) : reprise après 10 minutes sans progrès.
   const stalled = campaign?.status === "BUILDING" && Date.now() - new Date(campaign.updated_at).getTime() > 10 * 60_000;
   if (!campaign || campaign.status === "FAILED" || stalled) return { mode: "daily" as const, ...(await runOutreachDaily(db, { budgetMs: budgetMs - 30_000 })) };
   if (campaign.status === "BUILDING" || campaign.status === "CANCELLED") return { mode: "skipped" as const, skipped: campaign.status === "BUILDING" ? "Campagne du jour en cours de préparation" : "Campagne du jour annulée" };
   return { mode: "contacts" as const, ...(await enrichCampaignAndSend(db, { campaignId: campaign.id, deadline: Date.now() + budgetMs })) };
+}
+
+/**
+ * Campagne lancée à la main (Outreach), autant de fois que voulu dans la journée : opportunités
+ * récentes → entreprises → recherche d'adresses → envoi. N'affecte pas la campagne automatique
+ * (ni ses opportunités, ni sa limite d'envois). Mêmes garde-fous : exclusions, désinscriptions,
+ * délai minimum entre deux e-mails à une même entreprise.
+ */
+export async function runManualCampaign(db: Db, { userId, budgetMs = 270_000 }: { userId: string | null; budgetMs?: number }) {
+  const deadline = Date.now() + budgetMs;
+  const settings = await loadSettings(db);
+  const sync = await syncOpportunityStates(db, settings);
+  const build = await buildDailyCampaign(db, { manual: { userId }, deadline: deadline - 150_000 });
+  if (!build.campaignId) return { sync, build, enrichment: null, send: null };
+  const enrichment = await enrichProspects(db, { campaignId: build.campaignId, deadline: deadline - 60_000 }).catch((e) => (logServerError("outreach manual enrichment", e), null));
+  const { data: c } = await db.from("outreach_campaigns").select("report").eq("id", build.campaignId).single();
+  await db
+    .from("outreach_campaigns")
+    .update({
+      report: [c?.report, enrichment ? enrichmentReport(enrichment) : null].filter(Boolean).join("\n"),
+      ...(settings.require_validation ? {} : { status: "VALIDATED", validated_at: new Date().toISOString(), validated_by: userId }),
+    })
+    .eq("id", build.campaignId)
+    .eq("status", "READY");
+  const send = settings.require_validation ? null : await processSendQueue(db, { deadline });
+  return { sync, build, enrichment, send };
 }

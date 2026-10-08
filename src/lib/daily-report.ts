@@ -73,11 +73,11 @@ export async function buildDailyFacts(now = new Date()) {
   const iso = start.toISOString();
   const count = async (q: PromiseLike<{ count: number | null }>) => (await q).count ?? 0;
 
-  const [todayW, yesterdayW, weekW, campaign, events, sentToday, discovered, found, runs, newOpps, articles, users, companies, subs, cron, outreachSettings] = await Promise.all([
+  const [todayW, yesterdayW, weekW, campaign, events, sentToday, discovered, found, runs, newOpps, articles, users, companies, subs, cron, outreachSettings, manualCampaigns] = await Promise.all([
     db.rpc("audience_window", { p_from: iso, p_to: now.toISOString() }),
     db.rpc("audience_window", { p_from: yStart.toISOString(), p_to: iso }),
     db.rpc("audience_window", { p_from: weekStart.toISOString(), p_to: iso }),
-    db.from("outreach_campaigns").select("id, status, stats, report").eq("campaign_date", day).maybeSingle(),
+    db.from("outreach_campaigns").select("id, status, stats, report").eq("campaign_date", day).eq("kind", "AUTO").maybeSingle(),
     db.from("outreach_events").select("type").gte("created_at", iso).limit(20_000),
     count(db.from("outreach_recipients").select("id", { count: "exact", head: true }).eq("status", "SENT").gte("sent_at", iso)),
     count(db.from("outreach_prospects").select("id", { count: "exact", head: true }).gte("created_at", iso)),
@@ -90,6 +90,7 @@ export async function buildDailyFacts(now = new Date()) {
     db.from("subscriptions").select("plan_code, status").gte("created_at", iso),
     db.from("platform_settings").select("value").eq("key", "private.cron").maybeSingle(),
     db.from("outreach_settings").select("dry_run, require_validation, daily_send_cap").eq("id", true).maybeSingle(),
+    count(db.from("outreach_campaigns").select("id", { count: "exact", head: true }).eq("campaign_date", day).eq("kind", "MANUAL")),
   ]);
   if (todayW.error) throw todayW.error;
   const t = todayW.data as unknown as Window;
@@ -126,6 +127,7 @@ export async function buildDailyFacts(now = new Date()) {
     outreach: {
       mode: outreachSettings.data ? (outreachSettings.data.dry_run ? "simulation" : outreachSettings.data.require_validation ? "réel avec validation manuelle" : "réel et automatique") : "inconnu",
       limite_envois_par_jour: outreachSettings.data?.daily_send_cap ?? null,
+      campagnes_lancees_manuellement_aujourdhui: manualCampaigns,
       campagne_du_jour: campaign.data ? { statut: campaign.data.status, statistiques: stats, journal: (campaign.data.report ?? "").split("\n").slice(-8) } : null,
       entreprises_decouvertes_aujourdhui: discovered,
       adresses_email_trouvees_aujourdhui: found,
