@@ -5,8 +5,12 @@ import { DashboardCard, Card, CardHeader } from "@/components/ui/card";
 import { Notice } from "@/components/ui/notice";
 import { stripeMode as stripeModeOf } from "@/lib/billing/stripe";
 import { AudiencePanel, PERIODS, type AudienceStats } from "@/components/admin/audience-panel";
+import { AudienceDetailPanel, type AudienceDetail } from "@/components/admin/audience-detail";
+import { DailyReportCard, type DailyReportRow } from "@/components/admin/daily-report";
 
 export const metadata = { title: "Vue d'ensemble" };
+// Le bouton « Analyser maintenant » rédige le bilan du jour (environ 30 s)
+export const maxDuration = 120;
 
 type Stats = Record<string, number>;
 
@@ -17,15 +21,19 @@ function pct(a: number, b: number) {
 }
 
 export default async function AdminHome(props: PageProps<"/admin">) {
-  await requireStaff();
+  const session = await requireStaff();
   const sp = await props.searchParams;
   const supabase = await createClient();
   const period = PERIODS.find((p) => String(p) === sp.periode) ?? 30;
-  const [{ data }, { data: audience }, { data: billing }] = await Promise.all([
+  const [{ data }, { data: audience }, { data: billing }, { data: detail }, { data: reports }] = await Promise.all([
     supabase.rpc("admin_stats"),
     supabase.rpc("admin_audience_stats", { p_days: period }),
     supabase.rpc("admin_billing_stats"),
+    supabase.rpc("admin_audience_detail", { p_days: period }),
+    // Bilans du jour : lecture réservée aux administrateurs (vide pour la modération)
+    supabase.from("daily_reports").select("day, generated_at, summary, note, error").order("day", { ascending: false }).limit(8),
   ]);
+  const [latest, ...history] = (reports ?? []) as unknown as DailyReportRow[];
   const s = (data ?? {}) as Stats;
   const b = billing as Stats | null; // réservé aux administrateurs (null pour la modération)
   const stripeMode = stripeModeOf();
@@ -56,6 +64,7 @@ export default async function AdminHome(props: PageProps<"/admin">) {
           )}
         </Notice>
       )}
+      {session.isAdmin && <DailyReportCard report={latest ?? null} history={history} />}
       {b && (
         <section>
           <h2 className="mb-3 text-lg font-bold">
@@ -83,6 +92,7 @@ export default async function AdminHome(props: PageProps<"/admin">) {
       ) : (
         <Notice tone="error">Mesure d&apos;audience indisponible.</Notice>
       )}
+      {detail && <AudienceDetailPanel d={detail as unknown as AudienceDetail} period={period} />}
       <section>
         <h2 className="mb-3 text-lg font-bold">Utilisateurs et entreprises</h2>
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">

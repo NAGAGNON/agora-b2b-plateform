@@ -70,3 +70,19 @@ test("la déconnexion ferme la session", async ({ browser }) => {
   await page.goto("/dashboard");
   await expect(page).toHaveURL(/\/connexion/);
 });
+
+test("tableau de bord administrateur : bilan du jour et audience détaillée ; bilan masqué pour la modération", async ({ browser }) => {
+  const page = await newPage(browser);
+  await login(page, "admin@demo.linkprob2b.test");
+  await page.goto("/admin?periode=7");
+  await expect(page.getByRole("heading", { name: "Bilan du jour" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Analyser maintenant" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Audience détaillée (7 derniers jours)" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "D'où viennent les visiteurs" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Jour par jour" })).toBeVisible();
+  const moderator = await newPage(browser);
+  await login(moderator, "moderateur@demo.linkprob2b.test");
+  await moderator.goto("/admin");
+  await expect(moderator.getByRole("heading", { name: "Audience détaillée (30 derniers jours)" })).toBeVisible();
+  await expect(moderator.getByRole("heading", { name: "Bilan du jour" })).toHaveCount(0);
+});

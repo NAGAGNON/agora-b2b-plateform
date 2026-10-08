@@ -28,6 +28,14 @@
     {
       "path": "/api/cron/outreach-contacts?passe=5",
       "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/cron/bilan",
+      "schedule": "0 10 * * *"
+    },
+    {
+      "path": "/api/cron/bilan?soir=1",
+      "schedule": "0 19 * * *"
     }
   ]
 }
