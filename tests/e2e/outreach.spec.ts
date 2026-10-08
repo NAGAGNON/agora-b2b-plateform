@@ -61,6 +61,11 @@ test("tableau de bord, prévisualisation de campagne et paramètres", async ({ b
   await expect(page.getByText("88/100 · Très pertinent")).toBeVisible();
   await page.getByRole("link", { name: "Aperçu" }).first().click();
   await expect(page.getByTitle("Aperçu de l'e-mail")).toBeVisible();
+  // Aperçu : liens ouverts dans un nouvel onglet et non suivis (aucun clic compté pour le destinataire)
+  const srcdoc = (await page.getByTitle("Aperçu de l'e-mail").getAttribute("srcdoc")) ?? "";
+  expect(srcdoc).toContain('<base target="_blank">');
+  expect(srcdoc).not.toContain("/api/outreach/c/");
+  expect(srcdoc).toContain(`/opportunites/${oppId}`);
   await expect(page.getByText("1 opportunité pour")).toBeVisible();
   await page.goto("/outreach/parametres");
   await expect(page.getByLabel("Score minimum (/100)")).toHaveValue(/\d+/);
