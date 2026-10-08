@@ -81,9 +81,13 @@ export const env = {
     const v = pick("MAILPIT_URL");
     return v && !env.isProduction ? v.replace(/\/$/, "") : undefined;
   },
-  /** Transport d'e-mail actif : resend (réel), mailpit (boîte de test) ou aucun. */
-  get emailTransport(): "resend" | "mailpit" | null {
-    return env.resendApiKey ? "resend" : env.mailpitUrl ? "mailpit" : null;
+  /**
+   * Transport d'e-mail actif, par ordre de priorité : smtp (serveur SMTP du domaine, sans coût
+   * par e-mail), resend (API, si encore configurée), mailpit (boîte de test) ou aucun.
+   */
+  get emailTransport(): "smtp" | "resend" | "mailpit" | null {
+    const smtp = Boolean(pick("SMTP_HOST") && pick("SMTP_USER") && pick("SMTP_PASSWORD"));
+    return smtp ? "smtp" : env.resendApiKey ? "resend" : env.mailpitUrl ? "mailpit" : null;
   },
   get emailFrom() {
     // À défaut d'EMAIL_FROM : domaine du site (sans « www. »), sinon linkprob2b.com.

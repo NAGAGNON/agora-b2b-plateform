@@ -326,66 +326,157 @@ export async function buildDailyCampaign(
   }
 }
 
-/** 11–13. File d'envoi : campagnes validées, dans la limite quotidienne. */
-export async function processSendQueue(db: Db, { deadline = Date.now() + 60_000 }: { deadline?: number } = {}) {
+/**
+ * 11–13. File d'envoi (worker) : campagnes validées, un e-mail à la fois, jamais en masse.
+ *   prospect → file (destinataires PENDING / QUEUED) → worker → SMTP → envoyé
+ * Avant CHAQUE envoi : liste d'opposition (adresse, domaine, SIREN), entreprise « Ne plus
+ * contacter », pas déjà reçu dans cette campagne, nombre de tentatives. Limites progressives :
+ * par jour (toutes campagnes), par heure, intervalle entre deux envois, et limite propre à la
+ * campagne automatique. Notre base enregistre chaque tentative (date, réponse SMTP, erreur).
+ */
+export async function processSendQueue(db: Db, { deadline = Date.now() + 60_000, sleep = wait }: { deadline?: number; sleep?: (ms: number) => Promise<void> } = {}) {
   const settings = await loadSettings(db);
+  const iso = (t: number) => new Date(t).toISOString();
   const startOfDay = `${today()}T00:00:00Z`;
-  // Limite quotidienne : campagnes automatiques uniquement (les campagnes lancées à la main n'en consomment pas)
-  const { count: sentToday } = await db
+  // Envoi interrompu (fonction arrêtée pendant l'envoi) : résultat incertain → jamais renvoyé automatiquement
+  await db
     .from("outreach_recipients")
-    .select("id, campaign:outreach_campaigns!inner(kind)", { count: "exact", head: true })
-    .eq("campaign.kind", "AUTO")
-    .in("status", ["SENT", "SIMULATED"])
-    .gte("sent_at", startOfDay);
-  let remaining = Math.max(0, settings.daily_send_cap - (sentToday ?? 0));
-  const result = { sent: 0, simulated: 0, failed: 0, remaining_cap: remaining };
+    .update({ status: "FAILED", error: "Envoi interrompu : résultat incertain, non renvoyé automatiquement (évite un doublon)" })
+    .eq("status", "SENDING")
+    .lt("last_attempt_at", iso(Date.now() - 15 * 60_000));
+
+  const sentSince = async (since: string, autoOnly: boolean) => {
+    let q = db.from("outreach_recipients").select("id, campaign:outreach_campaigns!inner(kind)", { count: "exact", head: true }).eq("status", "SENT").gte("sent_at", since);
+    if (autoOnly) q = q.eq("campaign.kind", "AUTO");
+    return (await q).count ?? 0;
+  };
+  const [autoToday, allToday, lastHour] = await Promise.all([sentSince(startOfDay, true), sentSince(startOfDay, false), sentSince(iso(Date.now() - 3_600_000), false)]);
+  let autoRemaining = Math.max(0, settings.daily_send_cap - autoToday);
+  let totalRemaining = Math.max(0, settings.total_daily_send_cap - allToday);
+  let hourRemaining = Math.max(0, settings.hourly_send_cap - lastHour);
+  const result = { sent: 0, simulated: 0, failed: 0, skipped: 0, remaining_cap: Math.min(totalRemaining, hourRemaining), stopped: null as string | null };
+
   const { data: campaigns } = await db.from("outreach_campaigns").select("id, dry_run, kind").in("status", ["VALIDATED", "SENDING"]).order("campaign_date");
+  if (!campaigns?.length) return result;
   const ref = await loadReferentials(db);
   const blockers = realSendBlockers(settings);
-  for (const c of campaigns ?? []) {
+  const { data: suppressions } = await db.from("outreach_suppressions").select("kind, value").limit(100_000);
+  const supp = { EMAIL: new Set<string>(), DOMAIN: new Set<string>(), SIREN: new Set<string>() };
+  for (const x of suppressions ?? []) supp[x.kind as keyof typeof supp]?.add(x.value.toLowerCase());
+  const gap = settings.send_interval_seconds * 1000;
+
+  campaignsLoop: for (const c of campaigns) {
     // Simulation si la campagne a été validée en simulation OU si l'envoi réel n'est pas possible.
     const simulate = c.dry_run || blockers.length > 0;
     const capped = c.kind !== "MANUAL";
     await db.from("outreach_campaigns").update({ status: "SENDING" }).eq("id", c.id);
-    while ((!capped || remaining > 0) && Date.now() < deadline) {
-      const { data: batch } = await db.from("outreach_recipients").select("id").eq("campaign_id", c.id).in("status", ["PENDING", "QUEUED"]).order("score", { ascending: false }).limit(capped ? Math.min(25, remaining) : 25);
+    while (Date.now() < deadline) {
+      const room = simulate ? 25 : Math.min(25, totalRemaining, hourRemaining, capped ? autoRemaining : 25);
+      if (room <= 0) {
+        result.stopped = !simulate && (totalRemaining <= 0 || hourRemaining <= 0) ? (totalRemaining <= 0 ? "limite quotidienne" : "limite horaire") : null;
+        if (result.stopped) break campaignsLoop;
+        break;
+      }
+      const { data: batch } = await db.from("outreach_recipients").select("id").eq("campaign_id", c.id).in("status", ["PENDING", "QUEUED"]).order("score", { ascending: false }).limit(room);
       if (!batch?.length) break;
       const bundles = await loadRecipientBundles(db, batch.map((b) => b.id));
       for (const b of bundles) {
+        if (Date.now() >= deadline) break campaignsLoop;
         const now = new Date().toISOString();
+        const rid = b.recipient.id;
+        const skip = async (status: "EXCLUDED" | "SUPPRESSED" | "FAILED", error: string) => {
+          await db.from("outreach_recipients").update({ status, error, updated_at: now }).eq("id", rid);
+          result.skipped++;
+        };
+        // ---- Contrôles avant CHAQUE envoi
+        const email = b.recipient.email?.trim().toLowerCase() ?? null;
         const opps = b.opportunities.filter((o) => !o.excluded && o.status === "PUBLISHED" && (!o.response_deadline || new Date(o.response_deadline).getTime() > Date.now()));
-        if (opps.length === 0 || !b.recipient.email) {
-          await db.from("outreach_recipients").update({ status: "EXCLUDED", error: "Plus aucune opportunité ouverte", updated_at: now }).eq("id", b.recipient.id);
+        if (!email || opps.length === 0) {
+          await skip("EXCLUDED", "Plus aucune opportunité ouverte");
           continue;
         }
-        const email = buildEmail({ ...b, opportunities: opps }, ref);
+        const domain = email.split("@")[1] ?? "";
+        if (supp.EMAIL.has(email) || supp.DOMAIN.has(domain) || (b.prospect.siren && supp.SIREN.has(b.prospect.siren))) {
+          await skip("SUPPRESSED", "Liste d'opposition (adresse, domaine ou entreprise)");
+          continue;
+        }
+        if (b.prospect.status !== "ACTIVE") {
+          await skip("SUPPRESSED", "Entreprise « Ne plus contacter »");
+          continue;
+        }
+        const { count: already } = await db.from("outreach_recipients").select("id", { count: "exact", head: true }).eq("campaign_id", c.id).neq("id", rid).eq("email", email).in("status", ["SENT", "SENDING", "SIMULATED"]);
+        if (already) {
+          await skip("EXCLUDED", "Cette adresse a déjà reçu cette campagne");
+          continue;
+        }
+        if (b.recipient.attempts >= settings.max_send_attempts) {
+          await skip("FAILED", `Nombre maximal de tentatives atteint (${settings.max_send_attempts})`);
+          continue;
+        }
+        const message = buildEmail({ ...b, opportunities: opps }, ref);
         if (simulate) {
-          await db.from("outreach_recipients").update({ status: "SIMULATED", subject: b.recipient.subject, sent_at: now, updated_at: now }).eq("id", b.recipient.id);
-          await db.from("outreach_events").insert({ recipient_id: b.recipient.id, campaign_id: c.id, type: "SIMULATED" });
+          await db.from("outreach_recipients").update({ status: "SIMULATED", subject: b.recipient.subject, sent_at: now, updated_at: now }).eq("id", rid);
+          await db.from("outreach_events").insert({ recipient_id: rid, campaign_id: c.id, type: "SIMULATED" });
           result.simulated++;
+          continue;
+        }
+        // ---- Réservation (évite un double envoi si deux workers tournent en même temps)
+        const { data: claimed } = await db
+          .from("outreach_recipients")
+          .update({ status: "SENDING", attempts: b.recipient.attempts + 1, last_attempt_at: now, updated_at: now })
+          .eq("id", rid)
+          .in("status", ["PENDING", "QUEUED"])
+          .select("id");
+        if (!claimed?.length) continue;
+        const r = await sendOutreachEmail({ to: email, subject: message.subject, html: message.html, text: message.text, senderName: settings.sender_name, replyTo: settings.reply_to, unsubscribeUrl: message.urls.unsubscribeOneClick, idempotencyKey: `outreach-${rid}` });
+        const done = new Date().toISOString();
+        const trace = { smtp_response: r.response?.slice(0, 500) ?? null, transport: r.transport ?? null, updated_at: done };
+        if (r.status === "SENT") {
+          await db.from("outreach_recipients").update({ status: "SENT", sent_at: done, provider_id: r.id ?? null, error: null, ...trace }).eq("id", rid);
+          await db.from("outreach_prospects").update({ last_contacted_at: done, contacts_count: b.prospect.contacts_count + 1, updated_at: done }).eq("id", b.prospect.id);
+          await db.from("outreach_events").insert({ recipient_id: rid, campaign_id: c.id, type: "SENT", meta: { transport: r.transport ?? null } });
+          result.sent++;
+          totalRemaining--;
+          hourRemaining--;
+          if (capped) autoRemaining--;
+        } else if (r.status === "SKIPPED") {
+          // Envoi coupé ou non configuré : rien n'est parti, l'e-mail reste dans la file
+          await db.from("outreach_recipients").update({ status: "QUEUED", attempts: b.recipient.attempts, error: r.error ?? null, ...trace }).eq("id", rid);
+          result.stopped = r.error ?? "envoi non configuré";
+          break campaignsLoop;
         } else {
-          const r = await sendOutreachEmail({ to: b.recipient.email, subject: email.subject, html: email.html, text: email.text, senderName: settings.sender_name, replyTo: settings.reply_to, unsubscribeUrl: email.urls.unsubscribeOneClick, idempotencyKey: `outreach-${b.recipient.id}` });
-          if (r.status === "SENT") {
-            await db.from("outreach_recipients").update({ status: "SENT", sent_at: now, provider_id: r.id ?? null, updated_at: now }).eq("id", b.recipient.id);
-            await db.from("outreach_prospects").update({ last_contacted_at: now, contacts_count: b.prospect.contacts_count + 1, updated_at: now }).eq("id", b.prospect.id);
-            await db.from("outreach_events").insert({ recipient_id: b.recipient.id, campaign_id: c.id, type: "SENT" });
-            result.sent++;
+          // Identifiants SMTP refusés : problème de configuration, la tentative n'est pas décomptée
+          const configError = /authentification/i.test(r.error ?? "");
+          const exhausted = !configError && b.recipient.attempts + 1 >= settings.max_send_attempts;
+          const status = r.permanent || (!r.retryable && !configError) || exhausted ? "FAILED" : "QUEUED";
+          await db
+            .from("outreach_recipients")
+            .update({ status, error: r.error?.slice(0, 300) ?? null, ...(configError ? { attempts: b.recipient.attempts } : {}), ...trace })
+            .eq("id", rid);
+          await db.from("outreach_events").insert({ recipient_id: rid, campaign_id: c.id, type: "FAILED", meta: { error: r.error ?? null, response: r.response ?? null, permanent: Boolean(r.permanent) } });
+          result.failed++;
+          // Rebond définitif (adresse inexistante ou refusée) : ajoutée à la liste d'opposition
+          if (r.permanent) {
+            await db.from("outreach_suppressions").upsert({ kind: "EMAIL", value: email, reason: "BOUNCE" }, { onConflict: "kind,value", ignoreDuplicates: true });
+            supp.EMAIL.add(email);
           } else {
-            await db.from("outreach_recipients").update({ status: r.retryable ? "QUEUED" : "FAILED", error: r.error?.slice(0, 300) ?? null, updated_at: now }).eq("id", b.recipient.id);
-            await db.from("outreach_events").insert({ recipient_id: b.recipient.id, campaign_id: c.id, type: "FAILED", meta: { error: r.error ?? null } });
-            result.failed++;
-            if (r.retryable) break;
+            // Erreur temporaire ou de configuration du serveur : on s'arrête, nouvelle tentative au passage suivant
+            result.stopped = r.error ?? "erreur du serveur d'envoi";
+            break campaignsLoop;
           }
         }
-        if (capped) remaining--;
+        // Envoi progressif : intervalle entre deux e-mails (jamais d'envoi simultané)
+        if (gap > 0 && Date.now() + gap < deadline) await sleep(gap);
       }
     }
-    const { count: left } = await db.from("outreach_recipients").select("id", { count: "exact", head: true }).eq("campaign_id", c.id).in("status", ["PENDING", "QUEUED"]);
+    const { count: left } = await db.from("outreach_recipients").select("id", { count: "exact", head: true }).eq("campaign_id", c.id).in("status", ["PENDING", "QUEUED", "SENDING"]);
     if (!left) await db.from("outreach_campaigns").update({ status: simulate ? "SIMULATED" : "SENT", sent_at: new Date().toISOString() }).eq("id", c.id);
   }
-  result.remaining_cap = remaining;
+  result.remaining_cap = Math.min(totalRemaining, hourRemaining);
   return result;
 }
+
+const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 /**
  * Recherche des adresses génériques des entreprises sélectionnées sans e-mail

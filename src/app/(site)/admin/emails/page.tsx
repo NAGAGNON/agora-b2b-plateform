@@ -19,9 +19,16 @@ export default async function AdminEmailsPage() {
         <h1 className="text-2xl font-bold">E-mails envoyés par la plateforme</h1>
         <p className="mt-1 text-slate-600">{items.length} modèles, en HTML et en texte, aux couleurs de LinkProB2B. Contenus d&apos;exemple ci-dessous.</p>
       </div>
-      <Notice tone={transport === "resend" ? "success" : "info"}>
+      <Notice tone={transport === "smtp" || transport === "resend" ? "success" : "info"}>
         Transport actuel :{" "}
-        {transport === "resend" ? "Resend (envoi réel)" : transport === "mailpit" ? "boîte de test (aucun e-mail ne sort)" : "aucun — renseignez RESEND_API_KEY pour activer l'envoi réel"} · expéditeur {env.emailFrom}
+        {transport === "smtp"
+          ? `SMTP du domaine (${process.env.SMTP_HOST}) — aucun coût par e-mail`
+          : transport === "resend"
+            ? "Resend (API) — renseignez SMTP_HOST, SMTP_USER et SMTP_PASSWORD pour passer au SMTP du domaine"
+            : transport === "mailpit"
+              ? "boîte de test (aucun e-mail ne sort)"
+              : "aucun — renseignez le serveur SMTP du domaine (SMTP_HOST, SMTP_USER, SMTP_PASSWORD)"}{" "}
+        · expéditeur {env.emailFrom}
       </Notice>
       <EmailCheck enabled={Boolean(transport)} />
       <ul className="grid gap-6 lg:grid-cols-2">

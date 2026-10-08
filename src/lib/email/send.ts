@@ -29,11 +29,17 @@ async function sendToMailpit(base: string, msg: EmailMessage): Promise<SendResul
 }
 
 /**
- * Envoi d'e-mail transactionnel. Fournisseur : Resend (API HTTP) si RESEND_API_KEY
- * est défini ; sinon l'e-mail est marqué « SKIPPED » (aucun envoi réel) — utile en
- * développement et en prévisualisation.
+ * Envoi d'e-mail transactionnel : SMTP du domaine si configuré (SMTP_HOST…), sinon Resend
+ * (API HTTP) si RESEND_API_KEY est défini ; sinon l'e-mail est marqué « SKIPPED » (aucun envoi
+ * réel) — utile en développement et en prévisualisation.
  */
 export async function sendEmail(msg: EmailMessage): Promise<SendResult> {
+  // SMTP du domaine en priorité (aucun coût par e-mail)
+  if (env.emailTransport === "smtp") {
+    const { sendSmtp } = await import("@/lib/email/smtp");
+    const r = await sendSmtp({ from: env.emailFrom, to: msg.to, subject: msg.subject, html: msg.html, text: msg.text });
+    return { status: r.status, error: r.error, retryable: r.retryable, id: r.id };
+  }
   const key = env.resendApiKey;
   if (!key && env.mailpitUrl) return sendToMailpit(env.mailpitUrl, msg);
   if (!key) return { status: "SKIPPED", error: "Aucun fournisseur e-mail configuré" };

@@ -361,7 +361,7 @@ export type EmailCheckRow = { key: string; label: string; status: string; detail
 export async function sendTestEmails(): Promise<ActionResult<{ rows: EmailCheckRow[]; to: string }>> {
   const { session } = await staff();
   if (!session.isAdmin) return { ok: false, error: "Réservé aux administrateurs." };
-  if (!env.emailTransport) return { ok: false, error: "Aucun fournisseur e-mail configuré : renseignez RESEND_API_KEY." };
+  if (!env.emailTransport) return { ok: false, error: "Aucun envoi configuré : renseignez le serveur SMTP du domaine (SMTP_HOST, SMTP_USER, SMTP_PASSWORD)." };
   if (!(await rateLimit("email-test", 3, 3600))) return { ok: false, error: "3 envois de contrôle par heure au maximum." };
   const { emailCatalog } = await import("@/lib/email/catalog");
   const { renderEmail } = await import("@/lib/email/templates");

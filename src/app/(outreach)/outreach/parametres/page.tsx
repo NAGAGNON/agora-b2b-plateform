@@ -1,3 +1,5 @@
+import { env } from "@/lib/env";
+import { SmtpTestButton } from "@/components/outreach/run-button";
 import { CheckCircle2, XCircle } from "lucide-react";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { loadSettings, realSendBlockers, senderLines } from "@/lib/outreach/data";
@@ -12,7 +14,14 @@ export default async function OutreachSettingsPage() {
   const checks = [
     { ok: !s.dry_run, label: "Mode simulation désactivé", hint: "Paramètres ci-dessous." },
     { ok: process.env.OUTREACH_SEND_ENABLED !== "false", label: "Envoi réel autorisé sur le serveur", hint: "Actif par défaut ; OUTREACH_SEND_ENABLED=false (Vercel) coupe tout envoi en urgence." },
-    { ok: Boolean(process.env.RESEND_API_KEY), label: "Fournisseur d'e-mails configuré", hint: "RESEND_API_KEY (déjà utilisé par LinkProB2B)." },
+    {
+      ok: env.emailTransport === "smtp" || env.emailTransport === "resend",
+      label: env.emailTransport === "smtp" ? `Envoi par le SMTP du domaine (${process.env.SMTP_HOST})` : env.emailTransport === "resend" ? "Envoi via Resend (API)" : "Serveur d'envoi",
+      hint:
+        env.emailTransport === "smtp"
+          ? "Aucun coût par e-mail. Identifiants côté serveur uniquement."
+          : "Renseignez SMTP_HOST, SMTP_PORT, SMTP_USER et SMTP_PASSWORD (messagerie de votre domaine) dans Vercel : aucun coût par e-mail.",
+    },
     {
       ok: true,
       label: "Recherche des adresses e-mail",
@@ -45,6 +54,13 @@ export default async function OutreachSettingsPage() {
                 </li>
               ))}
             </ul>
+          </Panel>
+          <Panel title="Serveur d'envoi (SMTP)" description="Vérifie la connexion et les identifiants, sans envoyer d'e-mail.">
+            <SmtpTestButton />
+            <p className="mt-3 text-xs text-slate-500">
+              DNS du domaine à vérifier chez votre hébergeur de domaine : SPF (inclure le serveur SMTP), DKIM (clé fournie par la messagerie), DMARC (p=none pour
+              commencer). Détail : docs/EMAIL-SMTP.md.
+            </p>
           </Panel>
           <Panel title="Identification de l'expéditeur" description="Pied de page de chaque e-mail.">
             <p className="text-sm whitespace-pre-line text-slate-700">{senderLines().join("\n")}</p>

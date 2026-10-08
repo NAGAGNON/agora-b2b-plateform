@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { logServerError, userMessage } from "@/lib/errors";
 import { parseForm, type ActionResult } from "@/lib/validation";
+import { rateLimit } from "@/lib/rate-limit";
 import { buildDailyCampaign, enrichCampaignAndSend, enrichmentReport, processSendQueue, runManualCampaign, syncOpportunityStates } from "@/lib/outreach/pipeline";
 import { loadReferentials, loadSettings, realSendBlockers } from "@/lib/outreach/data";
 import { mapProspectRows, parseCsv } from "@/lib/outreach/csv";
@@ -36,6 +37,10 @@ const settingsSchema = z.object({
   min_days_between_contacts: z.coerce.number().int().min(0).max(365),
   max_contacts_per_30_days: z.coerce.number().int().min(1).max(30),
   daily_send_cap: z.coerce.number().int().min(0).max(10000),
+  total_daily_send_cap: z.coerce.number().int().min(0).max(10000),
+  hourly_send_cap: z.coerce.number().int().min(0).max(2000),
+  send_interval_seconds: z.coerce.number().int().min(0).max(300),
+  max_send_attempts: z.coerce.number().int().min(1).max(10),
   min_days_before_deadline: z.coerce.number().int().min(0).max(60),
   lookback_days: z.coerce.number().int().min(1).max(30),
   max_prospects_per_opportunity: z.coerce.number().int().min(1).max(5000),
@@ -106,6 +111,15 @@ export async function launchManualCampaign(): Promise<ActionResult> {
     logServerError("outreach manual run", e);
     return { ok: false, error: `Le lancement a échoué : ${e instanceof Error ? e.message : "erreur inconnue"}` };
   }
+}
+
+/** « Tester la connexion SMTP » (Paramètres) : connexion et authentification, sans envoyer d'e-mail. */
+export async function testSmtpConnection(): Promise<ActionResult> {
+  await admin();
+  if (!(await rateLimit("smtp-test", 10, 3600))) return { ok: false, error: "10 tests par heure au maximum." };
+  const { verifySmtp } = await import("@/lib/email/smtp");
+  const r = await verifySmtp();
+  return r.ok ? { ok: true, message: r.message } : { ok: false, error: r.message };
 }
 
 // ---------------------------------------------------------------- Campagnes
