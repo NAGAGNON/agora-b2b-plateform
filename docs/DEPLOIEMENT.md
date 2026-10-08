@@ -143,3 +143,10 @@ Voir le [README](../README.md#démarrage-local). Dans certains environnements re
 ```bash
 SUPABASE_INTERNAL_IMAGE_REGISTRY=docker.io npm run db:start
 ```
+
+## Bilan du jour (Administration → Vue d'ensemble)
+
+`/api/cron/bilan` (10:00 et 19:00 UTC) et le bouton « Analyser maintenant » calculent les chiffres réels de la journée
+(audience par canal, rubrique et page, Outreach, collecte, articles, inscriptions, tâches automatiques), puis rédigent un
+commentaire à partir de ces seuls chiffres (`ANTHROPIC_API_KEY`, la même que pour les articles ; chaque nombre du texte est
+contrôlé). Sans clé, seuls les chiffres sont enregistrés. Bilans lisibles uniquement par les administrateurs (`daily_reports`).

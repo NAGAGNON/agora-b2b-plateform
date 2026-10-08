@@ -292,6 +292,19 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"daily_reports": {
+                  Row: {
+                    "day": string,"error": string | null,"facts": NonNullable<Json>,"generated_at": string,"model": string | null,"note": string | null,"summary": Json | null
+                  }
+                  Insert: {
+                    "day": string,"error"?: string | null,"facts": NonNullable<Json>,"generated_at"?: string,"model"?: string | null,"note"?: string | null,"summary"?: Json | null
+                  }
+                  Update: {
+                    "day"?: string,"error"?: string | null,"facts"?: NonNullable<Json>,"generated_at"?: string,"model"?: string | null,"note"?: string | null,"summary"?: Json | null
+                  }
+                  Relationships: [
+                    
+                  ]
                 },"departments": {
                   Row: {
                     "code": string,"name": string,"nuts3": string | null,"region": string,"slug": string
@@ -1130,6 +1143,9 @@ isOneToOne: false
             "accept_pending_invitations":
 { Args: Record<PropertyKey, never>; Returns: number
                            },
+"admin_audience_detail":
+{ Args: { "p_days"?: number }; Returns: Json
+                           },
 "admin_audience_stats":
 { Args: { "p_days"?: number }; Returns: Json
                            },
@@ -1247,6 +1263,9 @@ isOneToOne: false
         isOneToOne: true
         isSetofReturn: false
       } },
+"audience_window":
+{ Args: { "p_from": string,"p_to": string }; Returns: Json
+                           },
 "bootstrap_super_admin":
 { Args: { "p_email": string }; Returns: boolean
                            },
