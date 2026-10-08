@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { logServerError, userMessage } from "@/lib/errors";
 import { parseForm, type ActionResult } from "@/lib/validation";
-import { buildDailyCampaign, processSendQueue, syncOpportunityStates } from "@/lib/outreach/pipeline";
+import { buildDailyCampaign, enrichCampaignAndSend, enrichmentReport, processSendQueue, syncOpportunityStates } from "@/lib/outreach/pipeline";
 import { loadReferentials, loadSettings, realSendBlockers } from "@/lib/outreach/data";
 import { mapProspectRows, parseCsv } from "@/lib/outreach/csv";
 import { configuredSearchers, enrichCompany } from "@/lib/outreach/enrich";
@@ -307,6 +307,22 @@ export async function importProspects(_prev: ActionResult | null, fd: FormData):
   await audit(session.userId, "outreach.import", source, { created, updated, errors: errors.length });
   revalidatePath("/outreach", "layout");
   return { ok: true, message: `${created} entreprise(s) ajoutée(s), ${updated} mise(s) à jour${errors.length ? `, ${errors.length} ligne(s) ignorée(s) : ${errors.slice(0, 3).join(" ; ")}` : ""}.` };
+}
+
+/** Recherche immédiate des adresses des entreprises sans e-mail d'une campagne, puis envoi. */
+export async function enrichCampaignNow(_prev: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  const parsed = parseForm(campaignSchema, fd);
+  if (!parsed.success) return parsed.result;
+  const { session } = await admin();
+  if (configuredSearchers().length === 0) return { ok: false, error: "Aucune clé de recherche : ajoutez BRAVE_SEARCH_API_KEY ou DROPCONTACT_API_KEY dans Vercel, puis redéployez." };
+  try {
+    const r = await enrichCampaignAndSend(createAdminClient(), { campaignId: parsed.data.campaignId, deadline: Date.now() + 240_000 });
+    await audit(session.userId, "outreach.enrich.campaign", parsed.data.campaignId, r.enrichment);
+    return done(`${enrichmentReport(r.enrichment)}${r.send.sent ? ` ${r.send.sent} e-mail(s) envoyé(s).` : ""}`);
+  } catch (e) {
+    logServerError("outreach enrich campaign", e);
+    return { ok: false, error: `La recherche a échoué : ${e instanceof Error ? e.message : "erreur inconnue"}` };
+  }
 }
 
 /** Recherche immédiate de l'adresse générique d'une entreprise (site officiel → page Contact). */

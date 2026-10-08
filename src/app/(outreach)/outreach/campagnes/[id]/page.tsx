@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { formatDate, formatDateTime, isUuid } from "@/lib/format";
 import { realSendBlockers, type OutreachSettings } from "@/lib/outreach/data";
 import { CAMPAIGN_STATUS, PageHead, Panel, RECIPIENT_STATUS, ScoreBadge, Stat, StatusBadge, fmtN, pct } from "@/components/outreach/ui";
-import { CampaignActions, OpportunityToggle, RecipientToggle, TemplateEditor } from "@/components/outreach/campaign-controls";
+import { CampaignActions, EnrichCampaignButton, OpportunityToggle, RecipientToggle, TemplateEditor } from "@/components/outreach/campaign-controls";
 import { RunNowButton } from "@/components/outreach/run-button";
 import { LinkTabs } from "@/components/ui/tabs";
 import { Notice } from "@/components/ui/notice";
@@ -13,6 +13,8 @@ import { Pagination } from "@/components/ui/pagination";
 import { EmptyState } from "@/components/ui/states";
 
 export const metadata = { title: "Campagne" };
+// La recherche d'adresses lancée depuis cette page peut durer plusieurs minutes.
+export const maxDuration = 300;
 const PER_PAGE = 50;
 type Stats = Record<string, number>;
 
@@ -80,6 +82,7 @@ export default async function CampaignPage(props: PageProps<"/outreach/campagnes
         action={
           <div className="flex flex-wrap gap-2">
             {c.status === "READY" && <RunNowButton force label="Reconstruire" />}
+            {(counts[2].count ?? 0) > 0 && c.status !== "CANCELLED" && <EnrichCampaignButton campaignId={c.id} count={counts[2].count ?? 0} />}
             <CampaignActions campaignId={c.id} status={c.status} blockers={blockers} sendable={sendable} />
           </div>
         }

@@ -8,7 +8,7 @@
 import { randomInt } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { admin, anon, cleanup, RUN, user } from "./helpers";
-import { buildDailyCampaign, processSendQueue, syncOpportunityStates } from "@/lib/outreach/pipeline";
+import { buildDailyCampaign, enrichCampaignAndSend, enrichmentReport, processSendQueue, syncOpportunityStates } from "@/lib/outreach/pipeline";
 import { loadSettings, type OutreachSettings } from "@/lib/outreach/data";
 import { recipientToken } from "@/lib/outreach/token";
 import { trackSignupReferral } from "@/lib/outreach/tracking";
@@ -119,6 +119,30 @@ describe("Outreach — détection et campagne", () => {
     const adm = await user("outreach-admin", "ADMIN");
     const { data: c } = await adm.client.from("outreach_recipients").select("id").eq("campaign_id", campaignId);
     expect((c ?? []).length).toBeGreaterThanOrEqual(2);
+  });
+});
+
+describe("Outreach — recherche des adresses", () => {
+  it("sans clé de recherche : non lancée, raison écrite dans le rapport de la campagne", async () => {
+    const saved = { brave: process.env.BRAVE_SEARCH_API_KEY, drop: process.env.DROPCONTACT_API_KEY };
+    delete process.env.BRAVE_SEARCH_API_KEY;
+    delete process.env.DROPCONTACT_API_KEY;
+    try {
+      const r = await enrichCampaignAndSend(admin, { campaignId, deadline: Date.now() + 20_000 });
+      expect(r.enrichment.searched).toBe(0);
+      const { data: c } = await admin.from("outreach_campaigns").select("report").eq("id", campaignId).single();
+      expect(c?.report).toContain("Recherche d'adresses e-mail : non lancée");
+      expect((await recipient("elecNoMail"))?.status).toBe("NO_EMAIL");
+    } finally {
+      if (saved.brave) process.env.BRAVE_SEARCH_API_KEY = saved.brave;
+      if (saved.drop) process.env.DROPCONTACT_API_KEY = saved.drop;
+    }
+  });
+
+  it("rapport lisible des résultats", () => {
+    expect(enrichmentReport({ searched: 10, found: 4, no_website: 3, no_email: 2, blocked: 1, errors: 0, skipped: null })).toBe(
+      "Recherche d'adresses e-mail : 10 entreprise(s) recherchée(s), 4 adresse(s) trouvée(s) ; 3 sans site identifié, 2 sans adresse générique publiée, 1 site(s) refusant l'exploration, 0 erreur(s).",
+    );
   });
 });
 
