@@ -1,6 +1,7 @@
 import "server-only";
 import nodemailer, { type Transporter } from "nodemailer";
 import type { SendResult } from "@/lib/email/send";
+import { env } from "@/lib/env";
 
 /**
  * Envoi par SMTP standard (aucune API d'envoi payante) : le serveur SMTP de la messagerie
@@ -118,7 +119,10 @@ export async function verifySmtp(): Promise<{ ok: boolean; message: string }> {
   try {
     await t.verify();
     const c = smtpConfig()!;
-    return { ok: true, message: `Connexion SMTP réussie (${c.host}:${c.port}, ${c.secure ? "TLS" : "STARTTLS"}).` };
+    const from = env.emailFrom.match(/<(.+)>/)?.[1] ?? env.emailFrom;
+    // Gmail / Infomaniak remplacent (ou refusent) un expéditeur qui n'est pas la boîte connectée
+    const mismatch = from.toLowerCase() !== c.user.toLowerCase() ? ` Attention : l'expéditeur (${from}) n'est pas la boîte connectée (${c.user}) ; la messagerie peut le remplacer ou refuser l'envoi.` : "";
+    return { ok: true, message: `Connexion SMTP réussie (${c.host}:${c.port}, ${c.secure ? "TLS" : "STARTTLS"}). Expéditeur : ${from}.${mismatch}` };
   } catch (e) {
     return { ok: false, message: classifySmtpError(e).error };
   }

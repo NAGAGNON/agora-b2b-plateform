@@ -45,6 +45,12 @@ Chaque passe suivante (environ 5 minutes) :
 - envoie aussitôt les e-mails devenus possibles (fonctionnement automatique : sans validation manuelle),
   dans la limite d'envois quotidienne. Les e-mails au-delà de cette limite partent les jours suivants.
 
+## Passages d'envoi seuls (`/api/cron/envoi`, de 10:30 à 16:30 UTC, une fois par heure)
+
+Uniquement la file d'attente des e-mails déjà prêts (aucune recherche d'entreprise ni d'adresse, aucun forfait
+consommé), un par un, dans les limites par jour et par heure. La limite quotidienne monte automatiquement par paliers
+chaque semaine tant que les rebonds et désinscriptions restent faibles (détail : `docs/EMAIL-SMTP.md`).
+
 ## Accès aux offres depuis les e-mails : compte obligatoire (règle produit)
 
 L'e-mail et la sélection personnalisée montrent ce qu'il faut pour donner envie de cliquer (intitulé, acheteur,

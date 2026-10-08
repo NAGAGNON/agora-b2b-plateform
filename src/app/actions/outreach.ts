@@ -41,6 +41,8 @@ const settingsSchema = z.object({
   hourly_send_cap: z.coerce.number().int().min(0).max(2000),
   send_interval_seconds: z.coerce.number().int().min(0).max(300),
   max_send_attempts: z.coerce.number().int().min(1).max(10),
+  send_ramp_enabled: bool,
+  send_ramp_target: z.coerce.number().int().min(0).max(10000),
   min_days_before_deadline: z.coerce.number().int().min(0).max(60),
   lookback_days: z.coerce.number().int().min(1).max(30),
   max_prospects_per_opportunity: z.coerce.number().int().min(1).max(5000),

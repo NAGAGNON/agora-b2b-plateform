@@ -7,7 +7,7 @@ import { SMTPServer } from "smtp-server";
 import type { AddressInfo } from "node:net";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { admin, RUN } from "./helpers";
-import { processSendQueue } from "@/lib/outreach/pipeline";
+import { applySendRamp, processSendQueue } from "@/lib/outreach/pipeline";
 import { loadSettings, type OutreachSettings } from "@/lib/outreach/data";
 
 const T = `SMTP ${RUN}`;
@@ -145,5 +145,25 @@ describe("Envoi SMTP (sans API payante)", () => {
     const r = await processSendQueue(admin, { deadline: Date.now() + 10_000, sleep: async () => {} });
     expect(r.sent).toBe(0);
     expect(received.length).toBe(before);
+  });
+
+  it("montée en charge : le palier change en base selon la semaine écoulée, jamais pendant la semaine d'observation", async () => {
+    const settings = { total_daily_send_cap: 75, hourly_send_cap: 40, send_ramp_enabled: true, send_ramp_target: 200 };
+    // Palier posé il y a 2 jours : rien ne change
+    await admin.from("outreach_settings").update({ ...settings, send_ramp_last_at: new Date(Date.now() - 2 * 86_400_000).toISOString() }).eq("id", true);
+    expect((await applySendRamp(admin)).action).toBe("hold");
+    expect((await loadSettings(admin)).total_daily_send_cap).toBe(75);
+    // Semaine écoulée : décision appliquée en base (selon les envois, rebonds et désinscriptions réels)
+    await admin.from("outreach_settings").update({ ...settings, send_ramp_last_at: new Date(Date.now() - 8 * 86_400_000).toISOString() }).eq("id", true);
+    const r = await applySendRamp(admin);
+    const after = await loadSettings(admin);
+    expect(after.total_daily_send_cap).toBe(r.cap);
+    expect(after.hourly_send_cap).toBe(r.hourlyCap);
+    if (r.action === "up") expect(r.cap).toBe(100);
+    if (r.action !== "hold") expect(new Date(after.send_ramp_last_at!).getTime()).toBeGreaterThan(Date.now() - 60_000);
+    // Désactivée : jamais de changement
+    await admin.from("outreach_settings").update({ ...settings, send_ramp_enabled: false, send_ramp_last_at: null }).eq("id", true);
+    expect((await applySendRamp(admin)).action).toBe("hold");
+    expect((await loadSettings(admin)).total_daily_send_cap).toBe(75);
   });
 });

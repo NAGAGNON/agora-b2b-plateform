@@ -51,6 +51,17 @@ export function OutreachSettingsForm({ s }: { s: S }) {
           <NumberField name="send_interval_seconds" label="Intervalle entre deux e-mails (secondes)" value={s.send_interval_seconds} min={0} max={300} />
           <NumberField name="max_send_attempts" label="Tentatives max. par e-mail" value={s.max_send_attempts} min={1} max={10} hint="En cas d'erreur temporaire du serveur." />
         </div>
+        <div className="mt-4 space-y-3">
+          <Checkbox
+            name="send_ramp_enabled"
+            defaultChecked={s.send_ramp_enabled}
+            label="Montée en charge automatique"
+            hint="Chaque semaine, la limite par jour monte d'un palier (75 → 100 → 150 → 200) si les rebonds et désinscriptions restent faibles, et redescend si les rebonds augmentent."
+          />
+          <div className="max-w-xs">
+            <NumberField name="send_ramp_target" label="Objectif d'envois par jour" value={s.send_ramp_target} min={0} max={10000} hint="Ne dépassez pas la limite de votre messagerie (Gmail gratuit : environ 500 par jour)." />
+          </div>
+        </div>
       </section>
       <section className="space-y-3">
         <h3 className="font-bold text-navy">Automatisation</h3>

@@ -90,9 +90,12 @@ export const env = {
     return smtp ? "smtp" : env.resendApiKey ? "resend" : env.mailpitUrl ? "mailpit" : null;
   },
   get emailFrom() {
-    // À défaut d'EMAIL_FROM : domaine du site (sans « www. »), sinon linkprob2b.com.
+    // À défaut d'EMAIL_FROM : la boîte SMTP elle-même (Gmail, Infomaniak… n'acceptent que leur
+    // propre adresse comme expéditeur), sinon le domaine du site (sans « www. »), sinon linkprob2b.com.
     const explicit = pick("EMAIL_FROM");
     if (explicit) return explicit;
+    const smtpUser = pick("SMTP_HOST") && pick("SMTP_PASSWORD") ? pick("SMTP_USER") : undefined;
+    if (smtpUser?.includes("@")) return `LinkProB2B <${smtpUser}>`;
     const host = new URL(siteUrl()).hostname.replace(/^www\./, "");
     const domain = /(^localhost$|^127\.|\.vercel\.app$|\.trycloudflare\.com$)/.test(host) ? "linkprob2b.com" : host;
     return `LinkProB2B <notifications@${domain}>`;
