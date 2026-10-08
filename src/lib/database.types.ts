@@ -294,13 +294,13 @@ isOneToOne: false
                   ]
                 },"daily_reports": {
                   Row: {
-                    "day": string,"error": string | null,"facts": NonNullable<Json>,"generated_at": string,"model": string | null,"note": string | null,"summary": Json | null
+                    "day": string,"emailed_at": string | null,"error": string | null,"facts": NonNullable<Json>,"generated_at": string,"model": string | null,"note": string | null,"summary": Json | null
                   }
                   Insert: {
-                    "day": string,"error"?: string | null,"facts": NonNullable<Json>,"generated_at"?: string,"model"?: string | null,"note"?: string | null,"summary"?: Json | null
+                    "day": string,"emailed_at"?: string | null,"error"?: string | null,"facts": NonNullable<Json>,"generated_at"?: string,"model"?: string | null,"note"?: string | null,"summary"?: Json | null
                   }
                   Update: {
-                    "day"?: string,"error"?: string | null,"facts"?: NonNullable<Json>,"generated_at"?: string,"model"?: string | null,"note"?: string | null,"summary"?: Json | null
+                    "day"?: string,"emailed_at"?: string | null,"error"?: string | null,"facts"?: NonNullable<Json>,"generated_at"?: string,"model"?: string | null,"note"?: string | null,"summary"?: Json | null
                   }
                   Relationships: [
                     

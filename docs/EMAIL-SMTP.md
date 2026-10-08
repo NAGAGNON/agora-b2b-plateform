@@ -80,8 +80,8 @@ prospect → destinataire PENDING (file) → worker (tâches planifiées + lance
   tâche du matin relève la limite d'un palier (75 → 100 → 150 → 200) si la semaine écoulée compte au moins 20 envois,
   moins de 3 % de rebonds et moins de 2 % de désinscriptions ou plaintes ; elle l'abaisse d'un palier à partir de 5 %
   de rebonds. La limite par heure suit (environ un quart de la limite du jour).
-- Passages d'envoi : avec la recherche du matin (05 h à 09 h UTC), puis passages d'envoi seuls `/api/cron/envoi`
-  de 10 h 30 à 16 h 30 UTC (aucune recherche, aucun forfait consommé).
+- Passages d'envoi : avec les passes de recherche réparties dans la journée, et passages d'envoi seuls
+  `/api/cron/envoi` de 06 h 30 à 13 h 30 UTC (aucune recherche, aucun forfait consommé). Planning : `docs/DEPLOIEMENT.md`.
 - Avant **chaque** envoi : liste d'opposition (adresse, domaine, SIREN), entreprise « Ne plus contacter », pas déjà
   reçu dans cette campagne, nombre de tentatives.
 - Réservation de chaque e-mail avant l'envoi (statut `SENDING`) : pas de double envoi si deux tâches tournent en même

@@ -15,31 +15,63 @@
     },
     {
       "path": "/api/cron/outreach-contacts?passe=2",
-      "schedule": "0 6 * * *"
-    },
-    {
-      "path": "/api/cron/outreach-contacts?passe=3",
-      "schedule": "0 7 * * *"
-    },
-    {
-      "path": "/api/cron/outreach-contacts?passe=4",
       "schedule": "0 8 * * *"
     },
     {
-      "path": "/api/cron/outreach-contacts?passe=5",
-      "schedule": "0 9 * * *"
+      "path": "/api/cron/quotidien?passe=midi",
+      "schedule": "0 10 * * *"
     },
     {
       "path": "/api/cron/bilan",
-      "schedule": "0 10 * * *"
+      "schedule": "0 11 * * *"
+    },
+    {
+      "path": "/api/cron/outreach-contacts?passe=3&complement=1",
+      "schedule": "30 11 * * *"
+    },
+    {
+      "path": "/api/cron/quotidien?passe=apres-midi",
+      "schedule": "0 14 * * *"
+    },
+    {
+      "path": "/api/cron/outreach-contacts?passe=4",
+      "schedule": "30 14 * * *"
+    },
+    {
+      "path": "/api/cron/bilan?passe=apres-midi",
+      "schedule": "0 15 * * *"
+    },
+    {
+      "path": "/api/cron/outreach-contacts?passe=5&complement=1",
+      "schedule": "30 15 * * *"
+    },
+    {
+      "path": "/api/cron/quotidien?passe=soir",
+      "schedule": "0 18 * * *"
+    },
+    {
+      "path": "/api/cron/bilan?soir=1",
+      "schedule": "0 19 * * *"
+    },
+    {
+      "path": "/api/cron/envoi?passe=6",
+      "schedule": "30 6 * * *"
+    },
+    {
+      "path": "/api/cron/envoi?passe=7",
+      "schedule": "30 7 * * *"
+    },
+    {
+      "path": "/api/cron/envoi?passe=8",
+      "schedule": "30 8 * * *"
+    },
+    {
+      "path": "/api/cron/envoi?passe=9",
+      "schedule": "30 9 * * *"
     },
     {
       "path": "/api/cron/envoi?passe=10",
       "schedule": "30 10 * * *"
-    },
-    {
-      "path": "/api/cron/envoi?passe=11",
-      "schedule": "30 11 * * *"
     },
     {
       "path": "/api/cron/envoi?passe=12",
@@ -48,22 +80,6 @@
     {
       "path": "/api/cron/envoi?passe=13",
       "schedule": "30 13 * * *"
-    },
-    {
-      "path": "/api/cron/envoi?passe=14",
-      "schedule": "30 14 * * *"
-    },
-    {
-      "path": "/api/cron/envoi?passe=15",
-      "schedule": "30 15 * * *"
-    },
-    {
-      "path": "/api/cron/envoi?passe=16",
-      "schedule": "30 16 * * *"
-    },
-    {
-      "path": "/api/cron/bilan?soir=1",
-      "schedule": "0 19 * * *"
     }
   ]
 }

@@ -3,6 +3,7 @@ import { timingSafeEqual } from "node:crypto";
 import { env } from "@/lib/env";
 import { logServerError } from "@/lib/errors";
 import { generateDailyReport } from "@/lib/daily-report";
+import { sendDailyReportEmail } from "@/lib/daily-report-email";
 
 export const maxDuration = 120;
 
@@ -14,10 +15,17 @@ function authorized(req: Request): boolean {
   return header.length === expected.length && timingSafeEqual(Buffer.from(header), Buffer.from(expected));
 }
 
-/** Bilan du jour (vercel.json : après les passes Outreach, puis en fin de journée). */
+/**
+ * Bilan du jour (vercel.json : midi, après-midi, soir). Le soir (`soir=1`), bilan complet et
+ * détaillé, envoyé par e-mail (DAILY_REPORT_EMAIL, sinon les super-administrateurs).
+ */
 export async function GET(req: Request) {
   if (!authorized(req)) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
   try {
+    if (new URL(req.url).searchParams.get("soir") === "1") {
+      const email = await sendDailyReportEmail();
+      return NextResponse.json({ ok: !("errors" in email && email.errors?.length), email });
+    }
     const r = await generateDailyReport();
     return NextResponse.json({ ok: !r.error, day: r.day, model: r.model, note: r.note, error: r.error });
   } catch (e) {

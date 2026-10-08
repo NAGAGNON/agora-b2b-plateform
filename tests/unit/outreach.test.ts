@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { analyzeOpportunity, contentFingerprint, groupByProspect, relevanceLabel, scoreMatch, type ProspectInput } from "@/lib/outreach/matching";
+import { analyzeOpportunity, campaignLabel, contentFingerprint, groupByProspect, relevanceLabel, scoreMatch, type ProspectInput } from "@/lib/outreach/matching";
 import { recipientToken, verifyRecipientToken } from "@/lib/outreach/token";
 import { fillTemplate, renderOutreachEmail } from "@/lib/outreach/email";
 import { departmentFromPostal, mapProspectRows, parseCsv } from "@/lib/outreach/csv";
@@ -215,5 +215,14 @@ describe("outreach — découverte (registre SIRENE)", () => {
     expect(mapApiCompany({ siren: "123456789", nom_complet: "X", etat_administratif: "C" })).toBeNull();
     expect(mapApiCompany({ siren: "12", nom_complet: "X" })).toBeNull();
     expect(mapApiCompany({ siren: "123456789", nom_complet: "JEAN DUPONT", nature_juridique: "1000", siege: { departement: "29", etat_administratif: "A" } })?.is_individual_entrepreneur).toBe(true);
+  });
+});
+
+describe("libellés des campagnes", () => {
+  it("automatique, manuelle (administrateur) et complémentaire (automatique en journée)", () => {
+    const base = { campaign_date: "2026-10-08", created_at: "2026-10-08T11:30:00Z" };
+    expect(campaignLabel({ ...base, kind: "AUTO" })).toBe("Campagne du 8 octobre 2026");
+    expect(campaignLabel({ ...base, kind: "MANUAL", launched_by: "u1" })).toBe("Campagne manuelle du 8 octobre 2026 à 13:30");
+    expect(campaignLabel({ ...base, kind: "MANUAL", launched_by: null })).toBe("Campagne complémentaire du 8 octobre 2026 à 13:30");
   });
 });

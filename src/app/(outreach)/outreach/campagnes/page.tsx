@@ -19,7 +19,7 @@ export default async function CampaignsPage(props: PageProps<"/outreach/campagne
   const supabase = await createClient();
   const { data, count } = await supabase
     .from("outreach_campaigns")
-    .select("id, campaign_date, kind, created_at, status, dry_run, stats", { count: "exact" })
+    .select("id, campaign_date, kind, launched_by, created_at, status, dry_run, stats", { count: "exact" })
     .order("campaign_date", { ascending: false })
     .order("created_at", { ascending: false })
     .range((page - 1) * PER_PAGE, page * PER_PAGE - 1);

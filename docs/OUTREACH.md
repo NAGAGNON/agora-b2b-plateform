@@ -33,11 +33,16 @@ Sources → LinkProB2B → nouvelles opportunités → Outreach → entreprises 
 8. Envoi (Resend), suivi : ouverture (indicative), clic, landing page, opportunité consultée, inscription,
    conversion (abonnement payant), désinscription.
 
-## Passes suivantes (`/api/cron/outreach-contacts`, 06:00, 07:00, 08:00 et 09:00 UTC)
+## Passes suivantes (`/api/cron/outreach-contacts`, réparties dans la journée)
 
-La recherche d'adresses tourne **5 fois par jour, une fois par heure pendant 5 heures** (de 7h à 11h, heure de Paris
-en été ; de 6h à 10h en hiver), pour maîtriser le forfait Brave Search / Dropcontact (une requête par entreprise
-recherchée). Pour plafonner encore la consommation : Outreach → Paramètres → « Entreprises analysées par jour ».
+La recherche d'adresses tourne **5 fois par jour**, répartie sur la journée (heure de Paris en été) : 7 h (campagne du
+jour), 10 h, 13 h 30 (campagne complémentaire), 16 h 30 et 17 h 30 (campagne complémentaire), pour maîtriser le forfait
+Brave Search / Dropcontact (une requête par entreprise recherchée). Pour plafonner encore la consommation : Outreach →
+Paramètres → « Entreprises analysées par jour ». Planning complet : `docs/DEPLOIEMENT.md`.
+
+Les passes `complement=1` lancent une **campagne complémentaire** (affichée « Campagne complémentaire ») avec les
+opportunités récentes, dont celles collectées depuis le matin ; les entreprises déjà contactées sont écartées par les
+règles habituelles (délai minimum entre deux e-mails, exclusions, désinscriptions).
 
 Chaque passe suivante (environ 5 minutes) :
 - prépare la campagne du jour si elle n'existe pas encore, a échoué ou est restée bloquée en préparation ;
@@ -45,7 +50,7 @@ Chaque passe suivante (environ 5 minutes) :
 - envoie aussitôt les e-mails devenus possibles (fonctionnement automatique : sans validation manuelle),
   dans la limite d'envois quotidienne. Les e-mails au-delà de cette limite partent les jours suivants.
 
-## Passages d'envoi seuls (`/api/cron/envoi`, de 10:30 à 16:30 UTC, une fois par heure)
+## Passages d'envoi seuls (`/api/cron/envoi`, de 06:30 à 13:30 UTC, une fois par heure)
 
 Uniquement la file d'attente des e-mails déjà prêts (aucune recherche d'entreprise ni d'adresse, aucun forfait
 consommé), un par un, dans les limites par jour et par heure. La limite quotidienne monte automatiquement par paliers

@@ -1,10 +1,10 @@
 "use client";
 
-import { Sparkles, ThumbsDown, ThumbsUp, Cog, Lightbulb } from "lucide-react";
+import { Sparkles, ThumbsDown, ThumbsUp, Cog, Lightbulb, Mail } from "lucide-react";
 import { ActionForm } from "@/components/admin/action-form";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { Card, CardHeader } from "@/components/ui/card";
-import { refreshDailyReport } from "@/app/actions/daily-report";
+import { emailDailyReport, refreshDailyReport } from "@/app/actions/daily-report";
 
 export type DailyReportRow = {
   day: string;
@@ -82,18 +82,29 @@ export function DailyReportCard({
         }
         description={
           report
-            ? `Analyse du ${when(report.generated_at)} — rédigée à partir des chiffres réels ci-dessous. Mise à jour automatique à midi et en soirée.`
+            ? `Analyse du ${when(report.generated_at)} — rédigée à partir des chiffres réels ci-dessous. Mise à jour automatique à 13 h, 17 h et 21 h ; rapport complet envoyé par e-mail chaque soir.`
             : "Aucun bilan encore : lancez la première analyse."
         }
         action={
-          <ActionForm action={refreshDailyReport} hidden={{}}>
-            <SubmitButton
-              variant="outline"
-              pendingLabel="Analyse en cours (environ 30 s)…"
-            >
-              <Sparkles className="size-4" aria-hidden /> Analyser maintenant
-            </SubmitButton>
-          </ActionForm>
+          <div className="flex flex-wrap gap-2">
+            <ActionForm action={refreshDailyReport} hidden={{}}>
+              <SubmitButton
+                variant="outline"
+                pendingLabel="Analyse en cours (environ 30 s)…"
+              >
+                <Sparkles className="size-4" aria-hidden /> Analyser maintenant
+              </SubmitButton>
+            </ActionForm>
+            <ActionForm action={emailDailyReport} hidden={{}}>
+              <SubmitButton
+                variant="outline"
+                pendingLabel="Préparation du rapport (environ 30 s)…"
+              >
+                <Mail className="size-4" aria-hidden /> Recevoir le rapport par
+                e-mail
+              </SubmitButton>
+            </ActionForm>
+          </div>
         }
       />
       {(report || history.length > 0) && (
