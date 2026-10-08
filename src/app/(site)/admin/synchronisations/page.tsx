@@ -41,7 +41,7 @@ export default async function SyncRunsPage() {
         </Link>
       </p>
       <p className="-mt-3 mb-6 text-sm text-slate-600">
-        Tâche planifiée quotidienne (06:00 UTC, Vercel Cron) — collecte France entière :{" "}
+        Tâche planifiée quotidienne (04:00 UTC, Vercel Cron) — collecte France entière :{" "}
         {cron?.last_run_at ? (
           <>
             dernière exécution le <strong>{formatDateTime(cron.last_run_at)}</strong>{" "}

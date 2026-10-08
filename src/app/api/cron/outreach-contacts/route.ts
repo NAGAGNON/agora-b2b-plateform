@@ -16,7 +16,7 @@ function authorized(req: Request): boolean {
 }
 
 /**
- * Seconde passe LinkProB2B Outreach (vercel.json, une fois par jour) : prépare la campagne
+ * Passes suivantes LinkProB2B Outreach (vercel.json, quatre fois par jour) : prépare la campagne
  * du jour si elle manque, sinon poursuit la recherche des adresses e-mail génériques des
  * entreprises sélectionnées sans e-mail et envoie aussitôt les e-mails devenus possibles.
  */

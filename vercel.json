@@ -7,15 +7,27 @@
   "crons": [
     {
       "path": "/api/cron/quotidien",
-      "schedule": "0 6 * * *"
+      "schedule": "0 4 * * *"
     },
     {
       "path": "/api/cron/outreach",
+      "schedule": "0 5 * * *"
+    },
+    {
+      "path": "/api/cron/outreach-contacts?passe=2",
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/outreach-contacts?passe=3",
       "schedule": "0 7 * * *"
     },
     {
-      "path": "/api/cron/outreach-contacts",
-      "schedule": "20 12 * * *"
+      "path": "/api/cron/outreach-contacts?passe=4",
+      "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/cron/outreach-contacts?passe=5",
+      "schedule": "0 9 * * *"
     }
   ]
 }
