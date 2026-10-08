@@ -12,6 +12,7 @@ const DATE = `2091-${String(randomInt(1, 13)).padStart(2, "0")}-${String(randomI
 let token = "";
 let oppId = "";
 let campaignId = "";
+let manualId = "";
 
 test.beforeAll(async () => {
   const { data: o, error } = await db
@@ -33,6 +34,7 @@ test.afterAll(async () => {
   const { data: users } = await db.auth.admin.listUsers({ perPage: 1000 });
   for (const u of users?.users ?? []) if (u.email === `e2e-${RUN}@example.test`) await db.auth.admin.deleteUser(u.id);
   await db.from("outreach_campaigns").delete().eq("id", campaignId);
+  if (manualId) await db.from("outreach_campaigns").delete().eq("id", manualId);
   await db.from("outreach_prospects").delete().like("name", `${T}%`);
   await db.from("outreach_suppressions").delete().eq("value", `e2e-${RUN}@example.test`);
   await db.from("opportunities").delete().eq("id", oppId);
@@ -49,9 +51,17 @@ test("Outreach est réservé aux administrateurs", async ({ browser }) => {
 });
 
 test("tableau de bord, prévisualisation de campagne et paramètres", async ({ browser }) => {
+  // Campagne lancée à la main aujourd'hui : comptée dans les chiffres de la journée
+  const { data: manual } = await db
+    .from("outreach_campaigns")
+    .insert({ campaign_date: new Date().toISOString().slice(0, 10), kind: "MANUAL", status: "SENT", min_score: 70, subject_template: "s", intro_template: "i" })
+    .select("id")
+    .single();
+  manualId = manual!.id;
   const page = await newPage(browser);
   await login(page, "admin@demo.linkprob2b.test");
   await page.goto("/outreach");
+  await expect(page.getByRole("link", { name: /campagnes? manuelles?/ })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Vue d'ensemble", level: 1 })).toBeVisible();
   await expect(page.getByText(/Mode simulation|Envoi réel/).first()).toBeVisible();
   await expect(page.getByRole("button", { name: "Lancer une campagne maintenant" })).toBeVisible();

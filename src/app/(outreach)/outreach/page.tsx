@@ -31,10 +31,15 @@ export default async function OutreachOverview() {
     supabase.from("outreach_suppressions").select("id", { count: "exact", head: true }),
     supabase.from("platform_settings").select("value").eq("key", "private.outreach_cron").maybeSingle(),
   ]);
-  const todayCampaign = campaigns?.find((c) => c.campaign_date === today && c.kind === "AUTO") ?? null;
-  const { data: todayLive } = todayCampaign ? await supabase.rpc("outreach_campaign_stats", { p_campaign_id: todayCampaign.id }) : { data: null };
-  const st = (todayCampaign?.stats ?? {}) as Stats;
-  const live = (todayLive ?? {}) as Stats;
+  // Journée = campagne automatique + campagnes lancées à la main (chiffres additionnés)
+  const { data: todayCampaigns } = await supabase.from("outreach_campaigns").select("id, kind, status, stats").eq("campaign_date", today);
+  const todayCampaign = todayCampaigns?.find((c) => c.kind === "AUTO") ?? null;
+  const manualToday = (todayCampaigns ?? []).filter((c) => c.kind === "MANUAL");
+  const lives = await Promise.all((todayCampaigns ?? []).map(async (c) => ((await supabase.rpc("outreach_campaign_stats", { p_campaign_id: c.id })).data ?? {}) as Stats));
+  const live: Stats = {};
+  for (const l of lives) for (const [k, v] of Object.entries(l)) live[k] = (live[k] ?? 0) + (Number(v) || 0);
+  // Opportunités du jour : celles de la campagne automatique (les campagnes manuelles reprennent les mêmes)
+  const st = (todayCampaign?.stats ?? manualToday[0]?.stats ?? {}) as Stats;
   const blockers = settings ? realSendBlockers(settings as OutreachSettings) : [];
 
   // Séries sur 30 jours (une série par graphique)
@@ -98,12 +103,25 @@ export default async function OutreachOverview() {
       <Panel
         title={`Aujourd'hui — ${formatDate(today)}`}
         description={
-          todayCampaign ? (
+          todayCampaign || manualToday.length ? (
             <>
-              Campagne <StatusBadge map={CAMPAIGN_STATUS} status={todayCampaign.status} /> ·{" "}
-              <Link href={`/outreach/campagnes/${todayCampaign.id}`} className="font-semibold text-teal-700 underline">
-                ouvrir la prévisualisation
-              </Link>
+              {todayCampaign && (
+                <>
+                  Campagne automatique <StatusBadge map={CAMPAIGN_STATUS} status={todayCampaign.status} /> ·{" "}
+                  <Link href={`/outreach/campagnes/${todayCampaign.id}`} className="font-semibold text-teal-700 underline">
+                    ouvrir la prévisualisation
+                  </Link>
+                </>
+              )}
+              {manualToday.length > 0 && (
+                <>
+                  {todayCampaign ? " · " : ""}
+                  <Link href="/outreach/campagnes" className="font-semibold text-teal-700 underline">
+                    {manualToday.length} campagne{manualToday.length > 1 ? "s" : ""} manuelle{manualToday.length > 1 ? "s" : ""}
+                  </Link>{" "}
+                  incluse{manualToday.length > 1 ? "s" : ""} dans les chiffres ci-dessous
+                </>
+              )}
             </>
           ) : (
             `Pas encore de campagne aujourd'hui. Préparation automatique chaque matin${cronInfo?.last_run_at ? ` — dernière exécution : ${formatDateTime(cronInfo.last_run_at)}` : ""}.`
