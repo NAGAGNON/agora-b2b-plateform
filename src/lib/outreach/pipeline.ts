@@ -446,8 +446,16 @@ export async function enrichCampaignAndSend(db: Db, { campaignId, deadline = Dat
   const enrichment = await enrichProspects(db, { campaignId, deadline: deadline - 30_000 });
   const { data: c } = await db.from("outreach_campaigns").select("status, report").eq("id", campaignId).single();
   const line = `${new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" })} — ${enrichmentReport(enrichment)}`;
-  const patch: { report: string; status?: string } = { report: [c?.report, line].filter(Boolean).join("\n") };
-  if (enrichment.found > 0 && !settings.require_validation && c && ["SENT", "SIMULATED"].includes(c.status)) patch.status = "SENDING";
+  const patch: { report: string; status?: string; validated_at?: string } = { report: [c?.report, line].filter(Boolean).join("\n") };
+  if (!settings.require_validation && c) {
+    // Fonctionnement automatique : une campagne préparée part sans validation, et une campagne
+    // déjà envoyée repart dès que de nouvelles adresses sont prêtes.
+    if (c.status === "READY") Object.assign(patch, { status: "VALIDATED", validated_at: new Date().toISOString() });
+    else if (["SENT", "SIMULATED"].includes(c.status)) {
+      const { count } = await db.from("outreach_recipients").select("id", { count: "exact", head: true }).eq("campaign_id", campaignId).in("status", ["PENDING", "QUEUED"]);
+      if (count) patch.status = "SENDING";
+    }
+  }
   await db.from("outreach_campaigns").update(patch).eq("id", campaignId);
   const send = await processSendQueue(db, { deadline });
   return { enrichment, send };
@@ -497,4 +505,18 @@ export async function runOutreachDaily(db: Db, { budgetMs = 240_000 }: { budgetM
   const send = await processSendQueue(db, { deadline });
   const conversions = await updateConversions(db).catch((e) => (logServerError("outreach conversions", e), { converted: 0 }));
   return { sync, build, enrichment, send, conversions };
+}
+
+/**
+ * Relances automatiques de la journée (/api/cron/outreach-contacts, plusieurs fois par jour) :
+ * si la campagne du jour n'existe pas encore (ou a échoué), elle est préparée ; sinon la
+ * recherche d'adresses continue et les e-mails devenus possibles partent aussitôt.
+ */
+export async function runOutreachFollowUp(db: Db, { budgetMs = 270_000 }: { budgetMs?: number } = {}) {
+  const { data: campaign } = await db.from("outreach_campaigns").select("id, status, updated_at").eq("campaign_date", today_()).maybeSingle();
+  // Préparation interrompue (tâche arrêtée en cours de route) : reprise après 10 minutes sans progrès.
+  const stalled = campaign?.status === "BUILDING" && Date.now() - new Date(campaign.updated_at).getTime() > 10 * 60_000;
+  if (!campaign || campaign.status === "FAILED" || stalled) return { mode: "daily" as const, ...(await runOutreachDaily(db, { budgetMs: budgetMs - 30_000 })) };
+  if (campaign.status === "BUILDING" || campaign.status === "CANCELLED") return { mode: "skipped" as const, skipped: campaign.status === "BUILDING" ? "Campagne du jour en cours de préparation" : "Campagne du jour annulée" };
+  return { mode: "contacts" as const, ...(await enrichCampaignAndSend(db, { campaignId: campaign.id, deadline: Date.now() + budgetMs })) };
 }
