@@ -146,7 +146,7 @@ SUPABASE_INTERNAL_IMAGE_REGISTRY=docker.io npm run db:start
 
 ## Bilan du jour (Administration → Vue d'ensemble)
 
-`/api/cron/bilan` (11:00, 15:00 et 19:00 UTC) et le bouton « Analyser maintenant » calculent les chiffres réels de la journée
+`/api/cron/bilan?soir=1` (une fois par jour, 19:00 UTC, pour limiter la consommation de l'API) et le bouton « Analyser maintenant » calculent les chiffres réels de la journée
 (audience par canal, rubrique et page, Outreach, collecte, articles, inscriptions, tâches automatiques), puis rédigent un
 commentaire à partir de ces seuls chiffres (`ANTHROPIC_API_KEY`, la même que pour les articles ; chaque nombre du texte est
 contrôlé). Sans clé, seuls les chiffres sont enregistrés. Bilans lisibles uniquement par les administrateurs (`daily_reports`).
@@ -167,11 +167,9 @@ immédiat (n'empêche pas l'envoi du soir).
 | 06:30 → 13:30 | 8 h 30 → 15 h 30 | Envois seuls de la file Outreach (toutes les heures, sauf 11:30) |
 | 08:00 | 10 h | Outreach : recherche d'adresses + envoi |
 | 10:00 | 12 h | Tâche quotidienne (midi) : nouvelle collecte des sources (si plus de 3 h 30), alertes, e-mails |
-| 11:00 | 13 h | Bilan de midi |
 | 11:30 | 13 h 30 | Outreach : campagne complémentaire (opportunités arrivées depuis le matin) |
 | 14:00 | 16 h | Tâche quotidienne (après-midi) |
 | 14:30 | 16 h 30 | Outreach : recherche d'adresses + envoi |
-| 15:00 | 17 h | Bilan de l'après-midi |
 | 15:30 | 17 h 30 | Outreach : campagne complémentaire |
 | 18:00 | 20 h | Tâche quotidienne (soir) : dernière collecte |
 | 19:00 | 21 h | Bilan complet + rapport par e-mail |
