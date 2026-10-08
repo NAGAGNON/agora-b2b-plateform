@@ -22,10 +22,6 @@
       "schedule": "0 10 * * *"
     },
     {
-      "path": "/api/cron/bilan",
-      "schedule": "0 11 * * *"
-    },
-    {
       "path": "/api/cron/outreach-contacts?passe=3&complement=1",
       "schedule": "30 11 * * *"
     },
@@ -36,10 +32,6 @@
     {
       "path": "/api/cron/outreach-contacts?passe=4",
       "schedule": "30 14 * * *"
-    },
-    {
-      "path": "/api/cron/bilan?passe=apres-midi",
-      "schedule": "0 15 * * *"
     },
     {
       "path": "/api/cron/outreach-contacts?passe=5&complement=1",

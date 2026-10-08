@@ -16,7 +16,8 @@ function authorized(req: Request): boolean {
 }
 
 /**
- * Bilan du jour (vercel.json : midi, après-midi, soir). Le soir (`soir=1`), bilan complet et
+ * Bilan du jour (vercel.json : une fois par jour, le soir, pour limiter la consommation de l'API).
+ * Le soir (`soir=1`), bilan complet et
  * détaillé, envoyé par e-mail (DAILY_REPORT_EMAIL, sinon les super-administrateurs).
  */
 export async function GET(req: Request) {

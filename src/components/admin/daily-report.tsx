@@ -82,7 +82,7 @@ export function DailyReportCard({
         }
         description={
           report
-            ? `Analyse du ${when(report.generated_at)} — rédigée à partir des chiffres réels ci-dessous. Mise à jour automatique à 13 h, 17 h et 21 h ; rapport complet envoyé par e-mail chaque soir.`
+            ? `Analyse du ${when(report.generated_at)} — rédigée à partir des chiffres réels ci-dessous. Mise à jour automatique une fois par jour, à 21 h, avec le rapport complet envoyé par e-mail.`
             : "Aucun bilan encore : lancez la première analyse."
         }
         action={
