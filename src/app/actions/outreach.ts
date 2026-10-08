@@ -339,7 +339,7 @@ export async function enrichCampaignNow(_prev: ActionResult | null, fd: FormData
   const parsed = parseForm(campaignSchema, fd);
   if (!parsed.success) return parsed.result;
   const { session } = await admin();
-  if (configuredSearchers().length === 0) return { ok: false, error: "Aucune clé de recherche : ajoutez BRAVE_SEARCH_API_KEY ou DROPCONTACT_API_KEY dans Vercel, puis redéployez." };
+  if (configuredSearchers().length === 0) return { ok: false, error: "Recherche d'adresses désactivée sur le serveur." };
   try {
     const r = await enrichCampaignAndSend(createAdminClient(), { campaignId: parsed.data.campaignId, deadline: Date.now() + 240_000 });
     await audit(session.userId, "outreach.enrich.campaign", parsed.data.campaignId, r.enrichment);
@@ -359,7 +359,7 @@ export async function enrichProspectNow(_prev: ActionResult | null, fd: FormData
   const { data: p } = await supabase.from("outreach_prospects").select("id, name, city, siren, website, email, status").eq("id", parsed.data.id).single();
   if (!p) return { ok: false, error: "Entreprise introuvable." };
   if (p.status !== "ACTIVE") return { ok: false, error: "Cette entreprise n'est pas active (exclue ou « Ne plus contacter »)." };
-  if (!p.website && searchers.length === 0) return { ok: false, error: "Renseignez le site internet de l'entreprise, ou ajoutez une clé BRAVE_SEARCH_API_KEY ou DROPCONTACT_API_KEY dans Vercel." };
+  if (!p.website && searchers.length === 0) return { ok: false, error: "Recherche d'adresses désactivée sur le serveur : renseignez le site internet de l'entreprise." };
   const r = await enrichCompany(p, searchers);
   const now = new Date().toISOString();
   const { data: blocked } = r.email ? await supabase.from("outreach_suppressions").select("id").in("value", [r.email, r.email.split("@")[1]]).limit(1) : { data: [] };

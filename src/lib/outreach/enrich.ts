@@ -4,7 +4,9 @@ import { normalizeText } from "@/lib/collect/normalize";
 
 /**
  * Recherche des coordonnées professionnelles d'une entreprise, en trois temps :
- *  1. site officiel : API Brave Search (BRAVE_SEARCH_API_KEY), sinon Dropcontact
+ *  1. site officiel : d'abord la méthode GRATUITE (domaines déduits du nom, retenus seulement si
+ *     le SIREN de l'entreprise figure sur le site — mentions légales obligatoires), puis, si des
+ *     clés sont configurées, l'API Brave Search (BRAVE_SEARCH_API_KEY) ou Dropcontact
  *     (DROPCONTACT_API_KEY) — services payants dont les conditions autorisent cet usage ;
  *  2. page d'accueil, page Contact et mentions légales de CE site uniquement,
  *     en respectant robots.txt, avec un agent identifié ;
@@ -197,6 +199,66 @@ export function dropcontactSearch(key: string, fetchImpl: typeof fetch = fetch):
   };
 }
 
+/**
+ * Domaines plausibles d'une entreprise, déduits de son nom (ex. « OCR RHONE ALPES » →
+ * ocr-rhone-alpes.fr, ocrrhonealpes.fr, …). Simple hypothèse : un domaine n'est retenu
+ * qu'après vérification du SIREN sur le site (voir freeWebsiteSearch).
+ */
+export function domainCandidates(name: string): string[] {
+  const words = normalizeText(name)
+    .replace(/\b(sarl|sas|sasu|eurl|sa|sci|snc|scop|ets|etablissements|societe|entreprise)\b/g, " ")
+    .split(" ")
+    .filter((w) => /^[a-z0-9]+$/.test(w));
+  if (!words.length) return [];
+  const labels = new Set<string>();
+  const joined = words.join("");
+  const dashed = words.join("-");
+  if (joined.length >= 3 && joined.length <= 40) labels.add(dashed).add(joined);
+  // Nom long : les deux premiers mots (ex. « Dupont Electricite Services » → dupont-electricite)
+  if (words.length > 2) labels.add(words.slice(0, 2).join("-")).add(words.slice(0, 2).join(""));
+  const out: string[] = [];
+  for (const l of labels) for (const tld of ["fr", "com"]) out.push(`${l}.${tld}`);
+  return out.slice(0, 8);
+}
+
+/** Le SIREN (9 chiffres, éventuellement espacés « 123 456 789 ») figure-t-il dans la page ? */
+export function sirenOnPage(html: string, siren: string): boolean {
+  if (!/^\d{9}$/.test(siren)) return false;
+  const text = html.replace(/<[^>]+>/g, " ").replace(/(\d)[\s\u00a0.]+(?=\d)/g, "$1");
+  return new RegExp(`(^|\\D)${siren}`).test(text);
+}
+
+/**
+ * Méthode GRATUITE (aucune API payante) : essaie les domaines déduits du nom et ne retient un site
+ * que si le SIREN de l'entreprise y figure (page d'accueil ou mentions légales). robots.txt respecté,
+ * aucune page protégée n'est contournée. Ne lève jamais d'erreur : en cas de doute, aucun site.
+ */
+export function freeWebsiteSearch(fetchImpl: typeof fetch = fetch): WebsiteSearch {
+  return async (c) => {
+    if (!c.siren) return null;
+    for (const domain of domainCandidates(c.name)) {
+      try {
+        if (!(await isPublicHost(domain))) continue; // le domaine n'existe pas (résolution DNS)
+        const origin = `https://${domain}`;
+        const robots = await fetchText(`${origin}/robots.txt`, fetchImpl, 100_000).catch(() => null);
+        const allowed = (path: string) => !robots || robots.status >= 400 || robotsAllows(robots.text, path);
+        if (!allowed("/")) continue;
+        const home = await fetchText(origin, fetchImpl).catch(() => null);
+        if (!home?.text) continue;
+        if (sirenOnPage(home.text, c.siren)) return { website: origin, provider: "domaine vérifié par le SIREN (gratuit)" };
+        for (const link of contactLinks(home.text, origin)) {
+          if (!allowed(new URL(link).pathname)) continue;
+          const page = await fetchText(link, fetchImpl).catch(() => null);
+          if (page?.text && sirenOnPage(page.text, c.siren)) return { website: origin, provider: "domaine vérifié par le SIREN (gratuit)" };
+        }
+      } catch {
+        // domaine suivant
+      }
+    }
+    return null;
+  };
+}
+
 export type EnrichResult = { status: "FOUND" | "NO_WEBSITE" | "NO_EMAIL" | "BLOCKED" | "ERROR"; website: string | null; email: string | null; source: string | null; note: string };
 
 /** Recherche complète pour une entreprise. */
@@ -207,6 +269,7 @@ export async function enrichCompany(
 ): Promise<EnrichResult> {
   let website = c.website;
   let provider = website ? "fiche existante" : "";
+  let lastError: string | null = null;
   for (const search of website ? [] : searchers) {
     try {
       const r = await search(c);
@@ -217,9 +280,11 @@ export async function enrichCompany(
         break;
       }
     } catch (e) {
-      if (searchers.length === 1) return { status: "ERROR", website: null, email: null, source: null, note: e instanceof Error ? e.message : "Erreur" };
+      lastError = e instanceof Error ? e.message : "Erreur";
     }
   }
+  // Un service en erreur (ex. limite de requêtes) : nouvelle tentative au prochain passage, pas « sans site »
+  if (!website && lastError) return { status: "ERROR", website: null, email: null, source: null, note: lastError };
   if (!website) return { status: "NO_WEBSITE", website: null, email: null, source: null, note: "Aucun site officiel identifié" };
   const host = hostOf(website);
   try {
@@ -253,6 +318,8 @@ export async function enrichCompany(
 /** Services de recherche configurés (clés en variables d'environnement, jamais exposées). */
 export function configuredSearchers(): WebsiteSearch[] {
   const out: WebsiteSearch[] = [];
+  // Méthode gratuite d'abord (économise le forfait des services payants) ; désactivable (tests).
+  if (process.env.OUTREACH_FREE_WEBSITE_SEARCH !== "false") out.push(freeWebsiteSearch());
   if (process.env.BRAVE_SEARCH_API_KEY) out.push(braveSearch(process.env.BRAVE_SEARCH_API_KEY));
   if (process.env.DROPCONTACT_API_KEY) out.push(dropcontactSearch(process.env.DROPCONTACT_API_KEY));
   return out;

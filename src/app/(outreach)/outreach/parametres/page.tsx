@@ -14,9 +14,13 @@ export default async function OutreachSettingsPage() {
     { ok: process.env.OUTREACH_SEND_ENABLED !== "false", label: "Envoi réel autorisé sur le serveur", hint: "Actif par défaut ; OUTREACH_SEND_ENABLED=false (Vercel) coupe tout envoi en urgence." },
     { ok: Boolean(process.env.RESEND_API_KEY), label: "Fournisseur d'e-mails configuré", hint: "RESEND_API_KEY (déjà utilisé par LinkProB2B)." },
     {
-      ok: Boolean(process.env.BRAVE_SEARCH_API_KEY || process.env.DROPCONTACT_API_KEY),
+      ok: true,
       label: "Recherche des adresses e-mail",
-      hint: "BRAVE_SEARCH_API_KEY (brave.com/search/api) et/ou DROPCONTACT_API_KEY (dropcontact.com) dans Vercel.",
+      hint: `Méthode gratuite active (site vérifié par le SIREN)${
+        process.env.BRAVE_SEARCH_API_KEY || process.env.DROPCONTACT_API_KEY
+          ? ", complétée par votre service payant si elle ne trouve pas le site."
+          : ". Facultatif : BRAVE_SEARCH_API_KEY ou DROPCONTACT_API_KEY dans Vercel pour trouver davantage de sites."
+      }`,
     },
     { ok: true, label: "Adresse d'expédition", hint: `${process.env.OUTREACH_EMAIL_FROM?.trim() || "la même que les e-mails d'inscription (notifications@linkprob2b.com)"} — modifiable avec OUTREACH_EMAIL_FROM.` },
   ];

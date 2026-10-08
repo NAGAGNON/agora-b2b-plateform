@@ -95,3 +95,26 @@ describe("outreach — recherche complète (réseau simulé)", () => {
     expect((await enrichCompany({ name: "X", city: null, siren: null, website: null }, [search(null)])).status).toBe("NO_WEBSITE");
   });
 });
+
+describe("recherche gratuite du site officiel", () => {
+  it("domaines déduits du nom (sans forme juridique)", async () => {
+    const { domainCandidates } = await import("@/lib/outreach/enrich");
+    expect(domainCandidates("OCR RHONE ALPES")).toEqual(["ocr-rhone-alpes.fr", "ocr-rhone-alpes.com", "ocrrhonealpes.fr", "ocrrhonealpes.com", "ocr-rhone.fr", "ocr-rhone.com", "ocrrhone.fr", "ocrrhone.com"]);
+    expect(domainCandidates("SARL Électricité Dupont")).toEqual(["electricite-dupont.fr", "electricite-dupont.com", "electricitedupont.fr", "electricitedupont.com"]);
+    expect(domainCandidates("SAS")).toEqual([]);
+  });
+
+  it("site retenu seulement si le SIREN y figure (même espacé)", async () => {
+    const { sirenOnPage } = await import("@/lib/outreach/enrich");
+    expect(sirenOnPage("<p>RCS Lyon 123 456 789</p>", "123456789")).toBe(true);
+    expect(sirenOnPage("<p>SIRET : 12345678900012</p>", "123456789")).toBe(true);
+    expect(sirenOnPage("<p>SIREN 987654321</p>", "123456789")).toBe(false);
+    expect(sirenOnPage("<p>tél 0123456789</p>", "123456789")).toBe(false);
+  });
+
+  it("aucun SIREN connu : aucune hypothèse de site", async () => {
+    const { freeWebsiteSearch } = await import("@/lib/outreach/enrich");
+    const fetchImpl = (() => Promise.reject(new Error("ne doit pas être appelé"))) as unknown as typeof fetch;
+    expect(await freeWebsiteSearch(fetchImpl)({ name: "Dupont", city: null, siren: null })).toBeNull();
+  });
+});

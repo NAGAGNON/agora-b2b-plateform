@@ -69,7 +69,9 @@ E-MAIL → clic (/api/outreach/c/<jeton>?o=<offre>, cookie « lp_prospection » 
 
 Outreach n'invente aucune adresse. Une entreprise devient contactable de trois façons :
 - **recherche automatique** (chaque jour, et bouton « Rechercher l'adresse e-mail » sur la fiche) :
-  1. site officiel trouvé via l'**API Brave Search** (`BRAVE_SEARCH_API_KEY`) ou **Dropcontact** (`DROPCONTACT_API_KEY`) —
+  1. site officiel trouvé d'abord par la **méthode gratuite** : domaines déduits du nom (ex. `nom-entreprise.fr`), retenus
+     uniquement si le **SIREN** de l'entreprise figure sur le site (accueil, contact ou mentions légales, obligatoires en
+     France) ; à défaut, via l'**API Brave Search** (`BRAVE_SEARCH_API_KEY`) ou **Dropcontact** (`DROPCONTACT_API_KEY`) si configurés —
      services payants dont les conditions autorisent cet usage ; aucun moteur de recherche n'est lu sans API ;
   2. lecture de l'accueil, de la page Contact et des mentions légales de **ce site uniquement**, agent identifié
      (`LinkProB2B-Outreach/1.0`), **robots.txt respecté**, abandon si le site refuse (403, CAPTCHA, anti-robot) ;
