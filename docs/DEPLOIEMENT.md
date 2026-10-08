@@ -36,7 +36,7 @@ Le bouton du [README](../README.md#mettre-en-ligne) ouvre Vercel et enchaîne :
    - `CRON_SECRET` : une chaîne aléatoire d'au moins 32 caractères (protège la tâche planifiée) ;
    - `RESEND_API_KEY` : votre clé Resend (e-mails de confirmation, mot de passe, notifications, alertes) ;
    L'environnement `production` est déduit de Vercel : démonstration interdite, confirmation d'e-mail obligatoire.
-4. le build : `node scripts/migrate.mjs` crée toutes les tables, la sécurité et les données de référence et marque la base « production » (seed démo refusé même avec une mauvaise variable), puis une première collecte BOAMP/TED (non bloquante), puis `next build`. La collecte se poursuit chaque jour à 06:00 UTC (tâche planifiée).
+4. le build : `node scripts/migrate.mjs` crée toutes les tables, la sécurité et les données de référence et marque la base « production » (seed démo refusé même avec une mauvaise variable), puis une première collecte BOAMP/TED (non bloquante), puis `next build`. La collecte se poursuit chaque jour à 04:00 UTC (tâche planifiée).
 
 Ensuite : ouvrez l'URL fournie par Vercel, inscrivez-vous avec `INITIAL_ADMIN_EMAIL` : vous êtes administrateur. En staging, **Administration → Paramètres → Charger les données de démonstration** crée les comptes fictifs et affiche leurs identifiants une seule fois.
 
@@ -84,7 +84,7 @@ Côté application, rien à régler : URL canoniques, sitemap et liens des e-mai
 
 ## SEO automatique
 
-Chaque jour, la tâche planifiée (`/api/cron/quotidien`, 06:00 UTC) :
+Chaque jour, la tâche planifiée (`/api/cron/quotidien`, 04:00 UTC) :
 
 1. collecte BOAMP et TED, puis expire les annonces échues ;
 2. **publie au moins une analyse de marché** rédigée par Claude à partir des seules données de la plateforme. Thèmes en alternance (secteur, département, secteur × département, acheteur public ; chacun une fois par mois, au moins 5 opportunités ouvertes), puis, en dernier recours, la synthèse bretonne du jour. Chaque chiffre est comparé au jeu de données transmis : en cas d'écart, l'article est réécrit une fois, puis le thème suivant est essayé ; un article non conforme reste en brouillon et ne compte pas dans le quota quotidien. Couverture et graphiques générés à partir des mêmes données. Réglages dans **Administration → Articles** (1 à 3 articles par jour, publication automatique) ;

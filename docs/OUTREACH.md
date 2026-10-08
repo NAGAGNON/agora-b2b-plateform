@@ -15,7 +15,7 @@ Sources → LinkProB2B → nouvelles opportunités → Outreach → entreprises 
   (si le domaine est géré chez un autre registrar : enregistrement `CNAME outreach → cname.vercel-dns.com`).
   Le code redirige automatiquement `/` vers le tableau de bord et renvoie toute autre page vers le site public.
 
-## Fonctionnement quotidien (`/api/cron/outreach`, 07:00 UTC, après la collecte de 06:00)
+## Fonctionnement quotidien (`/api/cron/outreach`, 05:00 UTC = 7h à Paris en été, après la collecte de 04:00 UTC)
 
 1. Synchronisation des opportunités publiées (publiques, réelles) : **nouvelle / traitée / modifiée / expirée**.
    Une opportunité clôturée, retirée ou dont la date limite est trop proche n'est **jamais** proposée.
@@ -33,9 +33,13 @@ Sources → LinkProB2B → nouvelles opportunités → Outreach → entreprises 
 8. Envoi (Resend), suivi : ouverture (indicative), clic, landing page, opportunité consultée, inscription,
    conversion (abonnement payant), désinscription.
 
-## Relances de la journée (`/api/cron/outreach-contacts`, toutes les heures de 08:20 à 18:20 UTC)
+## Passes suivantes (`/api/cron/outreach-contacts`, 06:00, 07:00, 08:00 et 09:00 UTC)
 
-Chaque relance (environ 5 minutes) :
+La recherche d'adresses tourne **5 fois par jour, une fois par heure pendant 5 heures** (de 7h à 11h, heure de Paris
+en été ; de 6h à 10h en hiver), pour maîtriser le forfait Brave Search / Dropcontact (une requête par entreprise
+recherchée). Pour plafonner encore la consommation : Outreach → Paramètres → « Entreprises analysées par jour ».
+
+Chaque passe suivante (environ 5 minutes) :
 - prépare la campagne du jour si elle n'existe pas encore, a échoué ou est restée bloquée en préparation ;
 - sinon poursuit la recherche des adresses e-mail des entreprises sélectionnées sans e-mail ;
 - envoie aussitôt les e-mails devenus possibles (fonctionnement automatique : sans validation manuelle),
