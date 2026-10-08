@@ -63,7 +63,12 @@ function HourlyChart({ data }: { data: AudienceDetail["hourly"] }) {
         {data.map((d) => (
           <div key={d.hour} className="group relative flex h-full flex-1 items-end">
             <div className="w-full rounded-t-[4px] bg-teal-600 group-hover:bg-navy" style={{ height: `${d.visits > 0 ? Math.max(2, (d.visits / max) * 100) : 0}%` }} />
-            <span className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 hidden -translate-x-1/2 rounded-md bg-navy px-2 py-1 text-xs whitespace-nowrap text-white shadow group-hover:block">
+            <span
+              className={`pointer-events-none absolute bottom-full z-10 mb-1 hidden rounded-md bg-navy px-2 py-1 text-xs whitespace-nowrap text-white shadow group-hover:block ${
+                // Info-bulle ancrée au bord pour les premières et dernières heures (pas de débordement sur mobile)
+                d.hour < 4 ? "left-0" : d.hour > 19 ? "right-0" : "left-1/2 -translate-x-1/2"
+              }`}
+            >
               {d.hour} h · {nf.format(d.visits)} visite{d.visits > 1 ? "s" : ""}
             </span>
           </div>
@@ -126,7 +131,7 @@ export function AudienceDetailPanel({ d, period }: { d: AudienceDetail; period: 
 
       <Card>
         <CardHeader title="Jour par jour" description="Visites, pages vues, visites venues des moteurs de recherche et d'Outreach" />
-        <div className="max-h-96 overflow-y-auto p-5">
+        <div className="max-h-96 overflow-y-auto p-5" tabIndex={0} role="region" aria-label="Audience jour par jour (zone défilante)">
           <Table
             caption="Audience jour par jour"
             head={["Jour", "Visites", "Pages vues", "Moteurs de recherche", "Outreach"]}

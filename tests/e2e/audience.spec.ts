@@ -35,7 +35,7 @@ test("mesure d'audience : visites et temps de lecture visibles dans l'administra
   const admin = await newPage(browser);
   await login(admin, "admin@demo.linkprob2b.test");
   await admin.goto("/admin?periode=7");
-  const audience = admin.getByRole("region", { name: "Audience" });
+  const audience = admin.getByRole("region", { name: "Audience", exact: true });
   await expect(audience).toBeVisible();
   await expect(audience.getByRole("columnheader", { name: "Page" })).toBeVisible();
   await expect(audience.getByText("Durée moyenne")).toBeVisible();

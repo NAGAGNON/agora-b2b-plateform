@@ -43,13 +43,19 @@ function DailyChart({ data }: { data: AudienceStats["daily"] }) {
   return (
     <figure>
       <div className="flex h-40 items-end gap-0.5 border-b border-slate-200" aria-hidden>
-        {data.map((d) => (
+        {data.map((d, i) => (
           <div key={d.day} className="group relative flex h-full flex-1 items-end">
             <div
               className="w-full rounded-t-[4px] bg-teal-600 transition-colors group-hover:bg-navy"
               style={{ height: `${d.visits > 0 ? Math.max(2, (d.visits / max) * 100) : 0}%` }}
             />
-            <span className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 hidden -translate-x-1/2 rounded-md bg-navy px-2 py-1 text-xs whitespace-nowrap text-white shadow group-hover:block">
+            <span
+              className={cn(
+                "pointer-events-none absolute bottom-full z-10 mb-1 hidden rounded-md bg-navy px-2 py-1 text-xs whitespace-nowrap text-white shadow group-hover:block",
+                // Info-bulle ancrée au bord pour les premiers et derniers jours (pas de débordement sur mobile)
+                i < data.length / 6 ? "left-0" : i >= data.length - data.length / 6 ? "right-0" : "left-1/2 -translate-x-1/2",
+              )}
+            >
               {dayFmt.format(new Date(d.day))} · {nf.format(d.visits)} visite{d.visits > 1 ? "s" : ""}
             </span>
           </div>
