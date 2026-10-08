@@ -28,7 +28,8 @@ export default async function SelectionPage(props: PageProps<"/opportunites/sele
   if (!bundle) notFound();
   const h = await headers();
   // Aperçu depuis le tableau de bord (administrateur) : pas de statistique faussée.
-  const preview = (await props.searchParams).apercu === "1" && Boolean((await getSession())?.isStaff);
+  const session = await getSession();
+  const preview = (await props.searchParams).apercu === "1" && Boolean(session?.isStaff);
   if (!preview && !h.get("next-router-prefetch") && h.get("purpose") !== "prefetch") await track(r, "LANDING_VIEW");
 
   const ref = await loadReferentials(db);
@@ -102,7 +103,8 @@ export default async function SelectionPage(props: PageProps<"/opportunites/sele
                   <a href={urls.opportunity(o.id)} className={buttonClasses()}>
                     Voir l&apos;opportunité
                   </a>
-                  {o.source?.url && (
+                  {/* Source officielle : réservée aux inscrits (parcours e-mail de prospection) */}
+                  {o.source?.url && session && (
                     <a href={`/go/${o.id}`} target="_blank" rel="noopener noreferrer nofollow" className={buttonClasses({ variant: "outline" })}>
                       Source officielle <ExternalLink className="size-4" aria-hidden />
                     </a>

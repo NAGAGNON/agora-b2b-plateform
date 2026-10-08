@@ -11,25 +11,38 @@ export const metadata = pageMetadata({
   path: "/inscription",
 });
 
+const internalPath = (v: unknown) => (typeof v === "string" && v.startsWith("/") && !v.startsWith("//") && !v.startsWith("/\\") ? v : undefined);
+
 export default async function SignUpPage(props: PageProps<"/inscription">) {
-  if (await getSession()) redirect("/dashboard");
-  const ref = (await props.searchParams).ref;
+  const sp = await props.searchParams;
+  // Page à ouvrir après l'inscription (ex. l'offre recommandée dans un e-mail de prospection)
+  const next = internalPath(sp.suite);
+  if (await getSession()) redirect(next ?? "/dashboard");
+  const ref = sp.ref;
   // Provenance (sélection LinkProB2B Outreach) : jeton signé, vérifié côté serveur à l'inscription.
   const referral = typeof ref === "string" && /^o\.[A-Za-z0-9_.-]{20,60}$/.test(ref) ? ref : undefined;
+  const forOffer = Boolean(referral && next?.startsWith("/opportunites/"));
   return (
     <AuthShell
-      title="Créer un compte"
+      title={forOffer ? "Créez votre compte pour accéder à cette offre" : "Créer un compte"}
       subtitle={
         <>
           Déjà inscrit ?{" "}
-          <Link href="/connexion" className="font-semibold text-teal-700 hover:underline">
+          <Link
+            href={`/connexion${next ? `?${new URLSearchParams({ suite: next, ...(referral ? { ref: referral } : {}) })}` : ""}`}
+            className="font-semibold text-teal-700 hover:underline"
+          >
             Se connecter
           </Link>
-          <span className="mt-2 block text-sm">Étape suivante : la création du profil de votre entreprise.</span>
+          <span className="mt-2 block text-sm">
+            {forOffer
+              ? "Gratuit. Utilisez l'adresse qui a reçu notre e-mail : votre compte est activé immédiatement et l'offre s'ouvre directement."
+              : "Étape suivante : la création du profil de votre entreprise."}
+          </span>
         </>
       }
     >
-      <SignUpForm referral={referral} />
+      <SignUpForm referral={referral} next={next} />
     </AuthShell>
   );
 }

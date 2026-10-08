@@ -8,12 +8,13 @@ import { SubmitButton } from "@/components/ui/submit-button";
 import { Notice } from "@/components/ui/notice";
 import { LegalNote } from "@/components/legal-note";
 
-export function SignInForm({ next }: { next?: string }) {
+export function SignInForm({ next, referral }: { next?: string; referral?: string }) {
   const [state, action] = useActionState(signIn, null);
   const fe = state && !state.ok ? state.fieldErrors : undefined;
   return (
     <form action={action} className="space-y-5" noValidate>
       <input type="hidden" name="suite" value={next ?? ""} />
+      {referral && <input type="hidden" name="ref" value={referral} />}
       <Field label="Adresse e-mail professionnelle" name="email" error={fe?.email} required>
         {(p) => <Input {...p} type="email" autoComplete="email" inputMode="email" />}
       </Field>
@@ -34,13 +35,14 @@ export function SignInForm({ next }: { next?: string }) {
   );
 }
 
-export function SignUpForm({ referral }: { referral?: string }) {
+export function SignUpForm({ referral, next }: { referral?: string; next?: string }) {
   const [state, action] = useActionState(signUp, null);
   const fe = state && !state.ok ? state.fieldErrors : undefined;
   if (state?.ok) return <Notice tone="success" title="Vérifiez votre boîte mail">{state.message}</Notice>;
   return (
     <form action={action} className="space-y-5" noValidate>
       {referral && <input type="hidden" name="ref" value={referral} />}
+      {next && <input type="hidden" name="suite" value={next} />}
       <Field label="Nom et prénom" name="fullName" error={fe?.fullName} required>
         {(p) => <Input {...p} autoComplete="name" maxLength={120} />}
       </Field>

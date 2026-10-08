@@ -8,6 +8,13 @@ export const metadata = pageMetadata({ title: "Politique cookies", description: 
 const ITEMS = [
   { name: "sb-…-auth-token", kind: "Cookie", category: "Strictement nécessaire", purpose: "Session de connexion sécurisée (Supabase)", duration: "Durée de la session de connexion" },
   { name: "lp_company", kind: "Cookie", category: "Strictement nécessaire", purpose: "Mémorise l'entreprise active quand vous en gérez plusieurs", duration: "Session du navigateur" },
+  {
+    name: "lp_prospection",
+    kind: "Cookie",
+    category: "Strictement nécessaire",
+    purpose: "Uniquement après un clic dans une sélection d'opportunités reçue par e-mail : retrouver l'offre demandée et la page d'accès, puis l'ouvrir après inscription ou connexion",
+    duration: "30 jours",
+  },
   { name: "lp-visite, lp-visite-ref", kind: "Stockage de session (onglet)", category: "Mesure d'audience exemptée", purpose: "Identifiant aléatoire reliant les pages d'une même visite, sans donnée personnelle", duration: "Effacé à la fermeture de l'onglet" },
   { name: "__stripe_mid, __stripe_sid…", kind: "Cookies de Stripe", category: "Strictement nécessaire (paiement)", purpose: "Sécurité et prévention de la fraude, déposés uniquement sur les pages de paiement de Stripe (checkout.stripe.com)", duration: "Selon Stripe" },
 ];

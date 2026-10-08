@@ -11,6 +11,8 @@ export const metadata = pageMetadata({ title: "Connexion", description: "Connect
 export default async function LoginPage(props: PageProps<"/connexion">) {
   const sp = await props.searchParams;
   const next = typeof sp.suite === "string" ? sp.suite : undefined;
+  // Provenance (page d'accès d'une offre, e-mail de prospection) : jeton signé vérifié côté serveur
+  const referral = typeof sp.ref === "string" && /^o\.[A-Za-z0-9_.-]{20,60}$/.test(sp.ref) ? sp.ref : undefined;
   if (await getSession()) redirect(next?.startsWith("/") && !next.startsWith("//") ? next : "/dashboard");
   return (
     <AuthShell
@@ -18,7 +20,10 @@ export default async function LoginPage(props: PageProps<"/connexion">) {
       subtitle={
         <>
           Pas encore de compte ?{" "}
-          <Link href={`/inscription${next ? `?suite=${encodeURIComponent(next)}` : ""}`} className="font-semibold text-teal-700 hover:underline">
+          <Link
+            href={`/inscription${next ? `?${new URLSearchParams({ suite: next, ...(referral ? { ref: referral } : {}) })}` : ""}`}
+            className="font-semibold text-teal-700 hover:underline"
+          >
             Créer un compte gratuit
           </Link>
         </>
@@ -33,7 +38,7 @@ export default async function LoginPage(props: PageProps<"/connexion">) {
           .
         </Notice>
       )}
-      <SignInForm next={next} />
+      <SignInForm next={next} referral={referral} />
     </AuthShell>
   );
 }

@@ -21,7 +21,7 @@ export default async function OutreachOverview() {
     supabase.from("outreach_settings").select("*").eq("id", true).maybeSingle(),
     supabase.from("outreach_campaigns").select("id, campaign_date, status, dry_run, stats").order("campaign_date", { ascending: false }).limit(8),
     supabase.from("outreach_recipients").select("sent_at, status").in("status", ["SENT", "SIMULATED"]).gte("sent_at", since.toISOString()).limit(50_000),
-    supabase.from("outreach_events").select("type, created_at, opportunity_id, recipient_id").gte("created_at", since.toISOString()).in("type", ["PREPARED", "SENT", "SIMULATED", "OPEN", "CLICK", "LANDING_VIEW", "OPPORTUNITY_VIEW", "SIGNUP", "CONVERSION"]).limit(100_000),
+    supabase.from("outreach_events").select("type, created_at, opportunity_id, recipient_id").gte("created_at", since.toISOString()).in("type", ["PREPARED", "SENT", "SIMULATED", "OPEN", "CLICK", "LANDING_VIEW", "OPPORTUNITY_VIEW", "GATE_VIEW", "GATE_SIGNUP_CLICK", "SIGNUP", "LOGIN", "OFFER_ACCESS", "CONVERSION"]).limit(100_000),
     supabase.from("outreach_prospects").select("id", { count: "exact", head: true }),
     supabase.from("outreach_prospects").select("id", { count: "exact", head: true }).not("email", "is", null).eq("status", "ACTIVE"),
     supabase.from("outreach_suppressions").select("id", { count: "exact", head: true }),
@@ -51,13 +51,18 @@ export default async function OutreachOverview() {
     { label: "Ouverts (indicatif)", value: uniq("OPEN") },
     { label: "Cliqués", value: uniq("CLICK") },
     { label: "Sélection consultée", value: uniq("LANDING_VIEW") },
-    { label: "Opportunité consultée", value: uniq("OPPORTUNITY_VIEW") },
+    { label: "Page d'accès à l'offre", value: uniq("GATE_VIEW") },
+    { label: "Clic « Créer mon compte »", value: uniq("GATE_SIGNUP_CLICK") },
     { label: "Inscriptions", value: uniq("SIGNUP") },
+    { label: "Connexions (déjà inscrits)", value: uniq("LOGIN") },
+    { label: "Accès à l'offre", value: uniq("OFFER_ACCESS") },
     { label: "Conversions", value: uniq("CONVERSION") },
   ];
+  const step = (label: string) => funnel.find((f) => f.label === label)?.value ?? 0;
   // Opportunités qui suscitent le plus d'intérêt
   const views = new Map<string, number>();
-  for (const e of ev) if (e.type === "OPPORTUNITY_VIEW" && e.opportunity_id) views.set(e.opportunity_id, (views.get(e.opportunity_id) ?? 0) + 1);
+  // Clic sur une offre depuis l'e-mail (ou, avant le parcours avec compte, consultation directe)
+  for (const e of ev) if ((e.type === "CLICK" || e.type === "OPPORTUNITY_VIEW") && e.opportunity_id) views.set(e.opportunity_id, (views.get(e.opportunity_id) ?? 0) + 1);
   const topIds = [...views.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8);
   const { data: topOpps } = topIds.length ? await supabase.from("opportunities").select("id, title").in("id", topIds.map(([id]) => id)) : { data: [] };
   const sentTotal = funnel[1].value;
@@ -122,7 +127,7 @@ export default async function OutreachOverview() {
       <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <Panel
           title="Parcours de conversion"
-          description={`30 derniers jours · taux de clic ${pct(funnel[3].value, sentTotal)} · taux d'inscription ${pct(funnel[6].value, sentTotal)}`}
+          description={`30 derniers jours · taux de clic ${pct(step("Cliqués"), sentTotal)} · taux d'inscription ${pct(step("Inscriptions"), sentTotal)} · accès à l'offre ${pct(step("Accès à l'offre"), sentTotal)}`}
         >
           <Funnel steps={funnel} />
           <p className="mt-4 text-xs text-slate-500">Entreprises distinctes à chaque étape. Les ouvertures sont indicatives (images souvent bloquées par les messageries).</p>

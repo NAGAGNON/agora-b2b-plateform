@@ -85,7 +85,7 @@ async function deliver(to: string, userId: string | null, template: string, subj
 export type SignupEmailResult = { ok: true } | { ok: false; reason: "exists" | "weak_password" | "send_failed" | "error" };
 
 /** Crée le compte (non confirmé) et envoie l'e-mail de confirmation. */
-export async function signUpWithEmail(input: { email: string; password: string; data: Record<string, string> }): Promise<SignupEmailResult> {
+export async function signUpWithEmail(input: { email: string; password: string; data: Record<string, string>; next?: string }): Promise<SignupEmailResult> {
   const admin = createAdminClient();
   const { data, error } = await admin.auth.admin.generateLink({
     type: "signup",
@@ -99,7 +99,7 @@ export async function signUpWithEmail(input: { email: string; password: string; 
     logServerError("generateLink signup", error);
     return { ok: false, reason: "error" };
   }
-  const url = confirmationUrl(data.properties.hashed_token, "signup", "/onboarding/entreprise");
+  const url = confirmationUrl(data.properties.hashed_token, "signup", input.next ?? "/onboarding/entreprise");
   const r = await deliver(input.email, data.user?.id ?? null, "auth_confirm_signup", AUTH_SUBJECTS.signup, signupLayout(url));
   if (r.status !== "SENT") {
     // Sans e-mail, le compte serait inutilisable : on le supprime pour permettre une nouvelle tentative.

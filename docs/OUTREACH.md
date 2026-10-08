@@ -45,6 +45,26 @@ Chaque passe suivante (environ 5 minutes) :
 - envoie aussitôt les e-mails devenus possibles (fonctionnement automatique : sans validation manuelle),
   dans la limite d'envois quotidienne. Les e-mails au-delà de cette limite partent les jours suivants.
 
+## Accès aux offres depuis les e-mails : compte obligatoire (règle produit)
+
+L'e-mail et la sélection personnalisée montrent ce qu'il faut pour donner envie de cliquer (intitulé, acheteur,
+lieu, date limite, résumé, source). Le détail complet de l'offre et le lien vers sa source sont réservés aux inscrits :
+
+```
+E-MAIL → clic (/api/outreach/c/<jeton>?o=<offre>, cookie « lp_prospection » signé, 30 j)
+      → /opportunites/<offre> : visiteur non connecté = page d'accès « Créez votre compte pour accéder à cette offre »
+      → « Créer mon compte » / « Se connecter » (/api/outreach/acces/<jeton>) → /inscription|/connexion ?suite=<offre>&ref=o.<jeton>
+      → inscription : adresse qui a reçu l'e-mail = compte activé + connecté immédiatement ; autre adresse = lien de
+        confirmation qui connecte et ouvre l'offre
+      → /opportunites/<offre> (détail complet)
+```
+
+- Contrôle **côté serveur** : la page de l'offre ne sert pas le détail (ni la source via `/go/<offre>`) à un visiteur non
+  connecté porteur du cookie du parcours, quelle que soit l'URL tapée. Les visiteurs venus d'ailleurs (moteurs de
+  recherche, navigation sur le site) gardent l'accès public habituel : le référencement des offres n'est pas affecté.
+- Suivi (`outreach_events`, première date sur le destinataire) : `CLICK` → `GATE_VIEW` → `GATE_SIGNUP_CLICK`
+  (ou `GATE_LOGIN_CLICK`) → `SIGNUP` (ou `LOGIN`) → `OFFER_ACCESS` → `CONVERSION`. Entonnoir : Outreach → Vue d'ensemble.
+
 ## Origine des adresses e-mail
 
 Outreach n'invente aucune adresse. Une entreprise devient contactable de trois façons :
