@@ -141,7 +141,11 @@ describe("Outreach — recherche des adresses", () => {
   });
 
   it("rapport lisible des résultats", () => {
-    expect(enrichmentReport({ searched: 10, found: 4, no_website: 3, no_email: 2, blocked: 1, errors: 0, skipped: null })).toBe(
+    const base = { searched: 0, found: 0, no_website: 0, no_email: 0, blocked: 0, errors: 0, skipped: null, limit_reached: false, already_searched: 0 };
+    expect(enrichmentReport({ ...base, limit_reached: true })).toContain("limite quotidienne atteinte");
+    expect(enrichmentReport({ ...base, already_searched: 189 })).toContain("les 189 entreprise(s) sans e-mail de cette campagne ont déjà été recherchées");
+    expect(enrichmentReport({ ...base })).toBe("Recherche d'adresses e-mail : aucune entreprise sans e-mail à rechercher.");
+    expect(enrichmentReport({ ...base, searched: 10, found: 4, no_website: 3, no_email: 2, blocked: 1, errors: 0 })).toBe(
       "Recherche d'adresses e-mail : 10 entreprise(s) recherchée(s), 4 adresse(s) trouvée(s) ; 3 sans site identifié, 2 sans adresse générique publiée, 1 site(s) refusant l'exploration, 0 erreur(s).",
     );
   });

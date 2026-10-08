@@ -1,3 +1,4 @@
+import { PREVIEW_SANDBOX, previewHtml } from "@/lib/email-preview";
 import { requireAdmin } from "@/lib/auth";
 import { env } from "@/lib/env";
 import { emailCatalog } from "@/lib/email/catalog";
@@ -36,7 +37,7 @@ export default async function AdminEmailsPage() {
                 <p className="text-xs text-slate-500">Déclencheur : {e.trigger}</p>
                 <p className="text-sm text-slate-700">Objet : {e.subject}</p>
               </div>
-              <iframe title={`Aperçu : ${e.label}`} srcDoc={html} sandbox="" className="h-96 w-full border-0 bg-sky" />
+              <iframe title={`Aperçu : ${e.label}`} srcDoc={previewHtml(html)} sandbox={PREVIEW_SANDBOX} className="h-96 w-full border-0 bg-sky" />
             </li>
           );
         })}

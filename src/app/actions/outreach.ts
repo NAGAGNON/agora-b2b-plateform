@@ -44,7 +44,7 @@ const settingsSchema = z.object({
   discovery_enabled: bool,
   include_individual_entrepreneurs: bool,
   enrichment_enabled: bool,
-  enrichment_daily_limit: z.coerce.number().int().min(0).max(5000),
+  enrichment_daily_limit: z.coerce.number().int().min(0).max(50000),
   sender_name: z.string().trim().min(2).max(120),
   reply_to: z.union([z.literal(""), z.email({ error: "Adresse de réponse invalide" })]),
   subject_template: z.string().trim().min(5).max(200),

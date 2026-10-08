@@ -90,7 +90,7 @@ export async function syncOpportunityStates(db: Db, settings: OutreachSettings) 
 }
 
 /** 4. Découverte d'entreprises (API publique), limitée et mise en cache 30 jours par couple NAF × département. */
-export async function discoverProspects(db: Db, analyses: OpportunityAnalysis[], deadline: number, maxCalls = 25) {
+export async function discoverProspects(db: Db, analyses: OpportunityAnalysis[], deadline: number, maxCalls = 60) {
   const pairs: [string, string][] = [];
   for (const a of analyses) {
     if (!a.department) continue;
@@ -396,11 +396,25 @@ export async function processSendQueue(db: Db, { deadline = Date.now() + 60_000 
 export async function enrichProspects(db: Db, { campaignId = null, deadline = Date.now() + 60_000 }: { campaignId?: string | null; deadline?: number } = {}) {
   const settings = await loadSettings(db);
   const searchers = configuredSearchers();
-  const result = { searched: 0, found: 0, no_website: 0, no_email: 0, blocked: 0, errors: 0, skipped: searchers.length === 0 ? "Aucune clé BRAVE_SEARCH_API_KEY ni DROPCONTACT_API_KEY" : null as string | null };
+  const result = {
+    searched: 0,
+    found: 0,
+    no_website: 0,
+    no_email: 0,
+    blocked: 0,
+    errors: 0,
+    skipped: searchers.length === 0 ? "Aucune clé BRAVE_SEARCH_API_KEY ni DROPCONTACT_API_KEY" : null as string | null,
+    limit_reached: false,
+    already_searched: 0,
+  };
   if (!settings.enrichment_enabled || searchers.length === 0) return result;
   const { count: today } = await db.from("outreach_prospects").select("id", { count: "exact", head: true }).gte("enriched_at", `${today_()}T00:00:00Z`);
   const budget = Math.max(0, settings.enrichment_daily_limit - (today ?? 0));
-  if (!budget) return result;
+  if (!budget) return { ...result, limit_reached: true };
+  // Nouvelle tentative pour les entreprises sans adresse trouvée, après un délai (sites mis à jour entre-temps)
+  const retryBefore = new Date(Date.now() - ENRICH_RETRY_DAYS * DAY).toISOString();
+  const searchable = (p: { enrichment_status: string; enriched_at: string | null }) =>
+    p.enrichment_status === "PENDING" || p.enrichment_status === "ERROR" || (["NO_WEBSITE", "NO_EMAIL", "BLOCKED"].includes(p.enrichment_status) && (!p.enriched_at || p.enriched_at < retryBefore));
   // Priorité : entreprises de la campagne sans e-mail, puis les autres
   const ids: string[] = [];
   if (campaignId) {
@@ -409,15 +423,16 @@ export async function enrichProspects(db: Db, { campaignId = null, deadline = Da
   }
   const { data: rows } = await db
     .from("outreach_prospects")
-    .select("id, name, city, siren, website, enrichment_status")
+    .select("id, name, city, siren, website, enrichment_status, enriched_at")
     .in("id", ids.length ? ids : ["00000000-0000-0000-0000-000000000000"])
     .is("email", null)
     .eq("status", "ACTIVE");
-  const queue = (rows ?? []).filter((p) => p.enrichment_status === "PENDING" || p.enrichment_status === "ERROR");
+  const queue = (rows ?? []).filter(searchable);
+  result.already_searched = (rows ?? []).length - queue.length;
   if (queue.length < budget) {
     const { data: more } = await db
       .from("outreach_prospects")
-      .select("id, name, city, siren, website, enrichment_status")
+      .select("id, name, city, siren, website, enrichment_status, enriched_at")
       .is("email", null)
       .eq("status", "ACTIVE")
       .eq("enrichment_status", "PENDING")
@@ -461,12 +476,19 @@ export async function enrichProspects(db: Db, { campaignId = null, deadline = Da
   return result;
 }
 
-const ENRICH_CONCURRENCY = 6;
+// Recherches simultanées (chaque recherche attend surtout le réseau) : plus d'entreprises par passage
+const ENRICH_CONCURRENCY = 10;
+/** Délai avant une nouvelle recherche d'adresse pour une entreprise sans résultat. */
+const ENRICH_RETRY_DAYS = 30;
 
 /** Ligne de rapport de la recherche d'adresses (ajoutée au rapport de la campagne). */
 export function enrichmentReport(r: Awaited<ReturnType<typeof enrichProspects>>): string {
   if (r.skipped) return `Recherche d'adresses e-mail : non lancée (${r.skipped}).`;
-  if (!r.searched) return "Recherche d'adresses e-mail : aucune entreprise à traiter (limite quotidienne atteinte ou toutes déjà recherchées).";
+  if (r.limit_reached) return "Recherche d'adresses e-mail : limite quotidienne atteinte (Outreach → Paramètres pour l'augmenter).";
+  if (!r.searched)
+    return r.already_searched
+      ? `Recherche d'adresses e-mail : les ${r.already_searched} entreprise(s) sans e-mail de cette campagne ont déjà été recherchées (site introuvable ou aucune adresse générique publiée) ; nouvelle tentative automatique après ${ENRICH_RETRY_DAYS} jours.`
+      : "Recherche d'adresses e-mail : aucune entreprise sans e-mail à rechercher.";
   return `Recherche d'adresses e-mail : ${r.searched} entreprise(s) recherchée(s), ${r.found} adresse(s) trouvée(s) ; ${r.no_website} sans site identifié, ${r.no_email} sans adresse générique publiée, ${r.blocked} site(s) refusant l'exploration, ${r.errors} erreur(s).`;
 }
 

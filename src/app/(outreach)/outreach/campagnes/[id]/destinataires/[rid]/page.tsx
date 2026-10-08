@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { formatDate, formatDateTime, isUuid } from "@/lib/format";
 import { buildEmail, loadRecipientBundles, loadReferentials } from "@/lib/outreach/data";
 import { fillTemplate } from "@/lib/outreach/email";
+import { PREVIEW_SANDBOX, previewHtml } from "@/lib/email-preview";
 import { templateVars } from "@/lib/outreach/data";
 import { PageHead, Panel, RECIPIENT_STATUS, ScoreBadge, StatusBadge } from "@/components/outreach/ui";
 import { OpportunityToggle, RecipientTextEditor, RecipientToggle } from "@/components/outreach/campaign-controls";
@@ -23,6 +24,11 @@ export default async function RecipientPage(props: PageProps<"/outreach/campagne
   const { data: events } = await supabase.from("outreach_events").select("type, created_at, opportunity_id").eq("recipient_id", rid).order("created_at");
   const ref = await loadReferentials(supabase);
   const email = buildEmail(bundle, ref, { withPixel: false });
+  // Aperçu : liens directs (non suivis) vers la sélection et les offres, ouverts dans un nouvel onglet ;
+  // un clic de vérification n'est donc jamais compté comme un clic du destinataire.
+  const tracked = email.urls.landingTracked;
+  const site = email.urls.landing.slice(0, email.urls.landing.indexOf("/opportunites/selection/"));
+  const previewEmailHtml = previewHtml(email.html.split(`${tracked}?o=`).join(`${site}/opportunites/`).split(tracked).join(`${email.urls.landing}?apercu=1`));
   const editable = campaign?.status === "READY";
   const kept = bundle.opportunities.filter((o) => !o.excluded);
   const vars = templateVars(bundle, ref, kept);
@@ -63,7 +69,7 @@ export default async function RecipientPage(props: PageProps<"/outreach/campagne
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_26rem]">
         <Panel title="Aperçu de l'e-mail" description={<>Objet : <strong className="text-navy">{email.subject}</strong></>}>
-          <iframe title="Aperçu de l'e-mail" srcDoc={email.html} sandbox="" className="h-[78rem] w-full rounded-lg border border-slate-200 bg-sky" />
+          <iframe title="Aperçu de l'e-mail" srcDoc={previewEmailHtml} sandbox={PREVIEW_SANDBOX} className="h-[78rem] w-full rounded-lg border border-slate-200 bg-sky" />
         </Panel>
         <div className="space-y-6">
           <Panel title="Pourquoi cette entreprise ?">
