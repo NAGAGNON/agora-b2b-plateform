@@ -14,48 +14,8 @@
       "schedule": "0 7 * * *"
     },
     {
-      "path": "/api/cron/outreach-contacts?tour=1",
-      "schedule": "20 8 * * *"
-    },
-    {
-      "path": "/api/cron/outreach-contacts?tour=2",
-      "schedule": "20 9 * * *"
-    },
-    {
-      "path": "/api/cron/outreach-contacts?tour=3",
-      "schedule": "20 10 * * *"
-    },
-    {
-      "path": "/api/cron/outreach-contacts?tour=4",
-      "schedule": "20 11 * * *"
-    },
-    {
-      "path": "/api/cron/outreach-contacts?tour=5",
+      "path": "/api/cron/outreach-contacts",
       "schedule": "20 12 * * *"
-    },
-    {
-      "path": "/api/cron/outreach-contacts?tour=6",
-      "schedule": "20 13 * * *"
-    },
-    {
-      "path": "/api/cron/outreach-contacts?tour=7",
-      "schedule": "20 14 * * *"
-    },
-    {
-      "path": "/api/cron/outreach-contacts?tour=8",
-      "schedule": "20 15 * * *"
-    },
-    {
-      "path": "/api/cron/outreach-contacts?tour=9",
-      "schedule": "20 16 * * *"
-    },
-    {
-      "path": "/api/cron/outreach-contacts?tour=10",
-      "schedule": "20 17 * * *"
-    },
-    {
-      "path": "/api/cron/outreach-contacts?tour=11",
-      "schedule": "20 18 * * *"
     }
   ]
 }
