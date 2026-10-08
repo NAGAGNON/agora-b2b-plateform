@@ -3,17 +3,50 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/errors";
 import { verifyRecipientToken } from "@/lib/outreach/token";
 
-export type TrackType = "OPEN" | "CLICK" | "LANDING_VIEW" | "OPPORTUNITY_VIEW" | "SIGNUP" | "CONVERSION" | "UNSUBSCRIBE";
+export type TrackType =
+  | "OPEN"
+  | "CLICK"
+  | "LANDING_VIEW"
+  | "OPPORTUNITY_VIEW"
+  | "GATE_VIEW"
+  | "GATE_SIGNUP_CLICK"
+  | "GATE_LOGIN_CLICK"
+  | "SIGNUP"
+  | "LOGIN"
+  | "OFFER_ACCESS"
+  | "CONVERSION"
+  | "UNSUBSCRIBE";
 
-const FIRST_AT: Record<TrackType, "opened_at" | "clicked_at" | "landing_viewed_at" | "opportunity_viewed_at" | "signed_up_at" | "converted_at" | "unsubscribed_at"> = {
+/** Colonne « première fois » de chaque étape sur le destinataire (entonnoir par entreprise). */
+const FIRST_AT = {
   OPEN: "opened_at",
   CLICK: "clicked_at",
   LANDING_VIEW: "landing_viewed_at",
   OPPORTUNITY_VIEW: "opportunity_viewed_at",
+  GATE_VIEW: "gate_viewed_at",
+  GATE_SIGNUP_CLICK: "signup_clicked_at",
+  GATE_LOGIN_CLICK: "login_clicked_at",
   SIGNUP: "signed_up_at",
+  LOGIN: "logged_in_at",
+  OFFER_ACCESS: "offer_accessed_at",
   CONVERSION: "converted_at",
   UNSUBSCRIBE: "unsubscribed_at",
-};
+} as const satisfies Record<TrackType, string>;
+
+/**
+ * Cookie du parcours « e-mail de prospection » : posé au clic depuis l'e-mail (jeton signé
+ * du destinataire). Tant que le visiteur n'est pas connecté, les offres lui sont présentées
+ * derrière la page d'accès « Créez votre compte » (contrôle côté serveur).
+ */
+export const OUTREACH_COOKIE = "lp_prospection";
+export const OUTREACH_COOKIE_MAX_AGE = 60 * 60 * 24 * 30;
+
+/** Destinataire du parcours en cours (cookie signé), ou null. */
+export async function outreachVisitor(cookieValue: string | undefined) {
+  if (!cookieValue) return null;
+  const r = await recipientFromToken(cookieValue);
+  return r ? { ...r, token: cookieValue } : null;
+}
 
 /** Destinataire correspondant à un jeton signé (null si le jeton est invalide ou inconnu). */
 export async function recipientFromToken(token: string) {
@@ -37,7 +70,7 @@ export async function track(recipient: { id: string; campaign_id: string; prospe
     await db.from("outreach_recipients").update({ [col]: now, updated_at: now } as { opened_at: string; updated_at: string }).eq("id", recipient.id).is(col, null);
     // Un clic ou une visite vaut aussi ouverture (images souvent bloquées par les messageries).
     if (type !== "OPEN" && type !== "UNSUBSCRIBE") await db.from("outreach_recipients").update({ opened_at: now }).eq("id", recipient.id).is("opened_at", null);
-    if (type === "CLICK" || type === "OPPORTUNITY_VIEW" || type === "LANDING_VIEW") {
+    if (type === "CLICK" || type === "OPPORTUNITY_VIEW" || type === "LANDING_VIEW" || type === "GATE_VIEW") {
       await db.from("outreach_prospects").update({ last_clicked_at: now }).eq("id", recipient.prospect_id);
     }
   } catch (e) {
@@ -45,14 +78,24 @@ export async function track(recipient: { id: string; campaign_id: string; prospe
   }
 }
 
+/** Destinataire désigné par le paramètre « ref=o.<jeton> » (inscription / connexion depuis le parcours). */
+export async function recipientFromReferral(ref: FormDataEntryValue | null) {
+  if (typeof ref !== "string" || !ref.startsWith("o.")) return null;
+  return recipientFromToken(ref.slice(2));
+}
+
 /** Inscription LinkProB2B arrivée depuis une sélection Outreach (paramètre « ref=o.<jeton> »). */
 export async function trackSignupReferral(ref: FormDataEntryValue | null, userId: string | null) {
-  if (typeof ref !== "string" || !ref.startsWith("o.")) return;
+  await trackReferral(ref, "SIGNUP", userId);
+}
+
+/** Étape du parcours rattachée au paramètre « ref » (inscription, connexion). Jamais bloquant. */
+export async function trackReferral(ref: FormDataEntryValue | null, type: "SIGNUP" | "LOGIN", userId: string | null) {
   try {
-    const r = await recipientFromToken(ref.slice(2));
-    if (r) await track(r, "SIGNUP", { userId: userId ?? undefined });
+    const r = await recipientFromReferral(ref);
+    if (r) await track(r, type, { userId: userId ?? undefined });
   } catch (e) {
-    logServerError("outreach signup", e);
+    logServerError(`outreach ${type.toLowerCase()}`, e);
   }
 }
 

@@ -35,6 +35,9 @@ import { DemoBadge } from "@/components/demo";
 import { CompanyLogo } from "@/components/companies/company-card";
 import { buttonClasses } from "@/components/ui/button";
 import { getOpportunityDetail } from "@/lib/queries/opportunities";
+import { cookies, headers } from "next/headers";
+import { OfferAccessGate } from "@/components/opportunities/offer-access-gate";
+import { OUTREACH_COOKIE, outreachVisitor, track as trackOutreach } from "@/lib/outreach/tracking";
 import { getSectorLabels, showDemoData, getLocationLabel } from "@/lib/queries/platform";
 import { getSession } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -52,6 +55,10 @@ export async function generateMetadata(props: PageProps<"/opportunites/[id]">): 
   }
   const o = await getOpportunityDetail(id);
   if (!o) return { title: "Opportunité introuvable", robots: { index: false } };
+  // Page d'accès (parcours e-mail de prospection, sans compte) : aucun extrait du détail dans l'en-tête
+  if (!(await getSession()) && (await outreachVisitor((await cookies()).get(OUTREACH_COOKIE)?.value))) {
+    return { title: clip(o.title, 60), robots: { index: false, follow: false } };
+  }
   const indexable = o.status === "PUBLISHED" && o.visibility === "PUBLIC" && !o.is_demo;
   const location = (await getLocationLabel())(o.city, o.department_code);
   const details = [
@@ -81,6 +88,32 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
   const o = await getOpportunityDetail(id);
   if (!o || (o.is_demo && !(await showDemoData()))) notFound();
   const session = await getSession();
+  // Parcours « e-mail de prospection » : sans compte, le détail de l'offre n'est pas servi
+  // (page d'accès « Créez votre compte »), quelle que soit l'URL utilisée pour arriver ici.
+  const visitor = await outreachVisitor((await cookies()).get(OUTREACH_COOKIE)?.value);
+  if (visitor) {
+    const h = await headers();
+    const prefetch = Boolean(h.get("next-router-prefetch")) || h.get("purpose") === "prefetch";
+    if (!session) {
+      if (!prefetch) await trackOutreach(visitor, "GATE_VIEW", { opportunityId: o.id });
+      const location = (await getLocationLabel())(o.city, o.department_code);
+      return (
+        <OfferAccessGate
+          token={visitor.token}
+          offer={{
+            id: o.id,
+            title: o.title,
+            buyer: o.origin === "EXTERNAL" ? o.external_buyer_name : null,
+            location,
+            sector: o.sector_slug ? sectorLabel(o.sector_slug, await getSectorLabels()) : null,
+            deadline: o.response_deadline,
+            budget: o.budget_visible ? formatBudget(o.budget_min, o.budget_max) : null,
+          }}
+        />
+      );
+    }
+    if (!prefetch) await trackOutreach(visitor, "OFFER_ACCESS", { opportunityId: o.id, userId: session.userId });
+  }
   const supabase = await createClient();
   void track("view_opportunity", { opportunity_id: o.id, origin: o.origin, type: o.type });
 

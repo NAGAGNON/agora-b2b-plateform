@@ -30,6 +30,8 @@ test.beforeAll(async () => {
 });
 
 test.afterAll(async () => {
+  const { data: users } = await db.auth.admin.listUsers({ perPage: 1000 });
+  for (const u of users?.users ?? []) if (u.email === `e2e-${RUN}@example.test`) await db.auth.admin.deleteUser(u.id);
   await db.from("outreach_campaigns").delete().eq("id", campaignId);
   await db.from("outreach_prospects").delete().like("name", `${T}%`);
   await db.from("outreach_suppressions").delete().eq("value", `e2e-${RUN}@example.test`);
@@ -63,6 +65,57 @@ test("tableau de bord, prévisualisation de campagne et paramètres", async ({ b
   await expect(page.getByLabel("Score minimum (/100)")).toHaveValue(/\d+/);
   await page.goto("/outreach/prospects");
   await expect(page.getByRole("heading", { name: "Entreprises", level: 1 })).toBeVisible();
+});
+
+const steps = async () => {
+  const { data } = await db.from("outreach_events").select("type").eq("campaign_id", campaignId);
+  return new Set((data ?? []).map((e) => e.type));
+};
+
+test("offre depuis l'e-mail : compte obligatoire (serveur), inscription puis accès direct à l'offre", async ({ browser }) => {
+  const page = await newPage(browser);
+  // Clic depuis l'e-mail → page d'accès, sans le détail de l'offre
+  await page.goto(`/api/outreach/c/${token}?o=${oppId}`);
+  await expect(page).toHaveURL(new RegExp(`/opportunites/${oppId}`));
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Créez votre compte pour accéder à cette offre");
+  await expect(page.getByText("Cette offre vous a été recommandée personnellement. Créez votre compte gratuitement pour voir les détails et accéder à l'offre.")).toBeVisible();
+  await expect(page.getByText(`${T} Travaux d'installation électrique`)).toBeVisible();
+  await expect(page.getByText("Remplacement des tableaux électriques")).toHaveCount(0);
+  // Contrôle côté serveur : le HTML ne contient pas le détail, même en tapant l'URL ; la source est bloquée aussi
+  const html = await (await page.request.get(`/opportunites/${oppId}`)).text();
+  expect(html).not.toContain("Remplacement des tableaux électriques");
+  await page.goto(`/go/${oppId}`);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Créez votre compte pour accéder à cette offre");
+
+  // « Créer mon compte » → inscription rapide avec l'adresse qui a reçu l'e-mail → offre ouverte directement
+  await page.getByRole("link", { name: "Créer mon compte" }).click();
+  await expect(page).toHaveURL(/\/inscription\?/);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Créez votre compte pour accéder à cette offre");
+  await page.getByLabel("Nom et prénom").fill("Prospect E2E");
+  await page.getByLabel("Adresse e-mail professionnelle").fill(`e2e-${RUN}@example.test`);
+  await page.getByLabel("Mot de passe").fill("Prospect-E2E-2026");
+  await page.getByRole("checkbox", { name: /Conditions Générales/ }).check();
+  await page.getByRole("button", { name: "Créer mon compte" }).click();
+  await expect(page).toHaveURL(new RegExp(`/opportunites/${oppId}$`));
+  await expect(page.getByText("Remplacement des tableaux électriques").first()).toBeVisible();
+  await expect.poll(steps).toEqual(new Set(["CLICK", "GATE_VIEW", "GATE_SIGNUP_CLICK", "SIGNUP", "OFFER_ACCESS"]));
+
+  // Déconnecté, même navigateur : l'URL directe reste protégée ; « Se connecter » ramène à l'offre
+  await page.context().clearCookies({ name: /^sb-/ });
+  await page.goto(`/opportunites/${oppId}`);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Créez votre compte pour accéder à cette offre");
+  await page.getByRole("link", { name: "Se connecter" }).click();
+  await page.getByLabel("Adresse e-mail professionnelle").fill(`e2e-${RUN}@example.test`);
+  await page.getByLabel("Mot de passe").fill("Prospect-E2E-2026");
+  await page.getByRole("button", { name: "Se connecter" }).click();
+  await expect(page).toHaveURL(new RegExp(`/opportunites/${oppId}$`));
+  await expect(page.getByText("Remplacement des tableaux électriques").first()).toBeVisible();
+  await expect.poll(async () => (await steps()).has("LOGIN")).toBe(true);
+
+  // Visiteur venu d'ailleurs (sans le parcours e-mail) : fiche publique inchangée (référencement)
+  const other = await newPage(browser);
+  await other.goto(`/opportunites/${oppId}`);
+  await expect(other.getByText("Remplacement des tableaux électriques").first()).toBeVisible();
 });
 
 test("landing page personnalisée puis désinscription", async ({ browser }) => {

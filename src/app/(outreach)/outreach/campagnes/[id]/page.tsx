@@ -106,7 +106,9 @@ export default async function CampaignPage(props: PageProps<"/outreach/campagnes
         <Stat label="E-mails préparés" value={l.prepared ?? 0} hint={l.no_email ? `${fmtN(l.no_email)} sans e-mail` : undefined} />
         <Stat label="Envoyés" value={l.sent ?? 0} hint={l.simulated ? `${fmtN(l.simulated)} simulé(s)` : undefined} tone="accent" />
         <Stat label="Clics" value={l.clicked ?? 0} hint={sentish ? pct(l.clicked ?? 0, sentish) : undefined} />
-        <Stat label="Inscriptions" value={l.signups ?? 0} hint={l.conversions ? `${fmtN(l.conversions)} conversion(s)` : undefined} />
+        <Stat label="Page d'accès à l'offre" value={l.gate_views ?? 0} hint={l.signup_clicks ? `${fmtN(l.signup_clicks)} clic(s) « Créer mon compte »` : undefined} />
+        <Stat label="Inscriptions" value={l.signups ?? 0} hint={l.conversions ? `${fmtN(l.conversions)} conversion(s)` : l.logins ? `+ ${fmtN(l.logins)} connexion(s)` : undefined} />
+        <Stat label="Accès à l'offre" value={l.offer_access ?? 0} hint="Après inscription ou connexion" tone="accent" />
       </div>
 
       {c.report && (

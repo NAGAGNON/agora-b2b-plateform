@@ -13,6 +13,7 @@ import { loadSettings, type OutreachSettings } from "@/lib/outreach/data";
 import { recipientToken } from "@/lib/outreach/token";
 import { trackSignupReferral } from "@/lib/outreach/tracking";
 import { GET as click } from "@/app/api/outreach/c/[token]/route";
+import { GET as access } from "@/app/api/outreach/acces/[token]/route";
 import { GET as pixel } from "@/app/api/outreach/o/[token]/route";
 import { POST as oneClick } from "@/app/api/outreach/unsubscribe/[token]/route";
 
@@ -175,6 +176,8 @@ describe("Outreach — envoi simulé et suivi", () => {
     await pixel(new Request("http://x"), ctx(t));
     const ok = await click(new Request(`http://x?o=${O.elec1}`), ctx(t));
     expect(ok.headers.get("location")).toContain(`/opportunites/${O.elec1}`);
+    // Cookie du parcours (jeton signé, httpOnly) : la fiche sera servie derrière la page d'accès
+    expect(ok.headers.get("set-cookie")).toMatch(new RegExp(`lp_prospection=${t.replace(/[.]/g, "\\.")};.*HttpOnly`, "i"));
     const foreign = await click(new Request(`http://x?o=${O.clean}`), ctx(t));
     expect(foreign.headers.get("location")).toContain(`/opportunites/selection/${t}`);
     const forged = await click(new Request("http://x"), ctx(`${t.slice(0, -2)}xx`));
@@ -182,7 +185,27 @@ describe("Outreach — envoi simulé et suivi", () => {
     const after = (await recipient("elecA"))!;
     expect(after.opened_at).not.toBeNull();
     expect(after.clicked_at).not.toBeNull();
-    expect(after.opportunity_viewed_at).not.toBeNull();
+    // Le clic seul n'est plus une consultation de l'offre (accès après inscription ou connexion)
+    const { data: clicks } = await admin.from("outreach_events").select("opportunity_id").eq("recipient_id", a.id).eq("type", "CLICK");
+    expect((clicks ?? []).map((c) => c.opportunity_id)).toContain(O.elec1);
+  });
+
+  it("page d'accès : « Créer mon compte » / « Se connecter » comptés, retour prévu vers l'offre", async () => {
+    const a = (await recipient("elecA"))!;
+    const t = recipientToken(a.id);
+    const signup = new URL((await access(new Request(`http://x/api/outreach/acces/${t}?o=${O.elec1}&a=inscription`), ctx(t))).headers.get("location")!);
+    expect(signup.pathname).toBe("/inscription");
+    expect(signup.searchParams.get("suite")).toBe(`/opportunites/${O.elec1}`);
+    expect(signup.searchParams.get("ref")).toBe(`o.${t}`);
+    const login = new URL((await access(new Request(`http://x/api/outreach/acces/${t}?o=${O.elec1}&a=connexion`), ctx(t))).headers.get("location")!);
+    expect(login.pathname).toBe("/connexion");
+    // Paramètre détourné : jamais de redirection hors du site, retour sur la sélection
+    const odd = new URL((await access(new Request(`http://x/api/outreach/acces/${t}?o=https://evil.test`), ctx(t))).headers.get("location")!);
+    expect(odd.host).toBe("x");
+    expect(odd.searchParams.get("suite")).toBe(`/opportunites/selection/${t}`);
+    const after = (await recipient("elecA"))!;
+    expect(after.signup_clicked_at).not.toBeNull();
+    expect(after.login_clicked_at).not.toBeNull();
   });
 
   it("inscription attribuée à la sélection (jeton signé)", async () => {
