@@ -43,7 +43,7 @@ Outreach n'invente aucune adresse. Une entreprise devient contactable de trois f
      (`LinkProB2B-Outreach/1.0`), **robots.txt respecté**, abandon si le site refuse (403, CAPTCHA, anti-robot) ;
   3. seule une **adresse générique** de l'entreprise est retenue (contact@, info@, accueil@, devis@…), jamais une adresse
      nominative ; l'origine (page consultée, date, service) est notée sur la fiche et rappelée dans l'e-mail ;
-  priorité aux entreprises sélectionnées sans e-mail de la campagne du jour, limite quotidienne réglable (100 par défaut) ;
+  priorité aux entreprises sélectionnées sans e-mail de la campagne du jour, limite quotidienne réglable (5000 par défaut : en pratique, la seule limite est le temps de chaque tâche) ;
 - import CSV (fichier B2B acquis légalement, export CRM, contacts de salon…) avec origine déclarée ;
 - saisie manuelle sur la fiche, avec l'origine de l'adresse.
 Les entreprises sélectionnées sans adresse apparaissent dans l'onglet « Sans e-mail » de chaque campagne.

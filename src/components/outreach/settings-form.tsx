@@ -51,7 +51,7 @@ export function OutreachSettingsForm({ s }: { s: S }) {
           hint="Site officiel (Brave Search ou Dropcontact), puis adresse générique (contact@, info@…) publiée sur la page Contact. Jamais d'adresse nominative ; robots.txt respecté."
         />
         <div className="max-w-xs">
-          <NumberField name="enrichment_daily_limit" label="Entreprises analysées par jour (recherche d'e-mail)" value={s.enrichment_daily_limit} min={0} max={5000} />
+          <NumberField name="enrichment_daily_limit" label="Entreprises analysées par jour (recherche d'e-mail, 5000 = sans limite pratique)" value={s.enrichment_daily_limit} min={0} max={5000} />
         </div>
         <Checkbox name="include_individual_entrepreneurs" defaultChecked={s.include_individual_entrepreneurs} label="Inclure les entrepreneurs individuels" hint="Désactivé par défaut : leurs coordonnées sont des données personnelles (RGPD)." />
       </section>
