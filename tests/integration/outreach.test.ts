@@ -126,6 +126,7 @@ describe("Outreach — détection et campagne", () => {
 describe("Outreach — recherche des adresses", () => {
   it("sans clé de recherche : non lancée, raison écrite dans le rapport de la campagne", async () => {
     const saved = { brave: process.env.BRAVE_SEARCH_API_KEY, drop: process.env.DROPCONTACT_API_KEY };
+    process.env.OUTREACH_FREE_WEBSITE_SEARCH = "false";
     delete process.env.BRAVE_SEARCH_API_KEY;
     delete process.env.DROPCONTACT_API_KEY;
     try {
@@ -135,6 +136,7 @@ describe("Outreach — recherche des adresses", () => {
       expect(c?.report).toContain("Recherche d'adresses e-mail : non lancée");
       expect((await recipient("elecNoMail"))?.status).toBe("NO_EMAIL");
     } finally {
+      delete process.env.OUTREACH_FREE_WEBSITE_SEARCH;
       if (saved.brave) process.env.BRAVE_SEARCH_API_KEY = saved.brave;
       if (saved.drop) process.env.DROPCONTACT_API_KEY = saved.drop;
     }
@@ -203,12 +205,14 @@ describe("Outreach — envoi simulé et suivi", () => {
     await admin.from("outreach_campaigns").update({ dry_run: true }).eq("id", campaignId);
     await admin.from("outreach_settings").update({ require_validation: false }).eq("id", true);
     const saved = { brave: process.env.BRAVE_SEARCH_API_KEY, drop: process.env.DROPCONTACT_API_KEY };
+    process.env.OUTREACH_FREE_WEBSITE_SEARCH = "false";
     delete process.env.BRAVE_SEARCH_API_KEY;
     delete process.env.DROPCONTACT_API_KEY;
     let r: Awaited<ReturnType<typeof processSendQueue>>;
     try {
       r = (await enrichCampaignAndSend(admin, { campaignId, deadline: Date.now() + 20_000 })).send;
     } finally {
+      delete process.env.OUTREACH_FREE_WEBSITE_SEARCH;
       if (saved.brave) process.env.BRAVE_SEARCH_API_KEY = saved.brave;
       if (saved.drop) process.env.DROPCONTACT_API_KEY = saved.drop;
     }

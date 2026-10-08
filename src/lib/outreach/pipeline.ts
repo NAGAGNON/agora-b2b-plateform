@@ -403,7 +403,7 @@ export async function enrichProspects(db: Db, { campaignId = null, deadline = Da
     no_email: 0,
     blocked: 0,
     errors: 0,
-    skipped: searchers.length === 0 ? "Aucune clé BRAVE_SEARCH_API_KEY ni DROPCONTACT_API_KEY" : null as string | null,
+    skipped: searchers.length === 0 ? "aucune méthode de recherche active" : null as string | null,
     limit_reached: false,
     already_searched: 0,
   };
