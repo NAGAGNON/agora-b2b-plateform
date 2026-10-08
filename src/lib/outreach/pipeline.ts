@@ -90,7 +90,7 @@ export async function syncOpportunityStates(db: Db, settings: OutreachSettings) 
 }
 
 /** 4. Découverte d'entreprises (API publique), limitée et mise en cache 30 jours par couple NAF × département. */
-export async function discoverProspects(db: Db, analyses: OpportunityAnalysis[], deadline: number, maxCalls = 25) {
+export async function discoverProspects(db: Db, analyses: OpportunityAnalysis[], deadline: number, maxCalls = 60) {
   const pairs: [string, string][] = [];
   for (const a of analyses) {
     if (!a.department) continue;
@@ -461,7 +461,8 @@ export async function enrichProspects(db: Db, { campaignId = null, deadline = Da
   return result;
 }
 
-const ENRICH_CONCURRENCY = 6;
+// Recherches simultanées (chaque recherche attend surtout le réseau) : plus d'entreprises par passage
+const ENRICH_CONCURRENCY = 10;
 
 /** Ligne de rapport de la recherche d'adresses (ajoutée au rapport de la campagne). */
 export function enrichmentReport(r: Awaited<ReturnType<typeof enrichProspects>>): string {

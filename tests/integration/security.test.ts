@@ -327,9 +327,13 @@ describe("administration et confidentialité", () => {
     const sid = "00000000-0000-4000-8000-" + RUN.padStart(12, "0");
     expect((await anon().from("page_views").insert({ session_id: sid, path: "/" })).error).not.toBeNull();
     expect((await buyer.client.from("page_views").insert({ session_id: sid, path: "/" })).error).not.toBeNull();
+    // 3 visites venues de google.com : la source reste dans les 8 premières même si d'autres
+    // sources n'ont qu'une visite (sinon l'ordre des ex æquo n'est pas garanti)
+    const extra = [1, 2].map((n) => `00000000-0000-4000-800${n}-` + RUN.padStart(12, "0"));
     await admin.from("page_views").insert([
       { session_id: sid, path: "/", duration_ms: 30000, referrer_host: "google.com", device: "mobile" },
-      { session_id: sid, path: "/opportunites", duration_ms: 60000, device: "mobile" },
+      { session_id: sid, path: "/opportunites", duration_ms: 60000, referrer_host: null, device: "mobile" },
+      ...extra.map((e) => ({ session_id: e, path: "/", duration_ms: 1000, referrer_host: "google.com", device: "desktop" })),
     ]);
     expect((await anon().from("page_views").select("id")).data ?? []).toEqual([]);
     expect((await buyer.client.from("page_views").select("id")).data ?? []).toEqual([]);
@@ -343,7 +347,7 @@ describe("administration et confidentialité", () => {
     expect(a.daily.length).toBeGreaterThanOrEqual(7);
     expect(a.referrers.some((r) => r.source === "google.com")).toBe(true);
     expect((await buyer.client.rpc("purge_page_views")).error).not.toBeNull();
-    await admin.from("page_views").delete().eq("session_id", sid);
+    await admin.from("page_views").delete().in("session_id", [sid, ...extra]);
   });
 
   it("expire automatiquement les opportunités dépassées", async () => {
