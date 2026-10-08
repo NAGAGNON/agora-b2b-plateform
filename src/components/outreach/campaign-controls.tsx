@@ -1,10 +1,10 @@
 "use client";
 
-import { Ban, Eye, EyeOff, FlaskConical, Send, UserMinus, UserPlus } from "lucide-react";
+import { Ban, Eye, EyeOff, FlaskConical, Search, Send, UserMinus, UserPlus } from "lucide-react";
 import { ActionForm } from "@/components/admin/action-form";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { Input, Label, Textarea } from "@/components/ui/form";
-import { cancelCampaign, saveCampaignTemplates, saveRecipientText, toggleOpportunity, toggleRecipient, validateCampaign } from "@/app/actions/outreach";
+import { cancelCampaign, enrichCampaignNow, saveCampaignTemplates, saveRecipientText, toggleOpportunity, toggleRecipient, validateCampaign } from "@/app/actions/outreach";
 
 export function CampaignActions({ campaignId, status, blockers, sendable }: { campaignId: string; status: string; blockers: string[]; sendable: number }) {
   if (!["READY", "VALIDATED", "SENDING"].includes(status)) return null;
@@ -43,6 +43,16 @@ export function CampaignActions({ campaignId, status, blockers, sendable }: { ca
         </SubmitButton>
       </ActionForm>
     </div>
+  );
+}
+
+export function EnrichCampaignButton({ campaignId, count }: { campaignId: string; count: number }) {
+  return (
+    <ActionForm action={enrichCampaignNow} hidden={{ campaignId }}>
+      <SubmitButton variant="secondary" pendingLabel="Recherche en cours (jusqu'à 4 min)…">
+        <Search className="size-4" aria-hidden /> Rechercher les adresses e-mail ({count})
+      </SubmitButton>
+    </ActionForm>
   );
 }
 

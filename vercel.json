@@ -12,6 +12,10 @@
     {
       "path": "/api/cron/outreach",
       "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/cron/outreach-contacts",
+      "schedule": "20 7 * * *"
     }
   ]
 }
