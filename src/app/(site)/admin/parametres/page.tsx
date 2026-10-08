@@ -29,7 +29,7 @@ export default async function AdminSettingsPage() {
           </div>
           <div>
             <dt className="text-slate-500">E-mails</dt>
-            <dd>{env.emailTransport === "resend" ? <Badge tone="green">Resend configuré</Badge> : env.emailTransport === "mailpit" ? <Badge tone="sky">Boîte de test (Mailpit)</Badge> : <Badge tone="amber">Aucun fournisseur (e-mails non envoyés)</Badge>}</dd>
+            <dd>{env.emailTransport === "smtp" ? <Badge tone="green">SMTP du domaine</Badge> : env.emailTransport === "resend" ? <Badge tone="green">Resend configuré</Badge> : env.emailTransport === "mailpit" ? <Badge tone="sky">Boîte de test (Mailpit)</Badge> : <Badge tone="amber">Aucun fournisseur (e-mails non envoyés)</Badge>}</dd>
           </div>
           <div>
             <dt className="text-slate-500">Adresse publique</dt>

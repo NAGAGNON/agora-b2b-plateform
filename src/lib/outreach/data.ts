@@ -1,4 +1,5 @@
 import "server-only";
+import { env } from "@/lib/env";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
 import { siteUrl } from "@/lib/seo";
@@ -73,7 +74,8 @@ export function realSendBlockers(settings: OutreachSettings): string[] {
   if (settings.dry_run) out.push("Le mode simulation est activé (Paramètres).");
   // Interrupteur d'urgence côté serveur : OUTREACH_SEND_ENABLED=false coupe tout envoi réel.
   if (process.env.OUTREACH_SEND_ENABLED === "false") out.push("L'envoi réel est coupé sur le serveur (variable OUTREACH_SEND_ENABLED=false).");
-  if (!process.env.RESEND_API_KEY) out.push("Aucun fournisseur d'e-mail configuré (RESEND_API_KEY).");
+  if (!env.emailTransport || env.emailTransport === "mailpit")
+    out.push("Aucun serveur d'envoi configuré : renseignez le SMTP du domaine (SMTP_HOST, SMTP_USER, SMTP_PASSWORD) dans Vercel.");
   return out;
 }
 
