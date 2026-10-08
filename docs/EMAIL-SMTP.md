@@ -39,7 +39,16 @@ noires), surveillance des rebonds. **Ce n'est pas possible sur Vercel** et cela 
 | `SMTP_HELO_NAME` | (facultatif) | Nom annoncé en EHLO |
 | `OUTREACH_EMAIL_FROM` | (facultatif) | Expéditeur de la prospection ; par défaut l'adresse des e-mails d'inscription |
 
-L'expéditeur doit être une adresse **autorisée par ce compte SMTP** (en général la boîte elle-même).
+L'expéditeur doit être une adresse **autorisée par ce compte SMTP** (en général la boîte elle-même). Sans `EMAIL_FROM`,
+l'expéditeur est automatiquement `SMTP_USER`. Le bouton « Tester la connexion SMTP » signale un expéditeur différent de
+la boîte connectée.
+
+### Avec un compte Gmail
+
+`SMTP_HOST=smtp.gmail.com`, `SMTP_PORT=587`, `SMTP_USER=<adresse Gmail>`, `SMTP_PASSWORD=<mot de passe d'application>`
+(Compte Google → Sécurité → Validation en deux étapes, puis « Mots de passe des applications » ; jamais le mot de passe
+habituel). Expéditeur : l'adresse Gmail (Gmail remplace tout autre expéditeur non déclaré comme alias). Limite d'environ
+500 e-mails par jour pour un compte gratuit ; une adresse dédiée à LinkProB2B est préférable.
 Dès que `SMTP_HOST`, `SMTP_USER` et `SMTP_PASSWORD` sont présents, **tous** les e-mails (inscriptions, alertes,
 prospection) passent par le SMTP ; `RESEND_API_KEY` peut alors être supprimée.
 Test : Outreach → Paramètres → « Tester la connexion SMTP » (aucun e-mail envoyé).
@@ -64,9 +73,15 @@ prospect → destinataire PENDING (file) → worker (tâches planifiées + lance
 ```
 
 - Un e-mail à la fois, intervalle réglable entre deux envois (6 s par défaut), jamais d'envoi simultané.
-- Limites (Outreach → Paramètres → « Envoi progressif ») : **50 par jour toutes campagnes** et **20 par heure** au
-  départ, limite propre à la campagne automatique, 3 tentatives maximum. Augmenter par paliers si les rebonds et
-  plaintes restent faibles ; ne jamais dépasser la limite d'envoi de la messagerie.
+- Limites (Outreach → Paramètres → « Envoi progressif ») : **75 par jour toutes campagnes** et **40 par heure** au
+  départ, limite propre à la campagne automatique, 3 tentatives maximum ; ne jamais dépasser la limite d'envoi de la
+  messagerie.
+- **Montée en charge automatique** (activée par défaut, objectif 200 par jour) : au plus une fois par semaine, la
+  tâche du matin relève la limite d'un palier (75 → 100 → 150 → 200) si la semaine écoulée compte au moins 20 envois,
+  moins de 3 % de rebonds et moins de 2 % de désinscriptions ou plaintes ; elle l'abaisse d'un palier à partir de 5 %
+  de rebonds. La limite par heure suit (environ un quart de la limite du jour).
+- Passages d'envoi : avec la recherche du matin (05 h à 09 h UTC), puis passages d'envoi seuls `/api/cron/envoi`
+  de 10 h 30 à 16 h 30 UTC (aucune recherche, aucun forfait consommé).
 - Avant **chaque** envoi : liste d'opposition (adresse, domaine, SIREN), entreprise « Ne plus contacter », pas déjà
   reçu dans cette campagne, nombre de tentatives.
 - Réservation de chaque e-mail avant l'envoi (statut `SENDING`) : pas de double envoi si deux tâches tournent en même

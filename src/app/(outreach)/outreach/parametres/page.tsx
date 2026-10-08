@@ -16,11 +16,11 @@ export default async function OutreachSettingsPage() {
     { ok: process.env.OUTREACH_SEND_ENABLED !== "false", label: "Envoi réel autorisé sur le serveur", hint: "Actif par défaut ; OUTREACH_SEND_ENABLED=false (Vercel) coupe tout envoi en urgence." },
     {
       ok: env.emailTransport === "smtp" || env.emailTransport === "resend",
-      label: env.emailTransport === "smtp" ? `Envoi par le SMTP du domaine (${process.env.SMTP_HOST})` : env.emailTransport === "resend" ? "Envoi via Resend (API)" : "Serveur d'envoi",
+      label: env.emailTransport === "smtp" ? `Envoi par SMTP (${process.env.SMTP_HOST})` : env.emailTransport === "resend" ? "Envoi via Resend (API)" : "Serveur d'envoi",
       hint:
         env.emailTransport === "smtp"
           ? "Aucun coût par e-mail. Identifiants côté serveur uniquement."
-          : "Renseignez SMTP_HOST, SMTP_PORT, SMTP_USER et SMTP_PASSWORD (messagerie de votre domaine) dans Vercel : aucun coût par e-mail.",
+          : "Renseignez SMTP_HOST, SMTP_PORT, SMTP_USER et SMTP_PASSWORD (messagerie de votre domaine ou Gmail) dans Vercel : aucun coût par e-mail.",
     },
     {
       ok: true,

@@ -107,7 +107,7 @@ export function AudienceDetailPanel({ d, period }: { d: AudienceDetail; period: 
         <p className="text-sm text-slate-600">Jours et heures de Paris. Canal « Outreach » : visites arrivées par une sélection envoyée par e-mail.</p>
       </div>
 
-      <div className="grid gap-3 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         <Card>
           <CardHeader title="D'où viennent les visiteurs" description="Canaux d'acquisition" />
           <div className="p-5">
@@ -140,7 +140,7 @@ export function AudienceDetailPanel({ d, period }: { d: AudienceDetail; period: 
         </div>
       </Card>
 
-      <div className="grid gap-3 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         <Card>
           <CardHeader title="Rubriques du site" description="Quelles parties du site sont lues" />
           <div className="p-5">

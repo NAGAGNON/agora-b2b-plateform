@@ -6,6 +6,7 @@ import { DISCOVERY_SOURCE, discoverCompanies } from "@/lib/outreach/discovery";
 import { buildEmail, loadRecipientBundles, loadReferentials, loadSettings, realSendBlockers, type Db, type OutreachSettings } from "@/lib/outreach/data";
 import { sendOutreachEmail } from "@/lib/outreach/send";
 import { configuredSearchers, enrichCompany } from "@/lib/outreach/enrich";
+import { decideRamp, RAMP_INTERVAL_DAYS } from "@/lib/outreach/ramp";
 
 /**
  * Chaîne quotidienne de LinkProB2B Outreach :
@@ -636,23 +637,65 @@ export async function updateConversions(db: Db) {
   return { converted };
 }
 
+/**
+ * Montée en charge automatique (une fois par jour, tâche du matin) : la limite quotidienne
+ * monte d'un palier par semaine si les rebonds et désinscriptions restent faibles.
+ */
+export async function applySendRamp(db: Db, now = Date.now()) {
+  const settings = await loadSettings(db);
+  const since = new Date(now - RAMP_INTERVAL_DAYS * 86_400_000).toISOString();
+  const [sent, bounces, unsubscribes] = await Promise.all([
+    db.from("outreach_recipients").select("id", { count: "exact", head: true }).eq("status", "SENT").gte("sent_at", since),
+    db.from("outreach_suppressions").select("id", { count: "exact", head: true }).eq("reason", "BOUNCE").gte("created_at", since),
+    db.from("outreach_suppressions").select("id", { count: "exact", head: true }).eq("kind", "EMAIL").in("reason", ["UNSUBSCRIBE", "COMPLAINT"]).gte("created_at", since),
+  ]);
+  const decision = decideRamp({
+    enabled: settings.send_ramp_enabled,
+    cap: settings.total_daily_send_cap,
+    hourlyCap: settings.hourly_send_cap,
+    target: settings.send_ramp_target,
+    lastAt: settings.send_ramp_last_at,
+    now,
+    sent: sent.count ?? 0,
+    bounces: bounces.count ?? 0,
+    unsubscribes: unsubscribes.count ?? 0,
+  });
+  if (decision.action !== "hold") {
+    await db
+      .from("outreach_settings")
+      .update({ total_daily_send_cap: decision.cap, hourly_send_cap: decision.hourlyCap, send_ramp_last_at: new Date(now).toISOString() })
+      .eq("id", true);
+  }
+  return { ...decision, previous: settings.total_daily_send_cap };
+}
+
+/**
+ * Passage d'envoi seul (/api/cron/envoi, plusieurs fois par jour) : aucune recherche
+ * d'entreprise ni d'adresse, uniquement la file d'attente, dans les limites réglées.
+ */
+export async function runSendPass(db: Db, { budgetMs = 270_000 }: { budgetMs?: number } = {}) {
+  return processSendQueue(db, { deadline: Date.now() + budgetMs });
+}
+
 /** Tâche quotidienne complète (appelée par /api/cron/outreach). */
 export async function runOutreachDaily(db: Db, { budgetMs = 240_000 }: { budgetMs?: number } = {}) {
   const deadline = Date.now() + budgetMs;
+  const ramp = await applySendRamp(db).catch((e) => (logServerError("outreach ramp", e), null));
   const settings = await loadSettings(db);
   const sync = await syncOpportunityStates(db, settings);
   const build = await buildDailyCampaign(db, { deadline: deadline - 120_000 });
   const enrichment = await enrichProspects(db, { campaignId: build.campaignId, deadline: deadline - 45_000 }).catch((e) => (logServerError("outreach enrichment", e), null));
   if (build.campaignId && enrichment) {
     const { data: c } = await db.from("outreach_campaigns").select("report").eq("id", build.campaignId).single();
-    await db.from("outreach_campaigns").update({ report: [c?.report, enrichmentReport(enrichment)].filter(Boolean).join("\n") }).eq("id", build.campaignId);
+    const rampLine = ramp && ramp.action !== "hold" ? `Envois par jour : ${ramp.previous} → ${ramp.cap} (${ramp.reason.toLowerCase()})` : null;
+    await db.from("outreach_campaigns").update({ report: [c?.report, enrichmentReport(enrichment), rampLine].filter(Boolean).join("\n") }).eq("id", build.campaignId);
   }
   if (build.campaignId && !build.skipped && !settings.require_validation) {
     await db.from("outreach_campaigns").update({ status: "VALIDATED", validated_at: new Date().toISOString() }).eq("id", build.campaignId).eq("status", "READY");
   }
   const send = await processSendQueue(db, { deadline });
   const conversions = await updateConversions(db).catch((e) => (logServerError("outreach conversions", e), { converted: 0 }));
-  return { sync, build, enrichment, send, conversions };
+  return { ramp, sync, build, enrichment, send, conversions };
 }
 
 /**
