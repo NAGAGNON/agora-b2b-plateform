@@ -49,7 +49,7 @@ export async function generateMetadata(props: PageProps<"/analyses/[slug]">) {
   return {
     ...meta,
     openGraph: { ...meta.openGraph, type: "article", images: [image] },
-    twitter: { card: "summary_large_image", images: [image.url] },
+    twitter: { ...meta.twitter, card: "summary_large_image", images: [image.url] },
   };
 }
 
@@ -97,6 +97,7 @@ export default async function AnalysePage(
             path,
             publishedAt: a.published_at,
             updatedAt: a.updated_at,
+            image: `/visuels/analyses/${a.slug}`,
           }),
           breadcrumbLd([
             { name: "Analyses des marchés", path: "/analyses" },

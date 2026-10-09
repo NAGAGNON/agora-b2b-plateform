@@ -22,7 +22,8 @@ export async function generateMetadata(props: PageProps<"/entreprises/[slug]/[lo
     title: `${r.sector.label} — entreprises ${r.dep.name}`,
     description: `Prestataires et fournisseurs en ${r.sector.label.toLowerCase()} dans le département ${r.dep.name} (${r.dep.code}).`,
     path: `/entreprises/${slug}/${location}`,
-    noindex: total === 0,
+    // Pas de page indexée avec moins de 3 entreprises (contenu trop mince)
+    noindex: total < 3,
   });
 }
 

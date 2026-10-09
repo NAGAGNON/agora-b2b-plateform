@@ -50,9 +50,9 @@ import { createClient } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/format";
 
 export const metadata = pageMetadata({
-  title: "LinkProB2B — Appels d'offres, marchés publics et opportunités B2B en France",
+  title: "LinkProB2B — Appels d'offres et opportunités B2B en France",
   description:
-    "Trouvez les appels d'offres publics (BOAMP, TED) et les besoins d'entreprises qui correspondent à votre activité, partout en France. Recherche par secteur et région, alertes par e-mail. Inscription gratuite.",
+    "Appels d'offres publics (BOAMP, TED) et besoins d'entreprises partout en France : recherche par secteur et région, alertes par e-mail. Inscription gratuite.",
   path: "/",
 });
 

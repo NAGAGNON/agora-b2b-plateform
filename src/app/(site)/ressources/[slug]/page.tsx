@@ -24,7 +24,7 @@ export default async function GuidePage(props: PageProps<"/ressources/[slug]">) 
     <ContentPage title={g.title} intro={g.description}>
       <JsonLd
         data={[
-          articleLd({ title: g.title, description: g.description, path: `/ressources/${g.slug}` }),
+          articleLd({ title: g.title, description: g.description, path: `/ressources/${g.slug}`, signed: false }),
           breadcrumbLd([
             { name: "Ressources", path: "/ressources" },
             { name: g.title, path: `/ressources/${g.slug}` },

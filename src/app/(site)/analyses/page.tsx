@@ -2,28 +2,39 @@ import Link from "next/link";
 import Image from "next/image";
 import { BarChart3 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { pageMetadata } from "@/lib/seo";
+import { listingIndexing, pageMetadata } from "@/lib/seo";
+import { Pagination } from "@/components/ui/pagination";
 import { formatDate } from "@/lib/format";
 import { EmptyState } from "@/components/ui/states";
 import { REGIONS } from "@/lib/geo";
 
 export const revalidate = 3600;
 
-export const metadata = pageMetadata({
+const PER_PAGE = 24;
+
+const BASE_META = {
   title: "Analyses des marchés publics et appels d'offres",
   description:
     "Analyses des marchés publics et des besoins d'entreprises en France, par région, secteur et département, à partir des données BOAMP et TED.",
   path: "/analyses",
-});
+};
 
-export default async function AnalysesPage() {
+// Toutes les analyses restent atteignables (pagination indexable, pas seulement les plus récentes)
+export async function generateMetadata(props: PageProps<"/analyses">) {
+  const listing = listingIndexing("/analyses", await props.searchParams);
+  return pageMetadata({ ...BASE_META, path: listing.path, noindex: listing.filtered });
+}
+
+export default async function AnalysesPage(props: PageProps<"/analyses">) {
+  const sp = await props.searchParams;
+  const page = Math.max(1, Math.min(9999, Number(typeof sp.page === "string" ? sp.page : 1) || 1));
   const supabase = await createClient();
-  const { data } = await supabase
+  const { data, count } = await supabase
     .from("articles")
-    .select("slug, title, description, published_at")
+    .select("slug, title, description, published_at", { count: "exact" })
     .eq("status", "PUBLISHED")
     .order("published_at", { ascending: false })
-    .limit(100);
+    .range((page - 1) * PER_PAGE, page * PER_PAGE - 1);
   return (
     <div className="container-page py-10 sm:py-14">
       <h1 className="text-3xl font-bold sm:text-4xl">Analyses des marchés</h1>
@@ -40,7 +51,7 @@ export default async function AnalysesPage() {
         </h2>
         <ul className="mt-3 flex flex-wrap gap-2 text-sm">
           <li>
-            <Link href="/opportunites/france" className="inline-block rounded-full bg-navy px-3 py-1 font-semibold text-white">
+            <Link href="/opportunites" className="inline-block rounded-full bg-navy px-3 py-1 font-semibold text-white">
               France entière
             </Link>
           </li>
@@ -89,11 +100,12 @@ export default async function AnalysesPage() {
       ) : (
         <div className="mt-10">
           <EmptyState
-            title="Première analyse en préparation"
+            title={page > 1 ? "Aucune analyse sur cette page" : "Première analyse en préparation"}
             description="Les analyses sont publiées au fil des données collectées."
           />
         </div>
       )}
+      <Pagination page={page} pageCount={Math.ceil((count ?? 0) / PER_PAGE)} basePath="/analyses" params={sp} />
     </div>
   );
 }

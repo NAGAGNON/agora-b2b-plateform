@@ -14,7 +14,11 @@ import { getCompanyBySlug, searchCompanies } from "@/lib/queries/companies";
 import { getSession } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { parseCompanyFilters } from "@/lib/search-params";
-import { pageMetadata } from "@/lib/seo";
+import { pageMetadata, siteUrl } from "@/lib/seo";
+import { breadcrumbLd, JsonLd } from "@/components/json-ld";
+import { logoUrl } from "@/lib/storage-urls";
+
+const MIN_INDEXABLE_COMPANIES = 3;
 import { track } from "@/lib/analytics";
 import type { Database } from "@/lib/database.types";
 import { getSectors, getSectorLabels, showDemoData } from "@/lib/queries/platform";
@@ -29,15 +33,18 @@ export async function generateMetadata(props: PageProps<"/entreprises/[slug]">):
       title: `Entreprises — ${sector.label}`,
       description: `Annuaire des fournisseurs et prestataires en ${sector.label.toLowerCase()} référencés sur LinkProB2B.`,
       path: `/entreprises/${slug}`,
-      noindex: total === 0,
+      // Même seuil que les pages d'opportunités : pas de page indexée avec une ou deux entreprises
+      noindex: total < MIN_INDEXABLE_COMPANIES,
     });
   }
   const c = await getCompanyBySlug(slug);
   if (!c) return { title: "Entreprise introuvable", robots: { index: false } };
   const profile = (Array.isArray(c.profile) ? c.profile[0] : c.profile) as Database["public"]["Tables"]["company_profiles"]["Row"] | null;
+  const mainSector = profile?.sectors?.[0] ? (await getSectorLabels())[profile.sectors[0]] : null;
   return pageMetadata({
-    title: c.name,
-    description: (profile?.tagline ?? profile?.description ?? `${c.name} sur LinkProB2B`).slice(0, 160),
+    // Titre descriptif : nom, activité principale et ville (déclarés par l'entreprise)
+    title: [c.name, mainSector, c.city ? `à ${c.city}` : null].filter(Boolean).join(" – ").replace(" – à ", " à "),
+    description: profile?.tagline ?? profile?.description ?? `${c.name} sur LinkProB2B`,
     path: `/entreprises/${c.slug}`,
     noindex: c.is_demo || !profile?.is_public,
   });
@@ -86,6 +93,27 @@ export default async function CompanyPage(props: PageProps<"/entreprises/[slug]"
 
   return (
     <div className="bg-slate-50/60">
+      {profile?.is_public && !c.is_demo && (
+        <JsonLd
+          data={[
+            breadcrumbLd([
+              { name: "Annuaire", path: "/entreprises" },
+              { name: c.name, path: `/entreprises/${c.slug}` },
+            ]),
+            {
+              // Uniquement les informations publiées par l'entreprise elle-même
+              "@context": "https://schema.org",
+              "@type": "Organization",
+              name: c.name,
+              url: `${siteUrl()}/entreprises/${c.slug}`,
+              ...(c.logo_path && logoUrl(c.logo_path) ? { logo: new URL(logoUrl(c.logo_path)!, siteUrl()).toString() } : {}),
+              ...(profile.tagline || profile.description ? { description: profile.tagline ?? profile.description } : {}),
+              ...(c.city || c.postal_code ? { address: { "@type": "PostalAddress", ...(c.city ? { addressLocality: c.city } : {}), ...(c.postal_code ? { postalCode: c.postal_code } : {}), addressCountry: "FR" } } : {}),
+              ...(c.website ? { sameAs: [c.website] } : {}),
+            },
+          ]}
+        />
+      )}
       <div className="container-page py-6 sm:py-10">
         <nav aria-label="Fil d'Ariane" className="mb-4 text-sm text-slate-500">
           <Link href="/entreprises" className="hover:underline">

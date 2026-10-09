@@ -59,7 +59,7 @@ export function faqLd(items: { question: string; answer: string }[]) {
   };
 }
 
-export function articleLd(a: { title: string; description: string; path: string; publishedAt?: string | null; updatedAt?: string | null }) {
+export function articleLd(a: { title: string; description: string; path: string; publishedAt?: string | null; updatedAt?: string | null; image?: string; signed?: boolean }) {
   const base = siteUrl();
   return {
     "@context": "https://schema.org",
@@ -70,8 +70,9 @@ export function articleLd(a: { title: string; description: string; path: string;
     ...(a.publishedAt ? { datePublished: a.publishedAt } : {}),
     ...(a.updatedAt ? { dateModified: a.updatedAt } : {}),
     inLanguage: "fr-FR",
-    author: { "@type": "Person", name: ARTICLE_AUTHOR },
+    // Auteur uniquement pour les articles signés à l'écran (analyses de marché)
+    ...(a.signed === false ? {} : { author: { "@type": "Person", name: ARTICLE_AUTHOR } }),
     publisher: { "@id": `${base}/#organisation` },
-    image: `${base}/brand/logo.png`,
+    image: `${base}${a.image ?? "/opengraph-image"}`,
   };
 }
