@@ -77,7 +77,7 @@ describe("Rapport de fin de journée par e-mail", () => {
     // Bilan du soir : consigne « complet et détaillé » transmise à la rédaction
     expect(JSON.stringify(parse.mock.calls.at(-1)?.[0].system)).toContain("FIN DE JOURNÉE");
     const mail = received[0].data.replace(/=\r?\n/g, "");
-    for (const section of ["Rapport de la journ", "Chiffres cl", "Audience", "Outreach", "Collecte des opportunit", "R=C3=A9f=C3=A9rencement", "Inscriptions et abonnements", "T=C3=A2ches automatiques du jour", "Recommandations pour demain"]) {
+    for (const section of ["Rapport de la journ", "Chiffres cl", "Google, articles et inscriptions", "Inscriptions du jour", "Audience", "Outreach", "Collecte des opportunit", "R=C3=A9f=C3=A9rencement", "Inscriptions et abonnements", "T=C3=A2ches automatiques du jour", "Recommandations pour demain"]) {
       expect(mail).toContain(section);
     }
     const { data } = await admin.from("daily_reports").select("emailed_at, facts").eq("day", parisToday()).single();

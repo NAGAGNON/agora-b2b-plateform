@@ -25,9 +25,13 @@ export function organizationLd() {
       "@type": "Organization",
       "@id": `${base}/#organisation`,
       name: "LinkProB2B",
+      // Variantes d'écriture courantes du nom (aide les moteurs à rattacher les recherches au site)
+      alternateName: ["Link Pro B2B", "LinkPro B2B", "Linkprob2b"],
       url: base,
       logo: `${base}/brand/logo.png`,
-      description: "Plateforme B2B qui met en relation les entreprises qui ont un besoin avec celles capables d'y répondre, et recense les marchés publics.",
+      description:
+        "Plateforme B2B française qui recense les appels d'offres et marchés publics (BOAMP, TED) et les besoins publiés par les entreprises, et met en relation les entreprises qui ont un besoin avec celles capables d'y répondre.",
+      knowsAbout: ["Appels d'offres", "Marchés publics", "Prospection B2B", "Mise en relation entre entreprises"],
       areaServed: { "@type": "Country", name: "France" },
     },
     {

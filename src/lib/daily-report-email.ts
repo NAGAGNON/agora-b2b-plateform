@@ -71,20 +71,53 @@ export function renderDailyReportEmail(row: ReportRow) {
     parts.push(muted(row.error ?? "Analyse indisponible : chiffres détaillés ci-dessous."));
   }
 
+  const gai = f.google_articles_inscriptions ?? {
+    visites_depuis_google: { aujourdhui: 0, hier: 0, sept_derniers_jours: 0, pages_d_arrivee_aujourdhui: [] },
+    articles_publies_hier_et_aujourdhui: [],
+    inscriptions_du_jour: { nombre: 0, venues_de_la_prospection: 0, liste: [] },
+  };
+  const g = gai.visites_depuis_google;
+  const ins = gai.inscriptions_du_jour;
   parts.push(h2("Chiffres clés"));
   parts.push(
     tiles([
       ["Visites", n(a.visites)],
-      ["Pages vues", n(a.pages_vues)],
-      ["Inscriptions", n(f.actions_des_visiteurs.inscriptions)],
+      ["Visiteurs venus de Google", n(g.aujourdhui)],
+      ["Inscriptions", n(ins.nombre)],
       ["E-mails de prospection envoyés", n(o.emails_envoyes_aujourdhui)],
       ["Opportunités ajoutées", n(f.collecte.opportunites_ajoutees_aujourdhui)],
       ["Articles publiés", n(f.referencement_naturel.articles_publies_aujourdhui.length)],
     ]),
   );
   lines.push(
-    `Visites : ${n(a.visites)} · Pages vues : ${n(a.pages_vues)} · Inscriptions : ${n(f.actions_des_visiteurs.inscriptions)}`,
+    `Visites : ${n(a.visites)} · Depuis Google : ${n(g.aujourdhui)} · Inscriptions : ${n(ins.nombre)}`,
     `E-mails envoyés : ${n(o.emails_envoyes_aujourdhui)} · Opportunités ajoutées : ${n(f.collecte.opportunites_ajoutees_aujourdhui)} · Articles : ${n(f.referencement_naturel.articles_publies_aujourdhui.length)}`,
+    "",
+  );
+
+  // ---- Google, articles et inscriptions
+  parts.push(h2("Google, articles et inscriptions"));
+  parts.push(table(["Visiteurs venus de Google", "Nombre"], [["Aujourd'hui", n(g.aujourdhui)], ["Hier", n(g.hier)], ["7 derniers jours", n(g.sept_derniers_jours)]]));
+  if (g.pages_d_arrivee_aujourdhui.length) parts.push(table(["Page d'arrivée depuis Google (aujourd'hui)", "Visites"], g.pages_d_arrivee_aujourdhui.map((x) => [x.page, n(x.visites)])));
+  parts.push(
+    table(
+      ["Article publié hier ou aujourd'hui", "Vues aujourd'hui", "Vues hier", "Depuis Google"],
+      gai.articles_publies_hier_et_aujourdhui.map((x) => [`${x.titre} (${x.publie})`, n(x.vues_aujourdhui), x.publie === "hier" ? n(x.vues_hier) : "—", n(x.visiteurs_depuis_google)]),
+      "Aucun article publié hier ni aujourd'hui.",
+    ),
+  );
+  parts.push(
+    table(
+      [`Inscriptions du jour (${n(ins.nombre)}, dont ${n(ins.venues_de_la_prospection)} via la prospection)`, "Heure"],
+      ins.liste.map((u) => [`${u.nom ?? "Nom non renseigné"}${u.entreprise ? ` — ${u.entreprise}` : ""}${u.via_prospection ? " (via la prospection)" : ""}`, u.heure]),
+      "Aucune inscription aujourd'hui.",
+    ),
+  );
+  lines.push(
+    `Google : ${n(g.aujourdhui)} visiteurs aujourd'hui, ${n(g.hier)} hier, ${n(g.sept_derniers_jours)} sur 7 jours.`,
+    ...gai.articles_publies_hier_et_aujourdhui.map((x) => `- Article « ${x.titre} » (${x.publie}) : ${n(x.vues_aujourdhui)} vues aujourd'hui, ${n(x.visiteurs_depuis_google)} depuis Google`),
+    `Inscriptions du jour : ${n(ins.nombre)} (dont ${n(ins.venues_de_la_prospection)} via la prospection)`,
+    ...ins.liste.map((u) => `- ${u.heure} ${u.nom ?? "Nom non renseigné"}${u.entreprise ? ` — ${u.entreprise}` : ""}`),
     "",
   );
 

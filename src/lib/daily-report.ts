@@ -5,6 +5,7 @@ import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/errors";
 import { selectAll } from "@/lib/outreach/data";
+import { emptySeoSnapshot, type SeoSnapshot } from "@/lib/seo-snapshot";
 import type { Json } from "@/lib/database.types";
 
 /**
@@ -74,7 +75,8 @@ export async function buildDailyFacts(now = new Date()) {
   const iso = start.toISOString();
   const count = async (q: PromiseLike<{ count: number | null }>) => (await q).count ?? 0;
 
-  const [todayW, yesterdayW, weekW, campaign, events, sentToday, discovered, found, runs, newOpps, articles, users, companies, subs, cron, outreachSettings, manualCampaigns, campaignsToday, sentRows, bounces, oppRows] = await Promise.all([
+  const [{ data: seoRaw }, todayW, yesterdayW, weekW, campaign, events, sentToday, discovered, found, runs, newOpps, articles, users, companies, subs, cron, outreachSettings, manualCampaigns, campaignsToday, sentRows, bounces, oppRows] = await Promise.all([
+    db.rpc("seo_snapshot", { p_now: now.toISOString() }),
     db.rpc("audience_window", { p_from: iso, p_to: now.toISOString() }),
     db.rpc("audience_window", { p_from: yStart.toISOString(), p_to: iso }),
     db.rpc("audience_window", { p_from: weekStart.toISOString(), p_to: iso }),
@@ -114,6 +116,7 @@ export async function buildDailyFacts(now = new Date()) {
     return [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, n).map(([nom, nombre]) => ({ nom, nombre }));
   };
   const os = outreachSettings.data;
+  const seo = (seoRaw as unknown as SeoSnapshot | null) ?? emptySeoSnapshot();
 
   return {
     date: day,
@@ -188,6 +191,28 @@ export async function buildDailyFacts(now = new Date()) {
       vues_des_analyses: t.sections.find((s) => s.section.startsWith("Analyses"))?.views ?? 0,
       vues_des_pages_regions_secteurs: t.sections.find((s) => s.section.startsWith("Pages régions"))?.views ?? 0,
     },
+    google_articles_inscriptions: {
+      visites_depuis_google: {
+        aujourdhui: seo.google.today,
+        hier: seo.google.yesterday,
+        sept_derniers_jours: seo.google.last_7_days,
+        pages_d_arrivee_aujourdhui: seo.google.landing_today.map((p) => ({ page: p.path, visites: p.visits })),
+      },
+      articles_publies_hier_et_aujourdhui: seo.articles.map((a) => ({
+        titre: a.title,
+        publie: a.published === "today" ? "aujourd'hui" : "hier",
+        vues_aujourdhui: a.views_today,
+        vues_hier: a.views_yesterday,
+        vues_totales: a.views_total,
+        visiteurs_depuis_google: a.visitors_from_google,
+      })),
+      inscriptions_du_jour: {
+        nombre: seo.signups.today,
+        venues_de_la_prospection: seo.signups.from_outreach,
+        // Noms : affichés dans l'e-mail uniquement, jamais transmis à la rédaction automatique
+        liste: seo.signups.list.map((u) => ({ nom: u.name, entreprise: u.company, heure: hm(new Date(u.at)), via_prospection: u.from_outreach })),
+      },
+    },
     taches_automatiques: {
       derniere_execution_tache_quotidienne: cronValue.last_run_at ? `${ymd(new Date(cronValue.last_run_at))} ${hm(new Date(cronValue.last_run_at))}` : null,
       etapes_en_echec: cronValue.failed_steps ?? [],
@@ -220,8 +245,14 @@ Règles absolues :
 - Ton sobre, phrases courtes, pas de jargon (explique « taux de rebond » si tu l'emploies).`;
 
 const FINAL = `C'est le bilan de FIN DE JOURNÉE, envoyé par e-mail au propriétaire : il doit être complet et détaillé.
-Couvre chaque domaine (audience et pages, Outreach de bout en bout : campagnes, envois, ouvertures, clics, parcours vers les offres, inscriptions ; collecte des opportunités par source, secteur et région ; référencement naturel et articles ; inscriptions et abonnements ; tâches automatiques passage par passage).
+Couvre chaque domaine (audience et pages, visiteurs venus de Google, vues des articles publiés hier et aujourd'hui, inscriptions du jour, Outreach de bout en bout : campagnes, envois, ouvertures, clics, parcours vers les offres, inscriptions ; collecte des opportunités par source, secteur et région ; référencement naturel et articles ; inscriptions et abonnements ; tâches automatiques passage par passage).
 Le résumé peut faire jusqu'à 6 phrases. Les recommandations portent sur demain.`;
+
+/** Faits transmis à la rédaction : sans nom de personne ni d'entreprise inscrite (données personnelles). */
+export function factsForModel(facts: DailyFacts) {
+  const { nombre, venues_de_la_prospection } = facts.google_articles_inscriptions.inscriptions_du_jour;
+  return { ...facts, google_articles_inscriptions: { ...facts.google_articles_inscriptions, inscriptions_du_jour: { nombre, venues_de_la_prospection } } };
+}
 
 async function writeSummary(facts: DailyFacts, correction?: string, final = false) {
   // Délai borné : la tâche du soir doit avoir le temps d'envoyer le rapport (limite de 300 s)
@@ -233,7 +264,7 @@ async function writeSummary(facts: DailyFacts, correction?: string, final = fals
     fallbacks: "default",
     output_config: { effort: "low", format: betaZodOutputFormat(ReportSchema) },
     system: final ? `${SYSTEM}\n\n${FINAL}` : SYSTEM,
-    messages: [{ role: "user", content: `Faits de la journée (JSON) :\n\n${JSON.stringify(facts, null, 2)}` + (correction ? `\n\nIMPORTANT : ${correction}` : "") }],
+    messages: [{ role: "user", content: `Faits de la journée (JSON) :\n\n${JSON.stringify(factsForModel(facts), null, 2)}` + (correction ? `\n\nIMPORTANT : ${correction}` : "") }],
   });
   if (response.stop_reason === "refusal" || !response.parsed_output) throw new Error(`Analyse impossible (${response.stop_reason})`);
   return { summary: response.parsed_output, model: response.model };

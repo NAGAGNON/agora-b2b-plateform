@@ -11,16 +11,20 @@ import { PROMISE, SLOGAN } from "@/lib/constants";
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl()),
   title: { default: "LinkProB2B — Des opportunités qui créent des connexions", template: "%s | LinkProB2B" },
-  description: `Plateforme B2B qui met en relation les entreprises qui ont un besoin avec celles capables d'y répondre. ${PROMISE}`,
+  description: `Plateforme B2B française : appels d'offres et marchés publics (BOAMP, TED) et besoins d'entreprises, pour trouver des clients et des partenaires partout en France. ${PROMISE}`,
   applicationName: "LinkProB2B",
-  // Vérification de propriété : Bing Webmaster Tools (également /BingSiteAuth.xml)
-  verification: { other: { "msvalidate.01": "E96AB03143F3D93960FF218E3B517EDE" } },
+  // Vérification de propriété : Bing Webmaster Tools (également /BingSiteAuth.xml) et, si renseigné,
+  // Google Search Console (variable GOOGLE_SITE_VERIFICATION : code de la balise « google-site-verification »)
+  verification: {
+    ...(process.env.GOOGLE_SITE_VERIFICATION ? { google: process.env.GOOGLE_SITE_VERIFICATION.trim() } : {}),
+    other: { "msvalidate.01": "E96AB03143F3D93960FF218E3B517EDE" },
+  },
   openGraph: {
     siteName: "LinkProB2B",
     locale: "fr_FR",
     type: "website",
-    title: "LinkProB2B",
-    description: SLOGAN,
+    title: "LinkProB2B — Appels d'offres et opportunités B2B en France",
+    description: `${SLOGAN} Marchés publics et besoins d'entreprises, partout en France.`,
     images: [{ url: "/brand/logo.png", width: 834, height: 167, alt: "LinkProB2B" }],
   },
 };

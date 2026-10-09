@@ -144,6 +144,18 @@ Voir le [README](../README.md#démarrage-local). Dans certains environnements re
 SUPABASE_INTERNAL_IMAGE_REGISTRY=docker.io npm run db:start
 ```
 
+## Google : vérification et suivi
+
+- **Google Search Console** : ajouter la propriété `https://www.linkprob2b.com`, choisir « Balise HTML » et copier le
+  code (`content="…"`) dans la variable Vercel `GOOGLE_SITE_VERIFICATION`, puis redéployer et valider. Envoyer ensuite
+  le plan du site `https://www.linkprob2b.com/sitemap.xml` et demander l'indexation de la page d'accueil (mise à jour
+  du titre et de la description affichés par Google).
+- **Administration → Vue d'ensemble → « Google, articles et inscriptions »** (et rapport du soir) : visiteurs arrivés
+  depuis Google (aujourd'hui, hier, 7 jours ; pages d'arrivée), vues des articles publiés hier et aujourd'hui (dont
+  visiteurs venus de Google), inscriptions du jour (dont via la prospection). Fonction `seo_snapshot` (serveur) /
+  `admin_seo_snapshot` (équipe). Les noms des inscrits figurent dans l'e-mail mais ne sont jamais transmis à la
+  rédaction automatique.
+
 ## Bilan du jour (Administration → Vue d'ensemble)
 
 `/api/cron/bilan?soir=1` (une fois par jour, 19:00 UTC, pour limiter la consommation de l'API) et le bouton « Analyser maintenant » calculent les chiffres réels de la journée

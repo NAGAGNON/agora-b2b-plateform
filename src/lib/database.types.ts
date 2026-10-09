@@ -1174,6 +1174,9 @@ isOneToOne: false
               "buyer_name": string,"documents": number,"id": string,"is_demo": boolean,"opportunity_id": string,"opportunity_status": Database["public"]['Enums']["opportunity_status"],"opportunity_title": string,"status": Database["public"]['Enums']["proposal_status"],"submitted_at": string,"supplier_name": string,"supplier_slug": string,"updated_at": string
             }[]
                            },
+"admin_seo_snapshot":
+{ Args: Record<PropertyKey, never>; Returns: Json
+                           },
 "admin_set_company_status":
 { Args: { "p_company_id": string,"p_reason": string,"p_status": Database["public"]['Enums']["company_status"] }; Returns: undefined
                            },
@@ -1476,6 +1479,9 @@ isOneToOne: false
                            },
 "send_message":
 { Args: { "p_attachment_name"?: string,"p_attachment_path"?: string,"p_body": string,"p_conversation_id": string }; Returns: string
+                           },
+"seo_snapshot":
+{ Args: { "p_now"?: string }; Returns: Json
                            },
 "set_company_member_role":
 { Args: { "p_member_id": string,"p_role": Database["public"]['Enums']["company_role"] }; Returns: undefined
