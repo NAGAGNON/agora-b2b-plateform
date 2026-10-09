@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { login, newPage, RUN, signUpWithCompany } from "./helpers";
+import { login, newPage, RUN, signUpWithCompany, expectNotFound } from "./helpers";
 
 /**
  * Parcours complet : inscription → entreprise → publication → validation →
@@ -43,8 +43,7 @@ test("parcours complet demandeur / modération / fournisseur", async ({ browser 
 
   // Non publiée : invisible du public
   const visitor = await newPage(browser);
-  const res = await visitor.goto(`/opportunites/${oppId}`);
-  expect(res?.status()).toBe(404);
+  await expectNotFound(visitor, await visitor.goto(`/opportunites/${oppId}`));
 
   // 4. Validation par la modération
   const moderator = await newPage(browser);

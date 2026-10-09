@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { newPage } from "./helpers";
+import { newPage, expectNotFound } from "./helpers";
 
 test("recherche nationale : France entière par défaut, filtre région, pages SEO régionales", async ({ browser }) => {
   const page = await newPage(browser);
@@ -25,8 +25,7 @@ test("recherche nationale : France entière par défaut, filtre région, pages S
   await page.goto("/opportunites/ile-de-france/paris");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Opportunités dans le département Paris");
   // Département hors de la région : page introuvable
-  const res = await page.goto("/opportunites/bretagne/paris");
-  expect(res?.status()).toBe(404);
+  await expectNotFound(page, await page.goto("/opportunites/bretagne/paris"));
 });
 
 test("mobile : pages nationales sans défilement horizontal", async ({ browser }) => {

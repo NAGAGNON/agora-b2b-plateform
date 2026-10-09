@@ -1,7 +1,7 @@
 import { config } from "dotenv";
 import { expect, test } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
-import { RUN, login, newPage } from "./helpers";
+import { RUN, login, newPage, expectNotFound } from "./helpers";
 
 config({ path: ".env.local" });
 const db = createClient(process.env.SUPABASE_URL!, (process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY)!, { auth: { persistSession: false } });
@@ -91,5 +91,5 @@ test("administration des articles : réglages et dépublication", async ({ brows
   await row.getByRole("button", { name: "Dépublier" }).click();
   await expect(row.getByRole("button", { name: "Publier" })).toBeVisible();
   const anonPage = await newPage(browser);
-  expect((await anonPage.goto(`/analyses/${slug}`))?.status()).toBe(404);
+  await expectNotFound(anonPage, await anonPage.goto(`/analyses/${slug}`));
 });

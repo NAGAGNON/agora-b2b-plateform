@@ -2,7 +2,7 @@ import { config } from "dotenv";
 import { expect, test } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
 import { randomInt } from "node:crypto";
-import { RUN, login, newPage } from "./helpers";
+import { RUN, login, newPage, expectNotFound } from "./helpers";
 import { recipientToken } from "../../src/lib/outreach/token";
 
 config({ path: ".env.local" });
@@ -95,7 +95,7 @@ test("offre depuis l'e-mail : compte obligatoire (serveur), inscription puis acc
   await expect(page).toHaveURL(new RegExp(`/opportunites/${oppId}`));
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Créez votre compte pour accéder à cette offre");
   await expect(page.getByText("Cette offre vous a été recommandée personnellement. Créez votre compte gratuitement pour voir les détails et accéder à l'offre.")).toBeVisible();
-  await expect(page.getByText(`${T} Travaux d'installation électrique`)).toBeVisible();
+  await expect(page.getByText(`${T} Travaux d'installation électrique`, { exact: true })).toBeVisible();
   await expect(page.getByText("Remplacement des tableaux électriques")).toHaveCount(0);
   // Contrôle côté serveur : le HTML ne contient pas le détail, même en tapant l'URL ; la source est bloquée aussi
   const html = await (await page.request.get(`/opportunites/${oppId}`)).text();
@@ -141,8 +141,7 @@ test("landing page personnalisée puis désinscription", async ({ browser }) => 
   await expect(page.getByRole("heading", { name: `${T} Travaux d'installation électrique` })).toBeVisible();
   await expect(page.getByRole("link", { name: "Voir l'opportunité" })).toHaveAttribute("href", new RegExp(`/api/outreach/c/.+\\?o=${oppId}`));
   await expect(page.getByRole("link", { name: "Créer mon compte gratuitement" })).toHaveAttribute("href", `/inscription?ref=o.${token}`);
-  const invalid = await page.goto("/opportunites/selection/jeton-invalide");
-  expect(invalid?.status()).toBe(404);
+  await expectNotFound(page, await page.goto("/opportunites/selection/jeton-invalide"));
   await page.goto(`/desinscription/${token}`);
   await page.getByRole("button", { name: "Confirmer la désinscription" }).click();
   await expect(page.getByRole("heading", { name: "Désinscription confirmée" })).toBeVisible();

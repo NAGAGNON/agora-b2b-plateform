@@ -31,10 +31,12 @@ export const ACTIVE_COMPANY_COOKIE = "lp_company";
 /** Session courante (mise en cache pour la durée de la requête). */
 export const getSession = cache(async (): Promise<Session | null> => {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
+  // Signature du jeton vérifiée localement (aucun appel réseau avec les clés asymétriques ;
+  // sinon repli automatique sur la vérification par le serveur d'authentification)
+  const { data: auth } = await supabase.auth.getClaims();
+  const claims = auth?.claims;
+  if (!claims?.sub) return null;
+  const user = { id: claims.sub, email: typeof claims.email === "string" ? claims.email : null };
 
   const [{ data: profile }, { data: members }] = await Promise.all([
     supabase.from("users").select("*").eq("id", user.id).maybeSingle(),
@@ -53,14 +55,11 @@ export const getSession = cache(async (): Promise<Session | null> => {
 
   const role = profile.platform_role;
   const active = profile.status === "ACTIVE";
-  let mfaLevel: Session["mfaLevel"] = null;
-  if (active && role !== "USER") {
-    const { data } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-    mfaLevel = (data?.currentLevel as Session["mfaLevel"]) ?? null;
-  }
+  // Niveau d'authentification porté par le jeton vérifié (double authentification validée = aal2)
+  const mfaLevel: Session["mfaLevel"] = active && role !== "USER" && (claims.aal === "aal1" || claims.aal === "aal2") ? (claims.aal as "aal1" | "aal2") : null;
   return {
     userId: user.id,
-    email: user.email ?? profile.email,
+    email: user.email || profile.email,
     profile,
     memberships,
     activeCompany,
