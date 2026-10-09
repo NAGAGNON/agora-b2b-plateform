@@ -1,7 +1,7 @@
 import { config } from "dotenv";
 import { expect, test } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
-import { RUN, login, newPage } from "./helpers";
+import { RUN, login, newPage, expectNotFound } from "./helpers";
 import { buyerSlug } from "../../src/lib/buyer-slug";
 
 config({ path: ".env.local" });
@@ -49,7 +49,7 @@ test("acheteur public : lien depuis l'offre, page dédiée, liste des acheteurs"
   expect(await page.locator('script[type="application/ld+json"]').allTextContents()).toEqual(expect.arrayContaining([expect.stringContaining("BreadcrumbList")]));
 
   // Acheteur inconnu : 404
-  expect((await page.goto(`/acheteurs/acheteur-inconnu-${RUN.toLowerCase()}`))?.status()).toBe(404);
+  await expectNotFound(page, await page.goto(`/acheteurs/acheteur-inconnu-${RUN.toLowerCase()}`));
 
   await page.goto("/acheteurs");
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
@@ -83,4 +83,19 @@ test("tableau de bord : message LinkedIn du jour prêt à copier", async ({ brow
   await expect(page.getByRole("heading", { name: "Message prêt à publier sur LinkedIn" })).toBeVisible();
   await expect(page.getByTestId("social-post")).toContainText("aujourd'hui en France sur LinkProB2B");
   await expect(page.getByRole("button", { name: "Copier le message" })).toBeVisible();
+});
+
+test("navigation : réponse immédiate au clic (squelette de chargement) puis contenu", async ({ browser }) => {
+  const page = await newPage(browser);
+  await page.goto("/");
+  // Serveur volontairement ralenti : le squelette s'affiche avant la page demandée
+  // (le préchargement, lui, n'est pas ralenti : il apporte le squelette à l'avance)
+  await page.route(/\/opportunites\?_rsc=/, async (route) => {
+    if (!route.request().headers()["next-router-prefetch"]) await new Promise((r) => setTimeout(r, 1500));
+    await route.continue();
+  });
+  await page.getByRole("banner").getByRole("link", { name: "Explorer les opportunités" }).first().click();
+  await expect(page.getByRole("status").filter({ hasText: "Chargement" })).toBeAttached({ timeout: 1000 });
+  await expect(page).toHaveURL(/\/opportunites$/);
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
 });

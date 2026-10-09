@@ -1,4 +1,4 @@
-import { expect, type Browser, type Page } from "@playwright/test";
+import { expect, type Browser, type Page, type Response } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 
 export const DEMO_PASSWORD = process.env.DEMO_PASSWORD ?? "Demo-E2E-Passw0rd";
@@ -36,4 +36,16 @@ export async function signUpWithCompany(page: Page, label: string, companyName: 
   await page.getByRole("button", { name: "Créer mon entreprise" }).click();
   await expect(page).toHaveURL(/\/dashboard/);
   return email;
+}
+
+/**
+ * Page introuvable. Avec l'écran de chargement, la réponse est envoyée en flux continu : le code
+ * HTTP est déjà parti (200) quand la page découvre que la ressource n'existe pas. Next.js ajoute
+ * alors la balise « noindex » (rien n'est indexé). On vérifie donc : 404, ou 200 + noindex, et
+ * dans les deux cas la page « introuvable » sans le contenu demandé.
+ */
+export async function expectNotFound(page: Page, res: Response | null) {
+  expect([200, 404]).toContain(res?.status());
+  await expect(page.getByRole("heading", { name: "Page introuvable" }).first()).toBeVisible();
+  if (res?.status() === 200) await expect(page.locator('meta[name="robots"][content*="noindex"]').first()).toBeAttached();
 }

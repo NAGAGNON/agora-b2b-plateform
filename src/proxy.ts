@@ -55,9 +55,10 @@ export async function proxy(request: NextRequest) {
     },
   });
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Jeton vérifié localement (clé publique du projet mise en cache) : pas d'aller-retour vers le
+  // serveur d'authentification à chaque clic. Le jeton expiré est rafraîchi ici (cookies mis à jour).
+  const { data } = await supabase.auth.getClaims();
+  const user = data?.claims?.sub ?? null;
 
   const path = request.nextUrl.pathname;
   if (!user && PROTECTED_PREFIXES.some((p) => path === p || path.startsWith(p + "/"))) {
