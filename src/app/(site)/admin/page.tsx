@@ -7,6 +7,8 @@ import { stripeMode as stripeModeOf } from "@/lib/billing/stripe";
 import { AudiencePanel, PERIODS, type AudienceStats } from "@/components/admin/audience-panel";
 import { AudienceDetailPanel, type AudienceDetail } from "@/components/admin/audience-detail";
 import { DailyReportCard, type DailyReportRow } from "@/components/admin/daily-report";
+import { GoogleArticlesCard } from "@/components/admin/google-articles";
+import type { SeoSnapshot } from "@/lib/seo-snapshot";
 
 export const metadata = { title: "Vue d'ensemble" };
 // Le bouton « Analyser maintenant » rédige le bilan du jour (environ 30 s)
@@ -25,13 +27,14 @@ export default async function AdminHome(props: PageProps<"/admin">) {
   const sp = await props.searchParams;
   const supabase = await createClient();
   const period = PERIODS.find((p) => String(p) === sp.periode) ?? 30;
-  const [{ data }, { data: audience }, { data: billing }, { data: detail }, { data: reports }] = await Promise.all([
+  const [{ data }, { data: audience }, { data: billing }, { data: detail }, { data: reports }, { data: seo }] = await Promise.all([
     supabase.rpc("admin_stats"),
     supabase.rpc("admin_audience_stats", { p_days: period }),
     supabase.rpc("admin_billing_stats"),
     supabase.rpc("admin_audience_detail", { p_days: period }),
     // Bilans du jour : lecture réservée aux administrateurs (vide pour la modération)
     supabase.from("daily_reports").select("day, generated_at, summary, note, error").order("day", { ascending: false }).limit(8),
+    supabase.rpc("admin_seo_snapshot"),
   ]);
   const [latest, ...history] = (reports ?? []) as unknown as DailyReportRow[];
   const s = (data ?? {}) as Stats;
@@ -65,6 +68,7 @@ export default async function AdminHome(props: PageProps<"/admin">) {
         </Notice>
       )}
       {session.isAdmin && <DailyReportCard report={latest ?? null} history={history} />}
+      {seo && <GoogleArticlesCard s={seo as unknown as SeoSnapshot} />}
       {b && (
         <section>
           <h2 className="mb-3 text-lg font-bold">

@@ -4,7 +4,8 @@
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { admin, anon, cleanup, RUN, user } from "./helpers";
-import { buildDailyFacts, generateDailyReport, parisToday } from "@/lib/daily-report";
+import { buildDailyFacts, factsForModel, generateDailyReport, parisToday } from "@/lib/daily-report";
+import type { SeoSnapshot } from "@/lib/seo-snapshot";
 
 const S1 = "00000000-0000-4000-9000-" + RUN.padStart(12, "0");
 const S2 = "00000000-0000-4000-9001-" + RUN.padStart(12, "0");
@@ -94,5 +95,53 @@ describe("Bilan du jour", () => {
     } finally {
       if (saved) process.env.ANTHROPIC_API_KEY = saved;
     }
+  });
+});
+
+describe("Google, articles et inscriptions", () => {
+  const G1 = "00000000-0000-4000-9003-" + RUN.padStart(12, "0");
+  const G2 = "00000000-0000-4000-9004-" + RUN.padStart(12, "0");
+  const slug = `analyse-test-${RUN.toLowerCase()}`;
+  afterAll(async () => {
+    await admin.from("page_views").delete().in("session_id", [G1, G2]);
+    await admin.from("articles").delete().eq("slug", slug);
+  });
+
+  it("visites venues de Google, vues des articles du jour, inscriptions du jour (sans nom transmis à la rédaction)", async () => {
+    const snap = async () => (await admin.rpc("seo_snapshot", { p_now: new Date().toISOString() })).data as unknown as SeoSnapshot;
+    const before = await snap();
+    const { error: ea } = await admin.from("articles").insert({
+      slug, topic_key: `test-${RUN}`, title: `Analyse de test ${RUN} pour le suivi`, description: "Article de test pour le suivi des vues depuis Google et du jour.",
+      body: {}, facts: {}, status: "PUBLISHED", published_at: new Date(Date.now() - 60_000).toISOString(),
+    });
+    expect(ea).toBeNull();
+    // Visite 1 : arrivée depuis Google sur l'article ; visite 2 : arrivée directe sur l'article
+    const { error } = await admin.from("page_views").insert([
+      { session_id: G1, path: `/analyses/${slug}`, referrer_host: "www.google.fr", duration_ms: 30_000 },
+      { session_id: G1, path: "/opportunites", referrer_host: null, duration_ms: 10_000 },
+      { session_id: G2, path: `/analyses/${slug}`, referrer_host: null, duration_ms: 5_000 },
+    ]);
+    expect(error).toBeNull();
+    const u = await user("gai-signup");
+    const after = await snap();
+    expect(after.google.today).toBe(before.google.today + 1);
+    expect(after.google.landing_today.some((p) => p.path === `/analyses/${slug}`)).toBe(true);
+    const art = after.articles.find((a) => a.slug === slug);
+    expect(art).toMatchObject({ published: "today", views_today: 2, visitors_total: 2, visitors_from_google: 1 });
+    expect(after.signups.today).toBe(before.signups.today + 1);
+    expect(after.signups.list.some((x) => x.name === "IT gai-signup")).toBe(true);
+
+    // Rapport : chiffres présents ; les noms restent dans l'e-mail, jamais envoyés à la rédaction
+    const f = await buildDailyFacts();
+    expect(f.google_articles_inscriptions.visites_depuis_google.aujourdhui).toBe(after.google.today);
+    expect(f.google_articles_inscriptions.inscriptions_du_jour.liste.some((x) => x.nom === "IT gai-signup")).toBe(true);
+    expect(JSON.stringify(factsForModel(f))).not.toContain("IT gai-signup");
+
+    // Accès : administrateurs et modération uniquement
+    expect((await u.client.rpc("admin_seo_snapshot")).error).not.toBeNull();
+    expect((await anon().rpc("admin_seo_snapshot")).error).not.toBeNull();
+    expect((await u.client.rpc("seo_snapshot", { p_now: new Date().toISOString() })).error).not.toBeNull();
+    const mod = await user("gai-mod", "MODERATOR");
+    expect((await mod.client.rpc("admin_seo_snapshot")).error).toBeNull();
   });
 });
