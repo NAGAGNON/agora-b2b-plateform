@@ -59,7 +59,9 @@ export async function generateMetadata(props: PageProps<"/opportunites/[id]">): 
   if (!(await getSession()) && (await outreachVisitor((await cookies()).get(OUTREACH_COOKIE)?.value))) {
     return { title: clip(o.title, 60), robots: { index: false, follow: false } };
   }
-  const indexable = o.status === "PUBLISHED" && o.visibility === "PUBLIC" && !o.is_demo;
+  // Date limite dépassée : plus indexée, même avant le passage de la tâche quotidienne d'expiration
+  const deadlinePassed = Boolean(o.response_deadline && new Date(o.response_deadline) < new Date());
+  const indexable = o.status === "PUBLISHED" && !deadlinePassed && o.visibility === "PUBLIC" && !o.is_demo;
   const location = (await getLocationLabel())(o.city, o.department_code);
   const details = [
     o.origin === "EXTERNAL" && o.external_buyer_name ? `Acheteur : ${o.external_buyer_name}` : null,
@@ -67,8 +69,10 @@ export async function generateMetadata(props: PageProps<"/opportunites/[id]">): 
     o.response_deadline ? `Échéance : ${formatDate(o.response_deadline)}` : null,
   ].filter(Boolean);
   const intro = clip((o.summary ?? o.description ?? "").replace(/\s+/g, " ").trim(), 90);
+  // Titre distinctif : beaucoup d'annonces ont des intitulés génériques (« Travaux de voirie »)
+  const qualifier = location ?? (o.origin === "EXTERNAL" ? o.external_buyer_name : null);
   return pageMetadata({
-    title: clip(o.title, 60),
+    title: qualifier && !o.title.toLowerCase().includes(qualifier.toLowerCase()) ? `${clip(o.title, 62 - Math.min(qualifier.length, 28) - 3)} – ${clip(qualifier, 28)}` : clip(o.title, 62),
     description: clip([intro, ...details].filter(Boolean).join(" · "), 160),
     path: `/opportunites/${o.id}`,
     noindex: !indexable,

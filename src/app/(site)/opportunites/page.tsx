@@ -1,19 +1,19 @@
 import { OpportunityResults } from "@/components/opportunities/opportunity-results";
 import { parseOpportunityFilters } from "@/lib/search-params";
-import { pageMetadata } from "@/lib/seo";
+import { listingIndexing, pageMetadata } from "@/lib/seo";
 import { track } from "@/lib/analytics";
 import { getPlatformStats } from "@/lib/queries/platform";
 import { FreshnessBar } from "@/components/opportunities/freshness";
 
 export async function generateMetadata(props: PageProps<"/opportunites">) {
   const sp = await props.searchParams;
-  const hasFilters = Object.keys(sp).length > 0;
+  const listing = listingIndexing("/opportunites", sp);
   return pageMetadata({
     title: "Opportunités B2B et appels d'offres",
     description: "Besoins d'entreprises, demandes de devis, consultations et marchés publics partout en France, par région, département, ville et secteur.",
-    path: "/opportunites",
-    // Les combinaisons de filtres ne sont pas indexées (évite les pages dupliquées).
-    noindex: hasFilters,
+    path: listing.path,
+    // Les combinaisons de filtres ne sont pas indexées (évite les pages dupliquées) ; la pagination seule l'est.
+    noindex: listing.filtered,
   });
 }
 

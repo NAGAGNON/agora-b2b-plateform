@@ -1,15 +1,16 @@
 import { Directory } from "@/components/companies/directory";
 import { parseCompanyFilters } from "@/lib/search-params";
-import { pageMetadata } from "@/lib/seo";
+import { listingIndexing, pageMetadata } from "@/lib/seo";
 import { ButtonLink } from "@/components/ui/button";
 
 export async function generateMetadata(props: PageProps<"/entreprises">) {
   const sp = await props.searchParams;
+  const listing = listingIndexing("/entreprises", sp);
   return pageMetadata({
     title: "Annuaire des entreprises B2B : fournisseurs et prestataires",
     description: "Trouvez des fournisseurs et prestataires B2B partout en France : industrie, sous-traitance, informatique, cybersécurité, BTP, logistique.",
-    path: "/entreprises",
-    noindex: Object.keys(sp).length > 0,
+    path: listing.path,
+    noindex: listing.filtered,
   });
 }
 

@@ -25,7 +25,7 @@ export const metadata: Metadata = {
     type: "website",
     title: "LinkProB2B — Appels d'offres et opportunités B2B en France",
     description: `${SLOGAN} Marchés publics et besoins d'entreprises, partout en France.`,
-    images: [{ url: "/brand/logo.png", width: 834, height: 167, alt: "LinkProB2B" }],
+    images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "LinkProB2B — Appels d'offres et opportunités B2B en France" }],
   },
 };
 

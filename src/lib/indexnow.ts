@@ -29,15 +29,19 @@ export async function submitChangedUrls() {
   const { data: state } = await db.from("platform_settings").select("value").eq("key", "private.indexnow").maybeSingle();
   const since = (state?.value as { last_at?: string } | null)?.last_at ?? new Date(Date.now() - 86400_000).toISOString();
   const startedAt = new Date().toISOString();
-  const [opps, articles] = await Promise.all([
-    db.from("opportunities").select("id").eq("status", "PUBLISHED").eq("visibility", "PUBLIC").eq("is_demo", false).gt("updated_at", since).limit(9000),
-    db.from("articles").select("slug").eq("status", "PUBLISHED").gt("updated_at", since).limit(500),
-  ]);
-  const urls = [
-    ...(opps.data ?? []).map((o) => `${base}/opportunites/${o.id}`),
-    ...(articles.data ?? []).map((a) => `${base}/analyses/${a.slug}`),
-  ];
-  if (urls.length) urls.push(`${base}/opportunites`, `${base}/analyses`, `${base}/sitemap.xml`);
+  // Lecture par pages (1000 lignes au plus par requête), dans l'ordre des modifications : au-delà de
+  // 9000 annonces, la suite part au passage suivant (reprise à la dernière date envoyée).
+  const MAX_OPPS = 9000;
+  const opps: { id: string; updated_at: string }[] = [];
+  for (let from = 0; from < MAX_OPPS; from += 1000) {
+    const { data } = await db.from("opportunities").select("id, updated_at").eq("status", "PUBLISHED").eq("visibility", "PUBLIC").eq("is_demo", false).gt("updated_at", since).order("updated_at").range(from, from + 999);
+    opps.push(...(data ?? []));
+    if ((data ?? []).length < 1000) break;
+  }
+  const truncated = opps.length >= MAX_OPPS;
+  const articles = await db.from("articles").select("slug").eq("status", "PUBLISHED").gt("updated_at", since).limit(500);
+  const urls = [...opps.map((o) => `${base}/opportunites/${o.id}`), ...(articles.data ?? []).map((a) => `${base}/analyses/${a.slug}`)];
+  if (urls.length) urls.push(`${base}/opportunites`, `${base}/analyses`);
   if (!urls.length) return { submitted: 0 };
 
   const res = await fetch("https://api.indexnow.org/indexnow", {
@@ -47,6 +51,6 @@ export async function submitChangedUrls() {
     signal: AbortSignal.timeout(20_000),
   });
   if (!res.ok && res.status !== 202) throw new Error(`IndexNow HTTP ${res.status}`);
-  await db.from("platform_settings").upsert({ key: "private.indexnow", value: { last_at: startedAt, last_count: urls.length }, description: "Dernier envoi IndexNow" });
+  await db.from("platform_settings").upsert({ key: "private.indexnow", value: { last_at: truncated ? opps[opps.length - 1].updated_at : startedAt, last_count: urls.length }, description: "Dernier envoi IndexNow" });
   return { submitted: urls.length, status: res.status };
 }

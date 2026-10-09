@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/errors";
 import { PAGE_SIZE } from "@/lib/constants";
@@ -25,8 +26,9 @@ export async function searchCompanies(f: CompanyFilters, pageSize = PAGE_SIZE) {
   return { rows: data ?? [], total: data?.[0]?.total_count ?? 0, error: false as const };
 }
 
-export async function getCompanyBySlug(slug: string) {
+// Partagé entre les métadonnées et la page dans une même requête (une seule lecture)
+export const getCompanyBySlug = cache(async (slug: string) => {
   const supabase = await createClient();
   const { data } = await supabase.from("companies").select("*, profile:company_profiles(*)").eq("slug", slug).maybeSingle();
   return data;
-}
+});

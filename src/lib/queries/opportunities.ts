@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { filtersToRpcArgs, type OpportunityFilters } from "@/lib/search-params";
 import { logServerError } from "@/lib/errors";
@@ -22,7 +23,8 @@ export async function recentOpportunities(limit = 6) {
   return data ?? [];
 }
 
-export async function getOpportunityDetail(id: string) {
+// Partagé entre les métadonnées et la page dans une même requête (une seule lecture)
+export const getOpportunityDetail = cache(async (id: string) => {
   const supabase = await createClient();
   const { data } = await supabase
     .from("opportunities")
@@ -35,4 +37,4 @@ export async function getOpportunityDetail(id: string) {
     .eq("id", id)
     .maybeSingle();
   return data;
-}
+});

@@ -5,7 +5,7 @@ import { OpportunityResults } from "@/components/opportunities/opportunity-resul
 import { ButtonLink } from "@/components/ui/button";
 import { searchOpportunities } from "@/lib/queries/opportunities";
 import { parseOpportunityFilters, type RawSearchParams } from "@/lib/search-params";
-import { pageMetadata } from "@/lib/seo";
+import { listingIndexing, pageMetadata } from "@/lib/seo";
 import { MIN_INDEXABLE, type Landing } from "@/lib/landing";
 import { getSession } from "@/lib/auth";
 import { getPlatformStats } from "@/lib/queries/platform";
@@ -13,13 +13,16 @@ import { FreshnessBar } from "@/components/opportunities/freshness";
 
 export async function landingMetadata(landing: Landing, path: string, sp: RawSearchParams): Promise<Metadata> {
   const { total } = await searchOpportunities(parseOpportunityFilters(landing.fixed), 1);
+  // « France » reprend toute la liste : adresse canonique /opportunites (pas de doublon)
+  const canonical = landing.kind === "france" ? "/opportunites" : (landing.crumbs.at(-1)?.path ?? path);
+  const listing = listingIndexing(canonical, sp);
   return pageMetadata({
     title: landing.title,
     description: landing.description,
     // Adresse canonique (ex. /opportunites/finistere → /opportunites/bretagne/finistere)
-    path: landing.crumbs.at(-1)?.path ?? path,
-    // Pas d'indexation des pages sans contenu suffisant ni des combinaisons de filtres.
-    noindex: total < MIN_INDEXABLE || Object.keys(sp).length > 0,
+    path: listing.path,
+    // Pas d'indexation des pages sans contenu suffisant ni des combinaisons de filtres (pagination seule : indexée).
+    noindex: total < MIN_INDEXABLE || listing.filtered,
   });
 }
 
