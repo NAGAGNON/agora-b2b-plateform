@@ -9,6 +9,8 @@ import { AudienceDetailPanel, type AudienceDetail } from "@/components/admin/aud
 import { DailyReportCard, type DailyReportRow } from "@/components/admin/daily-report";
 import { GoogleArticlesCard } from "@/components/admin/google-articles";
 import type { SeoSnapshot } from "@/lib/seo-snapshot";
+import { SocialPostCard } from "@/components/admin/social-post";
+import { loadSocialPostFacts, renderSocialPost } from "@/lib/social-post";
 
 export const metadata = { title: "Vue d'ensemble" };
 // Le bouton « Analyser maintenant » rédige le bilan du jour (environ 30 s)
@@ -27,7 +29,7 @@ export default async function AdminHome(props: PageProps<"/admin">) {
   const sp = await props.searchParams;
   const supabase = await createClient();
   const period = PERIODS.find((p) => String(p) === sp.periode) ?? 30;
-  const [{ data }, { data: audience }, { data: billing }, { data: detail }, { data: reports }, { data: seo }] = await Promise.all([
+  const [{ data }, { data: audience }, { data: billing }, { data: detail }, { data: reports }, { data: seo }, socialPost] = await Promise.all([
     supabase.rpc("admin_stats"),
     supabase.rpc("admin_audience_stats", { p_days: period }),
     supabase.rpc("admin_billing_stats"),
@@ -35,6 +37,7 @@ export default async function AdminHome(props: PageProps<"/admin">) {
     // Bilans du jour : lecture réservée aux administrateurs (vide pour la modération)
     supabase.from("daily_reports").select("day, generated_at, summary, note, error").order("day", { ascending: false }).limit(8),
     supabase.rpc("admin_seo_snapshot"),
+    loadSocialPostFacts(supabase).then((f) => renderSocialPost(f)).catch(() => null),
   ]);
   const [latest, ...history] = (reports ?? []) as unknown as DailyReportRow[];
   const s = (data ?? {}) as Stats;
@@ -69,6 +72,7 @@ export default async function AdminHome(props: PageProps<"/admin">) {
       )}
       {session.isAdmin && <DailyReportCard report={latest ?? null} history={history} />}
       {seo && <GoogleArticlesCard s={seo as unknown as SeoSnapshot} />}
+      <SocialPostCard text={socialPost} />
       {b && (
         <section>
           <h2 className="mb-3 text-lg font-bold">

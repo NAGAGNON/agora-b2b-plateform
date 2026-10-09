@@ -14,12 +14,14 @@ let savedReport: unknown = null;
 
 beforeAll(async () => {
   savedReport = (await admin.from("daily_reports").select("*").eq("day", parisToday()).maybeSingle()).data;
-  // Toutes les colonnes renseignées : une insertion multiple complète les colonnes absentes par NULL
+  // Toutes les colonnes renseignées : une insertion multiple complète les colonnes absentes par NULL.
+  // Heures distinctes : la page d'entrée d'une session est sa première page vue (sinon ordre arbitraire)
+  const at = (secondsAgo: number) => new Date(Date.now() - secondsAgo * 1000).toISOString();
   const { error } = await admin.from("page_views").insert([
-    { session_id: S1, path: "/analyses", referrer_host: "google.fr", duration_ms: 40_000 },
-    { session_id: S1, path: "/opportunites", referrer_host: null, duration_ms: 20_000 },
-    { session_id: S2, path: "/opportunites/selection/jeton-test", referrer_host: null, duration_ms: 10_000 },
-    { session_id: S3, path: "/tarifs", referrer_host: "linkedin.com", duration_ms: 0 },
+    { session_id: S1, path: "/analyses", referrer_host: "google.fr", duration_ms: 40_000, created_at: at(4) },
+    { session_id: S1, path: "/opportunites", referrer_host: null, duration_ms: 20_000, created_at: at(3) },
+    { session_id: S2, path: "/opportunites/selection/jeton-test", referrer_host: null, duration_ms: 10_000, created_at: at(2) },
+    { session_id: S3, path: "/tarifs", referrer_host: "linkedin.com", duration_ms: 0, created_at: at(1) },
   ]);
   if (error) throw error;
 });

@@ -1278,11 +1278,19 @@ isOneToOne: false
 "bootstrap_super_admin":
 { Args: { "p_email": string }; Returns: boolean
                            },
+"buyer_opportunities":
+{ Args: { "p_limit"?: number,"p_slug": string }; Returns: {
+              "buyer_name": string,"city": string,"department_code": string,"id": string,"is_open": boolean,"published_at": string,"region": string,"response_deadline": string,"sector_slug": string,"title": string
+            }[]
+                           },
 "buyer_set_interest_status":
 { Args: { "p_interest_id": string,"p_message"?: string,"p_status": Database["public"]['Enums']["interest_status"] }; Returns: undefined
                            },
 "buyer_set_proposal_status":
 { Args: { "p_message"?: string,"p_proposal_id": string,"p_status": Database["public"]['Enums']["proposal_status"] }; Returns: undefined
+                           },
+"buyer_slug":
+{ Args: { "p": string }; Returns: string
                            },
 "can_view_opportunity":
 { Args: { "p_opportunity_id": string }; Returns: boolean
@@ -1408,6 +1416,11 @@ isOneToOne: false
                            },
 "prepare_account_deletion":
 { Args: Record<PropertyKey, never>; Returns: number
+                           },
+"public_buyers":
+{ Args: { "p_limit"?: number,"p_offset"?: number }; Returns: {
+              "last_published_at": string,"name": string,"open_count": number,"region": string,"slug": string,"total_count": number
+            }[]
                            },
 "public_platform_stats":
 { Args: Record<PropertyKey, never>; Returns: Json

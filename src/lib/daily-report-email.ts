@@ -4,6 +4,7 @@ import { sendEmail } from "@/lib/email/send";
 import { escapeHtml } from "@/lib/email/templates";
 import { siteUrl } from "@/lib/seo";
 import { generateDailyReport, parisToday, type DailyFacts, type DailySummary } from "@/lib/daily-report";
+import { loadSocialPostFacts, renderSocialPost } from "@/lib/social-post";
 
 /**
  * Rapport complet de la journée, envoyé par e-mail en fin de journée (tâche du soir) :
@@ -51,7 +52,7 @@ const bullets = (items: { label?: string; text: string }[], color: string) =>
     : muted("Rien à signaler.");
 
 /** Contenu de l'e-mail (HTML + texte) à partir du bilan enregistré. */
-export function renderDailyReportEmail(row: ReportRow) {
+export function renderDailyReportEmail(row: ReportRow, { socialPost = null }: { socialPost?: string | null } = {}) {
   const f = row.facts as DailyFacts;
   const s = row.summary as DailySummary | null;
   const a = f.audience.aujourdhui;
@@ -242,6 +243,13 @@ export function renderDailyReportEmail(row: ReportRow) {
   parts.push(table(["Passage", "Heure", "Étapes en échec"], t.passages_du_jour.map((x) => [x.passage, x.heure, x.etapes_en_echec.length ? x.etapes_en_echec.join(", ") : "aucune"]), "Aucun passage enregistré aujourd'hui."));
   lines.push("Tâches automatiques :", ...t.passages_du_jour.map((x) => `- ${x.heure} ${x.passage} : ${x.etapes_en_echec.length ? `échec ${x.etapes_en_echec.join(", ")}` : "OK"}`), "");
 
+  if (socialPost) {
+    parts.push(h2("Message prêt à publier sur LinkedIn"));
+    parts.push(muted("Construit avec les chiffres réels du jour. Copiez-le et publiez-le sur votre page LinkedIn (ou Google Business) pour attirer des visiteurs."));
+    parts.push(`<div style="white-space:pre-wrap;background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:12px;font-size:14px;line-height:21px;color:#334155">${e(socialPost)}</div>`);
+    lines.push("Message prêt à publier sur LinkedIn :", socialPost, "");
+  }
+
   if (row.note) parts.push(muted(row.note));
   const admin = `${siteUrl()}/admin`;
   parts.push(`<p style="margin:24px 0"><a href="${e(admin)}" style="background:#14B8A6;color:#ffffff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:600">Ouvrir le tableau de bord</a></p>`);
@@ -286,7 +294,9 @@ export async function sendDailyReportEmail({ force = false, regenerate = true, n
   if (!row) return { sent: 0, skipped: "Bilan du jour introuvable", recipients: [] as string[] };
   const to = await reportRecipients();
   if (!to.length) return { sent: 0, skipped: "Aucun destinataire (DAILY_REPORT_EMAIL ou super-administrateur)", recipients: [] as string[] };
-  const msg = renderDailyReportEmail(row);
+  // Message LinkedIn du jour : facultatif, ne bloque jamais l'envoi du rapport
+  const socialPost = await loadSocialPostFacts(db, now).then((f) => renderSocialPost(f)).catch(() => null);
+  const msg = renderDailyReportEmail(row, { socialPost });
   // Envoi du soir réservé avant l'envoi : une seule fois même si la tâche est déclenchée deux fois
   if (!force) {
     const { data: claimed } = await db.from("daily_reports").update({ emailed_at: now.toISOString() }).eq("day", day).is("emailed_at", null).select("day");

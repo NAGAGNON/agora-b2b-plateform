@@ -102,5 +102,11 @@ describe("Rapport de fin de journée par e-mail", () => {
     expect(m.subject).toMatch(/^Rapport LinkProB2B du .+ — \d+ visites, \d+ e-mails envoyés, \d+ inscriptions$/);
     expect(m.text).toContain("Recommandations :");
     expect(m.html).toContain("/admin");
+    expect(m.html).not.toContain("Message prêt à publier");
+    // Message LinkedIn du jour (chiffres réels) : section dédiée, texte échappé
+    const withPost = renderDailyReportEmail(data!, { socialPost: "12 nouvelles offres <b>\nÀ consulter" });
+    expect(withPost.html).toContain("Message prêt à publier sur LinkedIn");
+    expect(withPost.html).toContain("12 nouvelles offres &lt;b&gt;");
+    expect(withPost.text).toContain("Message prêt à publier sur LinkedIn :\n12 nouvelles offres <b>");
   });
 });

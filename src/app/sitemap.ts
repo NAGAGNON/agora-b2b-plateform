@@ -16,7 +16,7 @@ export const revalidate = 3600;
  */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = siteUrl();
-  const staticPaths = ["", "/opportunites", "/entreprises", "/publier", "/comment-ca-marche", "/ressources", "/analyses", "/fournisseurs", "/demandeurs", "/faq", "/a-propos", "/tarifs", "/contact", "/mentions-legales", "/cgu", "/confidentialite", "/cookies", "/conditions-abonnement"];
+  const staticPaths = ["", "/opportunites", "/entreprises", "/publier", "/comment-ca-marche", "/ressources", "/analyses", "/acheteurs", "/fournisseurs", "/demandeurs", "/faq", "/a-propos", "/tarifs", "/contact", "/mentions-legales", "/cgu", "/confidentialite", "/cookies", "/conditions-abonnement"];
   // Pas de date de modification pour les pages fixes : une date toujours « maintenant » serait ignorée par Google
   const entries: MetadataRoute.Sitemap = staticPaths.map((p) => ({ url: `${base}${p}`, changeFrequency: p === "/opportunites" ? "daily" : "monthly", priority: p === "" ? 1 : 0.6 }));
   entries.push(...GUIDES.map((g) => ({ url: `${base}/ressources/${g.slug}`, changeFrequency: "monthly" as const, priority: 0.5 })));
@@ -57,6 +57,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     paged((from, to) => db.from("articles").select("slug, updated_at").eq("status", "PUBLISHED").order("published_at", { ascending: false }).range(from, to), 5),
     db.rpc("open_opportunity_counts"),
   ]);
+  // Acheteurs publics avec au moins un appel d'offres ouvert
+  const { data: buyers } = await db.rpc("public_buyers", { p_limit: 10000, p_offset: 0 });
+  for (const b of buyers ?? []) entries.push({ url: `${base}/acheteurs/${b.slug}`, ...(b.last_published_at ? { lastModified: new Date(b.last_published_at) } : {}), changeFrequency: "daily", priority: 0.6 });
   // Pages d'atterrissage avec suffisamment d'opportunités ouvertes (pas de pages vides)
   const n = (dimension: string, key: string | null) => (counts ?? []).find((c) => c.dimension === dimension && c.key === key)?.n ?? 0;
   const landing = (path: string) => entries.push({ url: `${base}${path}`, changeFrequency: "daily", priority: 0.6 });
