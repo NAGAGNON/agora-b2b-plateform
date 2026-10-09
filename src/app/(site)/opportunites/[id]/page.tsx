@@ -35,6 +35,8 @@ import { DemoBadge } from "@/components/demo";
 import { CompanyLogo } from "@/components/companies/company-card";
 import { buttonClasses } from "@/components/ui/button";
 import { getOpportunityDetail } from "@/lib/queries/opportunities";
+import { buyerSlug } from "@/lib/buyer-slug";
+import { ShareLinks } from "@/components/share-links";
 import { cookies, headers } from "next/headers";
 import { OfferAccessGate } from "@/components/opportunities/offer-access-gate";
 import { OUTREACH_COOKIE, outreachVisitor, track as trackOutreach } from "@/lib/outreach/tracking";
@@ -42,7 +44,7 @@ import { getSectorLabels, showDemoData, getLocationLabel } from "@/lib/queries/p
 import { getSession } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { track } from "@/lib/analytics";
-import { pageMetadata } from "@/lib/seo";
+import { pageMetadata, siteUrl } from "@/lib/seo";
 import { DEMO_NOTICE, OPPORTUNITY_TYPE_HELP, sectorLabel, VERIFICATION_STATUS_LABELS, COMPANY_SIZE_LABELS } from "@/lib/constants";
 import { clip, deadlineLabel, formatBudget, formatBytes, formatDate, formatDateTime, isUuid } from "@/lib/format";
 
@@ -226,7 +228,14 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
               <p className="mt-2 text-slate-600">
                 {o.external_buyer_name ? (
                   <>
-                    Acheteur indiqué par la source : <strong className="text-navy">{o.external_buyer_name}</strong>
+                    Acheteur indiqué par la source :{" "}
+                    {buyerSlug(o.external_buyer_name) ? (
+                      <Link href={`/acheteurs/${buyerSlug(o.external_buyer_name)}`} className="font-bold text-navy underline">
+                        {o.external_buyer_name}
+                      </Link>
+                    ) : (
+                      <strong className="text-navy">{o.external_buyer_name}</strong>
+                    )}
                   </>
                 ) : (
                   "Acheteur : voir la source originale"
@@ -404,6 +413,11 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
               <FavoriteButton target="opportunity" id={o.id} initial={Boolean(fav?.data)} signedIn={Boolean(session)} />
               {external && session?.activeCompany && <PipelineButton opportunityId={o.id} initial={Boolean(pipeline?.data)} />}
             </div>
+            {isOpen && o.visibility === "PUBLIC" && !o.is_demo && (
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <ShareLinks url={`${siteUrl()}/opportunites/${o.id}`} title={o.title} />
+              </div>
+            )}
           </aside>
         </div>
         <PartnersBlock sector={o.sector_slug} department={o.department_code} external={external} />

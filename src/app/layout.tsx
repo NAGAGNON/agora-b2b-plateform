@@ -38,6 +38,9 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="fr">
+      <head>
+        <link rel="alternate" type="application/rss+xml" title="LinkProB2B — Appels d'offres et opportunités B2B" href="/flux/opportunites.xml" />
+      </head>
       <body className="flex min-h-dvh flex-col">
         <ToastProvider>{children}</ToastProvider>
         <Analytics />

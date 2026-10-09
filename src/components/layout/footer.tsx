@@ -19,6 +19,7 @@ const COLUMNS = [
       { href: "/demandeurs", label: "Pour les demandeurs" },
       { href: "/ressources", label: "Ressources et guides" },
       { href: "/analyses", label: "Analyses des marchés" },
+      { href: "/acheteurs", label: "Acheteurs publics" },
       { href: "/faq", label: "Questions fréquentes" },
     ],
   },
