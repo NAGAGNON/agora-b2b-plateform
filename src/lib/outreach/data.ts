@@ -9,6 +9,28 @@ import { fillTemplate, renderOutreachEmail, type EmailOpportunity } from "@/lib/
 import { recipientToken } from "@/lib/outreach/token";
 
 export type Db = SupabaseClient<Database>;
+
+/**
+ * Lecture complète d'une liste, page par page : l'API de la base renvoie au plus 1000 lignes
+ * par requête (au-delà, la liste serait tronquée sans erreur).
+ */
+export async function selectAll<T>(page: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>, size = 1000): Promise<T[]> {
+  const out: T[] = [];
+  for (let from = 0; ; from += size) {
+    const { data, error } = await page(from, from + size - 1);
+    if (error) throw error;
+    out.push(...(data ?? []));
+    if (!data || data.length < size) return out;
+  }
+}
+
+/** Liste d'opposition complète (adresses, domaines, SIREN), en minuscules. */
+export async function loadSuppressions(db: Db, kinds: ("EMAIL" | "DOMAIN" | "SIREN")[] = ["EMAIL", "DOMAIN", "SIREN"]) {
+  const rows = await selectAll((from, to) => db.from("outreach_suppressions").select("kind, value").in("kind", kinds).order("id").range(from, to));
+  const supp = { EMAIL: new Set<string>(), DOMAIN: new Set<string>(), SIREN: new Set<string>() };
+  for (const s of rows) supp[s.kind as keyof typeof supp]?.add(s.value.toLowerCase());
+  return supp;
+}
 export type OutreachSettings = Database["public"]["Tables"]["outreach_settings"]["Row"];
 
 export async function loadSettings(db: Db): Promise<OutreachSettings> {

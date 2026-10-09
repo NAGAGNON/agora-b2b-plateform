@@ -167,6 +167,12 @@ describe("outreach — import CSV", () => {
     expect(errors).toHaveLength(2);
   });
 
+  it("adresses génériques uniquement : une adresse nominative est refusée", () => {
+    const { items, errors } = mapProspectRows(parseCsv("nom;email\nA;contact@a.fr\nB;jean.dupont@b.fr\nC;devis.brest@c.fr\n"), []);
+    expect(items.map((i) => i.email)).toEqual(["contact@a.fr", "devis.brest@c.fr"]);
+    expect(errors[0]).toMatch(/nominative refusée/);
+  });
+
   it("département depuis le code postal", () => {
     expect(departmentFromPostal("97400")).toBe("974");
     expect(departmentFromPostal("20000")).toBeNull();

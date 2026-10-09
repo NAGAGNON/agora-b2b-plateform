@@ -1,5 +1,6 @@
 import { normalizeText } from "@/lib/collect/normalize";
 import { normalizeDepartment } from "@/lib/geo";
+import { isGenericLocalPart } from "@/lib/outreach/enrich";
 
 /** Analyse CSV (séparateur « ; » ou « , », guillemets, retours à la ligne entre guillemets). */
 export function parseCsv(input: string): string[][] {
@@ -102,6 +103,8 @@ export function mapProspectRows(rows: string[][], sectorSlugs: string[]): { item
     if (!name) return void errors.push(`Ligne ${line} : nom manquant.`);
     const email = clean(get("email"))?.toLowerCase() ?? null;
     if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return void errors.push(`Ligne ${line} : e-mail invalide (${email}).`);
+    // Adresses génériques uniquement (contact@, info@…) : jamais une adresse nominative
+    if (email && !isGenericLocalPart(email.split("@")[0])) return void errors.push(`Ligne ${line} : adresse nominative refusée (${email}) — uniquement des adresses génériques (contact@, info@…).`);
     const siren = clean(get("siren"))?.replace(/\s/g, "") ?? null;
     if (siren && !/^\d{9}$/.test(siren)) return void errors.push(`Ligne ${line} : SIREN invalide.`);
     const siret = clean(get("siret"))?.replace(/\s/g, "") ?? null;

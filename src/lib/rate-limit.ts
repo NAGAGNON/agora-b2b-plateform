@@ -31,6 +31,8 @@ export async function clientFingerprint(): Promise<string> {
  * (connexion, inscription, contact, mot de passe oublié).
  * Retourne true si l'action est autorisée.
  */
+const FAIL_CLOSED = new Set(["login", "signup", "reset"]);
+
 export async function rateLimit(scope: string, max: number, windowSeconds: number): Promise<boolean> {
   try {
     const key = `${scope}:${await clientFingerprint()}`;
@@ -42,8 +44,9 @@ export async function rateLimit(scope: string, max: number, windowSeconds: numbe
     if (error) throw error;
     return data === true;
   } catch (e) {
-    // En cas d'indisponibilité, on n'empêche pas l'utilisateur d'agir.
+    // En cas d'indisponibilité : connexion, inscription et mot de passe oublié sont refusés
+    // (pas d'essais illimités) ; les autres actions restent possibles.
     logServerError("rateLimit", e);
-    return true;
+    return !FAIL_CLOSED.has(scope);
   }
 }

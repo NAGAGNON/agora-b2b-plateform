@@ -3,7 +3,7 @@ import { logServerError } from "@/lib/errors";
 import { formatDate } from "@/lib/format";
 import { analyzeOpportunity, contentFingerprint, groupByProspect, scoreMatch, type OpportunityAnalysis, type ProspectInput } from "@/lib/outreach/matching";
 import { DISCOVERY_SOURCE, discoverCompanies } from "@/lib/outreach/discovery";
-import { buildEmail, loadRecipientBundles, loadReferentials, loadSettings, realSendBlockers, type Db, type OutreachSettings } from "@/lib/outreach/data";
+import { buildEmail, loadRecipientBundles, loadReferentials, loadSettings, loadSuppressions, realSendBlockers, selectAll, type Db, type OutreachSettings } from "@/lib/outreach/data";
 import { sendOutreachEmail } from "@/lib/outreach/send";
 import { configuredSearchers, enrichCompany } from "@/lib/outreach/enrich";
 import { decideRamp, RAMP_INTERVAL_DAYS } from "@/lib/outreach/ramp";
@@ -20,6 +20,7 @@ import { decideRamp, RAMP_INTERVAL_DAYS } from "@/lib/outreach/ramp";
  *     dans la limite quotidienne — en simulation tant que l'envoi réel n'est pas autorisé.
  */
 
+const ENRICH_COMPANY_TIMEOUT_MS = 30_000;
 const DAY = 86_400_000;
 const chunk = <T,>(arr: T[], n: number) => Array.from({ length: Math.ceil(arr.length / n) }, (_, i) => arr.slice(i * n, i * n + n));
 const today = () => new Date().toISOString().slice(0, 10);
@@ -229,20 +230,21 @@ export async function buildDailyCampaign(
     const analyses = opps.map((o) => analyzeOpportunity(o));
     const discovery = settings.discovery_enabled ? await discoverProspects(db, analyses, deadline - 30_000) : { calls: 0, added: 0, errors: 0 };
 
-    const [{ data: suppressions }, { data: customers }] = await Promise.all([
-      db.from("outreach_suppressions").select("kind, value").limit(100_000),
-      db.from("companies").select("siren").not("siren", "is", null).limit(100_000),
+    const [supp, customers] = await Promise.all([
+      loadSuppressions(db),
+      selectAll((from, to) => db.from("companies").select("siren").not("siren", "is", null).order("id").range(from, to)),
     ]);
-    const supp = { EMAIL: new Set<string>(), DOMAIN: new Set<string>(), SIREN: new Set<string>() };
-    for (const s of suppressions ?? []) supp[s.kind as keyof typeof supp]?.add(s.value.toLowerCase());
-    const customerSirens = new Set((customers ?? []).map((c) => c.siren!));
+    const customerSirens = new Set(customers.map((c) => c.siren!));
 
     const analyzed = new Set<string>();
     const prospects = new Map<string, Awaited<ReturnType<typeof candidates>>[number]>();
     const pairs: { prospectId: string; opportunityId: string; score: number; reasons: string[]; deadline: string | null }[] = [];
     const perOpp = new Map<string, number>();
+    // Opportunités réellement analysées avant la limite de temps (les autres restent « nouvelles »)
+    const reached = new Set<string>();
     for (const a of analyses) {
       if (Date.now() > deadline) break;
+      reached.add(a.id);
       const o = opps.find((x) => x.id === a.id)!;
       for (const p of await candidates(db, a, settings)) {
         analyzed.add(p.id);
@@ -262,6 +264,12 @@ export async function buildDailyCampaign(
       const { data } = await db.from("outreach_recipients").select("prospect_id").in("prospect_id", part).eq("status", "SENT").gte("sent_at", new Date(Date.now() - 30 * DAY).toISOString());
       for (const r of data ?? []) recentCounts.set(r.prospect_id, (recentCounts.get(r.prospect_id) ?? 0) + 1);
     }
+    // Déjà en attente d'envoi dans une autre campagne (automatique, manuelle ou complémentaire) : pas deux e-mails
+    const pendingElsewhere = new Set<string>();
+    for (const part of chunk(groups.map((g) => g.prospectId), 300)) {
+      const { data } = await db.from("outreach_recipients").select("prospect_id").in("prospect_id", part).in("status", ["PENDING", "QUEUED", "SENDING"]).neq("campaign_id", campaignId!);
+      for (const r of data ?? []) pendingElsewhere.add(r.prospect_id);
+    }
     const minGap = Date.now() - settings.min_days_between_contacts * DAY;
     const rows = groups.map((g) => {
       const p = prospects.get(g.prospectId)!;
@@ -269,7 +277,7 @@ export async function buildDailyCampaign(
       const domain = email?.split("@")[1] ?? null;
       let status = "PENDING";
       if ((p.siren && (supp.SIREN.has(p.siren) || customerSirens.has(p.siren))) || (email && supp.EMAIL.has(email)) || (domain && supp.DOMAIN.has(domain))) status = "SUPPRESSED";
-      else if ((p.last_contacted_at && new Date(p.last_contacted_at).getTime() > minGap) || (recentCounts.get(p.id) ?? 0) >= settings.max_contacts_per_30_days) status = "FREQUENCY";
+      else if ((p.last_contacted_at && new Date(p.last_contacted_at).getTime() > minGap) || (recentCounts.get(p.id) ?? 0) >= settings.max_contacts_per_30_days || pendingElsewhere.has(p.id)) status = "FREQUENCY";
       else if (!email) status = "NO_EMAIL";
       return { campaign_id: campaignId!, prospect_id: g.prospectId, email, score: g.score, reasons: g.reasons, status };
     });
@@ -287,7 +295,7 @@ export async function buildDailyCampaign(
     }
 
     // Opportunités traitées : profils ciblés et nombre de correspondances (campagne automatique uniquement)
-    for (const a of manual ? [] : analyses) {
+    for (const a of manual ? [] : analyses.filter((x) => reached.has(x.id))) {
       await db
         .from("outreach_opportunity_states")
         .update({ status: "PROCESSED", processed_at: new Date().toISOString(), last_campaign_id: campaignId, target_profiles: a.profiles, target_naf: [...new Set([...a.primaryNaf, ...a.sectorNaf])], matches_count: perOpp.get(a.id) ?? 0, updated_at: new Date().toISOString() })
@@ -336,6 +344,25 @@ export async function buildDailyCampaign(
  * campagne automatique. Notre base enregistre chaque tentative (date, réponse SMTP, erreur).
  */
 export async function processSendQueue(db: Db, { deadline = Date.now() + 60_000, sleep = wait }: { deadline?: number; sleep?: (ms: number) => Promise<void> } = {}) {
+  // Un seul envoi à la fois (tâches planifiées qui se chevauchent, lancement manuel) : limites et
+  // intervalle entre deux e-mails respectés globalement. Verrou libéré à la fin, ou expiré si la
+  // fonction est arrêtée en cours de route.
+  const lock = new Date(Math.max(deadline, Date.now()) + 2 * 60_000).toISOString();
+  const { data: locked } = await db
+    .from("outreach_settings")
+    .update({ send_lock_until: lock })
+    .eq("id", true)
+    .or(`send_lock_until.is.null,send_lock_until.lt.${new Date().toISOString()}`)
+    .select("id");
+  if (!locked?.length) return { sent: 0, simulated: 0, failed: 0, skipped: 0, remaining_cap: 0, stopped: "un autre envoi est déjà en cours" as string | null };
+  try {
+    return await sendQueue(db, deadline, sleep);
+  } finally {
+    await db.from("outreach_settings").update({ send_lock_until: null }).eq("id", true).eq("send_lock_until", lock);
+  }
+}
+
+async function sendQueue(db: Db, deadline: number, sleep: (ms: number) => Promise<void>) {
   const settings = await loadSettings(db);
   const iso = (t: number) => new Date(t).toISOString();
   const startOfDay = `${today()}T00:00:00Z`;
@@ -361,9 +388,7 @@ export async function processSendQueue(db: Db, { deadline = Date.now() + 60_000,
   if (!campaigns?.length) return result;
   const ref = await loadReferentials(db);
   const blockers = realSendBlockers(settings);
-  const { data: suppressions } = await db.from("outreach_suppressions").select("kind, value").limit(100_000);
-  const supp = { EMAIL: new Set<string>(), DOMAIN: new Set<string>(), SIREN: new Set<string>() };
-  for (const x of suppressions ?? []) supp[x.kind as keyof typeof supp]?.add(x.value.toLowerCase());
+  const supp = await loadSuppressions(db);
   const gap = settings.send_interval_seconds * 1000;
 
   campaignsLoop: for (const c of campaigns) {
@@ -385,7 +410,7 @@ export async function processSendQueue(db: Db, { deadline = Date.now() + 60_000,
         if (Date.now() >= deadline) break campaignsLoop;
         const now = new Date().toISOString();
         const rid = b.recipient.id;
-        const skip = async (status: "EXCLUDED" | "SUPPRESSED" | "FAILED", error: string) => {
+        const skip = async (status: "EXCLUDED" | "SUPPRESSED" | "FAILED" | "FREQUENCY", error: string) => {
           await db.from("outreach_recipients").update({ status, error, updated_at: now }).eq("id", rid);
           result.skipped++;
         };
@@ -408,6 +433,13 @@ export async function processSendQueue(db: Db, { deadline = Date.now() + 60_000,
         const { count: already } = await db.from("outreach_recipients").select("id", { count: "exact", head: true }).eq("campaign_id", c.id).neq("id", rid).eq("email", email).in("status", ["SENT", "SENDING", "SIMULATED"]);
         if (already) {
           await skip("EXCLUDED", "Cette adresse a déjà reçu cette campagne");
+          continue;
+        }
+        // Délai minimum entre deux e-mails à une même entreprise, toutes campagnes confondues
+        const recent = b.prospect.last_contacted_at && new Date(b.prospect.last_contacted_at).getTime() > Date.now() - settings.min_days_between_contacts * DAY;
+        const { count: inFlight } = await db.from("outreach_recipients").select("id", { count: "exact", head: true }).eq("prospect_id", b.prospect.id).neq("id", rid).eq("status", "SENDING");
+        if (recent || inFlight) {
+          await skip("FREQUENCY", "Entreprise déjà contactée récemment (autre campagne)");
           continue;
         }
         if (b.recipient.attempts >= settings.max_send_attempts) {
@@ -533,12 +565,17 @@ export async function enrichProspects(db: Db, { campaignId = null, deadline = Da
       .limit(budget - queue.length);
     for (const p of more ?? []) if (!queue.some((q) => q.id === p.id)) queue.push(p);
   }
-  const { data: supp } = await db.from("outreach_suppressions").select("kind, value").in("kind", ["EMAIL", "DOMAIN"]).limit(100_000);
-  const blocked = new Set((supp ?? []).map((s) => s.value.toLowerCase()));
+  const supp = await loadSuppressions(db, ["EMAIL", "DOMAIN"]);
+  const blocked = new Set([...supp.EMAIL, ...supp.DOMAIN]);
   const work = queue.slice(0, budget);
   const handle = async (p: (typeof work)[number]) => {
     result.searched++;
-    const r = await enrichCompany(p, searchers).catch((e) => ({ status: "ERROR" as const, website: null, email: null, source: null, note: e instanceof Error ? e.message.slice(0, 200) : "Erreur" }));
+    // Temps borné par entreprise (sites lents) : la tâche garde le temps d'envoyer les e-mails
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<never>((_, reject) => (timer = setTimeout(() => reject(new Error("Délai dépassé : nouvel essai plus tard")), ENRICH_COMPANY_TIMEOUT_MS)));
+    const r = await Promise.race([enrichCompany(p, searchers), timeout])
+      .catch((e) => ({ status: "ERROR" as const, website: null, email: null, source: null, note: e instanceof Error ? e.message.slice(0, 200) : "Erreur" }))
+      .finally(() => clearTimeout(timer));
     const now = new Date().toISOString();
     const email = r.email && !blocked.has(r.email) && !blocked.has(r.email.split("@")[1]) ? r.email : null;
     const { error } = await db

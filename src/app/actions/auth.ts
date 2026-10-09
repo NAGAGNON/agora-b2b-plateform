@@ -7,14 +7,12 @@ import { env } from "@/lib/env";
 import { logServerError } from "@/lib/errors";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { appSendsAuthEmails, bootstrapInitialAdmin, sendPasswordReset, sendWelcome, signUpWithEmail } from "@/lib/email/auth-emails";
+import { safeInternalPath } from "@/lib/safe-path";
 import { recipientFromReferral, trackReferral, trackSignupReferral } from "@/lib/outreach/tracking";
 import { newPasswordSchema, parseForm, resetRequestSchema, signInSchema, signUpSchema, type ActionResult } from "@/lib/validation";
 
-function safeNext(next: FormDataEntryValue | null, fallback = "/dashboard"): string {
-  const v = typeof next === "string" ? next : "";
-  // Uniquement des chemins internes (évite les redirections ouvertes).
-  return v.startsWith("/") && !v.startsWith("//") && !v.startsWith("/\\") ? v : fallback;
-}
+// Uniquement des chemins internes (évite les redirections ouvertes).
+const safeNext = (next: FormDataEntryValue | null, fallback = "/dashboard") => safeInternalPath(next, fallback);
 
 export async function signIn(_prev: ActionResult | null, formData: FormData): Promise<ActionResult> {
   const parsed = parseForm(signInSchema, formData);

@@ -4,14 +4,14 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getSession } from "@/lib/auth";
+import { getStaffActionSession } from "@/lib/auth";
 import { userMessage } from "@/lib/errors";
 import { rateLimit } from "@/lib/rate-limit";
 import { generateArticles } from "@/lib/articles";
 import { parseForm, type ActionResult } from "@/lib/validation";
 
 async function adminOnly() {
-  const session = await getSession();
+  const session = await getStaffActionSession();
   if (!session?.isAdmin) throw new Error("Accès refusé");
   return session;
 }

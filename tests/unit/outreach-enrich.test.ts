@@ -23,6 +23,8 @@ describe("outreach — adresses génériques uniquement", () => {
     expect(isGenericCompanyEmail("info@elec-ouest.fr", "elec-ouest.fr")).toBe(true);
     expect(isGenericCompanyEmail("contact.brest@elec-ouest.fr", "elec-ouest.fr")).toBe(true);
     expect(isGenericCompanyEmail("jean.dupont@elec-ouest.fr", "elec-ouest.fr")).toBe(false);
+    expect(isGenericCompanyEmail("commercial.jean.dupont@elec-ouest.fr", "elec-ouest.fr")).toBe(false);
+    expect(isGenericCompanyEmail("contact-jean.dupont@elec-ouest.fr", "elec-ouest.fr")).toBe(false);
     expect(isGenericCompanyEmail("jdupont@elec-ouest.fr", "elec-ouest.fr")).toBe(false);
     expect(isGenericCompanyEmail("noreply@elec-ouest.fr", "elec-ouest.fr")).toBe(false);
     expect(isGenericCompanyEmail("rgpd@elec-ouest.fr", "elec-ouest.fr")).toBe(false);
@@ -49,6 +51,22 @@ describe("outreach — adresses génériques uniquement", () => {
     expect(robotsAllows("User-agent: *\nDisallow: /", "/")).toBe(false);
     expect(robotsAllows("User-agent: LinkProB2B\nDisallow: /", "/")).toBe(false);
     expect(robotsAllows("", "/contact")).toBe(true);
+    // Le groupe qui nomme notre agent remplace celui de « * »
+    const own = "User-agent: *\nDisallow: /\n\nUser-agent: LinkProB2B\nAllow: /";
+    expect(robotsAllows(own, "/contact")).toBe(true);
+    expect(robotsAllows("User-agent: Googlebot\nUser-agent: *\nDisallow: /contact", "/contact")).toBe(false);
+  });
+
+  it("robots.txt en erreur serveur (5xx) : aucune page explorée", async () => {
+    let fetched = 0;
+    const fetchImpl = (async (url: string | URL) => {
+      if (String(url).endsWith("/robots.txt")) return new Response("indisponible", { status: 503, headers: { "content-type": "text/plain" } });
+      fetched++;
+      return new Response("<p>contact@orange.fr</p>", { headers: { "content-type": "text/html" } });
+    }) as typeof fetch;
+    const r = await enrichCompany({ name: "Elec Ouest", city: "Brest", siren: null, website: null }, [async () => ({ website: "https://93.184.216.34", provider: "Test" })], fetchImpl);
+    expect(r.status).toBe("BLOCKED");
+    expect(fetched).toBe(0);
   });
 });
 

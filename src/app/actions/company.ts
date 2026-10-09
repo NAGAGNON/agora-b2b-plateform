@@ -8,14 +8,12 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ACTIVE_COMPANY_COOKIE, getSession } from "@/lib/auth";
 import { logServerError, actionError } from "@/lib/errors";
+import { safeInternalPath } from "@/lib/safe-path";
 import { storagePath, validateUpload } from "@/lib/files";
 import { ALLOWED_LOGO_TYPES, MAX_LOGO_BYTES } from "@/lib/constants";
 import { companyProfileSchema, companySchema, emailSchema, parseForm, userProfileSchema, type ActionResult } from "@/lib/validation";
 
-function safeNext(v: FormDataEntryValue | null, fallback: string) {
-  const s = typeof v === "string" ? v : "";
-  return s.startsWith("/") && !s.startsWith("//") ? s : fallback;
-}
+const safeNext = (v: FormDataEntryValue | null, fallback: string) => safeInternalPath(v, fallback);
 
 export async function createCompany(_prev: ActionResult | null, fd: FormData): Promise<ActionResult> {
   const parsed = parseForm(companySchema, fd);

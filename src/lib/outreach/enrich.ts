@@ -71,15 +71,24 @@ export function pickWebsite(results: { url: string; title?: string }[], companyN
   return scored[0] && scored[0].score >= 2 ? scored[0].url : null;
 }
 
+/** Partie avant « @ » générique (fonction, service), jamais nominative. */
+export function isGenericLocalPart(local: string): boolean {
+  const l = local.trim().toLowerCase();
+  if (REJECT.test(l)) return false;
+  const base = l.replace(/[0-9]+$/, "");
+  if (GENERIC.has(base)) return true;
+  // Un seul qualificatif après le mot générique (« contact.brest », « devis-pro ») ; un prénom et
+  // un nom (« commercial.jean.dupont ») sont refusés.
+  const m = /^([a-z]+)[._-]([a-z0-9]+)$/.exec(base);
+  return Boolean(m && GENERIC.has(m[1]));
+}
+
 /** Adresse générique d'entreprise (jamais nominative) rattachée au site, ou null. */
 export function isGenericCompanyEmail(email: string, siteHost: string | null): boolean {
   const m = /^([a-z0-9._+-]+)@([a-z0-9.-]+\.[a-z]{2,})$/i.exec(email.trim().toLowerCase());
   if (!m) return false;
   const [, local, domain] = m;
-  if (REJECT.test(local)) return false;
-  const base = local.replace(/[0-9]+$/, "");
-  const generic = GENERIC.has(base) || [...GENERIC].some((g) => base.startsWith(`${g}.`) || base.startsWith(`${g}-`) || base.startsWith(`${g}_`));
-  if (!generic) return false;
+  if (!isGenericLocalPart(local)) return false;
   if (siteHost && (domain === siteHost || domain.endsWith(`.${siteHost}`) || siteHost.endsWith(`.${domain}`))) return true;
   return FREE_MAIL.has(domain);
 }
@@ -111,25 +120,35 @@ export function contactLinks(html: string, base: string): string[] {
   return out.slice(0, 3);
 }
 
-/** robots.txt : le chemin est-il autorisé pour notre agent (ou « * ») ? */
+/**
+ * robots.txt : le chemin est-il autorisé pour notre agent ? Les règles du groupe qui nomme
+ * notre agent s'appliquent seules ; à défaut, celles du groupe « * » (RFC 9309).
+ */
 export function robotsAllows(robots: string, path: string): boolean {
-  let applies = false;
-  let matched = false;
-  const disallow: string[] = [];
-  const allow: string[] = [];
+  type Group = { agents: string[]; allow: string[]; disallow: string[] };
+  const groups: Group[] = [];
+  let current: Group | null = null;
+  let lastWasAgent = false;
   for (const raw of robots.split(/\r?\n/)) {
     const line = raw.replace(/#.*/, "").trim();
+    if (!line) continue;
     const [k, ...rest] = line.split(":");
     const key = k?.trim().toLowerCase();
     const value = rest.join(":").trim();
     if (key === "user-agent") {
-      const ua = value.toLowerCase();
-      applies = ua === "*" || ua.includes("linkprob2b");
-      if (applies) matched = true;
-    } else if (applies && key === "disallow" && value) disallow.push(value);
-    else if (applies && key === "allow" && value) allow.push(value);
+      if (!current || !lastWasAgent) groups.push((current = { agents: [], allow: [], disallow: [] }));
+      current.agents.push(value.toLowerCase());
+      lastWasAgent = true;
+      continue;
+    }
+    lastWasAgent = false;
+    if (current && (key === "allow" || key === "disallow") && value) current[key].push(value);
   }
-  if (!matched) return true;
+  const ours = groups.filter((g) => g.agents.some((a) => a.includes("linkprob2b")));
+  const chosen = ours.length ? ours : groups.filter((g) => g.agents.includes("*"));
+  if (!chosen.length) return true;
+  const allow = chosen.flatMap((g) => g.allow);
+  const disallow = chosen.flatMap((g) => g.disallow);
   const longest = (rules: string[]) => Math.max(-1, ...rules.filter((r) => path.startsWith(r.replace(/\*.*$/, ""))).map((r) => r.length));
   return longest(allow) >= longest(disallow);
 }
@@ -148,6 +167,8 @@ async function fetchText(url: string, fetchImpl: typeof fetch, maxBytes = 800_00
   const u = new URL(url);
   if (!/^https?:$/.test(u.protocol) || !(await isPublicHost(u.hostname))) return null;
   const res = await fetchImpl(url, { headers: { "User-Agent": USER_AGENT, Accept: "text/html,text/plain;q=0.9" }, redirect: "follow", signal: AbortSignal.timeout(8000) });
+  // Redirection vers un autre site : page ignorée (son robots.txt n'a pas été consulté)
+  if (res.url && hostOf(res.url) && hostOf(res.url) !== hostOf(url)) return null;
   const type = res.headers.get("content-type") ?? "";
   if (!res.ok || (!type.includes("html") && !type.includes("text"))) return { status: res.status, text: "" };
   const text = (await res.text()).slice(0, maxBytes);
@@ -241,7 +262,8 @@ export function freeWebsiteSearch(fetchImpl: typeof fetch = fetch): WebsiteSearc
         if (!(await isPublicHost(domain))) continue; // le domaine n'existe pas (résolution DNS)
         const origin = `https://${domain}`;
         const robots = await fetchText(`${origin}/robots.txt`, fetchImpl, 100_000).catch(() => null);
-        const allowed = (path: string) => !robots || robots.status >= 400 || robotsAllows(robots.text, path);
+        // robots.txt absent (4xx) : tout est permis ; injoignable ou en erreur serveur (5xx) : rien n'est exploré
+    const allowed = (path: string) => robots !== null && robots.status < 500 && (robots.status >= 400 || robotsAllows(robots.text, path));
         if (!allowed("/")) continue;
         const home = await fetchText(origin, fetchImpl).catch(() => null);
         if (!home?.text) continue;
@@ -289,7 +311,8 @@ export async function enrichCompany(
   const host = hostOf(website);
   try {
     const robots = await fetchText(`${new URL(website).origin}/robots.txt`, fetchImpl, 100_000).catch(() => null);
-    const allowed = (path: string) => !robots || robots.status >= 400 || robotsAllows(robots.text, path);
+    // robots.txt absent (4xx) : tout est permis ; injoignable ou en erreur serveur (5xx) : rien n'est exploré
+    const allowed = (path: string) => robots !== null && robots.status < 500 && (robots.status >= 400 || robotsAllows(robots.text, path));
     const pages = [website];
     if (!allowed("/")) return { status: "BLOCKED", website, email: null, source: null, note: "Exploration refusée par robots.txt" };
     const home = await fetchText(website, fetchImpl);

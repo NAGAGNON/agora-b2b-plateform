@@ -4,6 +4,7 @@ import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/errors";
+import { selectAll } from "@/lib/outreach/data";
 import type { Json } from "@/lib/database.types";
 
 /**
@@ -78,7 +79,7 @@ export async function buildDailyFacts(now = new Date()) {
     db.rpc("audience_window", { p_from: yStart.toISOString(), p_to: iso }),
     db.rpc("audience_window", { p_from: weekStart.toISOString(), p_to: iso }),
     db.from("outreach_campaigns").select("id, status, stats, report").eq("campaign_date", day).eq("kind", "AUTO").maybeSingle(),
-    db.from("outreach_events").select("type").gte("created_at", iso).limit(20_000),
+    selectAll((from, to) => db.from("outreach_events").select("type").gte("created_at", iso).order("id").range(from, to)).then((data) => ({ data })),
     count(db.from("outreach_recipients").select("id", { count: "exact", head: true }).eq("status", "SENT").gte("sent_at", iso)),
     count(db.from("outreach_prospects").select("id", { count: "exact", head: true }).gte("created_at", iso)),
     count(db.from("outreach_prospects").select("id", { count: "exact", head: true }).eq("enrichment_status", "FOUND").gte("enriched_at", iso)),
@@ -92,9 +93,9 @@ export async function buildDailyFacts(now = new Date()) {
     db.from("outreach_settings").select("dry_run, require_validation, daily_send_cap, total_daily_send_cap, hourly_send_cap, send_ramp_enabled, send_ramp_target").eq("id", true).maybeSingle(),
     count(db.from("outreach_campaigns").select("id", { count: "exact", head: true }).eq("campaign_date", day).eq("kind", "MANUAL")),
     db.from("outreach_campaigns").select("id, kind, launched_by, status, created_at").eq("campaign_date", day).order("created_at"),
-    db.from("outreach_recipients").select("campaign_id").eq("status", "SENT").gte("sent_at", iso).limit(20_000),
+    selectAll((from, to) => db.from("outreach_recipients").select("campaign_id").eq("status", "SENT").gte("sent_at", iso).order("id").range(from, to)).then((data) => ({ data })),
     count(db.from("outreach_suppressions").select("id", { count: "exact", head: true }).eq("reason", "BOUNCE").gte("created_at", iso)),
-    db.from("opportunities").select("sector_slug, region").gte("created_at", iso).limit(20_000),
+    selectAll((from, to) => db.from("opportunities").select("sector_slug, region").gte("created_at", iso).order("id").range(from, to)).then((data) => ({ data })),
   ]);
   if (todayW.error) throw todayW.error;
   const t = todayW.data as unknown as Window;
@@ -223,7 +224,8 @@ Couvre chaque domaine (audience et pages, Outreach de bout en bout : campagnes, 
 Le résumé peut faire jusqu'à 6 phrases. Les recommandations portent sur demain.`;
 
 async function writeSummary(facts: DailyFacts, correction?: string, final = false) {
-  const client = new Anthropic();
+  // Délai borné : la tâche du soir doit avoir le temps d'envoyer le rapport (limite de 300 s)
+  const client = new Anthropic({ timeout: 110_000, maxRetries: 1 });
   const response = await client.beta.messages.parse({
     model: REPORT_MODEL,
     max_tokens: 8000,
@@ -251,9 +253,11 @@ export async function generateDailyReport(now = new Date(), { final = false }: {
   if (!process.env.ANTHROPIC_API_KEY) error = "ANTHROPIC_API_KEY absente : chiffres affichés sans commentaire.";
   else {
     try {
+      const started = Date.now();
       ({ summary, model } = await writeSummary(facts, undefined, final));
       let unknown = unknownReportNumbers(summary, facts);
-      if (unknown.length) {
+      // Réécriture seulement s'il reste le temps (sinon : nombres signalés « à vérifier »)
+      if (unknown.length && Date.now() - started < 100_000) {
         ({ summary, model } = await writeSummary(facts, `une première version contenait des nombres absents des faits (${unknown.join(", ")}). Supprime-les ou remplace-les par des nombres présents dans les faits.`, final));
         unknown = unknownReportNumbers(summary, facts);
       }

@@ -82,8 +82,13 @@ prospect → destinataire PENDING (file) → worker (tâches planifiées + lance
   de rebonds. La limite par heure suit (environ un quart de la limite du jour).
 - Passages d'envoi : avec les passes de recherche réparties dans la journée, et passages d'envoi seuls
   `/api/cron/envoi` de 06 h 30 à 13 h 30 UTC (aucune recherche, aucun forfait consommé). Planning : `docs/DEPLOIEMENT.md`.
-- Avant **chaque** envoi : liste d'opposition (adresse, domaine, SIREN), entreprise « Ne plus contacter », pas déjà
-  reçu dans cette campagne, nombre de tentatives.
+- Avant **chaque** envoi : liste d'opposition complète (adresse, domaine, SIREN), entreprise « Ne plus contacter », pas
+  déjà reçu dans cette campagne, délai minimum entre deux e-mails à une même entreprise **toutes campagnes confondues**
+  (automatique, manuelles, complémentaires), nombre de tentatives. Une entreprise déjà en attente dans une campagne n'est
+  pas ajoutée à une autre.
+- Un seul envoi à la fois (verrou `outreach_settings.send_lock_until`) : limites et intervalle respectés même si deux
+  tâches planifiées se chevauchent.
+- Adresses **génériques uniquement** (contact@, info@, devis@…), y compris à l'import CSV et à la saisie manuelle.
 - Réservation de chaque e-mail avant l'envoi (statut `SENDING`) : pas de double envoi si deux tâches tournent en même
   temps ; un envoi interrompu n'est jamais renvoyé automatiquement.
 

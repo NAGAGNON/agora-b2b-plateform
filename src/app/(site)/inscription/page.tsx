@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { safeInternalPath } from "@/lib/safe-path";
 import { redirect } from "next/navigation";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { SignUpForm } from "@/components/auth/forms";
@@ -11,7 +12,7 @@ export const metadata = pageMetadata({
   path: "/inscription",
 });
 
-const internalPath = (v: unknown) => (typeof v === "string" && v.startsWith("/") && !v.startsWith("//") && !v.startsWith("/\\") ? v : undefined);
+const internalPath = (v: unknown) => safeInternalPath(v, "") || undefined;
 
 export default async function SignUpPage(props: PageProps<"/inscription">) {
   const sp = await props.searchParams;
