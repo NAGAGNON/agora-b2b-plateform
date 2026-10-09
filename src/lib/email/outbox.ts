@@ -48,6 +48,16 @@ export async function processEmailOutbox(limit = 50): Promise<{ sent: number; sk
     .limit(limit);
   const stats = { sent: 0, skipped: 0, failed: 0 };
   for (const row of rows ?? []) {
+    // Réservation : un seul traitement par e-mail même si deux files tournent en même temps
+    // (tâche planifiée, envoi après une action) — la tentative est décomptée avant l'envoi.
+    const { data: claimed } = await admin
+      .from("email_outbox")
+      .update({ attempts: row.attempts + 1 })
+      .eq("id", row.id)
+      .eq("status", "PENDING")
+      .eq("attempts", row.attempts)
+      .select("id");
+    if (!claimed?.length) continue;
     const { html, text } = renderEmail(notificationLayout(row.template, (row.payload ?? {}) as NotificationPayload, row.subject));
     const result = await sendEmail({ to: row.to_email, subject: row.subject, html, text, idempotencyKey: `outbox-${row.id}` });
     stats[result.status === "SENT" ? "sent" : result.status === "SKIPPED" ? "skipped" : "failed"]++;
@@ -88,6 +98,8 @@ export async function processAlertDigests(): Promise<{ alerts: number; emails: n
       title: `Alerte « ${a.name} » : ${matches.length} nouvelle(s) opportunité(s)`,
       link: "/dashboard/alertes",
     });
+    // Préférence « recevoir les e-mails » respectée (la notification dans l'espace reste créée)
+    if (!user.notify_email) continue;
     await admin.from("email_outbox").insert({
       user_id: a.user_id,
       to_email: user.email,

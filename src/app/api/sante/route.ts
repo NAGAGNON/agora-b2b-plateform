@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { timingSafeEqual } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { env } from "@/lib/env";
 import { stripeConfigured, stripeMode } from "@/lib/billing/stripe";
@@ -7,10 +8,18 @@ export const dynamic = "force-dynamic";
 
 /**
  * Point de supervision (moniteur de disponibilité, vérification après déploiement).
- * Ne révèle aucun secret : uniquement des indicateurs de configuration (oui / non).
- * 200 si la base répond, 503 sinon.
+ * Public : uniquement l'état (200 si la base répond, 503 sinon). Le détail de configuration
+ * (indicateurs oui / non, version, dernières tâches) est réservé à l'appel avec CRON_SECRET.
  */
-export async function GET() {
+function authorized(req: Request): boolean {
+  const secret = env.cronSecret;
+  if (!secret) return false;
+  const header = req.headers.get("authorization") ?? "";
+  const expected = `Bearer ${secret}`;
+  return header.length === expected.length && timingSafeEqual(Buffer.from(header), Buffer.from(expected));
+}
+
+export async function GET(req: Request) {
   const started = Date.now();
   const checks: Record<string, unknown> = {};
   let healthy = true;
@@ -28,6 +37,9 @@ export async function GET() {
   } catch {
     healthy = false;
     checks.database = "indisponible";
+  }
+  if (!authorized(req)) {
+    return NextResponse.json({ status: healthy ? "ok" : "degraded", durationMs: Date.now() - started }, { status: healthy ? 200 : 503, headers: { "Cache-Control": "no-store" } });
   }
   return NextResponse.json(
     {

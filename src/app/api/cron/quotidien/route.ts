@@ -41,6 +41,7 @@ function authorized(req: Request): boolean {
 const REFRESH_AFTER_MS = 3.5 * 3_600_000;
 export async function GET(req: Request) {
   if (!authorized(req)) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+  const started = Date.now();
   const report: Record<string, unknown> = {};
   const step = async (name: string, fn: () => Promise<unknown>) => {
     try {
@@ -54,10 +55,13 @@ export async function GET(req: Request) {
   // Une source en panne n'empêche pas les autres (erreur journalisée par source, nouvelle tentative au passage suivant)
   await step("sources", () => runDueSources({ budgetMs: 180_000, refreshAfterMs: REFRESH_AFTER_MS }));
   await step("expired", async () => (await createAdminClient().rpc("expire_opportunities")).data);
-  await step("articles", () => runDailyArticles());
+  // Budget de la tâche (limite 300 s) : la rédaction d'articles est reportée au passage suivant
+  // si la collecte a pris trop de temps, pour garder le temps d'envoyer alertes et e-mails.
+  const elapsed = () => Date.now() - started;
+  await step("articles", async () => (elapsed() < 150_000 ? runDailyArticles() : { skipped: "reporté au passage suivant (temps insuffisant)" }));
   await step("indexnow", () => submitChangedUrls());
   await step("digests", () => processAlertDigests());
-  await step("emails", () => processEmailOutbox(200));
+  await step("emails", () => processEmailOutbox(elapsed() < 220_000 ? 200 : 40));
   await step("audience", async () => (await createAdminClient().rpc("purge_page_views")).data);
   const failed = Object.entries(report).filter(([, v]) => v && typeof v === "object" && "error" in v).map(([k]) => k);
   // Trace des exécutions (supervision : /api/sante, Administration → Synchronisations, bilan du jour)

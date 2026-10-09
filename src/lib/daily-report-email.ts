@@ -254,6 +254,11 @@ export async function sendDailyReportEmail({ force = false, regenerate = true, n
   const to = await reportRecipients();
   if (!to.length) return { sent: 0, skipped: "Aucun destinataire (DAILY_REPORT_EMAIL ou super-administrateur)", recipients: [] as string[] };
   const msg = renderDailyReportEmail(row);
+  // Envoi du soir réservé avant l'envoi : une seule fois même si la tâche est déclenchée deux fois
+  if (!force) {
+    const { data: claimed } = await db.from("daily_reports").update({ emailed_at: now.toISOString() }).eq("day", day).is("emailed_at", null).select("day");
+    if (!claimed?.length) return { sent: 0, skipped: "Rapport du jour déjà envoyé", recipients: [] as string[] };
+  }
   let sent = 0;
   const errors: string[] = [];
   for (const address of to) {
@@ -261,6 +266,7 @@ export async function sendDailyReportEmail({ force = false, regenerate = true, n
     if (r.status === "SENT") sent++;
     else errors.push(`${address} : ${r.error ?? r.status}`);
   }
-  if (sent && !force) await db.from("daily_reports").update({ emailed_at: now.toISOString() }).eq("day", day);
+  // Aucun envoi réussi : la réservation est levée (nouvel essai possible avec le bouton ou le lendemain)
+  if (!sent && !force) await db.from("daily_reports").update({ emailed_at: null }).eq("day", day);
   return { sent, recipients: to, errors };
 }

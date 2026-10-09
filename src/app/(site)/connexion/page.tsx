@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { safeInternalPath } from "@/lib/safe-path";
 import { redirect } from "next/navigation";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { SignInForm } from "@/components/auth/forms";
@@ -13,7 +14,7 @@ export default async function LoginPage(props: PageProps<"/connexion">) {
   const next = typeof sp.suite === "string" ? sp.suite : undefined;
   // Provenance (page d'accès d'une offre, e-mail de prospection) : jeton signé vérifié côté serveur
   const referral = typeof sp.ref === "string" && /^o\.[A-Za-z0-9_.-]{20,60}$/.test(sp.ref) ? sp.ref : undefined;
-  if (await getSession()) redirect(next?.startsWith("/") && !next.startsWith("//") ? next : "/dashboard");
+  if (await getSession()) redirect(safeInternalPath(next));
   return (
     <AuthShell
       title="Connexion"

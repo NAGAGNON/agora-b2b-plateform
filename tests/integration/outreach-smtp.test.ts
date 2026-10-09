@@ -166,4 +166,35 @@ describe("Envoi SMTP (sans API payante)", () => {
     expect((await applySendRamp(admin)).action).toBe("hold");
     expect((await loadSettings(admin)).total_daily_send_cap).toBe(75);
   });
+
+  it("délai entre deux e-mails à une même entreprise, toutes campagnes confondues", async () => {
+    // L'entreprise « ok » vient de recevoir un e-mail : une autre campagne du jour ne la recontacte pas
+    const { data: ok } = await admin.from("outreach_recipients").select("prospect_id").eq("id", R.ok).single();
+    const { data: c2 } = await admin.from("outreach_campaigns").insert({ campaign_date: DATE, kind: "MANUAL", status: "VALIDATED", dry_run: false, min_score: 70, subject_template: "s", intro_template: "Introduction de test assez longue." }).select("id").single();
+    const { data: r2 } = await admin.from("outreach_recipients").insert({ campaign_id: c2!.id, prospect_id: ok!.prospect_id, email: addr("ok"), score: 90, reasons: [], status: "PENDING" }).select("id").single();
+    await admin.from("outreach_recipient_opportunities").insert({ recipient_id: r2!.id, opportunity_id: oppId, score: 90, reasons: [] });
+    const before = received.length;
+    try {
+      await processSendQueue(admin, { deadline: Date.now() + 10_000, sleep: async () => {} });
+      const { data } = await admin.from("outreach_recipients").select("status, error").eq("id", r2!.id).single();
+      expect(data?.status).toBe("FREQUENCY");
+      expect(received.length).toBe(before);
+    } finally {
+      await admin.from("outreach_campaigns").delete().eq("id", c2!.id);
+    }
+  });
+
+  it("un seul envoi à la fois : un second passage simultané n'envoie rien", async () => {
+    await admin.from("outreach_settings").update({ send_lock_until: new Date(Date.now() + 60_000).toISOString() }).eq("id", true);
+    try {
+      const r = await processSendQueue(admin, { deadline: Date.now() + 5_000, sleep: async () => {} });
+      expect(r.sent).toBe(0);
+      expect(r.stopped).toMatch(/autre envoi/);
+    } finally {
+      await admin.from("outreach_settings").update({ send_lock_until: null }).eq("id", true);
+    }
+    // Verrou libéré après un passage normal
+    await processSendQueue(admin, { deadline: Date.now() + 5_000, sleep: async () => {} });
+    expect((await loadSettings(admin)).send_lock_until).toBeNull();
+  });
 });

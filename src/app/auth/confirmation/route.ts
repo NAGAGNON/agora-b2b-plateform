@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import type { EmailOtpType } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { bootstrapInitialAdmin, sendWelcome } from "@/lib/email/auth-emails";
+import { safeInternalPath } from "@/lib/safe-path";
 
 /** Retour des liens envoyés par e-mail (confirmation d'inscription, réinitialisation). */
 export async function GET(request: NextRequest) {
@@ -9,8 +10,7 @@ export async function GET(request: NextRequest) {
   const code = searchParams.get("code");
   const tokenHash = searchParams.get("token_hash");
   const type = searchParams.get("type") as EmailOtpType | null;
-  const suite = searchParams.get("suite") ?? "/dashboard";
-  const next = suite.startsWith("/") && !suite.startsWith("//") ? suite : "/dashboard";
+  const next = safeInternalPath(searchParams.get("suite"));
   const supabase = await createClient();
 
   let ok = false;

@@ -1,5 +1,6 @@
 "use server";
 
+import { safeInternalPath } from "@/lib/safe-path";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
@@ -24,8 +25,8 @@ export async function verifyTotp(_prev: ActionResult | null, fd: FormData): Prom
   const supabase = await createClient();
   const { error } = await supabase.auth.mfa.challengeAndVerify({ factorId: parsed.data.factorId, code: parsed.data.code });
   if (error) return { ok: false, error: "Code incorrect ou expiré." };
-  const next = String(fd.get("suite") ?? "");
-  if (next.startsWith("/") && !next.startsWith("//")) redirect(next);
+  const next = safeInternalPath(fd.get("suite"), "");
+  if (next) redirect(next);
   return { ok: true, message: "Double authentification activée et vérifiée." };
 }
 

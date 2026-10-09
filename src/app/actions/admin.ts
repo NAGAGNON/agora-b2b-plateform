@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getSession } from "@/lib/auth";
+import { getStaffActionSession } from "@/lib/auth";
 import { logServerError, userMessage } from "@/lib/errors";
 import { env } from "@/lib/env";
 import { seedDemo, wipeDemo, type DemoCredential } from "@/lib/demo/seed";
@@ -18,7 +18,7 @@ import type { Database, Json } from "@/lib/database.types";
 type Enums = Database["public"]["Enums"];
 
 async function staff() {
-  const session = await getSession();
+  const session = await getStaffActionSession();
   if (!session?.isStaff) throw new Error("Accès refusé");
   return { session, supabase: await createClient() };
 }

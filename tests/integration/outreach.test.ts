@@ -169,9 +169,10 @@ describe("Outreach — campagnes lancées à la main", () => {
       expect(c?.kind).toBe("MANUAL");
       expect(c?.status).toBe("READY");
       expect(c?.report).toContain("Campagne manuelle");
-      // Les opportunités récentes déjà traitées par la campagne automatique sont reprises…
+      // Les opportunités récentes déjà traitées par la campagne automatique sont reprises, mais une
+      // entreprise déjà en attente dans la campagne automatique n'est pas mise deux fois en file
       const { data: rec } = await admin.from("outreach_recipients").select("status").eq("campaign_id", r.campaignId!).eq("prospect_id", P.elecA).single();
-      expect(rec?.status).toBe("PENDING");
+      expect(rec?.status).toBe("FREQUENCY");
       // …avec les mêmes garde-fous (liste d'exclusion, fréquence)
       expect((await admin.from("outreach_recipients").select("status").eq("campaign_id", r.campaignId!).eq("prospect_id", P.elecBlocked).single()).data?.status).toBe("SUPPRESSED");
       expect((await admin.from("outreach_recipients").select("status").eq("campaign_id", r.campaignId!).eq("prospect_id", P.elecRecent).single()).data?.status).toBe("FREQUENCY");
@@ -189,10 +190,14 @@ describe("Outreach — campagnes lancées à la main", () => {
   it("les envois manuels ne consomment pas la limite quotidienne de la campagne automatique", async () => {
     await admin.from("outreach_settings").update({ daily_send_cap: 0 }).eq("id", true);
     try {
+      // Entreprise présente uniquement dans la campagne manuelle
+      await prospect("manualOnly", { naf_code: "43.21A", department_code: "29", region: "Bretagne", email: `manual-${RUN}@example.test` });
+      const { data: row } = await admin.from("outreach_recipients").insert({ campaign_id: manualIds[0], prospect_id: P.manualOnly, email: `manual-${RUN}@example.test`, score: 90, reasons: [], status: "PENDING" }).select("id").single();
+      await admin.from("outreach_recipient_opportunities").insert({ recipient_id: row!.id, opportunity_id: O.elec1, score: 90, reasons: [] });
       await admin.from("outreach_campaigns").update({ status: "VALIDATED", dry_run: true }).eq("id", manualIds[0]);
       const r = await processSendQueue(admin, { deadline: Date.now() + 30_000 });
       expect(r.simulated).toBeGreaterThanOrEqual(1);
-      expect((await admin.from("outreach_recipients").select("status").eq("campaign_id", manualIds[0]).eq("prospect_id", P.elecA).single()).data?.status).toBe("SIMULATED");
+      expect((await admin.from("outreach_recipients").select("status").eq("id", row!.id).single()).data?.status).toBe("SIMULATED");
       expect((await recipient("elecA"))?.status).toBe("PENDING");
     } finally {
       await admin.from("outreach_settings").update({ daily_send_cap: 1000 }).eq("id", true);

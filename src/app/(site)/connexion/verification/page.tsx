@@ -3,12 +3,13 @@ import { AuthShell } from "@/components/auth/auth-shell";
 import { MfaChallengeForm } from "@/components/dashboard/security-forms";
 import { createClient } from "@/lib/supabase/server";
 import { PRIVATE_METADATA } from "@/lib/seo";
+import { safeInternalPath } from "@/lib/safe-path";
 
 export const metadata = { ...PRIVATE_METADATA, title: "Vérification en deux étapes" };
 
 export default async function MfaChallengePage(props: PageProps<"/connexion/verification">) {
   const sp = await props.searchParams;
-  const next = typeof sp.suite === "string" && sp.suite.startsWith("/") && !sp.suite.startsWith("//") ? sp.suite : "/dashboard";
+  const next = safeInternalPath(sp.suite);
   const supabase = await createClient();
   const {
     data: { user },

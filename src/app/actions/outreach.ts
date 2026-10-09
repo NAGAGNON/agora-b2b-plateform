@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { getSession } from "@/lib/auth";
+import { getStaffActionSession } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { logServerError, userMessage } from "@/lib/errors";
@@ -11,11 +11,11 @@ import { rateLimit } from "@/lib/rate-limit";
 import { buildDailyCampaign, enrichCampaignAndSend, enrichmentReport, processSendQueue, runManualCampaign, syncOpportunityStates } from "@/lib/outreach/pipeline";
 import { loadReferentials, loadSettings, realSendBlockers } from "@/lib/outreach/data";
 import { mapProspectRows, parseCsv } from "@/lib/outreach/csv";
-import { configuredSearchers, enrichCompany } from "@/lib/outreach/enrich";
+import { configuredSearchers, enrichCompany, isGenericLocalPart } from "@/lib/outreach/enrich";
 
 /** Réservé aux administrateurs de la plateforme (contrôle répété en base par la RLS). */
 async function admin() {
-  const session = await getSession();
+  const session = await getStaffActionSession();
   if (!session?.isAdmin) throw new Error("Accès refusé");
   return { session, supabase: await createClient() };
 }
@@ -257,6 +257,9 @@ export async function saveProspect(_prev: ActionResult | null, fd: FormData): Pr
   const { session, supabase } = await admin();
   const d = parsed.data;
   if (d.email && !d.email_source) return { ok: false, error: "Indiquez d'où provient l'adresse e-mail (traçabilité).", fieldErrors: { email_source: "Origine de l'adresse requise" } };
+  if (d.email && !isGenericLocalPart(d.email.split("@")[0])) {
+    return { ok: false, error: "Uniquement une adresse générique de l'entreprise (contact@, info@, devis@…), jamais une adresse nominative.", fieldErrors: { email: "Adresse nominative refusée" } };
+  }
   const ref = await loadReferentials(createAdminClient());
   const row = {
     name: d.name,

@@ -5,7 +5,8 @@ import { logServerError } from "@/lib/errors";
 import { generateDailyReport } from "@/lib/daily-report";
 import { sendDailyReportEmail } from "@/lib/daily-report-email";
 
-export const maxDuration = 120;
+// Rédaction du bilan complet (jusqu'à deux appels) puis envoi par e-mail
+export const maxDuration = 300;
 
 function authorized(req: Request): boolean {
   const secret = env.cronSecret;

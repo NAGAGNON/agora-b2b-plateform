@@ -131,6 +131,9 @@ export async function sendWelcome(email: string, userId: string): Promise<void> 
 export async function bootstrapInitialAdmin(email: string | undefined | null): Promise<boolean> {
   const target = env.initialAdminEmail;
   if (!target || !email || email.toLowerCase() !== target) return false;
+  // Uniquement en production : ailleurs (aperçus, développement), un compte peut être activé sans
+  // preuve de l'adresse e-mail et ne doit jamais devenir super-administrateur.
+  if (!env.isProduction) return false;
   const { data, error } = await createAdminClient().rpc("bootstrap_super_admin", { p_email: email });
   if (error) logServerError("bootstrapInitialAdmin", error);
   return data === true;

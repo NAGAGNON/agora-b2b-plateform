@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/database.types";
+import { getSettings } from "@/lib/queries/platform";
 
 type UserRow = Database["public"]["Tables"]["users"]["Row"];
 type CompanyRow = Database["public"]["Tables"]["companies"]["Row"];
@@ -69,6 +70,18 @@ export const getSession = cache(async (): Promise<Session | null> => {
     mfaLevel,
   };
 });
+
+/**
+ * Session d'équipe pour une action d'administration : refusée si la double authentification
+ * est exigée (Administration → Paramètres) et que cette session ne l'a pas validée — comme
+ * pour l'accès aux pages d'administration.
+ */
+export async function getStaffActionSession(): Promise<Session | null> {
+  const session = await getSession();
+  if (!session?.isStaff) return null;
+  if (session.mfaLevel !== "aal2" && (await getSettings()).security?.admin_mfa_required === true) return null;
+  return session;
+}
 
 export async function requireSession(next?: string): Promise<Session> {
   const session = await getSession();
