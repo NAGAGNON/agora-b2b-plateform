@@ -41,3 +41,35 @@ test("mesure d'audience : visites et temps de lecture visibles dans l'administra
   await expect(audience.getByText("Durée moyenne")).toBeVisible();
   await expect(audience.getByText("Visite → inscription")).toBeVisible();
 });
+
+test("visites internes non comptées : équipe et adresse du propriétaire, même après déconnexion", async ({ browser }) => {
+  const viewStatus = (page: import("@playwright/test").Page) =>
+    page.waitForResponse((r) => r.url().endsWith("/api/audience") && r.request().postData()?.includes('"t":"view"') === true).then((r) => r.status());
+
+  // Administrateur connecté : visite ignorée, appareil marqué
+  const admin = await newPage(browser);
+  await login(admin, "admin@demo.linkprob2b.test");
+  let status = viewStatus(admin);
+  await admin.goto("/faq");
+  expect(await status).toBe(204);
+  // Déconnexion (cookies de session supprimés) : l'appareil reste reconnu
+  await admin.context().clearCookies({ name: /^sb-/ });
+  status = viewStatus(admin);
+  await admin.goto("/tarifs");
+  expect(await status).toBe(204);
+  expect((await admin.context().cookies()).find((c) => c.name === "lp_interne")).toMatchObject({ value: "1", httpOnly: true });
+
+  // Compte utilisateur dont l'adresse est déclarée comme celle du propriétaire
+  const owner = await newPage(browser);
+  await login(owner, "acheteur2@demo.linkprob2b.test");
+  status = viewStatus(owner);
+  await owner.goto("/faq");
+  expect(await status).toBe(204);
+
+  // Utilisateur ordinaire : visite comptée
+  const user = await newPage(browser);
+  await login(user, "fournisseur@demo.linkprob2b.test");
+  status = viewStatus(user);
+  await user.goto("/faq");
+  expect(await status).toBe(200);
+});

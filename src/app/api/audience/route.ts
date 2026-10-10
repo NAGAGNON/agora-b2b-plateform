@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
+import { INTERNAL_VISIT_COOKIE, INTERNAL_VISIT_MAX_AGE, isInternalVisitor } from "@/lib/audience-exclusion";
 import { rateLimit } from "@/lib/rate-limit";
 import { siteUrl } from "@/lib/seo";
 
@@ -10,6 +13,7 @@ export const dynamic = "force-dynamic";
  * Mesure d'audience interne, sans cookie ni donnée personnelle : chemin de la page,
  * domaine d'origine, type d'appareil, durée de lecture. L'IP n'est ni stockée ni
  * transmise (limitation de débit sur un hachage salé, comme le reste du site).
+ * Les visites internes (équipe, propriétaire du site) ne sont pas comptées.
  */
 const BOT = /bot|crawl|spider|slurp|preview|lighthouse|headless|monitor|uptime|curl|wget|python|axios|node-fetch/i;
 const EXCLUDED = /^\/(admin|api|auth|_next)(\/|$)/;
@@ -51,6 +55,17 @@ export async function POST(req: Request) {
   if (v.success) {
     const path = v.data.path.split("?")[0].split("#")[0];
     if (EXCLUDED.test(path)) return new NextResponse(null, { status: 204 });
+    // Visite interne : appareil déjà reconnu, ou compte connecté de l'équipe / du propriétaire
+    if ((await cookies()).get(INTERNAL_VISIT_COOKIE)?.value === "1") return new NextResponse(null, { status: 204 });
+    const { data: auth } = await (await createClient()).auth.getClaims();
+    if (auth?.claims?.sub) {
+      const { data: user } = await db.from("users").select("platform_role, email").eq("id", auth.claims.sub).maybeSingle();
+      if (isInternalVisitor(user)) {
+        const res = new NextResponse(null, { status: 204 });
+        res.cookies.set(INTERNAL_VISIT_COOKIE, "1", { httpOnly: true, sameSite: "lax", secure: siteUrl().startsWith("https://"), path: "/", maxAge: INTERNAL_VISIT_MAX_AGE });
+        return res;
+      }
+    }
     const { data, error } = await db
       .from("page_views")
       .insert({ session_id: v.data.sid, path, referrer_host: referrerHost(v.data.ref), device: device(v.data.w) })

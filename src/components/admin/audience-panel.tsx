@@ -96,7 +96,7 @@ export function AudiencePanel({ stats: a, period }: { stats: AudienceStats; peri
           <h2 id="audience-titre" className="text-lg font-bold">
             Audience
           </h2>
-          <p className="text-sm text-slate-600">Mesure interne sans cookie ni donnée personnelle ; robots et pages d&apos;administration exclus.</p>
+          <p className="text-sm text-slate-600">Mesure interne sans cookie ni donnée personnelle pour les visiteurs ; robots, pages d&apos;administration et visites de l&apos;équipe (dont les vôtres, même déconnecté sur un appareil déjà utilisé) exclus.</p>
         </div>
         <nav aria-label="Période" className="flex gap-1 rounded-lg border border-slate-200 bg-white p-1 text-sm">
           {PERIODS.map((p) => (

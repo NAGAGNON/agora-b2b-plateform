@@ -87,7 +87,10 @@ test("tableau de bord : message LinkedIn du jour prêt à copier", async ({ brow
 
 test("navigation : réponse immédiate au clic (squelette de chargement) puis contenu", async ({ browser }) => {
   const page = await newPage(browser);
+  // Le lien visible est préchargé (squelette compris) : on attend ce préchargement avant le clic
+  const prefetched = page.waitForResponse((r) => /\/opportunites\?_rsc=/.test(r.url()) && Boolean(r.request().headers()["next-router-prefetch"]));
   await page.goto("/");
+  await prefetched;
   // Serveur volontairement ralenti : le squelette s'affiche avant la page demandée
   // (le préchargement, lui, n'est pas ralenti : il apporte le squelette à l'avance)
   await page.route(/\/opportunites\?_rsc=/, async (route) => {
