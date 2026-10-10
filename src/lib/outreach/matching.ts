@@ -1,5 +1,6 @@
 import { normalizeText } from "@/lib/collect/normalize";
 import { NEED_RULES, SECTOR_PROFILES } from "@/lib/outreach/profiles";
+import { minEmployees, publicProcurementProfile } from "@/lib/outreach/public-awards";
 
 /**
  * Moteur de correspondance opportunité ↔ entreprise.
@@ -91,6 +92,9 @@ export type ProspectInput = {
   intervention_zone: string;
   contacts_count: number;
   last_clicked_at: string | null;
+  /** Marchés publics remportés (DECP) ; null ou absent = pas encore vérifié. */
+  public_awards_count?: number | null;
+  size_range?: string | null;
 };
 
 export type Match = { score: number; reasons: string[] };
@@ -108,7 +112,10 @@ export function relevanceLabel(score: number): string {
  *  - localisation (25 max) ;
  *  - compétences / mots-clés (18 max) ;
  *  - historique (−10 à +6) : intérêt déjà manifesté, ou sollicitations restées sans réponse ;
- *  - richesse du profil (+6).
+ *  - richesse du profil (+6) ;
+ *  - habitude des marchés publics (jusqu'à +16) : marchés remportés (DECP), métier habitué des
+ *    appels d'offres publics (BTP, ingénierie, industrie, maintenance, services aux collectivités),
+ *    taille de l'entreprise (capacité à répondre et à sous-traiter).
  */
 export function scoreMatch(a: OpportunityAnalysis, p: ProspectInput, sectorLabel: (slug: string) => string = (s) => s): Match {
   const reasons: string[] = [];
@@ -165,7 +172,24 @@ export function scoreMatch(a: OpportunityAnalysis, p: ProspectInput, sectorLabel
   }
   const profile = (p.activity?.length ?? 0) >= 30 || p.services.length > 0 ? 6 : 0;
 
-  return { score: Math.max(0, Math.min(100, activity + location + skills + history + profile)), reasons };
+  let publicMarkets = 0;
+  const awards = p.public_awards_count ?? 0;
+  if (awards > 0) {
+    publicMarkets += awards >= 5 ? 10 : awards >= 2 ? 7 : 4;
+    reasons.push(`A remporté ${awards} marché${awards > 1 ? "s" : ""} public${awards > 1 ? "s" : ""} (données essentielles de la commande publique)`);
+  }
+  const habit = publicProcurementProfile(naf);
+  if (habit) {
+    publicMarkets += 3;
+    if (!awards) reasons.push(`Métier habitué des appels d'offres publics (${habit})`);
+  }
+  const employees = minEmployees(p.size_range);
+  if (employees !== null && employees >= 10) {
+    publicMarkets += 3;
+    reasons.push(`Entreprise de ${p.size_range} : capacité à répondre et à sous-traiter`);
+  } else if (employees === 0) publicMarkets -= 3;
+
+  return { score: Math.max(0, Math.min(100, activity + location + skills + history + profile + publicMarkets)), reasons };
 }
 
 export type ProspectMatches = { prospectId: string; score: number; reasons: string[]; opportunities: { id: string; score: number; reasons: string[] }[] };
