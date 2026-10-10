@@ -7,6 +7,7 @@ import { buildEmail, loadRecipientBundles, loadReferentials, loadSettings, loadS
 import { sendOutreachEmail } from "@/lib/outreach/send";
 import { configuredSearchers, enrichCompany } from "@/lib/outreach/enrich";
 import { decideRamp, RAMP_INTERVAL_DAYS } from "@/lib/outreach/ramp";
+import { refreshPublicAwards } from "@/lib/outreach/public-awards";
 
 /**
  * Chaîne quotidienne de LinkProB2B Outreach :
@@ -147,9 +148,12 @@ export async function discoverProspects(db: Db, analyses: OpportunityAnalysis[],
 }
 
 const PROSPECT_FIELDS =
-  "id, name, email, siren, naf_code, naf_label, sectors, activity, services, keywords, department_code, region, intervention_zone, contacts_count, last_clicked_at, last_contacted_at, is_individual_entrepreneur, status";
+  "id, name, email, siren, naf_code, naf_label, sectors, activity, services, keywords, department_code, region, intervention_zone, contacts_count, last_clicked_at, last_contacted_at, is_individual_entrepreneur, status, public_awards_count, size_range";
 
-/** Entreprises candidates pour une opportunité : même activité ET zone compatible. */
+/**
+ * Entreprises candidates pour une opportunité : même activité ET zone compatible. Quand elles
+ * sont plus nombreuses que la limite, celles qui remportent le plus de marchés publics passent en premier.
+ */
 async function candidates(db: Db, a: OpportunityAnalysis, settings: OutreachSettings) {
   const naf = [...new Set([...a.primaryNaf, ...a.sectorNaf])];
   const activity = [naf.length ? `naf_code.in.(${naf.map((n) => `"${n}"`).join(",")})` : null, a.sector ? `sectors.cs.{${a.sector}}` : null].filter(Boolean).join(",");
@@ -162,7 +166,7 @@ async function candidates(db: Db, a: OpportunityAnalysis, settings: OutreachSett
     "intervention_zone.eq.NATIONAL",
   ].filter(Boolean);
   if (a.department || a.region) q = q.or(zone.join(","));
-  const { data, error } = await q.limit(settings.max_prospects_per_opportunity);
+  const { data, error } = await q.order("public_awards_count", { ascending: false, nullsFirst: false }).order("id").limit(settings.max_prospects_per_opportunity);
   if (error) throw error;
   return data ?? [];
 }
@@ -229,6 +233,11 @@ export async function buildDailyCampaign(
     }
     const analyses = opps.map((o) => analyzeOpportunity(o));
     const discovery = settings.discovery_enabled ? await discoverProspects(db, analyses, deadline - 30_000) : { calls: 0, added: 0, errors: 0 };
+    // Marchés publics remportés (DECP, source publique comme la découverte) des entreprises concernées, avant le calcul des scores
+    const awards = !settings.discovery_enabled ? null : await refreshPublicAwards(db, {
+      nafCodes: analyses.flatMap((a) => [...a.primaryNaf, ...a.sectorNaf]),
+      deadline: Math.min(Date.now() + 30_000, deadline - 30_000),
+    }).catch((e) => (logServerError("outreach DECP", e), null));
 
     const [supp, customers] = await Promise.all([
       loadSuppressions(db),
@@ -314,6 +323,8 @@ export async function buildDailyCampaign(
       excluded_suppressed: rows.filter((r) => r.status === "SUPPRESSED").length,
       discovery_calls: discovery.calls,
       discovery_added: discovery.added,
+      public_awards_checked: awards?.checked ?? 0,
+      public_awards_winners: awards?.winners ?? 0,
     };
     const report = [
       manual
@@ -323,6 +334,9 @@ export async function buildDailyCampaign(
       `${stats.companies_selected} entreprise(s) sélectionnée(s), ${stats.emails_prepared} e-mail(s) préparé(s), ${stats.no_email} sans adresse e-mail.`,
       stats.excluded_frequency + stats.excluded_suppressed > 0 ? `${stats.excluded_frequency} écartée(s) (fréquence), ${stats.excluded_suppressed} écartée(s) (liste d'exclusion ou déjà utilisatrices).` : null,
       settings.discovery_enabled ? `Découverte : ${stats.discovery_added} entreprise(s) ajoutée(s) (${stats.discovery_calls} requête(s) à la source publique).` : null,
+      awards && (awards.checked || awards.stopped)
+        ? `Marchés publics remportés : ${awards.checked} entreprise(s) vérifiée(s), dont ${awards.winners} titulaire(s) d'au moins un marché (DECP).${awards.stopped ? ` Vérification interrompue : ${awards.stopped}` : ""}`
+        : null,
     ]
       .filter(Boolean)
       .join("\n");
