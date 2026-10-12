@@ -1,3 +1,4 @@
+import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Landmark } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
@@ -26,6 +27,7 @@ export default async function BuyersPage(props: PageProps<"/acheteurs">) {
   // Une ligne de plus pour savoir s'il existe une page suivante
   const { data } = await supabase.rpc("public_buyers", { p_limit: PER_PAGE + 1, p_offset: (page - 1) * PER_PAGE });
   const rows = (data ?? []).slice(0, PER_PAGE);
+  if (page > 1 && !rows.length) notFound();
   const hasNext = (data ?? []).length > PER_PAGE;
   return (
     <div className="container-page py-10 sm:py-14">

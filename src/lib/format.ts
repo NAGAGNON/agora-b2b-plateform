@@ -42,11 +42,15 @@ export function formatBudget(min: number | null | undefined, max: number | null 
 }
 
 /** Nombre de jours (arrondi) avant une date ; négatif si dépassée. */
+const parisDate = (d: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris" }).format(d);
+
+/** Nombre de jours calendaires (heure de Paris) jusqu'à l'échéance : 0 = aujourd'hui, négatif = passée. */
 export function daysUntil(value: string | Date | null | undefined, now: Date = new Date()): number | null {
   if (!value) return null;
   const d = typeof value === "string" ? new Date(value) : value;
   if (Number.isNaN(d.getTime())) return null;
-  return Math.ceil((d.getTime() - now.getTime()) / 86_400_000);
+  if (d.getTime() < now.getTime()) return -1;
+  return Math.round((Date.parse(parisDate(d)) - Date.parse(parisDate(now))) / 86_400_000);
 }
 
 export function deadlineLabel(value: string | null | undefined, now: Date = new Date()): string | null {

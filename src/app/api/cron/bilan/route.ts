@@ -16,15 +16,22 @@ function authorized(req: Request): boolean {
   return header.length === expected.length && timingSafeEqual(Buffer.from(header), Buffer.from(expected));
 }
 
+/** Heure de Paris (0-23). */
+function parisHour(now = new Date()): number {
+  return Number(new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Paris", hour: "2-digit", hourCycle: "h23" }).format(now));
+}
+
 /**
- * Bilan du jour (vercel.json : une fois par jour, le soir, pour limiter la consommation de l'API).
- * Le soir (`soir=1`), bilan complet et
- * détaillé, envoyé par e-mail (DAILY_REPORT_EMAIL, sinon les super-administrateurs).
+ * Bilan du jour (vercel.json : le soir, pour limiter la consommation de l'API).
+ * Le soir (`soir=1`), bilan complet et détaillé, envoyé par e-mail (DAILY_REPORT_EMAIL, sinon les
+ * super-administrateurs) à 21 h, heure de Paris : la tâche est planifiée à 19 h et 20 h UTC (heure
+ * d'été / d'hiver) ; avant 21 h à Paris elle ne fait rien, et le rapport n'est envoyé qu'une fois.
  */
 export async function GET(req: Request) {
   if (!authorized(req)) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
   try {
     if (new URL(req.url).searchParams.get("soir") === "1") {
+      if (parisHour() < 21) return NextResponse.json({ ok: true, skipped: "Avant 21 h (heure de Paris) : envoi au passage suivant" });
       const email = await sendDailyReportEmail();
       return NextResponse.json({ ok: !("errors" in email && email.errors?.length), email });
     }

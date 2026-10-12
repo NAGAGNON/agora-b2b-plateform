@@ -78,8 +78,8 @@ describe("Flux RSS des offres", () => {
     expect(xml).toContain(`<title>${T} Travaux de voirie &lt;&amp;&gt;</title>`);
     expect(xml).toContain("Source : BOAMP");
     expect(xml).toContain(`Acheteur : ${BUYER.replace(/’/g, "’")}`);
-    expect(xml).toContain(`${T} Entretien des berges`);
-    for (const hidden of ["Ancien marché clos", "Uniquement clos", `${T} Démo`, "Réservée aux membres"]) expect(xml).not.toContain(hidden);
+    // Offre externe sans source connue : jamais diffusée (chaque offre externe doit citer sa source)
+    for (const hidden of ["Ancien marché clos", "Uniquement clos", `${T} Démo`, "Réservée aux membres", `${T} Entretien des berges`]) expect(xml).not.toContain(hidden);
     expect(xml).toContain('rel="self"');
     expect(xml).toContain("region=bretagne");
   });

@@ -26,7 +26,7 @@ export default async function AdminArticlesPage() {
       <div>
         <h1 className="text-2xl font-bold">Articles (analyses de marché)</h1>
         <p className="mt-1 text-slate-600">
-          Rédigés chaque jour par une IA à partir des seules opportunités réellement publiées, puis contrôlés : chaque chiffre doit figurer dans les données
+          Rédigés chaque jour automatiquement à partir des seules opportunités réellement publiées, puis contrôlés : chaque chiffre doit figurer dans les données
           transmises. {published} article(s) en ligne sur <Link href="/analyses">/analyses</Link>.
         </p>
       </div>

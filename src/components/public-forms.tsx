@@ -1,32 +1,38 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { sendContactMessage, unsubscribeAlert } from "@/app/actions/public";
 import { Field, Input, Select, Textarea } from "@/components/ui/form";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { Notice } from "@/components/ui/notice";
 
 export function ContactForm({ defaultSubject, reference }: { defaultSubject?: string; reference?: string }) {
-  const [state, action] = useActionState(sendContactMessage, null);
+  // Saisie conservée si l'envoi est refusé (champ manquant, message trop court…) : le formulaire est
+  // réinitialisé après l'envoi, avec ces valeurs comme valeurs par défaut.
+  const [values, setValues] = useState<Record<string, string>>({});
+  const [state, action] = useActionState(async (prev: Awaited<ReturnType<typeof sendContactMessage>> | null, fd: FormData) => {
+    setValues(Object.fromEntries([...fd.entries()].map(([k, v]) => [k, typeof v === "string" ? v : ""])));
+    return sendContactMessage(prev, fd);
+  }, null);
   if (state?.ok) return <Notice tone="success">{state.message}</Notice>;
   const fe = state && !state.ok ? state.fieldErrors : undefined;
   return (
     <form action={action} className="space-y-5" noValidate>
       <div className="grid gap-5 sm:grid-cols-2">
         <Field label="Nom" name="name" error={fe?.name} required>
-          {(p) => <Input {...p} autoComplete="name" />}
+          {(p) => <Input {...p} autoComplete="name" defaultValue={values.name} />}
         </Field>
         <Field label="E-mail" name="email" error={fe?.email} required>
-          {(p) => <Input {...p} type="email" autoComplete="email" />}
+          {(p) => <Input {...p} type="email" autoComplete="email" defaultValue={values.email} />}
         </Field>
       </div>
       <Field label="Entreprise" name="company" error={fe?.company}>
-        {(p) => <Input {...p} autoComplete="organization" />}
+        {(p) => <Input {...p} autoComplete="organization" defaultValue={values.company} />}
       </Field>
       <Field label="Objet" name="subject" error={fe?.subject} required>
         {(p) => (
-          <Select {...p} defaultValue={defaultSubject ?? ""}>
+          <Select {...p} key={values.subject ?? "initial"} defaultValue={values.subject ?? defaultSubject ?? ""}>
             <option value="" disabled>
               Choisir un objet
             </option>
@@ -42,7 +48,7 @@ export function ContactForm({ defaultSubject, reference }: { defaultSubject?: st
         )}
       </Field>
       <Field label="Message" name="message" error={fe?.message} required>
-        {(p) => <Textarea {...p} rows={6} maxLength={5000} defaultValue={reference ? `Référence de l'élément concerné : ${reference}\n\n` : undefined} />}
+        {(p) => <Textarea {...p} rows={6} maxLength={5000} defaultValue={values.message ?? (reference ? `Référence de l'élément concerné : ${reference}\n\n` : undefined)} />}
       </Field>
       <div className="hidden" aria-hidden>
         <label>

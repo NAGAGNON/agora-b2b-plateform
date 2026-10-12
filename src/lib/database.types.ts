@@ -1502,6 +1502,9 @@ isOneToOne: false
 "slugify":
 { Args: { "p_text": string }; Returns: string
                            },
+"staff_mfa_ok":
+{ Args: Record<PropertyKey, never>; Returns: boolean
+                           },
 "start_conversation":
 { Args: { "p_body": string,"p_opportunity_id": string,"p_supplier_company_id": string }; Returns: string
                            },

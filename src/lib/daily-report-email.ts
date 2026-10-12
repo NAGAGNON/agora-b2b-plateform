@@ -261,7 +261,7 @@ export function renderDailyReportEmail(row: ReportRow, { socialPost = null }: { 
 <table role="presentation" width="640" cellpadding="0" cellspacing="0" style="max-width:640px;width:100%;background:#ffffff;border-radius:12px">
 <tr><td style="background:${NAVY};border-radius:12px 12px 0 0;padding:18px 24px;color:#ffffff;font-weight:700;font-size:18px">LinkPro<span style="color:#14B8A6">B2B</span></td></tr>
 <tr><td style="padding:24px">${parts.join("")}<p style="margin:24px 0 0;color:#64748b;font-size:12px;line-height:18px">${e(footer)}</p></td></tr></table></td></tr></table></body></html>`;
-  const subject = `Rapport LinkProB2B du ${dayLabel(f.date)} — ${n(a.visites)} visites, ${n(o.emails_envoyes_aujourdhui)} e-mails envoyés, ${n(f.actions_des_visiteurs.inscriptions)} inscriptions`;
+  const subject = `Rapport LinkProB2B du ${dayLabel(f.date)} — ${n(a.visites)} visites, ${n(o.emails_envoyes_aujourdhui)} e-mails envoyés, ${n(f.google_articles_inscriptions.inscriptions_du_jour.nombre)} inscriptions`;
   return { subject, html, text: [...lines, "", footer].join("\n") };
 }
 

@@ -52,32 +52,40 @@ export async function loadSocialPostFacts(db: SupabaseClient<Database>, now = ne
   const todayStart = parisDayStart(parisToday(now));
   const weekStart = new Date(todayStart.getTime() - 6 * 86_400_000);
   const nowIso = now.toISOString();
-  const open = () =>
-    db.from("opportunities").select("id", { count: "exact", head: true }).eq("status", "PUBLISHED").eq("visibility", "PUBLIC").eq("is_demo", false).or(`response_deadline.is.null,response_deadline.gt.${nowIso}`);
-  const [{ data: recent }, { count: openTotal }, { data: sectors }] = await Promise.all([
-    db
-      .from("opportunities")
-      .select("title, sector_slug, region, response_deadline, published_at, origin, external_buyer_name")
-      .eq("status", "PUBLISHED")
-      .eq("visibility", "PUBLIC")
-      .eq("is_demo", false)
-      .gte("published_at", weekStart.toISOString())
-      .lte("published_at", nowIso)
-      .order("published_at", { ascending: false })
-      .limit(1000),
-    open(),
+  const published = (since: Date) =>
+    db.from("opportunities").select("id", { count: "exact", head: true }).eq("status", "PUBLISHED").eq("visibility", "PUBLIC").eq("is_demo", false).gte("published_at", since.toISOString()).lte("published_at", nowIso);
+  const [{ count: todayCount }, { count: weekCount }, { count: openTotal }, { data: sectors }] = await Promise.all([
+    published(todayStart),
+    published(weekStart),
+    db.from("opportunities").select("id", { count: "exact", head: true }).eq("status", "PUBLISHED").eq("visibility", "PUBLIC").eq("is_demo", false).or(`response_deadline.is.null,response_deadline.gt.${nowIso}`),
     db.from("sectors").select("slug, label"),
   ]);
   const labels = { ...SECTOR_LABELS, ...Object.fromEntries((sectors ?? []).map((s) => [s.slug, s.label])) };
-  const week = recent ?? [];
-  const today = week.filter((o) => o.published_at && new Date(o.published_at) >= todayStart);
-  const period = today.length ? "today" : "week";
-  const rows = today.length ? today : week;
+  const period = (todayCount ?? 0) > 0 ? "today" : "week";
+  const since = period === "today" ? todayStart : weekStart;
+  // Toutes les offres de la période (par pages de 1000) : répartitions exactes, pas un échantillon
+  const rows: { title: string; sector_slug: string | null; region: string | null; response_deadline: string | null; origin: string; external_buyer_name: string | null }[] = [];
+  for (let page = 0; page < 30; page++) {
+    const { data, error } = await db
+      .from("opportunities")
+      .select("title, sector_slug, region, response_deadline, origin, external_buyer_name")
+      .eq("status", "PUBLISHED")
+      .eq("visibility", "PUBLIC")
+      .eq("is_demo", false)
+      .gte("published_at", since.toISOString())
+      .lte("published_at", nowIso)
+      .order("published_at", { ascending: false })
+      .order("id")
+      .range(page * 1000, page * 1000 + 999);
+    if (error) throw error;
+    rows.push(...(data ?? []));
+    if ((data ?? []).length < 1000) break;
+  }
   // Offre mise en avant : encore ouverte, la plus récente avec une date limite connue
   const h = rows.find((o) => o.response_deadline && o.response_deadline > nowIso) ?? null;
   return {
     period,
-    newCount: rows.length,
+    newCount: (period === "today" ? todayCount : weekCount) ?? rows.length,
     openTotal: openTotal ?? 0,
     sectors: top(rows.map((o) => (o.sector_slug ? sectorLabel(o.sector_slug, labels) : null))),
     regions: top(rows.map((o) => o.region)),

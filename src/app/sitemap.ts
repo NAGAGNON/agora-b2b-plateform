@@ -58,8 +58,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     db.rpc("open_opportunity_counts"),
   ]);
   // Acheteurs publics avec au moins un appel d'offres ouvert
-  const { data: buyers } = await db.rpc("public_buyers", { p_limit: 10000, p_offset: 0 });
-  for (const b of buyers ?? []) entries.push({ url: `${base}/acheteurs/${b.slug}`, ...(b.last_published_at ? { lastModified: new Date(b.last_published_at) } : {}), changeFrequency: "daily", priority: 0.6 });
+  // Par pages de 1000 (limite de réponse de la base)
+  const buyers: { slug: string; last_published_at: string | null }[] = [];
+  for (let page = 0; page < 20; page++) {
+    const { data } = await db.rpc("public_buyers", { p_limit: 1000, p_offset: page * 1000 });
+    buyers.push(...(data ?? []));
+    if ((data ?? []).length < 1000) break;
+  }
+  for (const b of buyers) entries.push({ url: `${base}/acheteurs/${b.slug}`, ...(b.last_published_at ? { lastModified: new Date(b.last_published_at) } : {}), changeFrequency: "daily", priority: 0.6 });
   // Pages d'atterrissage avec suffisamment d'opportunités ouvertes (pas de pages vides)
   const n = (dimension: string, key: string | null) => (counts ?? []).find((c) => c.dimension === dimension && c.key === key)?.n ?? 0;
   const landing = (path: string) => entries.push({ url: `${base}${path}`, changeFrequency: "daily", priority: 0.6 });

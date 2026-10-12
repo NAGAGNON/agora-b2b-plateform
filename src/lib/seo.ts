@@ -42,7 +42,8 @@ export function pageMetadata({ title, description, path, noindex = false }: { ti
 export function listingIndexing(path: string, sp: Record<string, string | string[] | undefined>): { path: string; filtered: boolean } {
   const keys = Object.keys(sp).filter((k) => sp[k] !== undefined && sp[k] !== "");
   const page = typeof sp.page === "string" && /^\d{1,4}$/.test(sp.page) ? Number(sp.page) : null;
-  if (keys.length === 1 && keys[0] === "page" && page !== null) return { path: page > 1 ? `${path}?page=${page}` : path, filtered: false };
+  // Au-delà de la page 500 (limite de la recherche), la page reprendrait la 500e : non indexée
+  if (keys.length === 1 && keys[0] === "page" && page !== null && page <= 500) return { path: page > 1 ? `${path}?page=${page}` : path, filtered: false };
   return { path, filtered: keys.length > 0 };
 }
 

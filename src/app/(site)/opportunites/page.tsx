@@ -1,4 +1,7 @@
+import { notFound } from "next/navigation";
 import { OpportunityResults } from "@/components/opportunities/opportunity-results";
+import { searchOpportunities } from "@/lib/queries/opportunities";
+import { PAGE_SIZE } from "@/lib/constants";
 import { parseOpportunityFilters } from "@/lib/search-params";
 import { listingIndexing, pageMetadata } from "@/lib/seo";
 import { track } from "@/lib/analytics";
@@ -20,6 +23,13 @@ export async function generateMetadata(props: PageProps<"/opportunites">) {
 export default async function OpportunitiesPage(props: PageProps<"/opportunites">) {
   const sp = await props.searchParams;
   const filters = parseOpportunityFilters(sp);
+  // Page au-delà des résultats (ou au-delà de la limite de 500) : page introuvable, jamais une page vide indexée
+  const requested = typeof sp.page === "string" ? Number(sp.page) : 1;
+  if (requested > 500) notFound();
+  if (filters.page > 1) {
+    const { total } = await searchOpportunities(filters);
+    if ((filters.page - 1) * PAGE_SIZE >= total) notFound();
+  }
   if (filters.q || Object.keys(sp).length > 0) {
     void track("search_opportunities", { has_query: Boolean(filters.q), sector: filters.sector ?? null, department: filters.department ?? null });
   }

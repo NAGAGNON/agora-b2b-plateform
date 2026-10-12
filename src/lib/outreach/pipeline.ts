@@ -8,6 +8,7 @@ import { sendOutreachEmail } from "@/lib/outreach/send";
 import { configuredSearchers, enrichCompany } from "@/lib/outreach/enrich";
 import { decideRamp, RAMP_INTERVAL_DAYS } from "@/lib/outreach/ramp";
 import { refreshPublicAwards } from "@/lib/outreach/public-awards";
+import { parisDayStart, parisToday } from "@/lib/daily-report";
 
 /**
  * Chaîne quotidienne de LinkProB2B Outreach :
@@ -24,7 +25,12 @@ import { refreshPublicAwards } from "@/lib/outreach/public-awards";
 const ENRICH_COMPANY_TIMEOUT_MS = 30_000;
 const DAY = 86_400_000;
 const chunk = <T,>(arr: T[], n: number) => Array.from({ length: Math.ceil(arr.length / n) }, (_, i) => arr.slice(i * n, i * n + n));
-const today = () => new Date().toISOString().slice(0, 10);
+/** Jour calendaire de Paris (date de campagne, limites quotidiennes). */
+const today = () => parisToday();
+/** Minuit (heure de Paris) du jour en cours, en instant UTC. */
+const startOfParisDay = () => parisDayStart(parisToday()).toISOString();
+/** Marge avant la fin du budget (la tâche dispose d'environ 30 s de plus) : un envoi SMTP peut durer jusqu'à une minute. */
+const SEND_SAFETY_MS = 40_000;
 
 const OPP_FIELDS = "id, title, summary, description, sector_slug, skills, keywords, city, department_code, region, response_deadline, status, visibility, is_demo, published_at";
 
@@ -74,12 +80,15 @@ export async function syncOpportunityStates(db: Db, settings: OutreachSettings) 
     if (rows.length < 1000) break;
   }
   // Expiration : une opportunité fermée, retirée ou dont l'échéance est trop proche n'est plus jamais proposée.
-  const { data: open } = await db
-    .from("outreach_opportunity_states")
-    .select("opportunity_id, opportunity:opportunities(status, response_deadline)")
-    .in("status", ["NEW", "MODIFIED", "PROCESSED"])
-    .limit(5000);
-  const expire = (open ?? [])
+  const open = await selectAll((from, to) =>
+    db
+      .from("outreach_opportunity_states")
+      .select("opportunity_id, opportunity:opportunities(status, response_deadline)")
+      .in("status", ["NEW", "MODIFIED", "PROCESSED"])
+      .order("opportunity_id")
+      .range(from, to),
+  );
+  const expire = open
     .filter((s) => {
       const o = s.opportunity as unknown as { status: string; response_deadline: string | null } | null;
       return !o || o.status !== "PUBLISHED" || (o.response_deadline !== null && new Date(o.response_deadline).getTime() < Date.now());
@@ -102,11 +111,11 @@ export async function discoverProspects(db: Db, analyses: OpportunityAnalysis[],
     }
   }
   if (pairs.length === 0) return { calls: 0, added: 0, errors: 0 };
-  const { data: runs } = await db
-    .from("outreach_discovery_runs")
-    .select("naf_code, department_code, ran_at, error")
-    .gte("ran_at", new Date(Date.now() - 30 * DAY).toISOString());
-  const fresh = new Set((runs ?? []).filter((r) => !r.error).map((r) => `${r.naf_code}|${r.department_code}`));
+  const since = new Date(Date.now() - 30 * DAY).toISOString();
+  const runs = await selectAll((from, to) =>
+    db.from("outreach_discovery_runs").select("naf_code, department_code, ran_at, error").gte("ran_at", since).order("naf_code").order("department_code").range(from, to),
+  );
+  const fresh = new Set(runs.filter((r) => !r.error).map((r) => `${r.naf_code}|${r.department_code}`));
   const ref = await loadReferentials(db);
   const result = { calls: 0, added: 0, errors: 0 };
   for (const [naf, dept] of pairs.filter(([n, d]) => !fresh.has(`${n}|${d}`))) {
@@ -166,7 +175,7 @@ async function candidates(db: Db, a: OpportunityAnalysis, settings: OutreachSett
     "intervention_zone.eq.NATIONAL",
   ].filter(Boolean);
   if (a.department || a.region) q = q.or(zone.join(","));
-  const { data, error } = await q.order("public_awards_count", { ascending: false, nullsFirst: false }).order("id").limit(settings.max_prospects_per_opportunity);
+  const { data, error } = await q.order("public_awards_count", { ascending: false, nullsFirst: false }).order("id").limit(Math.min(settings.max_prospects_per_opportunity, 1000));
   if (error) throw error;
   return data ?? [];
 }
@@ -184,9 +193,11 @@ export async function buildDailyCampaign(
   { date = today(), force = false, deadline = Date.now() + 120_000, manual }: { date?: string; force?: boolean; deadline?: number; manual?: { userId: string | null } } = {},
 ): Promise<BuildResult> {
   const settings = await loadSettings(db);
-  const { data: existing } = manual ? { data: null } : await db.from("outreach_campaigns").select("id, status").eq("campaign_date", date).eq("kind", "AUTO").maybeSingle();
+  const { data: existing } = manual ? { data: null } : await db.from("outreach_campaigns").select("id, status, updated_at").eq("campaign_date", date).eq("kind", "AUTO").maybeSingle();
   if (existing) {
-    const rebuildable = ["BUILDING", "FAILED"].includes(existing.status) || (force && existing.status === "READY");
+    // Préparation en cours depuis moins de 10 minutes : jamais deux préparations en même temps
+    const stalled = existing.status === "BUILDING" && Date.now() - new Date(existing.updated_at).getTime() > 10 * 60_000;
+    const rebuildable = stalled || existing.status === "FAILED" || (force && existing.status === "READY");
     if (!rebuildable) return { campaignId: existing.id, skipped: existing.status === "READY" ? "Campagne du jour déjà préparée" : "Campagne du jour déjà validée ou envoyée" };
   }
   const base = {
@@ -232,11 +243,11 @@ export async function buildDailyCampaign(
       opps.push(...(data ?? []));
     }
     const analyses = opps.map((o) => analyzeOpportunity(o));
-    const discovery = settings.discovery_enabled ? await discoverProspects(db, analyses, deadline - 30_000) : { calls: 0, added: 0, errors: 0 };
+    const discovery = settings.discovery_enabled ? await discoverProspects(db, analyses, deadline - 75_000) : { calls: 0, added: 0, errors: 0 };
     // Marchés publics remportés (DECP, source publique comme la découverte) des entreprises concernées, avant le calcul des scores
     const awards = !settings.discovery_enabled ? null : await refreshPublicAwards(db, {
       nafCodes: analyses.flatMap((a) => [...a.primaryNaf, ...a.sectorNaf]),
-      deadline: Math.min(Date.now() + 30_000, deadline - 30_000),
+      deadline: Math.min(Date.now() + 30_000, deadline - 45_000),
     }).catch((e) => (logServerError("outreach DECP", e), null));
 
     const [supp, customers] = await Promise.all([
@@ -280,13 +291,20 @@ export async function buildDailyCampaign(
       for (const r of data ?? []) pendingElsewhere.add(r.prospect_id);
     }
     const minGap = Date.now() - settings.min_days_between_contacts * DAY;
+    // Même adresse e-mail déjà contactée récemment via une autre entreprise (adresse partagée par un groupe)
+    const mailedRecently = new Set<string>();
+    const groupEmails = [...new Set(groups.map((g) => prospects.get(g.prospectId)?.email?.toLowerCase()).filter((e): e is string => Boolean(e)))];
+    for (const part of chunk(groupEmails, 200)) {
+      const { data } = await db.from("outreach_recipients").select("email").in("email", part).eq("status", "SENT").gte("sent_at", new Date(minGap).toISOString());
+      for (const r of data ?? []) if (r.email) mailedRecently.add(r.email.toLowerCase());
+    }
     const rows = groups.map((g) => {
       const p = prospects.get(g.prospectId)!;
       const email = p.email?.toLowerCase() ?? null;
       const domain = email?.split("@")[1] ?? null;
       let status = "PENDING";
       if ((p.siren && (supp.SIREN.has(p.siren) || customerSirens.has(p.siren))) || (email && supp.EMAIL.has(email)) || (domain && supp.DOMAIN.has(domain))) status = "SUPPRESSED";
-      else if ((p.last_contacted_at && new Date(p.last_contacted_at).getTime() > minGap) || (recentCounts.get(p.id) ?? 0) >= settings.max_contacts_per_30_days || pendingElsewhere.has(p.id)) status = "FREQUENCY";
+      else if ((p.last_contacted_at && new Date(p.last_contacted_at).getTime() > minGap) || (recentCounts.get(p.id) ?? 0) >= settings.max_contacts_per_30_days || pendingElsewhere.has(p.id) || (email && mailedRecently.has(email))) status = "FREQUENCY";
       else if (!email) status = "NO_EMAIL";
       return { campaign_id: campaignId!, prospect_id: g.prospectId, email, score: g.score, reasons: g.reasons, status };
     });
@@ -377,15 +395,22 @@ export async function processSendQueue(db: Db, { deadline = Date.now() + 60_000,
 }
 
 async function sendQueue(db: Db, deadline: number, sleep: (ms: number) => Promise<void>) {
+  // Marge de sécurité proportionnée au temps disponible (40 s au plus pour une tâche planifiée)
+  const sendMargin = Math.min(SEND_SAFETY_MS, Math.max(0, deadline - Date.now()) / 4);
   const settings = await loadSettings(db);
   const iso = (t: number) => new Date(t).toISOString();
-  const startOfDay = `${today()}T00:00:00Z`;
-  // Envoi interrompu (fonction arrêtée pendant l'envoi) : résultat incertain → jamais renvoyé automatiquement
-  await db
+  const startOfDay = startOfParisDay();
+  // Envoi interrompu (fonction arrêtée pendant l'envoi) : résultat incertain → jamais renvoyé automatiquement,
+  // et compté comme un contact (l'entreprise a peut-être reçu l'e-mail : délai minimum respecté)
+  const { data: interrupted } = await db
     .from("outreach_recipients")
     .update({ status: "FAILED", error: "Envoi interrompu : résultat incertain, non renvoyé automatiquement (évite un doublon)" })
     .eq("status", "SENDING")
-    .lt("last_attempt_at", iso(Date.now() - 15 * 60_000));
+    .lt("last_attempt_at", iso(Date.now() - 15 * 60_000))
+    .select("prospect_id, last_attempt_at");
+  for (const r of interrupted ?? []) {
+    if (r.last_attempt_at) await db.from("outreach_prospects").update({ last_contacted_at: r.last_attempt_at }).eq("id", r.prospect_id).or(`last_contacted_at.is.null,last_contacted_at.lt.${r.last_attempt_at}`);
+  }
 
   const sentSince = async (since: string, autoOnly: boolean) => {
     let q = db.from("outreach_recipients").select("id, campaign:outreach_campaigns!inner(kind)", { count: "exact", head: true }).eq("status", "SENT").gte("sent_at", since);
@@ -403,11 +428,21 @@ async function sendQueue(db: Db, deadline: number, sleep: (ms: number) => Promis
   const ref = await loadReferentials(db);
   const blockers = realSendBlockers(settings);
   const supp = await loadSuppressions(db);
+  // Entreprises déjà utilisatrices de LinkProB2B : jamais prospectées (contrôle repris à l'envoi,
+  // une campagne pouvant partir plusieurs jours après sa préparation)
+  const customers = new Set(
+    (await selectAll((from, to) => db.from("companies").select("siren").not("siren", "is", null).order("id").range(from, to))).map((c) => c.siren!),
+  );
   const gap = settings.send_interval_seconds * 1000;
 
   campaignsLoop: for (const c of campaigns) {
-    // Simulation si la campagne a été validée en simulation OU si l'envoi réel n'est pas possible.
-    const simulate = c.dry_run || blockers.length > 0;
+    // Simulation : campagne validée en simulation. Une campagne réelle n'est jamais « simulée » faute
+    // d'envoi possible (mode simulation activé, envoi coupé…) : elle reste en file jusqu'à ce que l'envoi reprenne.
+    const simulate = c.dry_run;
+    if (!simulate && blockers.length) {
+      result.stopped = `envoi réel suspendu : ${blockers[0]}`;
+      continue;
+    }
     const capped = c.kind !== "MANUAL";
     await db.from("outreach_campaigns").update({ status: "SENDING" }).eq("id", c.id);
     while (Date.now() < deadline) {
@@ -444,6 +479,10 @@ async function sendQueue(db: Db, deadline: number, sleep: (ms: number) => Promis
           await skip("SUPPRESSED", "Entreprise « Ne plus contacter »");
           continue;
         }
+        if (b.prospect.siren && customers.has(b.prospect.siren)) {
+          await skip("SUPPRESSED", "Entreprise déjà utilisatrice de LinkProB2B");
+          continue;
+        }
         const { count: already } = await db.from("outreach_recipients").select("id", { count: "exact", head: true }).eq("campaign_id", c.id).neq("id", rid).eq("email", email).in("status", ["SENT", "SENDING", "SIMULATED"]);
         if (already) {
           await skip("EXCLUDED", "Cette adresse a déjà reçu cette campagne");
@@ -452,8 +491,15 @@ async function sendQueue(db: Db, deadline: number, sleep: (ms: number) => Promis
         // Délai minimum entre deux e-mails à une même entreprise, toutes campagnes confondues
         const recent = b.prospect.last_contacted_at && new Date(b.prospect.last_contacted_at).getTime() > Date.now() - settings.min_days_between_contacts * DAY;
         const { count: inFlight } = await db.from("outreach_recipients").select("id", { count: "exact", head: true }).eq("prospect_id", b.prospect.id).neq("id", rid).eq("status", "SENDING");
-        if (recent || inFlight) {
-          await skip("FREQUENCY", "Entreprise déjà contactée récemment (autre campagne)");
+        // Même adresse e-mail rattachée à une autre entreprise (groupe, adresse partagée) : même délai minimum
+        const { count: sameMailbox } = await db
+          .from("outreach_recipients")
+          .select("id", { count: "exact", head: true })
+          .eq("email", email)
+          .neq("id", rid)
+          .or(`status.eq.SENDING,and(status.eq.SENT,sent_at.gte.${iso(Date.now() - settings.min_days_between_contacts * DAY)})`);
+        if (recent || inFlight || sameMailbox) {
+          await skip("FREQUENCY", "Entreprise ou adresse déjà contactée récemment (autre campagne)");
           continue;
         }
         if (b.recipient.attempts >= settings.max_send_attempts) {
@@ -467,6 +513,8 @@ async function sendQueue(db: Db, deadline: number, sleep: (ms: number) => Promis
           result.simulated++;
           continue;
         }
+        // Pas d'envoi commencé juste avant l'arrêt de la tâche : il pourrait être coupé en cours de route
+        if (deadline - Date.now() < sendMargin) break campaignsLoop;
         // ---- Réservation (évite un double envoi si deux workers tournent en même temps)
         const { data: claimed } = await db
           .from("outreach_recipients")
@@ -546,7 +594,7 @@ export async function enrichProspects(db: Db, { campaignId = null, deadline = Da
     already_searched: 0,
   };
   if (!settings.enrichment_enabled || searchers.length === 0) return result;
-  const { count: today } = await db.from("outreach_prospects").select("id", { count: "exact", head: true }).gte("enriched_at", `${today_()}T00:00:00Z`);
+  const { count: today } = await db.from("outreach_prospects").select("id", { count: "exact", head: true }).gte("enriched_at", startOfParisDay());
   const budget = Math.max(0, settings.enrichment_daily_limit - (today ?? 0));
   if (!budget) return { ...result, limit_reached: true };
   // Nouvelle tentative pour les entreprises sans adresse trouvée, après un délai (sites mis à jour entre-temps)
@@ -556,17 +604,20 @@ export async function enrichProspects(db: Db, { campaignId = null, deadline = Da
   // Priorité : entreprises de la campagne sans e-mail, puis les autres
   const ids: string[] = [];
   if (campaignId) {
-    const { data } = await db.from("outreach_recipients").select("prospect_id").eq("campaign_id", campaignId).eq("status", "NO_EMAIL").order("score", { ascending: false }).limit(budget);
+    const { data, error } = await db.from("outreach_recipients").select("prospect_id").eq("campaign_id", campaignId).eq("status", "NO_EMAIL").order("score", { ascending: false }).limit(Math.min(budget, 1000));
+    if (error) throw error;
     ids.push(...(data ?? []).map((r) => r.prospect_id));
   }
-  const { data: rows } = await db
-    .from("outreach_prospects")
-    .select("id, name, city, siren, website, enrichment_status, enriched_at")
-    .in("id", ids.length ? ids : ["00000000-0000-0000-0000-000000000000"])
-    .is("email", null)
-    .eq("status", "ACTIVE");
-  const queue = (rows ?? []).filter(searchable);
-  result.already_searched = (rows ?? []).length - queue.length;
+  // Par paquets (adresse de requête bornée), dans l'ordre de priorité de la campagne
+  const rows: { id: string; name: string; city: string | null; siren: string | null; website: string | null; enrichment_status: string; enriched_at: string | null }[] = [];
+  for (const part of chunk(ids, 200)) {
+    const { data, error } = await db.from("outreach_prospects").select("id, name, city, siren, website, enrichment_status, enriched_at").in("id", part).is("email", null).eq("status", "ACTIVE");
+    if (error) throw error;
+    const byId = new Map((data ?? []).map((r) => [r.id, r]));
+    for (const id of part) if (byId.has(id)) rows.push(byId.get(id)!);
+  }
+  const queue = rows.filter(searchable);
+  result.already_searched = rows.length - queue.length;
   if (queue.length < budget) {
     const { data: more } = await db
       .from("outreach_prospects")
@@ -661,18 +712,23 @@ export async function enrichCampaignAndSend(db: Db, { campaignId, deadline = Dat
   return { enrichment, send };
 }
 
-const today_ = () => new Date().toISOString().slice(0, 10);
+const today_ = () => parisToday();
 
 /**
  * Conversions : une inscription venue d'Outreach dont l'entreprise a souscrit
  * un abonnement payant (actif ou en essai) — calculé à partir des données réelles.
  */
 export async function updateConversions(db: Db) {
-  const { data: signups } = await db.from("outreach_events").select("recipient_id, campaign_id, user_id").eq("type", "SIGNUP").not("user_id", "is", null).limit(5000);
-  const pending = signups ?? [];
+  const pending = await selectAll((from, to) =>
+    db.from("outreach_events").select("id, recipient_id, campaign_id, user_id").eq("type", "SIGNUP").not("user_id", "is", null).order("id").range(from, to),
+  );
   if (!pending.length) return { converted: 0 };
-  const { data: done } = await db.from("outreach_recipients").select("id").in("id", pending.map((s) => s.recipient_id!)).not("converted_at", "is", null);
-  const already = new Set((done ?? []).map((r) => r.id));
+  const already = new Set<string>();
+  for (const part of chunk([...new Set(pending.map((s) => s.recipient_id!))], 200)) {
+    const { data: done, error } = await db.from("outreach_recipients").select("id").in("id", part).not("converted_at", "is", null);
+    if (error) throw error;
+    for (const r of done ?? []) already.add(r.id);
+  }
   let converted = 0;
   for (const s of pending.filter((x) => !already.has(x.recipient_id!))) {
     const { data: members } = await db.from("company_members").select("company_id").eq("user_id", s.user_id!);
@@ -681,7 +737,10 @@ export async function updateConversions(db: Db) {
     const { count } = await db.from("subscriptions").select("id", { count: "exact", head: true }).in("company_id", companies).in("status", ["active", "trialing"]);
     if (!count) continue;
     const now = new Date().toISOString();
-    await db.from("outreach_recipients").update({ converted_at: now }).eq("id", s.recipient_id!).is("converted_at", null);
+    // Une seule conversion par destinataire (plusieurs inscriptions, passages répétés)
+    const { data: marked } = await db.from("outreach_recipients").update({ converted_at: now }).eq("id", s.recipient_id!).is("converted_at", null).select("id");
+    already.add(s.recipient_id!);
+    if (!marked?.length) continue;
     await db.from("outreach_events").insert({ recipient_id: s.recipient_id, campaign_id: s.campaign_id, type: "CONVERSION", user_id: s.user_id });
     converted++;
   }

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import Image from "next/image";
 import { BarChart3 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
@@ -35,6 +36,7 @@ export default async function AnalysesPage(props: PageProps<"/analyses">) {
     .eq("status", "PUBLISHED")
     .order("published_at", { ascending: false })
     .range((page - 1) * PER_PAGE, page * PER_PAGE - 1);
+  if (page > 1 && !data?.length) notFound();
   return (
     <div className="container-page py-10 sm:py-14">
       <h1 className="text-3xl font-bold sm:text-4xl">Analyses des marchés</h1>

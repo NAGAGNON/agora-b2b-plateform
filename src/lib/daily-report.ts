@@ -70,8 +70,10 @@ export async function buildDailyFacts(now = new Date()) {
   const db = createAdminClient();
   const day = ymd(now);
   const start = parisDayStart(day);
-  const yStart = new Date(start.getTime() - 86_400_000);
-  const weekStart = new Date(start.getTime() - 7 * 86_400_000);
+  // Minuit de Paris N jours plus tôt (journées de 23 ou 25 h aux changements d'heure)
+  const daysBefore = (n: number) => parisDayStart(ymd(new Date(start.getTime() - n * 86_400_000 + 12 * 3_600_000)));
+  const yStart = daysBefore(1);
+  const weekStart = daysBefore(7);
   const iso = start.toISOString();
   const count = async (q: PromiseLike<{ count: number | null }>) => (await q).count ?? 0;
 
@@ -224,9 +226,20 @@ export async function buildDailyFacts(now = new Date()) {
 }
 export type DailyFacts = Awaited<ReturnType<typeof buildDailyFacts>>;
 
+/**
+ * Texte des faits sans identifiants techniques (UUID, liens, adresses) : leurs chiffres ne doivent pas
+ * servir de caution à un nombre écrit dans un texte.
+ */
+export function factNumbersText(facts: unknown): string {
+  return JSON.stringify(facts)
+    .replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, " ")
+    .replace(/https?:\/\/[^"\s]+/g, " ")
+    .replace(/"\/[^"\s]*"/g, '" "');
+}
+
 /** Nombres du bilan absents des faits (contrôle anti-invention). */
 export function unknownReportNumbers(s: DailySummary, facts: unknown): string[] {
-  const allowed = new Set((JSON.stringify(facts).match(/\d+/g) ?? []).map((n) => String(Number(n))));
+  const allowed = new Set((factNumbersText(facts).match(/\d+/g) ?? []).map((n) => String(Number(n))));
   const text = [s.titre, s.resume, ...s.points_forts.map((p) => p.constat), ...s.points_faibles.map((p) => p.constat), ...s.automatique.map((a) => a.bilan), ...s.recommandations].join(" ");
   const found = (text.replace(/(\d)[\s  ](?=\d{3}\b)/g, "$1").match(/\d+/g) ?? []).map((n) => String(Number(n)));
   return [...new Set(found.filter((n) => !allowed.has(n)))];
@@ -254,9 +267,9 @@ export function factsForModel(facts: DailyFacts) {
   return { ...facts, google_articles_inscriptions: { ...facts.google_articles_inscriptions, inscriptions_du_jour: { nombre, venues_de_la_prospection } } };
 }
 
-async function writeSummary(facts: DailyFacts, correction?: string, final = false) {
-  // Délai borné : la tâche du soir doit avoir le temps d'envoyer le rapport (limite de 300 s)
-  const client = new Anthropic({ timeout: 110_000, maxRetries: 1 });
+async function writeSummary(facts: DailyFacts, correction?: string, final = false, timeout = 110_000) {
+  // Délai borné, sans nouvel essai : la tâche du soir doit avoir le temps d'envoyer le rapport (limite de 300 s)
+  const client = new Anthropic({ timeout, maxRetries: 0 });
   const response = await client.beta.messages.parse({
     model: REPORT_MODEL,
     max_tokens: 8000,
@@ -284,12 +297,13 @@ export async function generateDailyReport(now = new Date(), { final = false }: {
   if (!process.env.ANTHROPIC_API_KEY) error = "ANTHROPIC_API_KEY absente : chiffres affichés sans commentaire.";
   else {
     try {
-      const started = Date.now();
-      ({ summary, model } = await writeSummary(facts, undefined, final));
+      // Rédaction bornée à 220 s au total (la tâche doit ensuite enregistrer et envoyer le rapport)
+      const until = Date.now() + 220_000;
+      ({ summary, model } = await writeSummary(facts, undefined, final, 120_000));
       let unknown = unknownReportNumbers(summary, facts);
-      // Réécriture seulement s'il reste le temps (sinon : nombres signalés « à vérifier »)
-      if (unknown.length && Date.now() - started < 100_000) {
-        ({ summary, model } = await writeSummary(facts, `une première version contenait des nombres absents des faits (${unknown.join(", ")}). Supprime-les ou remplace-les par des nombres présents dans les faits.`, final));
+      // Réécriture seulement s'il reste au moins une minute (sinon : nombres signalés « à vérifier »)
+      if (unknown.length && until - Date.now() >= 60_000) {
+        ({ summary, model } = await writeSummary(facts, `une première version contenait des nombres absents des faits (${unknown.join(", ")}). Supprime-les ou remplace-les par des nombres présents dans les faits.`, final, until - Date.now()));
         unknown = unknownReportNumbers(summary, facts);
       }
       if (unknown.length) note = `Nombres non retrouvés dans les données, à vérifier : ${unknown.join(", ")}`;

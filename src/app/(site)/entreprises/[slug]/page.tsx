@@ -14,7 +14,7 @@ import { getCompanyBySlug, searchCompanies } from "@/lib/queries/companies";
 import { getSession } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { parseCompanyFilters } from "@/lib/search-params";
-import { pageMetadata, siteUrl } from "@/lib/seo";
+import { listingIndexing, pageMetadata, siteUrl } from "@/lib/seo";
 import { breadcrumbLd, JsonLd } from "@/components/json-ld";
 import { logoUrl } from "@/lib/storage-urls";
 
@@ -29,12 +29,14 @@ export async function generateMetadata(props: PageProps<"/entreprises/[slug]">):
   const sector = (await getSectors()).find((s) => s.slug === slug);
   if (sector) {
     const { total } = await searchCompanies(parseCompanyFilters({ secteur: slug }), 1);
+    const listing = listingIndexing(`/entreprises/${slug}`, await props.searchParams);
     return pageMetadata({
       title: `Entreprises — ${sector.label}`,
       description: `Annuaire des fournisseurs et prestataires en ${sector.label.toLowerCase()} référencés sur LinkProB2B.`,
-      path: `/entreprises/${slug}`,
+      // Pagination seule : chaque page indexable avec sa propre adresse ; autres filtres : non indexés
+      path: listing.path,
       // Même seuil que les pages d'opportunités : pas de page indexée avec une ou deux entreprises
-      noindex: total < MIN_INDEXABLE_COMPANIES,
+      noindex: total < MIN_INDEXABLE_COMPANIES || listing.filtered,
     });
   }
   const c = await getCompanyBySlug(slug);

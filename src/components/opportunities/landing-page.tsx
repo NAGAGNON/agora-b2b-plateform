@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { JsonLd, breadcrumbLd } from "@/components/json-ld";
 import { OpportunityResults } from "@/components/opportunities/opportunity-results";
@@ -28,6 +29,16 @@ export async function landingMetadata(landing: Landing, path: string, sp: RawSea
 
 /** Page d'atterrissage (France, région, département, secteur) : liste filtrée + liens utiles. */
 export async function LandingPage({ landing, path, sp }: { landing: Landing; path: string; sp: RawSearchParams }) {
+  // Le visiteur a changé un filtre propre à cette page (autre région, autre secteur, « France entière ») :
+  // la recherche continue sur la liste générale avec ses choix, au lieu d'être ignorée.
+  const overridden = Object.entries(landing.fixed).some(([k, v]) => k in sp && sp[k] !== v);
+  if (overridden) {
+    const qs = new URLSearchParams();
+    for (const [k, v] of Object.entries({ ...landing.fixed, ...sp })) {
+      for (const x of Array.isArray(v) ? v : [v]) if (x) qs.append(k, x);
+    }
+    redirect(`/opportunites${qs.size ? `?${qs}` : ""}`);
+  }
   const filters = parseOpportunityFilters({ ...sp, ...landing.fixed });
   const session = await getSession();
   const crumbs = [{ name: "Opportunités", path: "/opportunites" }, ...landing.crumbs];

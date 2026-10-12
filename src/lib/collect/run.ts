@@ -349,6 +349,14 @@ export async function runDueSources(opts: { force?: boolean; budgetMs?: number; 
   const { data: sources } = await db.from("external_sources").select("*").eq("is_active", true).eq("status", "APPROVED").neq("connector", "manual");
   const now = new Date();
   const results: { source: string; status: string; created: number; updated: number; duplicates: number; errors: number }[] = [];
+  // Arrêt ferme 60 s après le budget : une source lente échoue proprement (nouvelle tentative au passage
+  // suivant) au lieu de laisser la tâche dépasser sa limite d'exécution et perdre les étapes suivantes.
+  const hardStop = opts.budgetMs ? startedAt + opts.budgetMs + 60_000 : Infinity;
+  const base: FetchLike = opts.fetchImpl ?? ((input, init) => fetch(input, init));
+  const bounded: FetchLike = (input, init) => {
+    if (Date.now() > hardStop) return Promise.reject(new Error("Temps de collecte dépassé : reprise au passage suivant"));
+    return base(input, init);
+  };
   for (const s of sources ?? []) {
     if (opts.codes && !opts.codes.includes(s.code ?? "")) continue;
     const refresh = opts.refreshAfterMs !== undefined && s.sync_frequency !== "weekly" && (!s.last_sync_at || now.getTime() - new Date(s.last_sync_at).getTime() >= opts.refreshAfterMs);
@@ -358,7 +366,7 @@ export async function runDueSources(opts: { force?: boolean; budgetMs?: number; 
       results.push({ source: s.code ?? s.name, status: "DEFERRED", created: 0, updated: 0, duplicates: 0, errors: 0 });
       continue;
     }
-    const r = await runSource(s, { trigger: "cron", fetchImpl: opts.fetchImpl, retryDelays: opts.retryDelays });
+    const r = await runSource(s, { trigger: "cron", fetchImpl: bounded, retryDelays: opts.retryDelays });
     results.push({ source: s.code ?? s.name, status: r.status, created: r.created, updated: r.updated, duplicates: r.duplicates, errors: r.errors.length });
   }
   return results;

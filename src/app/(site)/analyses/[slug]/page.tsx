@@ -88,6 +88,7 @@ export default async function AnalysePage(
       title={a.title}
       intro={body.intro}
       updated={a.published_at ? formatDate(a.published_at) : undefined}
+      dateLabel="Publié le"
     >
       <JsonLd
         data={[
@@ -196,7 +197,7 @@ export default async function AnalysePage(
       <p className="mt-10 border-t border-slate-200 pt-4 text-sm text-slate-500">
         Rédigé par <strong className="text-navy">{ARTICLE_AUTHOR}</strong>
         {facts.date_des_donnees ? `, d'après les données publiées sur LinkProB2B au ${facts.date_des_donnees}` : ""}. Sources :{" "}
-        {facts.sources ?? "BOAMP et TED"} Vérifiez toujours les conditions sur l&apos;avis officiel avant de répondre.
+        {(facts.sources ?? "BOAMP et TED").replace(/\.\s*$/, "")}. Vérifiez toujours les conditions sur l&apos;avis officiel avant de répondre.
       </p>
       <aside className="not-prose mt-8 rounded-2xl bg-sky p-6">
         <p className="font-heading text-lg font-bold text-navy">Recevez les opportunités de votre secteur</p>

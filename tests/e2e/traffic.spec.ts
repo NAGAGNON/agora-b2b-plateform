@@ -32,6 +32,10 @@ test.beforeAll(async () => {
     .single();
   if (error) throw error;
   id = data.id;
+  // Offre externe : sa source est citée (sans source, elle n'est ni indexée ni diffusée dans le flux)
+  const { data: boamp } = await db.from("external_sources").select("id").eq("code", "boamp").single();
+  const { error: e2 } = await db.from("opportunity_sources").insert({ opportunity_id: id, source_id: boamp!.id, external_id: `e2e-${RUN}`, original_url: "https://www.boamp.fr/avis/detail/e2e", is_primary: true });
+  if (e2) throw e2;
 });
 
 test.afterAll(async () => {

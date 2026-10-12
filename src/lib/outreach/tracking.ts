@@ -53,7 +53,7 @@ export async function recipientFromToken(token: string) {
   const id = verifyRecipientToken(token);
   if (!id) return null;
   const db = createAdminClient();
-  const { data } = await db.from("outreach_recipients").select("id, campaign_id, prospect_id, email, status, unsubscribed_at").eq("id", id).maybeSingle();
+  const { data } = await db.from("outreach_recipients").select("id, campaign_id, prospect_id, email, status, unsubscribed_at, sent_at, created_at").eq("id", id).maybeSingle();
   return data;
 }
 
@@ -82,6 +82,16 @@ export async function track(recipient: { id: string; campaign_id: string; prospe
 export async function recipientFromReferral(ref: FormDataEntryValue | null) {
   if (typeof ref !== "string" || !ref.startsWith("o.")) return null;
   return recipientFromToken(ref.slice(2));
+}
+
+/** Durée pendant laquelle le lien reçu par e-mail vaut preuve de l'adresse (inscription sans confirmation). */
+export const REFERRAL_TRUST_DAYS = 30;
+
+/** Le lien a été envoyé il y a moins de 30 jours (un lien transféré ou ancien repasse par la confirmation). */
+export function referralStillTrusted(r: { sent_at: string | null; created_at: string } | null, now = Date.now()): boolean {
+  if (!r) return false;
+  const at = new Date(r.sent_at ?? r.created_at).getTime();
+  return Number.isFinite(at) && now - at <= REFERRAL_TRUST_DAYS * 86_400_000;
 }
 
 /** Inscription LinkProB2B arrivée depuis une sélection Outreach (paramètre « ref=o.<jeton> »). */

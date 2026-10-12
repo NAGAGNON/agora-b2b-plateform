@@ -15,7 +15,12 @@ describe("format", () => {
     expect(daysUntil("2026-10-16T10:00:00Z", now)).toBe(10);
     expect(daysUntil(null, now)).toBeNull();
     expect(deadlineLabel("2026-10-05T10:00:00Z", now)).toBe("Date limite dépassée");
-    expect(deadlineLabel("2026-10-06T12:00:00Z", now)).toBe("Encore 1 jour");
+    // Jours calendaires de Paris : plus tard aujourd'hui = dernier jour ; demain = encore 1 jour
+    expect(deadlineLabel("2026-10-06T12:00:00Z", now)).toBe("Dernier jour");
+    expect(deadlineLabel("2026-10-06T21:59:00Z", now)).toBe("Dernier jour");
+    expect(deadlineLabel("2026-10-07T10:00:00Z", now)).toBe("Encore 1 jour");
+    // Échéance passée depuis quelques heures : dépassée (et non « Dernier jour »)
+    expect(deadlineLabel("2026-10-06T07:00:00Z", now)).toBe("Date limite dépassée");
     expect(deadlineLabel("2026-10-16T10:00:00Z", now)).toBe("Encore 10 jours");
     expect(deadlineLabel("2027-01-16T10:00:00Z", now)).toMatch(/^Jusqu'au/);
   });

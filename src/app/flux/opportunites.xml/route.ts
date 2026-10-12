@@ -53,7 +53,8 @@ export async function GET(req: Request) {
     title: `LinkProB2B — Appels d'offres et opportunités B2B${scope ? ` : ${scope}` : ""}`,
     description: "Les dernières opportunités ouvertes en France : marchés publics (BOAMP, TED) et besoins d'entreprises.",
     selfPath: `/flux/opportunites.xml${qs.size ? `?${qs}` : ""}`,
-    items: (data ?? []).map((o) => {
+    // Chaque offre externe cite sa source : celles dont la source est inconnue ne sont pas diffusées
+    items: (data ?? []).filter((o) => o.origin !== "EXTERNAL" || (Array.isArray(o.source) ? o.source.length > 0 : Boolean(o.source))).map((o) => {
       const sources = Array.isArray(o.source) ? o.source : o.source ? [o.source] : [];
       const primary = sources.find((s) => s.is_primary) ?? sources[0];
       const ext = primary?.external_source as { name: string } | { name: string }[] | null | undefined;
