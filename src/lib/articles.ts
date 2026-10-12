@@ -8,6 +8,7 @@ import { siteUrl } from "@/lib/seo";
 import { logServerError } from "@/lib/errors";
 import type { Json } from "@/lib/database.types";
 import { mergeNames } from "@/lib/article-figures";
+import { factNumbersText } from "@/lib/daily-report";
 
 /**
  * Analyses de marché rédigées automatiquement à partir des opportunités réellement
@@ -220,7 +221,7 @@ function buildFacts(t: Topic, ctx: Awaited<ReturnType<typeof loadContext>>) {
 
 /** Chiffres de l'article absents du jeu de faits (hors années courantes). */
 export function unknownNumbers(article: ArticleBody, facts: unknown): string[] {
-  const allowed = new Set((JSON.stringify(facts).match(/\d+/g) ?? []).map((n) => String(Number(n))));
+  const allowed = new Set((factNumbersText(facts).match(/\d+/g) ?? []).map((n) => String(Number(n))));
   const text = [article.title, article.description, article.intro, ...article.sections.flatMap((s) => [s.heading, ...s.paragraphs]), ...article.faq.flatMap((f) => [f.question, f.answer])].join(" ");
   const found = (text.replace(/(\d)[\s  ](?=\d{3}\b)/g, "$1").match(/\d+/g) ?? []).map((n) => String(Number(n)));
   return [...new Set(found.filter((n) => !allowed.has(n)))];
@@ -239,8 +240,9 @@ Règles absolues :
 - Ne parle jamais de la manière dont l'article est rédigé (ni intelligence artificielle, ni outil, ni automatisation).
 - Des graphiques (répartition, principaux acheteurs) et une couverture sont générés automatiquement à partir des mêmes faits : commente-les en mots, sans tableau.`;
 
-async function writeArticle(facts: ReturnType<typeof buildFacts>, correction?: string) {
-  const client = new Anthropic();
+async function writeArticle(facts: ReturnType<typeof buildFacts>, correction?: string, timeout = 120_000) {
+  // Délai borné, sans nouvel essai : la tâche quotidienne doit garder le temps des étapes suivantes
+  const client = new Anthropic({ timeout, maxRetries: 0 });
   const response = await client.beta.messages.parse({
     model: ARTICLE_MODEL,
     max_tokens: 16000,
@@ -264,15 +266,17 @@ async function writeArticle(facts: ReturnType<typeof buildFacts>, correction?: s
 type Outcome = { topic: string; status: "PUBLISHED" | "DRAFT" | "ERROR"; slug?: string; note?: string };
 
 /** Rédige un article sur un thème ; une seconde rédaction corrige les chiffres non retrouvés. */
-async function writeTopic(t: Topic, ctx: Awaited<ReturnType<typeof loadContext>>, autoPublish: boolean): Promise<Outcome> {
+async function writeTopic(t: Topic, ctx: Awaited<ReturnType<typeof loadContext>>, autoPublish: boolean, deadline: number): Promise<Outcome> {
   const db = createAdminClient();
   const facts = buildFacts(t, ctx);
-  let { article, model } = await writeArticle(facts);
+  let { article, model } = await writeArticle(facts, undefined, Math.min(120_000, deadline - Date.now()));
   let unknown = unknownNumbers(article, facts);
-  if (unknown.length) {
+  // Réécriture seulement s'il reste au moins une minute (sinon l'article reste en brouillon)
+  if (unknown.length && deadline - Date.now() >= 60_000) {
     ({ article, model } = await writeArticle(
       facts,
       `une première version contenait des nombres absents des faits (${unknown.join(", ")}). Supprime-les ou remplace-les par des nombres présents dans les faits.`,
+      Math.min(120_000, deadline - Date.now()),
     ));
     unknown = unknownNumbers(article, facts);
   }
@@ -309,7 +313,8 @@ async function writeTopic(t: Topic, ctx: Awaited<ReturnType<typeof loadContext>>
  * publication automatique est désactivée). Un thème en échec ou bloqué par le contrôle
  * des chiffres est remplacé par le suivant, dans la limite de `count + 3` tentatives.
  */
-export async function generateArticles(count: number, opts: { autoPublish: boolean }) {
+export async function generateArticles(count: number, opts: { autoPublish: boolean; deadline?: number }) {
+  const deadline = opts.deadline ?? Date.now() + 240_000;
   if (!process.env.ANTHROPIC_API_KEY) return { skipped: "ANTHROPIC_API_KEY absente" };
   if (count <= 0) return { generated: [] as Outcome[] };
   const ctx = await loadContext();
@@ -318,8 +323,10 @@ export async function generateArticles(count: number, opts: { autoPublish: boole
   const done = () => results.filter((r) => r.status === (opts.autoPublish ? "PUBLISHED" : "DRAFT")).length;
   for (const t of topics) {
     if (done() >= count || results.length >= count + 3) break;
+    // Pas de nouvel article sans au moins une minute devant soi (repris au passage suivant)
+    if (deadline - Date.now() < 60_000) break;
     try {
-      results.push(await writeTopic(t, ctx, opts.autoPublish));
+      results.push(await writeTopic(t, ctx, opts.autoPublish, deadline));
     } catch (e) {
       logServerError(`article ${t.key}`, e);
       results.push({ topic: t.key, status: "ERROR", note: e instanceof Error ? e.message : String(e) });
@@ -329,7 +336,7 @@ export async function generateArticles(count: number, opts: { autoPublish: boole
 }
 
 /** Étape de la tâche quotidienne : au moins un article publié par jour (réglable dans Administration → Articles). */
-export async function runDailyArticles() {
+export async function runDailyArticles({ deadline }: { deadline?: number } = {}) {
   const db = createAdminClient();
   const { data } = await db.from("platform_settings").select("value").eq("key", "seo").maybeSingle();
   const s = (data?.value ?? {}) as { articles_enabled?: boolean; articles_auto_publish?: boolean; articles_per_day?: number };
@@ -342,5 +349,5 @@ export async function runDailyArticles() {
   q = autoPublish ? q.gte("published_at", since.toISOString()) : q.gte("created_at", since.toISOString());
   const { count } = await q;
   const perDay = Math.min(3, Math.max(1, s.articles_per_day ?? 1));
-  return generateArticles(perDay - (count ?? 0), { autoPublish });
+  return generateArticles(perDay - (count ?? 0), { autoPublish, deadline });
 }

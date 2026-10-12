@@ -3,7 +3,6 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { env } from "@/lib/env";
 import { logServerError, userMessage } from "@/lib/errors";
 import { matchesSignature, sanitizeFileName, storagePath } from "@/lib/files";
@@ -70,11 +69,13 @@ export async function confirmUpload(input: z.input<typeof confirmSchema>): Promi
   if (!path.startsWith(`${parentId}/`)) return { ok: false, error: "Chemin invalide." };
   const supabase = await createClient();
   const bucket = KINDS[kind as Kind];
+  // Nettoyage d'un envoi refusé : avec les droits de l'utilisateur (règles de stockage), jamais avec la
+  // clé de service — sinon un chemin lisible mais appartenant à un autre pourrait être supprimé.
   const { data: blob, error } = await supabase.storage.from(bucket).download(path);
   if (error || !blob) return { ok: false, error: "Fichier introuvable après envoi." };
   const bytes = new Uint8Array(await blob.arrayBuffer());
   if (bytes.byteLength === 0 || bytes.byteLength > MAX_DOCUMENT_BYTES || !matchesSignature(mime, bytes)) {
-    await createAdminClient().storage.from(bucket).remove([path]);
+    await supabase.storage.from(bucket).remove([path]);
     return { ok: false, error: `« ${fileName} » : le contenu ne correspond pas au type annoncé ou dépasse 10 Mo.` };
   }
   const name = sanitizeFileName(fileName);
@@ -91,7 +92,7 @@ export async function confirmUpload(input: z.input<typeof confirmSchema>): Promi
       uploaded_by: user!.id,
     });
     if (e) {
-      await createAdminClient().storage.from(bucket).remove([path]);
+      await supabase.storage.from(bucket).remove([path]);
       return { ok: false, error: userMessage(e) };
     }
     revalidatePath(`/dashboard/opportunites/${parentId}`);
@@ -104,7 +105,7 @@ export async function confirmUpload(input: z.input<typeof confirmSchema>): Promi
       p_size_bytes: bytes.byteLength,
     });
     if (e) {
-      await createAdminClient().storage.from(bucket).remove([path]);
+      await supabase.storage.from(bucket).remove([path]);
       return { ok: false, error: userMessage(e) };
     }
   }

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { GUIDES } from "@/content/guides";
 import { ContentPage } from "@/components/content-page";
-import { pageMetadata } from "@/lib/seo";
+import { ARTICLE_AUTHOR, pageMetadata } from "@/lib/seo";
 import { JsonLd, articleLd, breadcrumbLd } from "@/components/json-ld";
 
 export function generateStaticParams() {
@@ -24,7 +24,7 @@ export default async function GuidePage(props: PageProps<"/ressources/[slug]">) 
     <ContentPage title={g.title} intro={g.description}>
       <JsonLd
         data={[
-          articleLd({ title: g.title, description: g.description, path: `/ressources/${g.slug}`, signed: false }),
+          articleLd({ title: g.title, description: g.description, path: `/ressources/${g.slug}` }),
           breadcrumbLd([
             { name: "Ressources", path: "/ressources" },
             { name: g.title, path: `/ressources/${g.slug}` },
@@ -44,7 +44,10 @@ export default async function GuidePage(props: PageProps<"/ressources/[slug]">) 
           )}
         </section>
       ))}
-      <p className="mt-10">
+      <p className="mt-10 border-t border-slate-200 pt-4 text-sm text-slate-500">
+        Rédigé par <strong className="text-navy">{ARTICLE_AUTHOR}</strong>
+      </p>
+      <p className="mt-6">
         <Link href="/ressources">← Toutes les ressources</Link>
       </p>
     </ContentPage>

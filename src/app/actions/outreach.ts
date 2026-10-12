@@ -9,7 +9,7 @@ import { logServerError, userMessage } from "@/lib/errors";
 import { parseForm, type ActionResult } from "@/lib/validation";
 import { rateLimit } from "@/lib/rate-limit";
 import { buildDailyCampaign, enrichCampaignAndSend, enrichmentReport, processSendQueue, runManualCampaign, syncOpportunityStates } from "@/lib/outreach/pipeline";
-import { loadReferentials, loadSettings, realSendBlockers } from "@/lib/outreach/data";
+import { loadReferentials, loadSettings, realSendBlockers, selectAll } from "@/lib/outreach/data";
 import { mapProspectRows, parseCsv } from "@/lib/outreach/csv";
 import { configuredSearchers, enrichCompany, isGenericLocalPart } from "@/lib/outreach/enrich";
 
@@ -205,8 +205,8 @@ export async function toggleOpportunity(_prev: ActionResult | null, fd: FormData
   let ids: string[] = [];
   if (parsed.data.recipientId) ids = [parsed.data.recipientId];
   else if (parsed.data.campaignId) {
-    const { data } = await supabase.from("outreach_recipients").select("id").eq("campaign_id", parsed.data.campaignId).limit(10000);
-    ids = (data ?? []).map((r) => r.id);
+    const campaignId = parsed.data.campaignId;
+    ids = (await selectAll((from, to) => supabase.from("outreach_recipients").select("id").eq("campaign_id", campaignId).order("id").range(from, to))).map((r) => r.id);
   }
   if (!ids.length) return { ok: false, error: "Aucun destinataire concerné." };
   for (let i = 0; i < ids.length; i += 300) {

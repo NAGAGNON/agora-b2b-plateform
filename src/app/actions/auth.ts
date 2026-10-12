@@ -8,7 +8,7 @@ import { logServerError } from "@/lib/errors";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { appSendsAuthEmails, bootstrapInitialAdmin, sendPasswordReset, sendWelcome, signUpWithEmail } from "@/lib/email/auth-emails";
 import { safeInternalPath } from "@/lib/safe-path";
-import { recipientFromReferral, trackReferral, trackSignupReferral } from "@/lib/outreach/tracking";
+import { recipientFromReferral, referralStillTrusted, trackReferral, trackSignupReferral } from "@/lib/outreach/tracking";
 import { newPasswordSchema, parseForm, resetRequestSchema, signInSchema, signUpSchema, type ActionResult } from "@/lib/validation";
 
 // Uniquement des chemins internes (évite les redirections ouvertes).
@@ -64,9 +64,10 @@ export async function signUp(_prev: ActionResult | null, formData: FormData): Pr
 
   // 0. Parcours « e-mail de prospection » avec l'adresse qui a reçu l'e-mail : l'adresse est
   //    déjà prouvée (lien signé reçu dans cette boîte) → compte activé, connexion immédiate et
-  //    ouverture directe de l'offre. Toute autre adresse passe par la confirmation habituelle.
+  //    ouverture directe de l'offre (lien de moins de 30 jours). Toute autre adresse, ou un lien
+  //    plus ancien, passe par la confirmation habituelle.
   const recipient = await recipientFromReferral(formData.get("ref"));
-  if (recipient?.email && recipient.email.toLowerCase() === parsed.data.email.toLowerCase()) {
+  if (recipient?.email && recipient.email.toLowerCase() === parsed.data.email.toLowerCase() && referralStillTrusted(recipient)) {
     const { data: created, error } = await createAdminClient().auth.admin.createUser({
       email: parsed.data.email,
       password: parsed.data.password,

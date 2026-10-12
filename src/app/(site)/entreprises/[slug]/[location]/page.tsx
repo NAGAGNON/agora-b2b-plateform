@@ -5,7 +5,7 @@ import { Directory } from "@/components/companies/directory";
 import { searchCompanies } from "@/lib/queries/companies";
 import { getDepartments, getSectors } from "@/lib/queries/platform";
 import { parseCompanyFilters } from "@/lib/search-params";
-import { pageMetadata } from "@/lib/seo";
+import { listingIndexing, pageMetadata } from "@/lib/seo";
 
 async function resolve(slug: string, location: string) {
   const sector = (await getSectors()).find((s) => s.slug === slug);
@@ -18,12 +18,13 @@ export async function generateMetadata(props: PageProps<"/entreprises/[slug]/[lo
   const r = await resolve(slug, location);
   if (!r) return { title: "Page introuvable" };
   const { total } = await searchCompanies(parseCompanyFilters({ secteur: r.sector.slug, departement: r.dep.code }), 1);
+  const listing = listingIndexing(`/entreprises/${slug}/${location}`, await props.searchParams);
   return pageMetadata({
     title: `${r.sector.label} — entreprises ${r.dep.name}`,
     description: `Prestataires et fournisseurs en ${r.sector.label.toLowerCase()} dans le département ${r.dep.name} (${r.dep.code}).`,
-    path: `/entreprises/${slug}/${location}`,
-    // Pas de page indexée avec moins de 3 entreprises (contenu trop mince)
-    noindex: total < 3,
+    path: listing.path,
+    // Pas de page indexée avec moins de 3 entreprises (contenu trop mince) ni de combinaison de filtres
+    noindex: total < 3 || listing.filtered,
   });
 }
 

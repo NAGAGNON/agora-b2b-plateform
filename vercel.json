@@ -46,6 +46,10 @@
       "schedule": "0 19 * * *"
     },
     {
+      "path": "/api/cron/bilan?soir=1",
+      "schedule": "0 20 * * *"
+    },
+    {
       "path": "/api/cron/envoi?passe=6",
       "schedule": "30 6 * * *"
     },

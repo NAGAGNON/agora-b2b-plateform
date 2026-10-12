@@ -63,7 +63,9 @@ export async function generateMetadata(props: PageProps<"/opportunites/[id]">): 
   }
   // Date limite dépassée : plus indexée, même avant le passage de la tâche quotidienne d'expiration
   const deadlinePassed = Boolean(o.response_deadline && new Date(o.response_deadline) < new Date());
-  const indexable = o.status === "PUBLISHED" && !deadlinePassed && o.visibility === "PUBLIC" && !o.is_demo;
+  // Une opportunité externe doit citer sa source : sans source connue, elle n'est pas indexée
+  const hasSource = o.origin !== "EXTERNAL" || (Array.isArray(o.source) ? o.source.length > 0 : Boolean(o.source));
+  const indexable = o.status === "PUBLISHED" && !deadlinePassed && o.visibility === "PUBLIC" && !o.is_demo && hasSource;
   const location = (await getLocationLabel())(o.city, o.department_code);
   const details = [
     o.origin === "EXTERNAL" && o.external_buyer_name ? `Acheteur : ${o.external_buyer_name}` : null,
