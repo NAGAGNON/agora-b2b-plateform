@@ -3,7 +3,8 @@
  * la limite quotidienne monte d'un palier si la semaine écoulée s'est bien passée, et redescend
  * d'un palier si les rebonds deviennent trop nombreux. Jamais au-delà de l'objectif fixé.
  */
-export const RAMP_STEPS = [50, 75, 100, 150, 200] as const;
+// Premier palier = objectif minimum de 100 e-mails par jour
+export const RAMP_STEPS = [100, 150, 200, 300] as const;
 export const RAMP_INTERVAL_DAYS = 7;
 const MIN_SENT_TO_JUDGE = 20;
 const MAX_BOUNCE_UP = 0.03; // < 3 % de rebonds pour monter

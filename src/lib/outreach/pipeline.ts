@@ -589,6 +589,10 @@ export async function enrichProspects(db: Db, { campaignId = null, deadline = Da
     no_email: 0,
     blocked: 0,
     errors: 0,
+    /** Recherches reportées : service de recherche saturé (limite de requêtes), sans faute de l'entreprise */
+    deferred: 0,
+    /** Causes des erreurs (les plus fréquentes), pour le rapport */
+    error_reasons: {} as Record<string, number>,
     skipped: searchers.length === 0 ? "aucune méthode de recherche active" : null as string | null,
     limit_reached: false,
     already_searched: 0,
@@ -599,8 +603,12 @@ export async function enrichProspects(db: Db, { campaignId = null, deadline = Da
   if (!budget) return { ...result, limit_reached: true };
   // Nouvelle tentative pour les entreprises sans adresse trouvée, après un délai (sites mis à jour entre-temps)
   const retryBefore = new Date(Date.now() - ENRICH_RETRY_DAYS * DAY).toISOString();
+  // Erreur (site lent, service saturé) : nouvel essai après quelques heures, jamais en boucle à chaque passage
+  const errorRetryBefore = new Date(Date.now() - ENRICH_ERROR_RETRY_HOURS * 3_600_000).toISOString();
   const searchable = (p: { enrichment_status: string; enriched_at: string | null }) =>
-    p.enrichment_status === "PENDING" || p.enrichment_status === "ERROR" || (["NO_WEBSITE", "NO_EMAIL", "BLOCKED"].includes(p.enrichment_status) && (!p.enriched_at || p.enriched_at < retryBefore));
+    p.enrichment_status === "PENDING" ||
+    (p.enrichment_status === "ERROR" && (!p.enriched_at || p.enriched_at < errorRetryBefore)) ||
+    (["NO_WEBSITE", "NO_EMAIL", "BLOCKED"].includes(p.enrichment_status) && (!p.enriched_at || p.enriched_at < retryBefore));
   // Priorité : entreprises de la campagne sans e-mail, puis les autres
   const ids: string[] = [];
   if (campaignId) {
@@ -642,6 +650,13 @@ export async function enrichProspects(db: Db, { campaignId = null, deadline = Da
       .catch((e) => ({ status: "ERROR" as const, website: null, email: null, source: null, note: e instanceof Error ? e.message.slice(0, 200) : "Erreur" }))
       .finally(() => clearTimeout(timer));
     const now = new Date().toISOString();
+    // Service saturé : l'entreprise reste à rechercher (non décomptée de la limite du jour)
+    if (r.status === "ERROR" && r.note?.startsWith("[report]")) {
+      result.deferred++;
+      result.searched--;
+      await db.from("outreach_prospects").update({ enrichment_status: "PENDING", enrichment_note: r.note.replace("[report] ", ""), updated_at: now }).eq("id", p.id);
+      return;
+    }
     const email = r.email && !blocked.has(r.email) && !blocked.has(r.email.split("@")[1]) ? r.email : null;
     const { error } = await db
       .from("outreach_prospects")
@@ -657,7 +672,11 @@ export async function enrichProspects(db: Db, { campaignId = null, deadline = Da
       if (campaignId) await db.from("outreach_recipients").update({ email, status: "PENDING", updated_at: now }).eq("campaign_id", campaignId).eq("prospect_id", p.id).eq("status", "NO_EMAIL");
     } else if (r.status === "NO_WEBSITE") result.no_website++;
     else if (r.status === "BLOCKED") result.blocked++;
-    else if (r.status === "ERROR") result.errors++;
+    else if (r.status === "ERROR") {
+      result.errors++;
+      const reason = errorReason(r.note);
+      result.error_reasons[reason] = (result.error_reasons[reason] ?? 0) + 1;
+    }
     else result.no_email++;
   };
   // Plusieurs entreprises à la fois (chaque recherche attend surtout le réseau), dans le temps imparti.
@@ -670,6 +689,21 @@ export async function enrichProspects(db: Db, { campaignId = null, deadline = Da
   return result;
 }
 
+/** Regroupe les messages d'erreur en quelques causes lisibles. */
+export function errorReason(note: string | null | undefined): string {
+  const n = note ?? "";
+  if (/délai dépassé|timeout|aborted/i.test(n)) return "site trop lent";
+  if (/Site inaccessible \((5\d\d)/.test(n)) return "site en panne (erreur serveur)";
+  if (/Site inaccessible \(4\d\d/.test(n)) return "page introuvable";
+  if (/adresse non publique|ENOTFOUND|EAI_AGAIN|getaddrinfo/i.test(n)) return "site introuvable (adresse invalide)";
+  if (/certificate|SSL|TLS|self.signed/i.test(n)) return "certificat de sécurité invalide";
+  if (/Brave|Dropcontact/i.test(n)) return "service de recherche en erreur";
+  if (/fetch failed|ECONNRE|socket|network/i.test(n)) return "connexion au site impossible";
+  return "autre";
+}
+
+/** Délai avant un nouvel essai après une erreur (site lent, panne passagère). */
+const ENRICH_ERROR_RETRY_HOURS = 12;
 // Recherches simultanées (chaque recherche attend surtout le réseau) : plus d'entreprises par passage
 const ENRICH_CONCURRENCY = 10;
 /** Délai avant une nouvelle recherche d'adresse pour une entreprise sans résultat. */
@@ -683,7 +717,12 @@ export function enrichmentReport(r: Awaited<ReturnType<typeof enrichProspects>>)
     return r.already_searched
       ? `Recherche d'adresses e-mail : les ${r.already_searched} entreprise(s) sans e-mail de cette campagne ont déjà été recherchées (site introuvable ou aucune adresse générique publiée) ; nouvelle tentative automatique après ${ENRICH_RETRY_DAYS} jours.`
       : "Recherche d'adresses e-mail : aucune entreprise sans e-mail à rechercher.";
-  return `Recherche d'adresses e-mail : ${r.searched} entreprise(s) recherchée(s), ${r.found} adresse(s) trouvée(s) ; ${r.no_website} sans site identifié, ${r.no_email} sans adresse générique publiée, ${r.blocked} site(s) refusant l'exploration, ${r.errors} erreur(s).`;
+  const reasons = Object.entries(r.error_reasons ?? {})
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([k, n]) => `${k} : ${n}`)
+    .join(", ");
+  return `Recherche d'adresses e-mail : ${r.searched} entreprise(s) recherchée(s), ${r.found} adresse(s) trouvée(s) ; ${r.no_website} sans site identifié, ${r.no_email} sans adresse générique publiée, ${r.blocked} site(s) refusant l'exploration, ${r.errors} erreur(s)${reasons ? ` (${reasons})` : ""}${r.deferred ? ` ; ${r.deferred} recherche(s) reportée(s) (service de recherche saturé)` : ""}.`;
 }
 
 /**
@@ -819,7 +858,29 @@ export async function runOutreachFollowUp(db: Db, { budgetMs = 270_000 }: { budg
   const stalled = campaign?.status === "BUILDING" && Date.now() - new Date(campaign.updated_at).getTime() > 10 * 60_000;
   if (!campaign || campaign.status === "FAILED" || stalled) return { mode: "daily" as const, ...(await runOutreachDaily(db, { budgetMs: budgetMs - 30_000 })) };
   if (campaign.status === "BUILDING" || campaign.status === "CANCELLED") return { mode: "skipped" as const, skipped: campaign.status === "BUILDING" ? "Campagne du jour en cours de préparation" : "Campagne du jour annulée" };
-  return { mode: "contacts" as const, ...(await enrichCampaignAndSend(db, { campaignId: campaign.id, deadline: Date.now() + budgetMs })) };
+  const deadline = Date.now() + budgetMs;
+  const contacts = await enrichCampaignAndSend(db, { campaignId: campaign.id, deadline: deadline - 120_000 });
+  // Objectif quotidien (au moins 100 e-mails pertinents) pas encore atteint : nouvelle recherche
+  // d'entreprises et d'adresses (campagne complémentaire), autant de passages que nécessaire.
+  const topUp = await topUpToTarget(db, deadline);
+  return { mode: "contacts" as const, ...contacts, top_up: topUp };
+}
+
+/** E-mails Outreach réellement envoyés depuis minuit (heure de Paris), toutes campagnes. */
+export async function sentTodayCount(db: Db) {
+  const { count } = await db.from("outreach_recipients").select("id", { count: "exact", head: true }).eq("status", "SENT").gte("sent_at", startOfParisDay());
+  return count ?? 0;
+}
+
+/** Complète la journée jusqu'à l'objectif d'envois : rien si atteint, ou si le temps manque. */
+export async function topUpToTarget(db: Db, deadline: number) {
+  const settings = await loadSettings(db);
+  const target = Math.min(settings.daily_send_target, settings.total_daily_send_cap);
+  const before = await sentTodayCount(db);
+  if (!target || before >= target) return { target, sent_before: before, ran: false, reason: "Objectif du jour atteint" };
+  if (deadline - Date.now() < 100_000) return { target, sent_before: before, ran: false, reason: "Temps insuffisant dans ce passage" };
+  const run = await runManualCampaign(db, { userId: null, budgetMs: deadline - Date.now() - 10_000 }).catch((e) => (logServerError("outreach top-up", e), null));
+  return { target, sent_before: before, ran: true, sent_after: await sentTodayCount(db), run };
 }
 
 /**

@@ -46,6 +46,7 @@ export function OutreachSettingsForm({ s }: { s: S }) {
           plaintes restent faibles.
         </p>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <NumberField name="daily_send_target" label="Objectif d'envois par jour" value={s.daily_send_target} min={0} max={10000} hint="Tant qu'il n'est pas atteint, de nouvelles recherches d'entreprises et d'adresses sont lancées à chaque passage (dans la limite ci-dessous)." />
           <NumberField name="total_daily_send_cap" label="Envois max. par jour (toutes campagnes)" value={s.total_daily_send_cap} min={0} max={10000} hint="Campagnes automatiques et manuelles confondues." />
           <NumberField name="hourly_send_cap" label="Envois max. par heure" value={s.hourly_send_cap} min={0} max={2000} hint="Respectez la limite de votre messagerie." />
           <NumberField name="send_interval_seconds" label="Intervalle entre deux e-mails (secondes)" value={s.send_interval_seconds} min={0} max={300} />

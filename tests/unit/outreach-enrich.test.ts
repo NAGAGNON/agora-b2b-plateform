@@ -117,8 +117,10 @@ describe("outreach — recherche complète (réseau simulé)", () => {
 describe("recherche gratuite du site officiel", () => {
   it("domaines déduits du nom (sans forme juridique)", async () => {
     const { domainCandidates } = await import("@/lib/outreach/enrich");
-    expect(domainCandidates("OCR RHONE ALPES")).toEqual(["ocr-rhone-alpes.fr", "ocr-rhone-alpes.com", "ocrrhonealpes.fr", "ocrrhonealpes.com", "ocr-rhone.fr", "ocr-rhone.com", "ocrrhone.fr", "ocrrhone.com"]);
-    expect(domainCandidates("SARL Électricité Dupont")).toEqual(["electricite-dupont.fr", "electricite-dupont.com", "electricitedupont.fr", "electricitedupont.com"]);
+    expect(domainCandidates("OCR RHONE ALPES")).toEqual(["ocr-rhone-alpes.fr", "ocr-rhone-alpes.com", "ocrrhonealpes.fr", "ocrrhonealpes.com", "ocr-rhone.fr", "ocr-rhone.com", "ocrrhone.fr", "ocrrhone.com", "ocr-rhone-alpes.net", "ocr-rhone-alpes.eu", "ocrrhonealpes.net", "ocrrhonealpes.eu"]);
+    expect(domainCandidates("SARL Électricité Dupont")).toEqual(["electricite-dupont.fr", "electricite-dupont.com", "electricitedupont.fr", "electricitedupont.com", "electricite-dupont.net", "electricite-dupont.eu", "electricitedupont.net", "electricitedupont.eu"]);
+    // Avec la ville : nom-ville.fr en plus
+    expect(domainCandidates("Dupont Plomberie", "Brest")).toContain("dupont-plomberie-brest.fr");
     expect(domainCandidates("SAS")).toEqual([]);
   });
 
@@ -134,5 +136,17 @@ describe("recherche gratuite du site officiel", () => {
     const { freeWebsiteSearch } = await import("@/lib/outreach/enrich");
     const fetchImpl = (() => Promise.reject(new Error("ne doit pas être appelé"))) as unknown as typeof fetch;
     expect(await freeWebsiteSearch(fetchImpl)({ name: "Dupont", city: null, siren: null })).toBeNull();
+  });
+});
+
+describe("TED : avis au titre trop court", () => {
+  it("titre complet, puis intitulé factuel (nature + acheteur) plutôt que de rejeter l'avis", async () => {
+    const { mapTedNotice } = await import("@/lib/collect/connectors");
+    const base = { "publication-number": "123-2026", "place-of-performance": ["FRK26"], "buyer-name": { fra: "Ville de Lyon" }, "contract-nature": ["services"] };
+    const a = mapTedNotice({ ...base, "notice-title": { fra: "France – Services – Lot" } }, []);
+    expect(a.ok && a.item.title).toBe("France – Services – Lot");
+    const b = mapTedNotice({ ...base, "notice-title": { fra: "" } }, []);
+    expect(b.ok && b.item.title).toBe("Avis de marché (services) — Ville de Lyon");
+    expect(mapTedNotice({ "publication-number": "9-2026", "notice-title": { fra: "" } }, []).ok).toBe(false);
   });
 });

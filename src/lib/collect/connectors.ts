@@ -152,9 +152,14 @@ export function mapTedNotice(n: Record<string, unknown>, nutsFilter: string[]): 
   const rawTitle = tedText(n["notice-title"]) ?? "";
   // Titre TED généré « Pays – Libellé CPV – Titre de l'acheteur » : on garde le titre de l'acheteur.
   const segments = rawTitle.split(/\s[–-]\s/);
-  const title = cleanString(segments.length >= 3 ? segments.slice(2).join(" – ") : rawTitle, 300);
-  if (!title || title.length < 5) return { ok: false, reason: `titre manquant (${pub})` };
+  const tail = cleanString(segments.length >= 3 ? segments.slice(2).join(" – ") : rawTitle, 300);
   const buyer = cleanString(tedText(n["buyer-name"]), 200);
+  const natureLabel = cleanString(asArray(n["contract-nature"])[0], 60);
+  // Titre de l'acheteur trop court : titre TED complet, sinon un intitulé factuel (nature + acheteur)
+  const full = cleanString(rawTitle, 300);
+  const title =
+    tail && tail.length >= 5 ? tail : full && full.length >= 5 ? full : buyer ? `Avis de marché${natureLabel ? ` (${natureLabel})` : ""} — ${buyer}`.slice(0, 300) : null;
+  if (!title || title.length < 5) return { ok: false, reason: `titre manquant (${pub})` };
   const cpv = [...new Set(asArray(n["classification-cpv"]).map((c) => c.replace(/\D/g, "")).filter((c) => c.length >= 2))];
   // Date limite de remise des offres ; à défaut (procédures restreintes), date limite de candidature.
   const deadline = toIsoDeadline(asArray(n["deadline-receipt-tender-date-lot"] ?? n["deadline-receipt-request-date-lot"] ?? n.deadline)[0]);
