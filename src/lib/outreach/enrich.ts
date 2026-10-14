@@ -177,15 +177,41 @@ async function fetchText(url: string, fetchImpl: typeof fetch, maxBytes = 800_00
 
 export type WebsiteSearch = (company: { name: string; city: string | null; siren: string | null }) => Promise<{ website: string | null; email?: string | null; provider: string } | null>;
 
-/** Site officiel via l'API Brave Search (abonnement, conditions d'utilisation respectées). */
-export function braveSearch(key: string, fetchImpl: typeof fetch = fetch): WebsiteSearch {
+/** Erreur d'un service de recherche saturé (limite de requêtes ou forfait épuisé) : à réessayer plus tard. */
+export class SearchQuotaError extends Error {}
+
+/**
+ * Site officiel via l'API Brave Search (abonnement, conditions d'utilisation respectées).
+ * Les appels sont espacés (forfait gratuit : 1 requête par seconde) même quand plusieurs
+ * entreprises sont recherchées en parallèle ; après un refus « limite atteinte » (429), le
+ * service n'est plus appelé pendant `pauseMs` (forfait mensuel épuisé ou rafale).
+ */
+export function braveSearch(key: string, fetchImpl: typeof fetch = fetch, { spacingMs = 1100, pauseMs = 15 * 60_000 } = {}): WebsiteSearch {
+  let chain: Promise<unknown> = Promise.resolve();
+  let pausedUntil = 0;
+  const slot = () => {
+    const turn = chain.then(() => new Promise((r) => setTimeout(r, spacingMs)));
+    const mine = chain;
+    chain = turn;
+    return mine;
+  };
   return async (c) => {
+    if (Date.now() < pausedUntil) throw new SearchQuotaError("Brave Search : limite de requêtes atteinte, nouvel essai plus tard");
+    await slot();
+    if (Date.now() < pausedUntil) throw new SearchQuotaError("Brave Search : limite de requêtes atteinte, nouvel essai plus tard");
     const q = `${c.name} ${c.city ?? ""} site officiel`.trim();
     const res = await fetchImpl(`https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(q)}&country=fr&search_lang=fr&count=10`, {
       headers: { Accept: "application/json", "X-Subscription-Token": key },
       signal: AbortSignal.timeout(10_000),
     });
-    if (res.status === 429) throw new Error("Brave Search : limite de requêtes atteinte (429)");
+    if (res.status === 429 || res.status === 402) {
+      pausedUntil = Date.now() + pauseMs;
+      throw new SearchQuotaError(`Brave Search : limite de requêtes atteinte (${res.status})`);
+    }
+    if (res.status === 401 || res.status === 403) {
+      pausedUntil = Date.now() + pauseMs;
+      throw new SearchQuotaError(`Brave Search : clé refusée (${res.status}) — vérifier BRAVE_SEARCH_API_KEY`);
+    }
     if (!res.ok) throw new Error(`Brave Search : HTTP ${res.status}`);
     const body = (await res.json()) as { web?: { results?: { url: string; title?: string }[] } };
     return { website: pickWebsite(body.web?.results ?? [], c.name), provider: "Brave Search" };
@@ -225,7 +251,9 @@ export function dropcontactSearch(key: string, fetchImpl: typeof fetch = fetch):
  * ocr-rhone-alpes.fr, ocrrhonealpes.fr, …). Simple hypothèse : un domaine n'est retenu
  * qu'après vérification du SIREN sur le site (voir freeWebsiteSearch).
  */
-export function domainCandidates(name: string): string[] {
+const LEGAL_PATHS = ["/mentions-legales", "/mentions-legales/", "/contact", "/nous-contacter"];
+
+export function domainCandidates(name: string, city: string | null = null): string[] {
   const words = normalizeText(name)
     .replace(/\b(sarl|sas|sasu|eurl|sa|sci|snc|scop|ets|etablissements|societe|entreprise)\b/g, " ")
     .split(" ")
@@ -237,9 +265,13 @@ export function domainCandidates(name: string): string[] {
   if (joined.length >= 3 && joined.length <= 40) labels.add(dashed).add(joined);
   // Nom long : les deux premiers mots (ex. « Dupont Electricite Services » → dupont-electricite)
   if (words.length > 2) labels.add(words.slice(0, 2).join("-")).add(words.slice(0, 2).join(""));
+  // Nom suivi de la ville (ex. « Dupont Plomberie », Brest → dupont-plomberie-brest.fr)
+  const cityWord = city ? normalizeText(city).split(" ").filter((w) => /^[a-z0-9]+$/.test(w)).join("-") : "";
   const out: string[] = [];
   for (const l of labels) for (const tld of ["fr", "com"]) out.push(`${l}.${tld}`);
-  return out.slice(0, 8);
+  if (cityWord && joined.length + cityWord.length <= 50) out.push(`${dashed}-${cityWord}.fr`);
+  for (const l of [...labels].slice(0, 2)) for (const tld of ["net", "eu"]) out.push(`${l}.${tld}`);
+  return [...new Set(out)].slice(0, 12);
 }
 
 /** Le SIREN (9 chiffres, éventuellement espacés « 123 456 789 ») figure-t-il dans la page ? */
@@ -257,9 +289,11 @@ export function sirenOnPage(html: string, siren: string): boolean {
 export function freeWebsiteSearch(fetchImpl: typeof fetch = fetch): WebsiteSearch {
   return async (c) => {
     if (!c.siren) return null;
-    for (const domain of domainCandidates(c.name)) {
+    // Résolution DNS de tous les domaines plausibles en parallèle : seuls ceux qui existent sont visités
+    const candidates = domainCandidates(c.name, c.city);
+    const exists = await Promise.all(candidates.map((d) => isPublicHost(d).catch(() => false)));
+    for (const domain of candidates.filter((_, i) => exists[i])) {
       try {
-        if (!(await isPublicHost(domain))) continue; // le domaine n'existe pas (résolution DNS)
         const origin = `https://${domain}`;
         const robots = await fetchText(`${origin}/robots.txt`, fetchImpl, 100_000).catch(() => null);
         // robots.txt absent (4xx) : tout est permis ; injoignable ou en erreur serveur (5xx) : rien n'est exploré
@@ -268,7 +302,9 @@ export function freeWebsiteSearch(fetchImpl: typeof fetch = fetch): WebsiteSearc
         const home = await fetchText(origin, fetchImpl).catch(() => null);
         if (!home?.text) continue;
         if (sirenOnPage(home.text, c.siren)) return { website: origin, provider: "domaine vérifié par le SIREN (gratuit)" };
-        for (const link of contactLinks(home.text, origin)) {
+        // Pages liées depuis l'accueil, puis adresses usuelles des mentions légales (souvent non liées)
+        const links = [...new Set([...contactLinks(home.text, origin), ...LEGAL_PATHS.map((p) => origin + p)])].slice(0, 8);
+        for (const link of links) {
           if (!allowed(new URL(link).pathname)) continue;
           const page = await fetchText(link, fetchImpl).catch(() => null);
           if (page?.text && sirenOnPage(page.text, c.siren)) return { website: origin, provider: "domaine vérifié par le SIREN (gratuit)" };
@@ -302,7 +338,7 @@ export async function enrichCompany(
         break;
       }
     } catch (e) {
-      lastError = e instanceof Error ? e.message : "Erreur";
+      lastError = e instanceof SearchQuotaError ? `[report] ${e.message}` : e instanceof Error ? e.message : "Erreur";
     }
   }
   // Un service en erreur (ex. limite de requêtes) : nouvelle tentative au prochain passage, pas « sans site »
@@ -318,7 +354,8 @@ export async function enrichCompany(
     const home = await fetchText(website, fetchImpl);
     if (!home || home.status >= 400) return { status: home && [401, 403, 429].includes(home.status) ? "BLOCKED" : "ERROR", website, email: null, source: null, note: `Site inaccessible (${home?.status ?? "adresse non publique"})` };
     const candidates = [home.text];
-    for (const link of contactLinks(home.text, website)) {
+    const origin = new URL(website).origin;
+    for (const link of [...new Set([...contactLinks(home.text, website), ...LEGAL_PATHS.map((p) => origin + p)])].slice(0, 8)) {
       if (!allowed(new URL(link).pathname)) continue;
       const page = await fetchText(link, fetchImpl).catch(() => null);
       if (page?.text) {
