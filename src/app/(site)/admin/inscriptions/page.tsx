@@ -1,6 +1,6 @@
 import { requireAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { loadSignups, type SignupDetail } from "@/lib/admin-signups";
+import { loadActivationFunnel, loadSignups, type ActivationFunnel, type SignupDetail } from "@/lib/admin-signups";
 import { EmptyState } from "@/components/ui/states";
 import { Pagination } from "@/components/ui/pagination";
 import { DemoBadge } from "@/components/demo";
@@ -108,18 +108,65 @@ function SignupCard({ s }: { s: SignupDetail }) {
   );
 }
 
+function Funnel({ f }: { f: ActivationFunnel }) {
+  const pct = (n: number, d: number) => (d ? ` (${Math.round((n / d) * 100)} %)` : "");
+  const rows: [string, number, number][] = [
+    ["Comptes créés", f.signups, f.signups],
+    ["Entreprise créée", f.company, f.signups],
+    ["Profil complété", f.profile, f.signups],
+    ["Alerte créée", f.alert, f.signups],
+    ["Veille par e-mail active", f.veille, f.signups],
+    ["Opportunité en favori", f.favorite, f.signups],
+  ];
+  return (
+    <section aria-labelledby="activation" className="mb-6 rounded-xl border border-slate-200 bg-white p-4" data-testid="activation-funnel">
+      <h2 id="activation" className="mb-3 text-lg font-bold text-navy">
+        Activation et retours
+      </h2>
+      <dl className="grid gap-3 sm:grid-cols-3 lg:grid-cols-4">
+        {rows.map(([label, n, d]) => (
+          <div key={label}>
+            <dt className="text-xs text-slate-500">{label}</dt>
+            <dd className="text-xl font-bold text-navy">
+              {n}
+              <span className="text-sm font-medium text-slate-500">{label === "Comptes créés" ? "" : pct(n, d)}</span>
+            </dd>
+          </div>
+        ))}
+        <div>
+          <dt className="text-xs text-slate-500">Revenus après le jour d&apos;inscription</dt>
+          <dd className="text-xl font-bold text-navy">
+            {f.returned}
+            <span className="text-sm font-medium text-slate-500">{` / ${f.eligible7}${pct(f.returned, f.eligible7)}`}</span>
+          </dd>
+        </div>
+        <div>
+          <dt className="text-xs text-slate-500">Encore actifs 7 jours après</dt>
+          <dd className="text-xl font-bold text-navy">
+            {f.returned7}
+            <span className="text-sm font-medium text-slate-500">{` / ${f.eligible7}${pct(f.returned7, f.eligible7)}`}</span>
+          </dd>
+        </div>
+      </dl>
+      <p className="mt-3 text-xs text-slate-500">Comptes réels uniquement. Retours calculés sur les comptes créés il y a plus de 7 jours, d&apos;après leur dernière visite enregistrée.</p>
+    </section>
+  );
+}
+
 export default async function AdminSignups(props: PageProps<"/admin/inscriptions">) {
   await requireAdmin();
   const sp = await props.searchParams;
   const page = Math.max(1, Number(sp.page) || 1);
   const includeDemo = sp.demo === "1";
-  const { rows, count } = await loadSignups(createAdminClient(), { page, per: PER, includeDemo });
+  const db = createAdminClient();
+  const [{ rows, count }, funnel] = await Promise.all([loadSignups(db, { page, per: PER, includeDemo }), loadActivationFunnel(db)]);
   return (
     <div>
       <h1 className="mb-1 text-2xl font-bold">Inscriptions</h1>
       <p className="mb-4 text-sm text-slate-600">
         {count} inscrit(s){includeDemo ? " (comptes de démonstration compris)" : ""}. Heures de Paris, du plus récent au plus ancien.
       </p>
+      <Funnel f={funnel} />
       {rows.length ? (
         <ul className="space-y-4">
           {rows.map((s) => (

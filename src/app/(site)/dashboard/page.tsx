@@ -8,6 +8,7 @@ import { EmptyState } from "@/components/ui/states";
 import { Notice } from "@/components/ui/notice";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { RecommendationList } from "@/components/dashboard/recommendations";
+import { GettingStarted } from "@/components/dashboard/getting-started";
 import { getSectorLabels, showDemoData } from "@/lib/queries/platform";
 import { PIPELINE_STAGES, type PipelineStage } from "@/lib/constants";
 import { formatMoney, relativeTime } from "@/lib/format";
@@ -47,6 +48,8 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
     !(prof?.description && prof.description.length >= 30) && "une description de l'entreprise",
   ].filter(Boolean) as string[];
 
+  const { data: veille } = await supabase.from("veille_preferences").select("frequency, consent_at").eq("user_id", session.userId).maybeSingle();
+  const veilleOn = veille ? veille.frequency !== "NONE" && (Boolean(veille.consent_at) || session.profile.marketing_consent) : session.profile.marketing_consent;
   const [recommended, favs, alerts, interests, proposals, pipeline, myOpps, receivedInterests, receivedProposals, latestProposals] = await Promise.all([
     supplier ? supabase.rpc("recommended_opportunities", { p_company_id: cid, p_limit: 5, p_include_demo: await showDemoData() }) : null,
     supabase.from("favorites").select("id", { count: "exact", head: true }).eq("user_id", session.userId),
@@ -115,6 +118,15 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
           </ButtonLink>
         </div>
       </div>
+
+      <GettingStarted
+        steps={[
+          { done: missing.length === 0, label: "Compléter le profil de l'entreprise", hint: "Secteurs, zone, compétences : la base de vos recommandations.", href: "/dashboard/entreprise", cta: "Compléter le profil" },
+          { done: (alerts.count ?? 0) > 0, label: "Créer une alerte", hint: "Soyez prévenu dès qu'une opportunité correspond à vos critères.", href: "/dashboard/alertes", cta: "Créer une alerte" },
+          { done: veilleOn, label: "Recevoir la veille par e-mail", hint: "Une sélection le lundi et le vendredi, ou chaque jour si vous préférez.", href: "/dashboard/veille", cta: "Choisir ma veille" },
+          { done: (favs.count ?? 0) > 0, label: "Enregistrer une première opportunité", hint: "Ajoutez en favori les offres à suivre pour les retrouver ici.", href: supplier ? "/dashboard/recommandations" : "/opportunites", cta: "Voir les opportunités" },
+        ]}
+      />
 
       {supplier && (
         <section aria-labelledby="fournisseur" className="space-y-5">

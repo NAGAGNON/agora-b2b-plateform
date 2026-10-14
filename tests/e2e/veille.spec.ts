@@ -11,6 +11,12 @@ test("veille : passage aux alertes quotidiennes confirmé explicitement, puis d�
   const email = await signUpWithCompany(page, "veille", `Veille ${RUN}`, "Fournisseur / prestataire");
   const { data: u } = await db.from("users").select("id").eq("email", email).single();
 
+  // Nouveau compte : étapes « Pour bien démarrer », la veille n'est pas cochée sans accord
+  await page.goto("/dashboard");
+  const start = page.getByTestId("getting-started");
+  await expect(start).toContainText("Pour bien démarrer");
+  await expect(start.getByRole("link", { name: "Choisir ma veille" })).toHaveAttribute("href", "/dashboard/veille");
+
   // Lien « Recevoir mes opportunités chaque jour » de l'e-mail : rien n'est activé sans confirmation
   await page.goto("/dashboard/veille?frequence=quotidienne");
   await expect(page.getByText("Rien n'est activé tant que vous n'avez pas enregistré")).toBeVisible();

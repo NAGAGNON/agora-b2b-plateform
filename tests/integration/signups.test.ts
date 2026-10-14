@@ -4,7 +4,7 @@
  */
 import { afterAll, describe, expect, it } from "vitest";
 import { admin, cleanup, company, RUN, user } from "./helpers";
-import { loadSignups } from "@/lib/admin-signups";
+import { loadActivationFunnel, loadSignups } from "@/lib/admin-signups";
 
 const campaigns: string[] = [];
 afterAll(async () => {
@@ -39,5 +39,20 @@ describe("Détail des inscriptions", () => {
     const o = rows.find((r) => r.id === viaMail.id)!;
     expect(o.origin).toMatchObject({ kind: "outreach", campaignDate: "2091-01-02", prospectName: `IT ${RUN} Prospect` });
     expect(o.company).toBeNull();
+  });
+
+  it("entonnoir d'activation : comptes réels uniquement, chaque étape comptée d'après les données", async () => {
+    const before = await loadActivationFunnel(admin);
+    const u = await user("insc-funnel");
+    await company(u.client, "Funnel SARL");
+    await admin.from("alerts").insert({ user_id: u.id, name: "Alerte funnel" });
+    await admin.from("veille_preferences").insert({ user_id: u.id, frequency: "DAILY", keywords: ["test"], consent_at: new Date().toISOString() });
+    const after = await loadActivationFunnel(admin);
+    expect(after.signups).toBe(before.signups + 1);
+    expect(after.company).toBe(before.company + 1);
+    expect(after.alert).toBe(before.alert + 1);
+    expect(after.veille).toBe(before.veille + 1);
+    // Compte créé aujourd'hui : pas encore compté dans les retours à 7 jours
+    expect(after.eligible7).toBe(before.eligible7);
   });
 });

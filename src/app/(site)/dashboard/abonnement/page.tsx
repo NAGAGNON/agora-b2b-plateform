@@ -2,7 +2,7 @@ import Link from "next/link";
 import { requireCompany } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/format";
-import { stripeConfigured, stripeMode } from "@/lib/billing/stripe";
+import { stripeConfigured, paidPlansOpen, stripeMode } from "@/lib/billing/stripe";
 import { confirmCheckoutSession, ENTITLED_STATUSES } from "@/lib/billing/sync";
 import { PLANS, PLAN_LABEL, formatEuros, planInfo, priceTTC, type PlanCode } from "@/lib/billing/plans";
 import { Card, CardHeader } from "@/components/ui/card";
@@ -51,6 +51,7 @@ export default async function SubscriptionPage(props: PageProps<"/dashboard/abon
   const sub = (subs ?? []).find((s) => (ENTITLED_STATUSES as readonly string[]).includes(s.status)) ?? null;
   const pastDue = sub?.status === "past_due";
   const configured = stripeConfigured();
+  const open = paidPlansOpen(session.isStaff);
   const mode = stripeMode();
   const amount = sub?.unit_amount_cents != null ? sub.unit_amount_cents / 100 : info.priceHT;
 
@@ -69,7 +70,7 @@ export default async function SubscriptionPage(props: PageProps<"/dashboard/abon
         <p className="mt-1 text-sm text-slate-500">Offre de l&apos;entreprise {company.name}.</p>
       </div>
 
-      {mode === "test" && configured && (
+      {mode === "test" && open && (
         <Notice tone="info" title="Paiement en mode test">
           Les paiements passent par l&apos;environnement de test de Stripe : aucune somme réelle n&apos;est débitée. Carte de test : 4242 4242 4242 4242, date future, CVC au choix.
         </Notice>
@@ -169,9 +170,10 @@ export default async function SubscriptionPage(props: PageProps<"/dashboard/abon
           <p className="mt-1 text-sm text-slate-600">
             Commencez gratuitement. Passez à Pro lorsque vous avez besoin de davantage d&apos;opportunités, d&apos;alertes et d&apos;outils commerciaux.
           </p>
-          {!configured ? (
+          {!open ? (
             <Notice tone="info" className="mt-4">
-              Le paiement en ligne n&apos;est pas encore activé. Revenez prochainement.
+              Les offres Pro et Business ouvrent prochainement : le paiement en ligne est en cours de mise en service. Toutes les fonctionnalités de
+              l&apos;offre Gratuite restent disponibles.
             </Notice>
           ) : !isAdmin ? (
             <Notice tone="info" className="mt-4">
@@ -184,7 +186,7 @@ export default async function SubscriptionPage(props: PageProps<"/dashboard/abon
                   <div className="space-y-3 p-5">
                     <div className="flex items-center justify-between gap-2">
                       <h3 className="text-lg font-bold">LinkProB2B {p.name}</h3>
-                      {p.popular && <Badge tone="teal">Le plus populaire</Badge>}
+                      {p.popular && <Badge tone="teal">Recommandé</Badge>}
                     </div>
                     <p className="font-heading text-2xl font-bold text-navy">
                       {formatEuros(p.priceHT)} <span className="text-sm font-medium text-slate-500">HT / mois</span>

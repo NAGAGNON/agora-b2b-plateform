@@ -121,3 +121,60 @@ export async function loadSignups(db: SupabaseClient<Database>, opts: { page: nu
   });
   return { rows, count: count ?? 0 };
 }
+
+export type ActivationFunnel = { signups: number; company: number; profile: number; alert: number; veille: number; favorite: number; eligible7: number; returned: number; returned7: number };
+
+/**
+ * Entonnoir d'activation des comptes réels (démo exclue) : entreprise créée, profil complété,
+ * alerte, veille, favori ; retours : revenu après le jour de l'inscription, et encore actif 7 jours
+ * après (comptes de plus de 7 jours). Calculé sur les données enregistrées, sans estimation.
+ */
+export async function loadActivationFunnel(db: SupabaseClient<Database>, now = new Date()): Promise<ActivationFunnel> {
+  const users: { id: string; created_at: string; last_seen_at: string | null; marketing_consent: boolean }[] = [];
+  for (let page = 0; page < 20; page++) {
+    const { data, error } = await db.from("users").select("id, created_at, last_seen_at, marketing_consent").eq("is_demo", false).order("created_at").range(page * 1000, page * 1000 + 999);
+    if (error) throw error;
+    users.push(...(data ?? []));
+    if ((data ?? []).length < 1000) break;
+  }
+  const ids = new Set(users.map((u) => u.id));
+  const set = async (table: "alerts" | "favorites", col = "user_id") => {
+    const { data } = await db.from(table).select(col).limit(50000);
+    return new Set(((data ?? []) as unknown as Record<string, string>[]).map((r) => r[col]).filter((id) => ids.has(id)));
+  };
+  const [alerts, favorites, { data: members }, { data: prefs }] = await Promise.all([
+    set("alerts"),
+    set("favorites"),
+    db.from("company_members").select("user_id, company:companies(is_demo, profile:company_profiles(sectors, skills, description))").limit(50000),
+    db.from("veille_preferences").select("user_id, frequency, consent_at").limit(50000),
+  ]);
+  const withCompany = new Set<string>();
+  const withProfile = new Set<string>();
+  for (const m of members ?? []) {
+    if (!ids.has(m.user_id)) continue;
+    const c = one(m.company as unknown as { is_demo: boolean; profile: unknown } | null);
+    if (!c || c.is_demo) continue;
+    withCompany.add(m.user_id);
+    const p = one(c.profile as { sectors: string[]; skills: string[]; description: string | null } | null);
+    if (p?.sectors?.length && p.skills?.length && (p.description?.length ?? 0) >= 30) withProfile.add(m.user_id);
+  }
+  const prefBy = new Map((prefs ?? []).map((p) => [p.user_id, p]));
+  const veille = users.filter((u) => {
+    const p = prefBy.get(u.id);
+    return p ? p.frequency !== "NONE" && (Boolean(p.consent_at) || u.marketing_consent) : u.marketing_consent;
+  }).length;
+  const day = 86_400_000;
+  const old = users.filter((u) => now.getTime() - new Date(u.created_at).getTime() >= 7 * day);
+  const after = (u: (typeof users)[number], ms: number) => Boolean(u.last_seen_at && new Date(u.last_seen_at).getTime() - new Date(u.created_at).getTime() >= ms);
+  return {
+    signups: users.length,
+    company: withCompany.size,
+    profile: withProfile.size,
+    alert: alerts.size,
+    veille,
+    favorite: favorites.size,
+    eligible7: old.length,
+    returned: old.filter((u) => after(u, day)).length,
+    returned7: old.filter((u) => after(u, 7 * day)).length,
+  };
+}
