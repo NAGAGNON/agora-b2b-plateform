@@ -61,7 +61,8 @@ test("administration : configuration, aperçu réel, destinataires et envoi test
   await login(page, "admin@demo.linkprob2b.test");
   await page.goto("/admin/veille");
   await expect(page.getByRole("heading", { level: 1, name: "Veille par e-mail" })).toBeVisible();
-  await expect(page.getByText("Désactivés (aucun e-mail réel ne part)")).toBeVisible();
+  // Activée d'office (demande du propriétaire) : suspension possible depuis cette page
+  await expect(page.getByText("Activés", { exact: true })).toBeVisible();
   await expect(page.getByText(/Destinataires éligibles/).first()).toBeVisible();
   await expect(page.getByRole("heading", { name: "Historique des éditions" })).toBeVisible();
   await page.getByRole("link", { name: "Lundi", exact: true }).click();
@@ -69,6 +70,5 @@ test("administration : configuration, aperçu réel, destinataires et envoi test
   // Sans service d'envoi configuré, l'envoi test le dit clairement au lieu de faire semblant
   await page.getByRole("button", { name: "Envoyer un e-mail test" }).click();
   await expect(page.getByText(/Aucun service d'envoi configuré|E-mail test envoyé/)).toBeVisible();
-  await page.getByRole("button", { name: "Activer les envois automatiques" }).click();
-  await expect(page.getByText(/Impossible d'activer|Faites d'abord un envoi test|Envois automatiques activés/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Suspendre les envois automatiques" })).toBeVisible();
 });

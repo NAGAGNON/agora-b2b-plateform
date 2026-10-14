@@ -17,7 +17,7 @@ import { parisToday } from "@/lib/daily-report";
 
 export const metadata = { title: "Veille par e-mail" };
 
-const KIND_LABELS: Record<string, string> = { LAUNCH: "Lancement", MONDAY: "Lundi", FRIDAY: "Vendredi", DAILY: "Alerte quotidienne" };
+const KIND_LABELS: Record<string, string> = { INVITE: "Invitation à activer la veille", LAUNCH: "Lancement", MONDAY: "Lundi", FRIDAY: "Vendredi", DAILY: "Alerte quotidienne" };
 const STATUS_LABELS: Record<string, string> = { BUILDING: "En préparation", SENDING: "En cours d'envoi", PAUSED: "Suspendue", SENT: "Envoyée", CANCELLED: "Annulée", EMPTY: "Rien à envoyer" };
 const FREQ_LABELS: Record<string, string> = { TWICE_WEEKLY: "Lundi et vendredi", DAILY: "Quotidienne" };
 
@@ -34,7 +34,7 @@ function Stat({ label, value, hint }: { label: string; value: number | string; h
 export default async function AdminVeille(props: PageProps<"/admin/veille">) {
   const session = await requireAdmin();
   const sp = await props.searchParams;
-  const kind = (typeof sp.edition === "string" && sp.edition in KIND_LABELS ? sp.edition : "LAUNCH") as VeilleKind;
+  const kind = (typeof sp.edition === "string" && sp.edition in KIND_LABELS && sp.edition !== "INVITE" ? sp.edition : "LAUNCH") as VeilleKind;
   const forUser = typeof sp.pour === "string" ? sp.pour : "";
   const db = createAdminClient();
   const from = veilleFrom();
@@ -145,7 +145,7 @@ export default async function AdminVeille(props: PageProps<"/admin/veille">) {
         <CardHeader title="Aperçu" description="Rendu réel avec les annonces ouvertes du moment. Rien n'est enregistré ni envoyé." />
         <div className="space-y-3 p-5">
           <div className="flex flex-wrap gap-2">
-            {Object.entries(KIND_LABELS).map(([k, l]) => (
+            {Object.entries(KIND_LABELS).filter(([k]) => k !== "INVITE").map(([k, l]) => (
               <Link key={k} href={`/admin/veille?edition=${k}${forUser ? `&pour=${forUser}` : ""}`} className={buttonClasses({ variant: k === kind ? "primary" : "outline", size: "sm" })}>
                 {l}
               </Link>
