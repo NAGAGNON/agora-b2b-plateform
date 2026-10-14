@@ -3,13 +3,13 @@ import type { Database } from "@/lib/database.types";
 import { siteUrl } from "@/lib/seo";
 import { parisDayStart, parisToday } from "@/lib/daily-report";
 import { OPPORTUNITY_TYPE_LABELS, SECTOR_LABELS, sectorLabel } from "@/lib/constants";
-import { renderVeilleEmail, type VeilleKind } from "@/lib/veille/render";
+import { renderVeilleEmail, renderVeilleInvitation, type VeilleKind } from "@/lib/veille/render";
 import { cleanPool, criteriaFor, MIN_DAILY_ITEMS, MIN_NEWSLETTER_ITEMS, selectOpportunities, type AudienceMember, type VeilleOpportunity } from "@/lib/veille/select";
 import type { VeilleMessage, VeilleSendResult } from "@/lib/veille/send";
 
 type DB = SupabaseClient<Database>;
 
-export type VeilleSettings = { enabled: boolean; launch_date: string; daily_cap: number; test_sent_at?: string | null; test_sent_to?: string | null };
+export type VeilleSettings = { invitations_enabled?: boolean; enabled: boolean; launch_date: string; daily_cap: number; test_sent_at?: string | null; test_sent_to?: string | null };
 export const DEFAULT_VEILLE_SETTINGS: VeilleSettings = { enabled: false, launch_date: "2026-10-15", daily_cap: 150 };
 
 export async function loadVeilleSettings(db: DB): Promise<VeilleSettings> {
@@ -256,14 +256,16 @@ export async function refreshCampaign(db: DB, id: string) {
 /** Tâche planifiée : prépare les éditions du jour puis envoie. Ne fait rien tant que l'administrateur n'a pas activé la veille. */
 export async function runVeille(db: DB, opts: QueueOptions) {
   const settings = await loadVeilleSettings(db);
-  if (!settings.enabled) return { stopped: "Veille non activée par l'administrateur", editions: [], send: null };
+  // Invitation unique des inscrits sans accord (indépendante de l'activation des éditions)
+  const invitations = settings.invitations_enabled === false ? null : await sendVeilleInvitations(db, { send: opts.send, deadline: opts.deadline - 60_000, sleep: opts.sleep, intervalMs: opts.intervalMs, now: opts.now?.() });
+  if (!settings.enabled) return { stopped: "Veille non activée par l'administrateur", invitations, editions: [], send: null };
   const now = opts.now?.() ?? new Date();
   const date = parisToday(now);
   const { count } = await db.from("veille_campaigns").select("id", { count: "exact", head: true }).eq("kind", "LAUNCH");
   const editions = [];
   for (const kind of editionsFor(date, settings, (count ?? 0) > 0)) editions.push({ kind, ...(await buildEdition(db, kind, date, now)) });
   const send = await processVeilleQueue(db, settings, opts);
-  return { stopped: send.stopped, editions, send };
+  return { stopped: send.stopped, invitations, editions, send };
 }
 
 /** Profil de veille d'un utilisateur précis (aperçu, envoi test), même hors des destinataires. */
@@ -362,4 +364,58 @@ export async function veilleStats(db: DB) {
     topOpportunities: [...top.entries()].map(([id, v]) => ({ id, ...v })).sort((a, b) => b.n - a.n).slice(0, 10),
     campaigns: campaigns ?? [],
   };
+}
+
+/**
+ * Invitation unique à activer la veille, pour les inscrits sans accord (une seule fois par compte,
+ * jamais après un refus ou une désinscription). Annonces réelles et ouvertes uniquement.
+ */
+export async function sendVeilleInvitations(db: DB, opts: { send: QueueOptions["send"]; deadline: number; max?: number; sleep?: (ms: number) => Promise<void>; intervalMs?: number; now?: Date }) {
+  const result = { candidates: 0, sent: 0, failed: 0, skipped: 0, stopped: null as string | null };
+  const { data: candidates, error } = await db.rpc("veille_invitation_candidates");
+  if (error) throw error;
+  result.candidates = candidates?.length ?? 0;
+  if (!candidates?.length) return result;
+  const now = opts.now ?? new Date();
+  const date = parisToday(now);
+  const { data: existing } = await db.from("veille_campaigns").select("id").eq("kind", "INVITE").eq("edition_date", date).maybeSingle();
+  const campaignId =
+    existing?.id ?? (await db.from("veille_campaigns").insert({ kind: "INVITE", edition_date: date, status: "SENDING", note: "Invitation unique à activer la veille" }).select("id").single()).data?.id;
+  if (!campaignId) return { ...result, stopped: "Édition d'invitation non créée" };
+  const pool = await loadPool(db, 14, now);
+  const labels = await loadLabels(db);
+  const sleep = opts.sleep ?? ((ms: number) => new Promise((r) => setTimeout(r, ms)));
+  for (const c of candidates.slice(0, opts.max ?? 50)) {
+    if (Date.now() > opts.deadline) break;
+    const basis = c.company_sectors?.length ? "entreprise" : null;
+    const items = selectOpportunities(pool, { sectors: c.company_sectors ?? [], regions: c.company_region ? [c.company_region] : [], types: [], keywords: [] }, basis, new Set(), 3);
+    const shown = items.length ? items : selectOpportunities(pool, { sectors: [], regions: [], types: [], keywords: [] }, null, new Set(), 3);
+    // Ligne d'envoi créée avant l'envoi : l'invitation n'est jamais envoyée deux fois
+    const { data: row, error: e } = await db.from("veille_sends").insert({ campaign_id: campaignId, user_id: c.user_id, email: c.email, status: "SENDING", opportunity_ids: shown.map((o) => o.id), personalized: Boolean(items.length && basis), attempts: 1 }).select("id, token").single();
+    if (e || !row) {
+      result.skipped++;
+      continue;
+    }
+    const firstName = c.full_name?.trim().split(/\s+/)[0] || null;
+    const mail = renderVeilleInvitation({ base: siteUrl(), token: row.token, firstName, items: shown, personalized: Boolean(items.length && basis), sectorLabel: labels.sectorLabel });
+    const r = await opts.send({ to: c.email, subject: mail.subject, html: mail.html, text: mail.text, token: row.token });
+    if (r.status === "SENT") {
+      await db.from("veille_sends").update({ status: "SENT", subject: mail.subject, sent_at: new Date().toISOString() }).eq("id", row.id);
+      result.sent++;
+    } else if (r.status === "SKIPPED") {
+      // Aucun service d'envoi : rien n'est marqué envoyé, l'invitation partira au prochain passage
+      await db.from("veille_sends").delete().eq("id", row.id);
+      result.stopped = r.error ?? "Aucun service d'envoi configuré";
+      break;
+    } else {
+      await db.from("veille_sends").update({ status: r.permanent ? "BOUNCED" : "FAILED", error: r.error ?? null }).eq("id", row.id);
+      if (r.permanent) await db.from("veille_suppressions").upsert({ email: c.email, reason: "BOUNCE" }, { onConflict: "email", ignoreDuplicates: true });
+      result.failed++;
+    }
+    await sleep(opts.intervalMs ?? 2000);
+  }
+  const { count: left } = await db.from("veille_sends").select("id", { count: "exact", head: true }).eq("campaign_id", campaignId).in("status", ["PENDING", "SENDING"]);
+  await db.from("veille_campaigns").update({ status: left ? "SENDING" : "SENT", completed_at: left ? null : new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", campaignId);
+  await refreshCampaign(db, campaignId);
+  return result;
 }

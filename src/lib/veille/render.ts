@@ -138,3 +138,59 @@ ${i.token !== "apercu" ? `<img src="${escapeHtml(L.pixel)}" width="1" height="1"
   ].join("\n");
   return { subject, html, text };
 }
+
+/**
+ * Invitation unique à activer la veille (inscrits sans accord) : explique pourquoi ce message,
+ * montre quelques opportunités réelles, un bouton pour activer, et rien d'autre ne suit sans accord.
+ */
+export function renderVeilleInvitation(i: { base: string; token: string; firstName: string | null; items: VeilleOpportunity[]; personalized: boolean; sectorLabel: (slug: string) => string }) {
+  const L = veilleLinks(i.base, i.token);
+  const subject = "Activez votre veille B2B gratuite sur LinkProB2B";
+  const paragraphs = [
+    i.firstName ? `Bonjour ${i.firstName},` : "Bonjour,",
+    "Vous avez créé un compte sur LinkProB2B. Nous proposons désormais une veille gratuite par e-mail : une sélection d'opportunités B2B réelles et encore ouvertes (marchés publics BOAMP et TED, besoins d'entreprises), le lundi et le vendredi, ou chaque jour si vous le préférez.",
+    i.personalized
+      ? "Voici quelques opportunités publiées récemment qui correspondent aux secteurs de votre entreprise :"
+      : "Voici quelques opportunités publiées récemment :",
+  ];
+  const cards = i.items
+    .map((o) => {
+      const meta = [o.sector_slug ? i.sectorLabel(o.sector_slug) : null, o.region, o.response_deadline ? `réponse avant le ${day(o.response_deadline)}` : null].filter((x): x is string => Boolean(x));
+      return `<tr><td style="padding:0 0 10px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #dbe4ee;border-radius:10px;background:#ffffff"><tr><td style="padding:14px 16px">
+<a href="${escapeHtml(L.item(o.id))}" style="font-size:15px;line-height:21px;font-weight:700;color:#0F2D4A;text-decoration:none">${escapeHtml(clip(o.title, 140))}</a>
+${o.origin === "EXTERNAL" && o.external_buyer_name ? `<p style="margin:4px 0 0;font-size:13px;color:#334155">${escapeHtml(o.external_buyer_name)}</p>` : ""}
+${meta.length ? `<p style="margin:6px 0 0;font-size:12px;color:#64748b">${meta.map(escapeHtml).join(" · ")}</p>` : ""}
+</td></tr></table></td></tr>`;
+    })
+    .join("");
+  const html = `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(subject)}</title></head>
+<body style="margin:0;padding:0;background:#EEF4F9;font-family:Inter,Segoe UI,Helvetica,Arial,sans-serif">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#EEF4F9"><tr><td align="center" style="padding:24px 12px">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px">
+<tr><td style="background:#0F2D4A;border-radius:12px 12px 0 0;padding:18px 24px"><a href="${escapeHtml(i.base)}" style="text-decoration:none"><img src="${escapeHtml(i.base)}/brand/logo-white.png" width="170" height="34" alt="LinkProB2B" style="display:block;border:0;width:170px;height:34px"></a></td></tr>
+<tr><td style="background:#F8FAFC;padding:24px;border-radius:0 0 12px 12px">
+<h1 style="margin:0 0 16px;font-size:22px;line-height:28px;color:#0F2D4A">Activez votre veille B2B gratuite</h1>
+${paragraphs.map((p) => `<p style="margin:0 0 12px;font-size:15px;line-height:23px;color:#334155">${escapeHtml(p)}</p>`).join("")}
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:4px">${cards}</table>
+<p style="margin:18px 0 8px;text-align:center"><a href="${escapeHtml(L.prefs)}" style="display:inline-block;background:#14B8A6;color:#ffffff;padding:13px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px">Activer ma veille</a></p>
+<p style="margin:0 0 16px;text-align:center;font-size:13px;color:#475569">Vous choisissez vos secteurs, vos régions et la fréquence. Gratuit, sans engagement.</p>
+<p style="margin:16px 0 6px;font-size:12px;line-height:18px;color:#64748b">Vous recevez ce message unique parce que vous avez un compte LinkProB2B. Sans action de votre part, vous ne recevrez pas la veille et nous ne vous écrirons plus à ce sujet.</p>
+<p style="margin:0;font-size:12px;line-height:18px;color:#64748b"><a href="${escapeHtml(L.unsubscribe)}" style="color:#0F2D4A">Ne plus recevoir ce type d'e-mail</a> · LinkProB2B — <a href="${escapeHtml(i.base)}" style="color:#0F2D4A">www.linkprob2b.com</a></p>
+</td></tr></table></td></tr></table>
+<img src="${escapeHtml(L.pixel)}" width="1" height="1" alt="" style="display:block;border:0;width:1px;height:1px">
+</body></html>`;
+  const text = [
+    subject,
+    "",
+    ...paragraphs,
+    "",
+    ...i.items.flatMap((o) => [`• ${o.title}`, `  ${L.item(o.id)}`]),
+    "",
+    `Activer ma veille : ${L.prefs}`,
+    "Vous choisissez vos secteurs, vos régions et la fréquence. Gratuit, sans engagement.",
+    "",
+    "Vous recevez ce message unique parce que vous avez un compte LinkProB2B. Sans action de votre part, vous ne recevrez pas la veille et nous ne vous écrirons plus à ce sujet.",
+    `Ne plus recevoir ce type d'e-mail : ${L.unsubscribe}`,
+  ].join("\n");
+  return { subject, html, text };
+}

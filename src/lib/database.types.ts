@@ -1629,6 +1629,11 @@ isOneToOne: false
               "company_name": string,"company_region": string,"company_sectors": (string)[],"consent": string,"email": string,"frequency": string,"full_name": string,"keywords": (string)[],"regions": (string)[],"sectors": (string)[],"types": (Database["public"]['Enums']["opportunity_type"])[],"user_id": string
             }[]
                            },
+"veille_invitation_candidates":
+{ Args: Record<PropertyKey, never>; Returns: {
+              "company_region": string,"company_sectors": (string)[],"email": string,"full_name": string,"user_id": string
+            }[]
+                           },
 "withdraw_interest":
 { Args: { "p_interest_id": string }; Returns: undefined
                            },
