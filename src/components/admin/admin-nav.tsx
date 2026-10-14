@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, Building2, ClipboardCheck, FileStack, Flag, History, Settings, Users, Database, RefreshCw, Tags, Inbox, Mail, Newspaper, Megaphone } from "lucide-react";
+import { BarChart3, Building2, ClipboardCheck, FileStack, Flag, History, Settings, Users, UserPlus, Database, RefreshCw, Tags, Inbox, Mail, Newspaper, Megaphone } from "lucide-react";
 import { cn } from "@/lib/cn";
 
 const LINKS = [
   { href: "/admin", label: "Vue d'ensemble", icon: BarChart3, exact: true },
   { href: "/admin/moderation", label: "Modération", icon: ClipboardCheck, badge: "pending" },
   { href: "/admin/opportunites", label: "Opportunités", icon: FileStack },
+  { href: "/admin/inscriptions", label: "Inscriptions", icon: UserPlus, admin: true },
   { href: "/admin/utilisateurs", label: "Utilisateurs", icon: Users, admin: true },
   { href: "/admin/entreprises", label: "Entreprises", icon: Building2 },
   { href: "/admin/signalements", label: "Signalements", icon: Flag, badge: "reports" },
