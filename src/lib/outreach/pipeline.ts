@@ -175,9 +175,37 @@ async function candidates(db: Db, a: OpportunityAnalysis, settings: OutreachSett
     "intervention_zone.eq.NATIONAL",
   ].filter(Boolean);
   if (a.department || a.region) q = q.or(zone.join(","));
-  const { data, error } = await q.order("public_awards_count", { ascending: false, nullsFirst: false }).order("id").limit(Math.min(settings.max_prospects_per_opportunity, 1000));
+  const limit = Math.min(settings.max_prospects_per_opportunity, 1000);
+  // Entreprises déjà joignables (adresse générique connue) d'abord : sans cela, la limite par
+  // opportunité était remplie d'entreprises sans adresse et presque rien ne partait.
+  const { data: reachable, error: e1 } = await q.not("email", "is", null).order("public_awards_count", { ascending: false, nullsFirst: false }).order("id").limit(limit);
+  if (e1) throw e1;
+  const rest = limit - (reachable?.length ?? 0);
+  if (rest <= 0) return reachable ?? [];
+  let q2 = db.from("outreach_prospects").select(PROSPECT_FIELDS).eq("status", "ACTIVE").or(activity).is("email", null);
+  if (!settings.include_individual_entrepreneurs) q2 = q2.eq("is_individual_entrepreneur", false);
+  if (a.department || a.region) q2 = q2.or(zone.join(","));
+  const { data, error } = await q2.order("public_awards_count", { ascending: false, nullsFirst: false }).order("id").limit(rest);
   if (error) throw error;
-  return data ?? [];
+  return [...(reachable ?? []), ...(data ?? [])];
+}
+
+/** Entreprises joignables (adresse générique connue, actives), pour la sélection inversée. */
+async function reachablePool(db: Db, settings: OutreachSettings) {
+  return selectAll((from, to) => {
+    let q = db.from("outreach_prospects").select(PROSPECT_FIELDS).eq("status", "ACTIVE").not("email", "is", null);
+    if (!settings.include_individual_entrepreneurs) q = q.eq("is_individual_entrepreneur", false);
+    return q.order("id").range(from, to);
+  });
+}
+
+/** Même filtre que candidates() (activité, zone), appliqué en mémoire à un ensemble d'entreprises. */
+function matchesTarget(a: OpportunityAnalysis, p: { naf_code: string | null; sectors: string[] | null; department_code: string | null; region: string | null; intervention_zone: string | null }) {
+  const naf = new Set([...a.primaryNaf, ...a.sectorNaf]);
+  const activity = (p.naf_code && naf.has(p.naf_code)) || (a.sector && (p.sectors ?? []).includes(a.sector));
+  if (!activity) return false;
+  if (!a.department && !a.region) return true;
+  return p.department_code === a.department || (a.region && p.region === a.region) || p.intervention_zone === "NATIONAL";
 }
 
 export type BuildResult = { campaignId: string | null; skipped?: string; stats?: Record<string, number> };
@@ -190,7 +218,7 @@ export type BuildResult = { campaignId: string | null; skipped?: string; stats?:
  */
 export async function buildDailyCampaign(
   db: Db,
-  { date = today(), force = false, deadline = Date.now() + 120_000, manual }: { date?: string; force?: boolean; deadline?: number; manual?: { userId: string | null } } = {},
+  { date = today(), force = false, deadline = Date.now() + 120_000, manual }: { date?: string; force?: boolean; deadline?: number; manual?: { userId: string | null; reachableOnly?: boolean; lookbackDays?: number } } = {},
 ): Promise<BuildResult> {
   const settings = await loadSettings(db);
   const { data: existing } = manual ? { data: null } : await db.from("outreach_campaigns").select("id, status, updated_at").eq("campaign_date", date).eq("kind", "AUTO").maybeSingle();
@@ -231,7 +259,7 @@ export async function buildDailyCampaign(
           .from("outreach_opportunity_states")
           .select("opportunity_id")
           .in("status", ["NEW", "MODIFIED", "PROCESSED"])
-          .gte("first_seen_at", new Date(Date.now() - settings.lookback_days * DAY).toISOString())
+          .gte("first_seen_at", new Date(Date.now() - (manual.lookbackDays ?? settings.lookback_days) * DAY).toISOString())
           .order("first_seen_at")
           .limit(2000)
       : await db.from("outreach_opportunity_states").select("opportunity_id").eq("status", "NEW").order("first_seen_at").limit(2000);
@@ -243,9 +271,11 @@ export async function buildDailyCampaign(
       opps.push(...(data ?? []));
     }
     const analyses = opps.map((o) => analyzeOpportunity(o));
-    const discovery = settings.discovery_enabled ? await discoverProspects(db, analyses, deadline - 75_000) : { calls: 0, added: 0, errors: 0 };
+    // Sélection inversée : on part des entreprises déjà joignables (pas de découverte, pas de recherche d'adresse)
+    const pool = manual?.reachableOnly ? await reachablePool(db, settings) : null;
+    const discovery = settings.discovery_enabled && !pool ? await discoverProspects(db, analyses, deadline - 75_000) : { calls: 0, added: 0, errors: 0 };
     // Marchés publics remportés (DECP, source publique comme la découverte) des entreprises concernées, avant le calcul des scores
-    const awards = !settings.discovery_enabled ? null : await refreshPublicAwards(db, {
+    const awards = !settings.discovery_enabled || pool ? null : await refreshPublicAwards(db, {
       nafCodes: analyses.flatMap((a) => [...a.primaryNaf, ...a.sectorNaf]),
       deadline: Math.min(Date.now() + 30_000, deadline - 45_000),
     }).catch((e) => (logServerError("outreach DECP", e), null));
@@ -266,7 +296,8 @@ export async function buildDailyCampaign(
       if (Date.now() > deadline) break;
       reached.add(a.id);
       const o = opps.find((x) => x.id === a.id)!;
-      for (const p of await candidates(db, a, settings)) {
+      const found = pool ? pool.filter((p) => matchesTarget(a, p)).slice(0, Math.min(settings.max_prospects_per_opportunity, 1000)) : await candidates(db, a, settings);
+      for (const p of found) {
         analyzed.add(p.id);
         prospects.set(p.id, p);
         const m = scoreMatch(a, p as ProspectInput, (s) => ref.sectorLabel(s) ?? s);
@@ -859,11 +890,13 @@ export async function runOutreachFollowUp(db: Db, { budgetMs = 270_000 }: { budg
   if (!campaign || campaign.status === "FAILED" || stalled) return { mode: "daily" as const, ...(await runOutreachDaily(db, { budgetMs: budgetMs - 30_000 })) };
   if (campaign.status === "BUILDING" || campaign.status === "CANCELLED") return { mode: "skipped" as const, skipped: campaign.status === "BUILDING" ? "Campagne du jour en cours de préparation" : "Campagne du jour annulée" };
   const deadline = Date.now() + budgetMs;
+  // D'abord les entreprises déjà joignables (rapide, sans recherche), puis la recherche d'adresses
+  const reachableFirst = await topUpToTarget(db, Math.min(deadline, Date.now() + 130_000), { reachableOnly: true });
   const contacts = await enrichCampaignAndSend(db, { campaignId: campaign.id, deadline: deadline - 120_000 });
   // Objectif quotidien (au moins 100 e-mails pertinents) pas encore atteint : nouvelle recherche
   // d'entreprises et d'adresses (campagne complémentaire), autant de passages que nécessaire.
   const topUp = await topUpToTarget(db, deadline);
-  return { mode: "contacts" as const, ...contacts, top_up: topUp };
+  return { mode: "contacts" as const, ...contacts, reachable_first: reachableFirst, top_up: topUp };
 }
 
 /** E-mails Outreach réellement envoyés depuis minuit (heure de Paris), toutes campagnes. */
@@ -873,14 +906,21 @@ export async function sentTodayCount(db: Db) {
 }
 
 /** Complète la journée jusqu'à l'objectif d'envois : rien si atteint, ou si le temps manque. */
-export async function topUpToTarget(db: Db, deadline: number) {
+export async function topUpToTarget(db: Db, deadline: number, { reachableOnly = false }: { reachableOnly?: boolean } = {}) {
   const settings = await loadSettings(db);
   const target = Math.min(settings.daily_send_target, settings.total_daily_send_cap);
   const before = await sentTodayCount(db);
   if (!target || before >= target) return { target, sent_before: before, ran: false, reason: "Objectif du jour atteint" };
-  if (deadline - Date.now() < 100_000) return { target, sent_before: before, ran: false, reason: "Temps insuffisant dans ce passage" };
-  const run = await runManualCampaign(db, { userId: null, budgetMs: deadline - Date.now() - 10_000 }).catch((e) => (logServerError("outreach top-up", e), null));
-  return { target, sent_before: before, ran: true, sent_after: await sentTodayCount(db), run };
+  if (deadline - Date.now() < (reachableOnly ? 60_000 : 100_000)) return { target, sent_before: before, ran: false, reason: "Temps insuffisant dans ce passage" };
+  // 1. Entreprises déjà joignables qui correspondent aux opportunités ouvertes des 14 derniers jours
+  const reachable = await runManualCampaign(db, { userId: null, budgetMs: Math.min(150_000, deadline - Date.now() - 10_000), reachableOnly: true, lookbackDays: 14 }).catch(
+    (e) => (logServerError("outreach top-up (joignables)", e), null),
+  );
+  const mid = await sentTodayCount(db);
+  if (reachableOnly) return { target, sent_before: before, ran: true, sent_after: mid, reachable, run: null };
+  // 2. Toujours sous l'objectif : nouvelles entreprises et recherche d'adresses
+  const run = mid < target && deadline - Date.now() > 100_000 ? await runManualCampaign(db, { userId: null, budgetMs: deadline - Date.now() - 10_000 }).catch((e) => (logServerError("outreach top-up", e), null)) : null;
+  return { target, sent_before: before, ran: true, sent_after: await sentTodayCount(db), reachable, run };
 }
 
 /**
@@ -889,11 +929,11 @@ export async function topUpToTarget(db: Db, deadline: number) {
  * (ni ses opportunités, ni sa limite d'envois). Mêmes garde-fous : exclusions, désinscriptions,
  * délai minimum entre deux e-mails à une même entreprise.
  */
-export async function runManualCampaign(db: Db, { userId, budgetMs = 270_000 }: { userId: string | null; budgetMs?: number }) {
+export async function runManualCampaign(db: Db, { userId, budgetMs = 270_000, reachableOnly = false, lookbackDays }: { userId: string | null; budgetMs?: number; reachableOnly?: boolean; lookbackDays?: number }) {
   const deadline = Date.now() + budgetMs;
   const settings = await loadSettings(db);
   const sync = await syncOpportunityStates(db, settings);
-  const build = await buildDailyCampaign(db, { manual: { userId }, deadline: deadline - 150_000 });
+  const build = await buildDailyCampaign(db, { manual: { userId, reachableOnly, lookbackDays }, deadline: deadline - (reachableOnly ? 45_000 : 150_000) });
   if (!build.campaignId) return { sync, build, enrichment: null, send: null };
   const enrichment = await enrichProspects(db, { campaignId: build.campaignId, deadline: deadline - 60_000 }).catch((e) => (logServerError("outreach manual enrichment", e), null));
   const { data: c } = await db.from("outreach_campaigns").select("report").eq("id", build.campaignId).single();
