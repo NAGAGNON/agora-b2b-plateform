@@ -5,6 +5,9 @@ import { Badge } from "@/components/ui/badge";
 import { ComparisonTable } from "@/components/billing/comparison-table";
 import { PLANS, formatEuros, priceTTC } from "@/lib/billing/plans";
 import { pageMetadata } from "@/lib/seo";
+import { Notice } from "@/components/ui/notice";
+import { stripeMode } from "@/lib/billing/stripe";
+import { env } from "@/lib/env";
 
 export const metadata = pageMetadata({
   title: "Tarifs",
@@ -13,6 +16,8 @@ export const metadata = pageMetadata({
 });
 
 export default function PricingPage() {
+  // Paiement réel seulement en mode LIVE : sinon les offres payantes sont annoncées, pas vendues
+  const paidOpen = stripeMode() === "live" || !env.isProduction;
   return (
     <div className="container-page py-10 sm:py-14">
       <div className="mx-auto max-w-2xl text-center">
@@ -22,6 +27,13 @@ export default function PricingPage() {
         </p>
       </div>
 
+      {!paidOpen && (
+        <Notice tone="info" title="Offres payantes : ouverture prochaine" className="mx-auto mt-8 max-w-2xl">
+          Le paiement en ligne est en cours de mise en service : les offres Pro et Business ne peuvent pas encore être souscrites. L&apos;offre Gratuite
+          est disponible dès maintenant, sans carte bancaire.
+        </Notice>
+      )}
+
       <div className="mt-10 grid gap-6 lg:grid-cols-3">
         {PLANS.map((p) => (
           <div
@@ -30,7 +42,7 @@ export default function PricingPage() {
           >
             {p.popular && (
               <Badge tone="navy" className="absolute -top-3 left-1/2 -translate-x-1/2 uppercase">
-                Le plus populaire
+                Recommandé
               </Badge>
             )}
             <h2 className="text-xl font-bold">LinkProB2B {p.name}</h2>
@@ -51,12 +63,12 @@ export default function PricingPage() {
               ))}
             </ul>
             <ButtonLink
-              href={p.code === "FREE" ? "/inscription" : `/dashboard/abonnement?offre=${p.code}`}
+              href={p.code === "FREE" || !paidOpen ? "/inscription" : `/dashboard/abonnement?offre=${p.code}`}
               variant={p.popular ? "primary" : p.code === "FREE" ? "outline" : "secondary"}
               full
               className="mt-6 h-auto min-h-11 py-2 text-center whitespace-normal"
             >
-              {p.cta}
+              {p.code === "FREE" || paidOpen ? p.cta : "Ouverture prochaine — commencer gratuitement"}
             </ButtonLink>
           </div>
         ))}
@@ -73,7 +85,7 @@ export default function PricingPage() {
         <h2 id="questions">Questions fréquentes</h2>
         <h3>Comment se passe le paiement ?</h3>
         <p>
-          Le paiement est mensuel, par carte bancaire, sur la page sécurisée de notre prestataire Stripe. Vos coordonnées bancaires ne transitent jamais par
+          {paidOpen ? "Le paiement est" : "Dès l'ouverture des offres payantes, le paiement sera"} mensuel, par carte bancaire, sur la page sécurisée de notre prestataire Stripe. Vos coordonnées bancaires ne transitent jamais par
           LinkProB2B. Une facture est disponible chaque mois dans « Mon abonnement ».
         </p>
         <h3>Puis-je résilier ou changer d&apos;offre ?</h3>

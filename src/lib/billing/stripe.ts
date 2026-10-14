@@ -1,5 +1,6 @@
 import "server-only";
 import Stripe from "stripe";
+import { env } from "@/lib/env";
 
 /**
  * Accès Stripe côté serveur uniquement. Aucune clé n'est exposée au navigateur :
@@ -53,4 +54,14 @@ export function planForPrice(priceId: string | null | undefined): PaidPlan | nul
 
 export function taxRateId(): string | null {
   return process.env.STRIPE_TAX_RATE_ID?.trim() || null;
+}
+
+/**
+ * Souscription payante ouverte au public ? Sur le site de production avec une clé de TEST, non :
+ * le paiement n'est pas réel (une carte de test donnerait l'offre gratuitement). Seule l'équipe
+ * peut alors essayer le parcours. Ailleurs (prévisualisation, développement) et en LIVE : ouvert.
+ */
+export function paidPlansOpen(isStaff: boolean): boolean {
+  if (!stripeConfigured()) return false;
+  return stripeMode() === "live" || !env.isProduction || isStaff;
 }

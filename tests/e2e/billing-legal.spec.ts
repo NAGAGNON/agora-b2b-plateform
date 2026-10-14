@@ -6,7 +6,8 @@ test("page Tarifs : trois offres, prix HT, comparatif et appels à l'action", as
   await page.goto("/tarifs");
   await expect(page.getByText("Commencez gratuitement. Passez à Pro lorsque vous avez besoin de davantage d'opportunités")).toBeVisible();
   for (const name of ["LinkProB2B Gratuit", "LinkProB2B Pro", "LinkProB2B Business"]) await expect(page.getByRole("heading", { name })).toBeVisible();
-  await expect(page.getByText("Le plus populaire")).toBeVisible();
+  await expect(page.getByText("Recommandé", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("Le plus populaire")).toHaveCount(0);
   await expect(page.getByText("29 € HT / mois").first()).toBeVisible();
   await expect(page.getByRole("link", { name: "Créer mon compte gratuitement" })).toHaveAttribute("href", "/inscription");
   await expect(page.getByRole("link", { name: "Passer à Pro" })).toHaveAttribute("href", "/dashboard/abonnement?offre=PRO");

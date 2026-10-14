@@ -7,7 +7,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { env } from "@/lib/env";
 import { logServerError } from "@/lib/errors";
 import { rateLimit } from "@/lib/rate-limit";
-import { getStripe, priceIdFor, stripeConfigured, stripeMode, taxRateId, type PaidPlan } from "@/lib/billing/stripe";
+import { getStripe, priceIdFor, stripeConfigured, paidPlansOpen, stripeMode, taxRateId, type PaidPlan } from "@/lib/billing/stripe";
 import { ENTITLED_STATUSES } from "@/lib/billing/sync";
 import type { ActionResult } from "@/lib/validation";
 
@@ -58,6 +58,7 @@ export async function startCheckout(_prev: ActionResult | null, fd: FormData): P
   const { session, error } = await adminCompany(`/dashboard/abonnement?offre=${plan}`);
   if (error) return { ok: false, error };
   if (!stripeConfigured()) return { ok: false, error: UNAVAILABLE };
+  if (!paidPlansOpen(session.isStaff)) return { ok: false, error: "Les offres payantes ouvrent prochainement : le paiement en ligne est en cours de mise en service." };
   if (liveBlocked()) return { ok: false, error: "Paiement désactivé : le mode LIVE de Stripe n'est pas encore autorisé." };
   if (!(await rateLimit("billing-checkout", 10, 3600))) return { ok: false, error: "Trop de tentatives. Réessayez dans quelques minutes." };
 
