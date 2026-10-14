@@ -121,3 +121,19 @@ export async function unsubscribe(recipient: { id: string; campaign_id: string; 
   await db.from("outreach_recipients").update({ status: "SUPPRESSED" }).eq("prospect_id", recipient.prospect_id).in("status", ["PENDING", "QUEUED"]);
   await track(recipient, "UNSUBSCRIBE");
 }
+
+/**
+ * Visite automatique plutôt qu'humaine : les messageries d'entreprise (Outlook Safe Links,
+ * Proofpoint, Mimecast, antivirus…) ouvrent chaque lien pour le vérifier, souvent dans les
+ * secondes qui suivent l'envoi. Ces passages ne sont pas comptés comme des clics.
+ */
+const SCANNER_UA = /bot|crawler|spider|preview|scanner|safelinks|barracuda|proofpoint|mimecast|symantec|forcepoint|trendmicro|sophos|fortiguard|cisco|ironport|python|curl|wget|go-http|java\/|okhttp|axios|phantom|lighthouse/i;
+
+export function isAutomatedHit(req: Request, sentAt: string | null | undefined, now = Date.now()): boolean {
+  if (req.method === "HEAD") return true;
+  const ua = req.headers.get("user-agent") ?? "";
+  if (!ua || SCANNER_UA.test(ua)) return true;
+  // Ouvert moins de 20 secondes après l'envoi : vérification automatique du lien
+  if (sentAt && now - new Date(sentAt).getTime() < 20_000) return true;
+  return false;
+}
