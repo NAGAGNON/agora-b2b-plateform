@@ -31,7 +31,7 @@ export function UserProfileForm({ v }: { v: { full_name: string; job_title: stri
         {(p) => <Input {...p} type="tel" defaultValue={v.phone ?? ""} maxLength={30} autoComplete="tel" />}
       </Field>
       <Checkbox name="notifyEmail" defaultChecked={v.notify_email} label="Recevoir les notifications par e-mail" hint="Nouvelles réponses, messages, décisions, alertes." />
-      <Checkbox name="marketingConsent" defaultChecked={v.marketing_consent} label="Recevoir les actualités de LinkProB2B" />
+      <Checkbox name="marketingConsent" defaultChecked={v.marketing_consent} label="Recevoir la veille et les actualités de LinkProB2B" hint="Sélections d'opportunités le lundi et le vendredi. Réglages détaillés : Veille par e-mail." />
       {state?.ok && <Notice tone="success">{state.message}</Notice>}
       <ActionError state={state} />
       <SubmitButton>Enregistrer</SubmitButton>

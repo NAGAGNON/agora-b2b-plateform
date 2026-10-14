@@ -76,6 +76,18 @@
     {
       "path": "/api/cron/envoi?passe=13",
       "schedule": "30 13 * * *"
+    },
+    {
+      "path": "/api/cron/veille",
+      "schedule": "15 6 * * *"
+    },
+    {
+      "path": "/api/cron/veille?passe=2",
+      "schedule": "15 7 * * *"
+    },
+    {
+      "path": "/api/cron/veille?passe=3",
+      "schedule": "45 11 * * *"
     }
   ]
 }

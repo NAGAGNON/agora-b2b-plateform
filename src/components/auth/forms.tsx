@@ -72,7 +72,7 @@ export function SignUpForm({ referral, next }: { referral?: string; next?: strin
         />
         <FieldError message={fe?.terms} />
       </div>
-      <Checkbox name="marketing" label="J'accepte de recevoir occasionnellement les actualités de LinkProB2B (facultatif)." />
+      <Checkbox name="marketing" label="J'accepte de recevoir la veille LinkProB2B par e-mail : deux sélections d'opportunités par semaine et les actualités du site (facultatif, désinscription en un clic)." />
       {state && !state.ok && !fe && <Notice tone="error">{state.error}</Notice>}
       <SubmitButton full size="lg" pendingLabel="Création du compte…">
         Créer mon compte
