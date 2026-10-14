@@ -16,6 +16,7 @@ import {
   PlusCircle,
   Sparkles,
   CreditCard,
+  Mail,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 
@@ -26,6 +27,7 @@ const LINKS = [
   { href: "/dashboard/pipeline", label: "Pipeline", icon: KanbanSquare },
   { href: "/dashboard/favoris", label: "Favoris", icon: Heart },
   { href: "/dashboard/alertes", label: "Alertes", icon: BellRing },
+  { href: "/dashboard/veille", label: "Veille par e-mail", icon: Mail },
   { href: "/dashboard/messages", label: "Messages", icon: MessageSquare },
   { href: "/dashboard/notifications", label: "Notifications", icon: Bell },
   { href: "/dashboard/profil", label: "Profil", icon: User },

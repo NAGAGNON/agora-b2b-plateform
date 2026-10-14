@@ -1140,6 +1140,101 @@ isOneToOne: false
                   Relationships: [
                     
                   ]
+                },"veille_campaigns": {
+                  Row: {
+                    "completed_at": string | null,"created_at": string,"edition_date": string,"failed": number,"id": string,"kind": string,"note": string | null,"recipients": number,"sent": number,"skipped": number,"status": string,"updated_at": string
+                  }
+                  Insert: {
+                    "completed_at"?: string | null,"created_at"?: string,"edition_date": string,"failed"?: number,"id"?: string,"kind": string,"note"?: string | null,"recipients"?: number,"sent"?: number,"skipped"?: number,"status"?: string,"updated_at"?: string
+                  }
+                  Update: {
+                    "completed_at"?: string | null,"created_at"?: string,"edition_date"?: string,"failed"?: number,"id"?: string,"kind"?: string,"note"?: string | null,"recipients"?: number,"sent"?: number,"skipped"?: number,"status"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"veille_events": {
+                  Row: {
+                    "created_at": string,"id": number,"opportunity_id": string | null,"send_id": string,"type": string
+                  }
+                  Insert: {
+                    "created_at"?: string,"id"?: never,"opportunity_id"?: string | null,"send_id": string,"type": string
+                  }
+                  Update: {
+                    "created_at"?: string,"id"?: never,"opportunity_id"?: string | null,"send_id"?: string,"type"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "veille_events_opportunity_id_fkey"
+      columns: ["opportunity_id"]
+isOneToOne: false
+      referencedRelation: "opportunities"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "veille_events_send_id_fkey"
+      columns: ["send_id"]
+isOneToOne: false
+      referencedRelation: "veille_sends"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"veille_preferences": {
+                  Row: {
+                    "consent_at": string | null,"consent_source": string | null,"created_at": string,"frequency": string,"keywords": (string)[],"regions": (string)[],"sectors": (string)[],"types": (Database["public"]['Enums']["opportunity_type"])[],"updated_at": string,"user_id": string
+                  }
+                  Insert: {
+                    "consent_at"?: string | null,"consent_source"?: string | null,"created_at"?: string,"frequency"?: string,"keywords"?: (string)[],"regions"?: (string)[],"sectors"?: (string)[],"types"?: (Database["public"]['Enums']["opportunity_type"])[],"updated_at"?: string,"user_id": string
+                  }
+                  Update: {
+                    "consent_at"?: string | null,"consent_source"?: string | null,"created_at"?: string,"frequency"?: string,"keywords"?: (string)[],"regions"?: (string)[],"sectors"?: (string)[],"types"?: (Database["public"]['Enums']["opportunity_type"])[],"updated_at"?: string,"user_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "veille_preferences_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: true
+      referencedRelation: "users"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"veille_sends": {
+                  Row: {
+                    "attempts": number,"campaign_id": string,"clicked_at": string | null,"created_at": string,"email": string,"error": string | null,"id": string,"opened_at": string | null,"opportunity_ids": (string)[],"personalized": boolean,"sent_at": string | null,"status": string,"subject": string | null,"token": string,"unsubscribed_at": string | null,"user_id": string
+                  }
+                  Insert: {
+                    "attempts"?: number,"campaign_id": string,"clicked_at"?: string | null,"created_at"?: string,"email": string,"error"?: string | null,"id"?: string,"opened_at"?: string | null,"opportunity_ids"?: (string)[],"personalized"?: boolean,"sent_at"?: string | null,"status"?: string,"subject"?: string | null,"token"?: string,"unsubscribed_at"?: string | null,"user_id": string
+                  }
+                  Update: {
+                    "attempts"?: number,"campaign_id"?: string,"clicked_at"?: string | null,"created_at"?: string,"email"?: string,"error"?: string | null,"id"?: string,"opened_at"?: string | null,"opportunity_ids"?: (string)[],"personalized"?: boolean,"sent_at"?: string | null,"status"?: string,"subject"?: string | null,"token"?: string,"unsubscribed_at"?: string | null,"user_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "veille_sends_campaign_id_fkey"
+      columns: ["campaign_id"]
+isOneToOne: false
+      referencedRelation: "veille_campaigns"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "veille_sends_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "users"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"veille_suppressions": {
+                  Row: {
+                    "created_at": string,"email": string,"reason": string
+                  }
+                  Insert: {
+                    "created_at"?: string,"email": string,"reason": string
+                  }
+                  Update: {
+                    "created_at"?: string,"email"?: string,"reason"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
                 }
           }
           Views: {
@@ -1528,6 +1623,11 @@ isOneToOne: false
                            },
 "user_plan":
 { Args: { "p_user_id"?: string }; Returns: string
+                           },
+"veille_audience":
+{ Args: Record<PropertyKey, never>; Returns: {
+              "company_name": string,"company_region": string,"company_sectors": (string)[],"consent": string,"email": string,"frequency": string,"full_name": string,"keywords": (string)[],"regions": (string)[],"sectors": (string)[],"types": (Database["public"]['Enums']["opportunity_type"])[],"user_id": string
+            }[]
                            },
 "withdraw_interest":
 { Args: { "p_interest_id": string }; Returns: undefined
