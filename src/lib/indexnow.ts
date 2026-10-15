@@ -2,7 +2,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { env } from "@/lib/env";
-import { siteUrl } from "@/lib/seo";
+import { STATIC_PATHS, siteUrl } from "@/lib/seo";
 
 /**
  * IndexNow : signale à Bing, Yandex, Seznam, Naver… les pages nouvelles ou modifiées,
@@ -27,7 +27,11 @@ export async function submitChangedUrls() {
 
   const db = createAdminClient();
   const { data: state } = await db.from("platform_settings").select("value").eq("key", "private.indexnow").maybeSingle();
-  const since = (state?.value as { last_at?: string } | null)?.last_at ?? new Date(Date.now() - 86400_000).toISOString();
+  const prev = (state?.value ?? null) as { last_at?: string; static_paths?: string[] } | null;
+  const since = prev?.last_at ?? new Date(Date.now() - 86400_000).toISOString();
+  // Pages fixes ajoutées au site depuis le dernier envoi (toutes au premier envoi)
+  const knownStatic = new Set(prev?.static_paths ?? []);
+  const newStatic = STATIC_PATHS.filter((p) => !knownStatic.has(p));
   const startedAt = new Date().toISOString();
   // Lecture par pages (1000 lignes au plus par requête), dans l'ordre des modifications : au-delà de
   // 9000 annonces, la suite part au passage suivant (reprise à la dernière date envoyée).
@@ -42,6 +46,7 @@ export async function submitChangedUrls() {
   const articles = await db.from("articles").select("slug").eq("status", "PUBLISHED").gt("updated_at", since).limit(500);
   const urls = [...opps.map((o) => `${base}/opportunites/${o.id}`), ...(articles.data ?? []).map((a) => `${base}/analyses/${a.slug}`)];
   if (urls.length) urls.push(`${base}/opportunites`, `${base}/analyses`);
+  for (const p of newStatic) if (!urls.includes(`${base}${p}`)) urls.push(`${base}${p}`);
   if (!urls.length) return { submitted: 0 };
 
   const res = await fetch("https://api.indexnow.org/indexnow", {
@@ -51,6 +56,6 @@ export async function submitChangedUrls() {
     signal: AbortSignal.timeout(20_000),
   });
   if (!res.ok && res.status !== 202) throw new Error(`IndexNow HTTP ${res.status}`);
-  await db.from("platform_settings").upsert({ key: "private.indexnow", value: { last_at: truncated ? opps[opps.length - 1].updated_at : startedAt, last_count: urls.length }, description: "Dernier envoi IndexNow" });
+  await db.from("platform_settings").upsert({ key: "private.indexnow", value: { last_at: truncated ? opps[opps.length - 1].updated_at : startedAt, last_count: urls.length, static_paths: STATIC_PATHS }, description: "Dernier envoi IndexNow" });
   return { submitted: urls.length, status: res.status };
 }

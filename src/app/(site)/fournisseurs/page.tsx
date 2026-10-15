@@ -34,6 +34,10 @@ export default function SuppliersPage() {
         1 alerte ; les offres Pro et Business ajoutent les recommandations complètes, les alertes illimitées et le pipeline. Voir les{" "}
         <Link href="/tarifs">tarifs</Link>.
       </p>
+      <p>
+        Vous êtes ingénieur d&apos;affaires ? Retrouvez vos outils étape par étape sur l&apos;
+        <Link href="/ingenieurs-affaires">espace ingénieurs d&apos;affaires</Link>.
+      </p>
       <div className="mt-6 flex flex-wrap gap-3 not-prose">
         <ButtonLink href="/inscription">Créer mon compte fournisseur</ButtonLink>
         <ButtonLink href="/opportunites" variant="outline">
