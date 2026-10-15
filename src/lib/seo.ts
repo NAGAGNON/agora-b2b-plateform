@@ -15,6 +15,9 @@ export function siteUrl(): string {
   return vercel ? `https://${vercel}` : "http://localhost:3000";
 }
 
+/** Pages publiques fixes (plan du site, et signalement IndexNow des nouvelles pages). */
+export const STATIC_PATHS = ["", "/opportunites", "/entreprises", "/publier", "/comment-ca-marche", "/ressources", "/analyses", "/acheteurs", "/fournisseurs", "/demandeurs", "/ingenieurs-affaires", "/faq", "/a-propos", "/tarifs", "/contact", "/mentions-legales", "/cgu", "/confidentialite", "/cookies", "/conditions-abonnement"];
+
 /** Métadonnées d'une page publique indexable (title, description, canonical, Open Graph). */
 // Aperçu par défaut (src/app/opengraph-image.tsx) : repris sur chaque page, sauf celles qui ont le leur
 const DEFAULT_IMAGE = { url: "/opengraph-image", width: 1200, height: 630, alt: "LinkProB2B — Appels d'offres et opportunités B2B en France" };
