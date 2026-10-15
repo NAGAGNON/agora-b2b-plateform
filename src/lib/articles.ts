@@ -17,7 +17,7 @@ import { factNumbersText } from "@/lib/daily-report";
  * jeu de faits. Un article non conforme reste en brouillon pour relecture humaine.
  */
 
-export const ARTICLE_MODEL = "claude-opus-5-5";
+export const ARTICLE_MODEL = "claude-haiku-5-5"; // Haiku : rapide et économique (choix du propriétaire)
 const MIN_OPPORTUNITIES = 5;
 
 export type ArticleBody = z.infer<typeof ArticleSchema>;
@@ -248,7 +248,7 @@ async function writeArticle(facts: ReturnType<typeof buildFacts>, correction?: s
     max_tokens: 16000,
     betas: ["server-side-fallback-2026-07-01"],
     fallbacks: "default",
-    output_config: { effort: "medium", format: betaZodOutputFormat(ArticleSchema) },
+    output_config: { format: betaZodOutputFormat(ArticleSchema) },
     system: SYSTEM,
     messages: [
       {

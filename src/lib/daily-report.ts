@@ -15,7 +15,7 @@ import type { Json } from "@/lib/database.types";
  * du texte est comparé aux faits. Réservé aux administrateurs, jamais affiché publiquement.
  */
 
-export const REPORT_MODEL = "claude-opus-5-5";
+export const REPORT_MODEL = "claude-haiku-5-5"; // Haiku : rapide et économique (choix du propriétaire)
 
 export const ReportSchema = z.object({
   titre: z.string().describe("Une phrase qui résume la journée jusqu'ici"),
@@ -275,7 +275,7 @@ async function writeSummary(facts: DailyFacts, correction?: string, final = fals
     max_tokens: 8000,
     betas: ["server-side-fallback-2026-07-01"],
     fallbacks: "default",
-    output_config: { effort: "low", format: betaZodOutputFormat(ReportSchema) },
+    output_config: { format: betaZodOutputFormat(ReportSchema) },
     system: final ? `${SYSTEM}\n\n${FINAL}` : SYSTEM,
     messages: [{ role: "user", content: `Faits de la journée (JSON) :\n\n${JSON.stringify(factsForModel(facts), null, 2)}` + (correction ? `\n\nIMPORTANT : ${correction}` : "") }],
   });
