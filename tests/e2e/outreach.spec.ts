@@ -140,7 +140,9 @@ test("landing page personnalisée puis désinscription", async ({ browser }) => 
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("1 opportunité correspondant à votre activité");
   await expect(page.getByRole("heading", { name: `${T} Travaux d'installation électrique` })).toBeVisible();
   await expect(page.getByRole("link", { name: "Voir l'opportunité" })).toHaveAttribute("href", new RegExp(`/api/outreach/c/.+\\?o=${oppId}`));
-  await expect(page.getByRole("link", { name: "Créer mon compte gratuitement" })).toHaveAttribute("href", `/inscription?ref=o.${token}`);
+  // Bouton d'inscription visible dès le haut de la page (mobile) et dans l'encadré latéral
+  await expect(page.getByTestId("selection-signup").getByRole("link", { name: "Créer mon compte gratuitement" })).toHaveAttribute("href", `/inscription?ref=o.${token}`);
+  await expect(page.getByRole("link", { name: "Créer mon compte gratuitement" })).toHaveCount(2);
   await expectNotFound(page, await page.goto("/opportunites/selection/jeton-invalide"));
   await page.goto(`/desinscription/${token}`);
   await page.getByRole("button", { name: "Confirmer la désinscription" }).click();

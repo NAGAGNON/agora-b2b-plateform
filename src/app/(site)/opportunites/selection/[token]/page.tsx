@@ -51,6 +51,16 @@ export default async function SelectionPage(props: PageProps<"/opportunites/sele
             Sélection préparée pour <strong className="text-navy">{bundle.prospect.name}</strong> à partir des opportunités publiées sur LinkProB2B, en fonction de
             votre activité et de votre localisation.
           </p>
+          {!session && n > 0 && (
+            <div className="mt-6 flex flex-col gap-3 rounded-2xl border border-teal-200 bg-teal-50 p-4 sm:flex-row sm:items-center sm:justify-between" data-testid="selection-signup">
+              <p className="text-sm text-slate-700">
+                <strong className="text-navy">Accès gratuit :</strong> créez votre compte en 1 minute pour consulter le détail de chaque offre et sa source officielle.
+              </p>
+              <Link href={`/inscription?ref=o.${token}`} className={buttonClasses({ className: "shrink-0" })}>
+                Créer mon compte gratuitement
+              </Link>
+            </div>
+          )}
           {closed > 0 && n > 0 && <p className="mt-2 text-sm text-slate-500">{closed} opportunité(s) de la sélection initiale sont clôturées depuis l&apos;envoi et ne sont plus affichées.</p>}
         </div>
       </section>

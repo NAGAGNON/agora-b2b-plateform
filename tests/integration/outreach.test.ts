@@ -234,12 +234,17 @@ describe("Outreach — envoi simulé et suivi", () => {
   it("ouverture, clic sur une opportunité de la sélection, pas de redirection ouverte", async () => {
     const a = (await recipient("elecA"))!;
     const t = recipientToken(a.id);
-    await pixel(new Request("http://x"), ctx(t));
-    const ok = await click(new Request(`http://x?o=${O.elec1}`), ctx(t));
+    const UA = { headers: { "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Safari/537.36" } };
+    // Vérification automatique du lien par la messagerie (robot) : redirigée mais jamais comptée
+    await click(new Request(`http://x?o=${O.elec1}`, { headers: { "user-agent": "Mozilla/5.0 (compatible; Mimecast URL Protect)" } }), ctx(t));
+    expect((await recipient("elecA"))?.clicked_at).toBeNull();
+    await admin.from("outreach_recipients").update({ sent_at: new Date(Date.now() - 3_600_000).toISOString() }).eq("id", a.id);
+    await pixel(new Request("http://x", UA), ctx(t));
+    const ok = await click(new Request(`http://x?o=${O.elec1}`, UA), ctx(t));
     expect(ok.headers.get("location")).toContain(`/opportunites/${O.elec1}`);
     // Cookie du parcours (jeton signé, httpOnly) : la fiche sera servie derrière la page d'accès
     expect(ok.headers.get("set-cookie")).toMatch(new RegExp(`lp_prospection=${t.replace(/[.]/g, "\\.")};.*HttpOnly`, "i"));
-    const foreign = await click(new Request(`http://x?o=${O.clean}`), ctx(t));
+    const foreign = await click(new Request(`http://x?o=${O.clean}`, UA), ctx(t));
     expect(foreign.headers.get("location")).toContain(`/opportunites/selection/${t}`);
     const forged = await click(new Request("http://x"), ctx(`${t.slice(0, -2)}xx`));
     expect(forged.headers.get("location")).not.toContain("selection");
