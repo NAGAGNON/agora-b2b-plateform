@@ -106,3 +106,27 @@ test("navigation : réponse immédiate au clic (squelette de chargement) puis co
   await expect(page).toHaveURL(/\/opportunites$/);
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
 });
+
+test("ingénieurs d'affaires : bouton d'accueil, page dédiée et échéance dans l'agenda", async ({ browser }) => {
+  const page = await newPage(browser, { width: 390, height: 844 });
+  await page.goto("/");
+  await page.getByTestId("engineer-cta").click();
+  await expect(page).toHaveURL(/\/ingenieurs-affaires$/);
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("Vous êtes ingénieur d'affaires ?");
+  await expect(page.getByTestId("engineer-tools").getByRole("listitem")).toHaveCount(8);
+  await page.getByRole("link", { name: "Échéances les plus proches" }).click();
+  await expect(page).toHaveURL(/\/opportunites\?tri=deadline/);
+
+  // Fiche d'une offre ouverte : l'échéance s'ajoute à l'agenda (.ics avec rappels)
+  await page.goto(`/opportunites/${id}`);
+  const link = page.getByTestId("deadline-calendar");
+  await expect(link).toHaveAttribute("href", `/api/opportunites/${id}/agenda`);
+  const res = await page.request.get(`/api/opportunites/${id}/agenda`);
+  expect(res.status()).toBe(200);
+  expect(res.headers()["content-type"]).toContain("text/calendar");
+  const ics = await res.text();
+  expect(ics).toContain("BEGIN:VEVENT");
+  expect(ics).toContain("TRIGGER:-P7D");
+  expect(ics).toContain(`/opportunites/${id}`);
+  expect((await page.request.get("/api/opportunites/00000000-0000-0000-0000-000000000000/agenda")).status()).toBe(404);
+});
