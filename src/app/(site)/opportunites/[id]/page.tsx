@@ -414,6 +414,11 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
             <div className="flex flex-col gap-2 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
               <FavoriteButton target="opportunity" id={o.id} initial={Boolean(fav?.data)} signedIn={Boolean(session)} />
               {external && session?.activeCompany && <PipelineButton opportunityId={o.id} initial={Boolean(pipeline?.data)} />}
+              {isOpen && o.response_deadline && (
+                <a href={`/api/opportunites/${o.id}/agenda`} download className={buttonClasses({ variant: "outline", full: true })} data-testid="deadline-calendar">
+                  <CalendarClock className="size-4" aria-hidden /> Ajouter l&apos;échéance à mon agenda
+                </a>
+              )}
             </div>
             {isOpen && o.visibility === "PUBLIC" && !o.is_demo && (
               <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">

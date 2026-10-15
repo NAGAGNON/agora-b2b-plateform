@@ -171,6 +171,20 @@ export default async function HomePage(props: PageProps<"/">) {
               </span>
               <ArrowRight className="size-5 transition group-hover:translate-x-0.5" aria-hidden />
             </Link>
+            <Link
+              href="/ingenieurs-affaires"
+              data-testid="engineer-cta"
+              className="group flex items-center gap-3 rounded-xl bg-teal p-4 text-navy shadow-sm transition hover:bg-teal-400 sm:col-span-2"
+            >
+              <span className="flex size-10 items-center justify-center rounded-lg bg-navy text-teal">
+                <Briefcase className="size-5" aria-hidden />
+              </span>
+              <span className="flex-1">
+                <span className="block font-bold uppercase">Vous êtes ingénieur d&apos;affaires ?</span>
+                <span className="text-sm">Découvrez vos outils : veille ciblée, échéances dans l&apos;agenda, pipeline et acheteurs publics</span>
+              </span>
+              <ArrowRight className="size-5 transition group-hover:translate-x-0.5" aria-hidden />
+            </Link>
           </div>
         </div>
       </section>
