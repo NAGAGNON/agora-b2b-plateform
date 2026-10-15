@@ -107,9 +107,18 @@ test("offre depuis l'e-mail : compte obligatoire (serveur), inscription puis acc
   await page.getByRole("link", { name: "Créer mon compte" }).click();
   await expect(page).toHaveURL(/\/inscription\?/);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Créez votre compte pour accéder à cette offre");
+  // L'adresse qui a reçu l'e-mail est déjà remplie
+  await expect(page.getByLabel("Adresse e-mail professionnelle")).toHaveValue(`e2e-${RUN}@example.test`);
   await page.getByLabel("Nom et prénom").fill("Prospect E2E");
-  await page.getByLabel("Adresse e-mail professionnelle").fill(`e2e-${RUN}@example.test`);
   await page.getByLabel("Mot de passe").fill("Prospect-E2E-2026");
+  await page.getByRole("button", { name: "Afficher la saisie" }).click();
+  await expect(page.getByLabel("Mot de passe")).toHaveAttribute("type", "text");
+  // Oubli de la case des conditions : message clair, et rien de ce qui a été saisi n'est perdu
+  await page.getByRole("button", { name: "Créer mon compte" }).click();
+  await expect(page.getByText("Vous devez accepter les conditions d'utilisation")).toBeVisible();
+  await expect(page.getByLabel("Nom et prénom")).toHaveValue("Prospect E2E");
+  await expect(page.getByLabel("Adresse e-mail professionnelle")).toHaveValue(`e2e-${RUN}@example.test`);
+  await expect(page.getByLabel("Mot de passe")).toHaveValue("Prospect-E2E-2026");
   await page.getByRole("checkbox", { name: /Conditions Générales/ }).check();
   await page.getByRole("button", { name: "Créer mon compte" }).click();
   await expect(page).toHaveURL(new RegExp(`/opportunites/${oppId}$`));
