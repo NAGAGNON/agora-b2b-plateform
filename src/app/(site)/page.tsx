@@ -211,6 +211,36 @@ export default async function HomePage(props: PageProps<"/">) {
         </section>
       )}
 
+      {/* Opportunités récentes */}
+      <section className="container-page py-14 sm:py-16" aria-labelledby="recentes">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <h2 id="recentes" className="text-2xl font-bold sm:text-3xl">
+              Opportunités récentes
+            </h2>
+            <p className="mt-1 text-slate-600">Besoins publiés sur LinkProB2B et opportunités externes référencées, toujours identifiées.</p>
+          </div>
+          <ButtonLink href="/opportunites" variant="outline">
+            Toutes les opportunités <ArrowRight className="size-4" aria-hidden />
+          </ButtonLink>
+        </div>
+        <div className="mt-8">
+          {recent.length === 0 ? (
+            <EmptyState
+              title="Aucune opportunité publiée pour le moment"
+              description="Soyez parmi les premières entreprises à publier un besoin."
+              action={<ButtonLink href="/publier">Publier un besoin</ButtonLink>}
+            />
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {recent.map((o) => (
+                <OpportunityCard key={o.id} o={o} />
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+
       {/* Pour qui ? */}
       <section className="container-page py-14 sm:py-16" aria-labelledby="pour-qui">
         <div className="grid gap-8 lg:grid-cols-[1fr_1.2fr] lg:items-start">
@@ -285,36 +315,6 @@ export default async function HomePage(props: PageProps<"/">) {
             Les opportunités externes renvoient toujours vers l&apos;annonce officielle, qui fait foi. LinkProB2B ne garantit ni l&apos;obtention d&apos;un
             marché ni un résultat commercial.
           </p>
-        </div>
-      </section>
-
-      {/* Opportunités récentes */}
-      <section className="container-page py-14 sm:py-16" aria-labelledby="recentes">
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <h2 id="recentes" className="text-2xl font-bold sm:text-3xl">
-              Opportunités récentes
-            </h2>
-            <p className="mt-1 text-slate-600">Besoins publiés sur LinkProB2B et opportunités externes référencées, toujours identifiées.</p>
-          </div>
-          <ButtonLink href="/opportunites" variant="outline">
-            Toutes les opportunités <ArrowRight className="size-4" aria-hidden />
-          </ButtonLink>
-        </div>
-        <div className="mt-8">
-          {recent.length === 0 ? (
-            <EmptyState
-              title="Aucune opportunité publiée pour le moment"
-              description="Soyez parmi les premières entreprises à publier un besoin."
-              action={<ButtonLink href="/publier">Publier un besoin</ButtonLink>}
-            />
-          ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {recent.map((o) => (
-                <OpportunityCard key={o.id} o={o} />
-              ))}
-            </div>
-          )}
         </div>
       </section>
 

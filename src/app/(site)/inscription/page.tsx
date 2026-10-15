@@ -5,6 +5,7 @@ import { AuthShell } from "@/components/auth/auth-shell";
 import { SignUpForm } from "@/components/auth/forms";
 import { getSession } from "@/lib/auth";
 import { pageMetadata } from "@/lib/seo";
+import { recipientFromReferral, referralStillTrusted } from "@/lib/outreach/tracking";
 
 export const metadata = pageMetadata({
   title: "Créer un compte",
@@ -23,6 +24,9 @@ export default async function SignUpPage(props: PageProps<"/inscription">) {
   // Provenance (sélection LinkProB2B Outreach) : jeton signé, vérifié côté serveur à l'inscription.
   const referral = typeof ref === "string" && /^o\.[A-Za-z0-9_.-]{20,60}$/.test(ref) ? ref : undefined;
   const forOffer = Boolean(referral && next?.startsWith("/opportunites/"));
+  // Lien reçu par e-mail : l'adresse destinataire est pré-remplie (activation immédiate du compte)
+  const recipient = referral ? await recipientFromReferral(referral) : null;
+  const defaultEmail = recipient?.email && referralStillTrusted(recipient) ? recipient.email : undefined;
   return (
     <AuthShell
       title={forOffer ? "Créez votre compte pour accéder à cette offre" : "Créer un compte"}
@@ -43,7 +47,7 @@ export default async function SignUpPage(props: PageProps<"/inscription">) {
         </>
       }
     >
-      <SignUpForm referral={referral} next={next} />
+      <SignUpForm referral={referral} next={next} defaultEmail={defaultEmail} />
     </AuthShell>
   );
 }

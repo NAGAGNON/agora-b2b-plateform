@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState, type ComponentProps } from "react";
+import { Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 import { requestPasswordReset, signIn, signUp, updatePassword } from "@/app/actions/auth";
 import { Checkbox, Field, FieldError, Input } from "@/components/ui/form";
@@ -19,7 +20,7 @@ export function SignInForm({ next, referral }: { next?: string; referral?: strin
         {(p) => <Input {...p} type="email" autoComplete="email" inputMode="email" />}
       </Field>
       <Field label="Mot de passe" name="password" error={fe?.password} required>
-        {(p) => <Input {...p} type="password" autoComplete="current-password" />}
+        {(p) => <PasswordInput {...p} autoComplete="current-password" />}
       </Field>
       <div className="text-right">
         <Link href="/mot-de-passe-oublie" className="text-sm font-semibold text-teal-700 hover:underline">
@@ -35,8 +36,42 @@ export function SignInForm({ next, referral }: { next?: string; referral?: strin
   );
 }
 
-export function SignUpForm({ referral, next }: { referral?: string; next?: string }) {
-  const [state, action] = useActionState(signUp, null);
+/** Mot de passe avec bouton « Afficher » (moins d'erreurs de saisie, surtout sur mobile). */
+function PasswordInput(props: ComponentProps<"input">) {
+  const [shown, setShown] = useState(false);
+  return (
+    <div className="relative">
+      <Input {...props} type={shown ? "text" : "password"} className="pr-12" />
+      <button
+        type="button"
+        onClick={() => setShown((v) => !v)}
+        className="absolute inset-y-0 right-0 flex w-11 items-center justify-center rounded-r-lg text-slate-500 hover:text-navy"
+        aria-label={shown ? "Masquer la saisie" : "Afficher la saisie"}
+        aria-pressed={shown}
+      >
+        {shown ? <EyeOff className="size-4" aria-hidden /> : <Eye className="size-4" aria-hidden />}
+      </button>
+    </div>
+  );
+}
+
+type SignUpValues = { fullName: string; email: string; password: string; terms: boolean; marketing: boolean };
+
+export function SignUpForm({ referral, next, defaultEmail }: { referral?: string; next?: string; defaultEmail?: string }) {
+  // Saisie conservée si l'inscription est refusée (sinon le formulaire est vidé après l'envoi)
+  const [values, setValues] = useState<SignUpValues>({ fullName: "", email: defaultEmail ?? "", password: "", terms: false, marketing: false });
+  const [state, action] = useActionState(async (prev: Awaited<ReturnType<typeof signUp>> | null, fd: FormData) => {
+    const submitted = {
+      fullName: String(fd.get("fullName") ?? ""),
+      email: String(fd.get("email") ?? ""),
+      password: String(fd.get("password") ?? ""),
+      terms: fd.get("terms") === "on",
+      marketing: fd.get("marketing") === "on",
+    };
+    const result = await signUp(prev, fd);
+    setValues(!result.ok && result.fieldErrors?.password ? { ...submitted, password: "" } : submitted);
+    return result;
+  }, null);
   const fe = state && !state.ok ? state.fieldErrors : undefined;
   if (state?.ok) return <Notice tone="success" title="Vérifiez votre boîte mail">{state.message}</Notice>;
   return (
@@ -44,17 +79,18 @@ export function SignUpForm({ referral, next }: { referral?: string; next?: strin
       {referral && <input type="hidden" name="ref" value={referral} />}
       {next && <input type="hidden" name="suite" value={next} />}
       <Field label="Nom et prénom" name="fullName" error={fe?.fullName} required>
-        {(p) => <Input {...p} autoComplete="name" maxLength={120} />}
+        {(p) => <Input {...p} autoComplete="name" maxLength={120} defaultValue={values.fullName} />}
       </Field>
       <Field label="Adresse e-mail professionnelle" name="email" error={fe?.email} required>
-        {(p) => <Input {...p} type="email" autoComplete="email" inputMode="email" />}
+        {(p) => <Input {...p} type="email" autoComplete="email" inputMode="email" defaultValue={values.email} />}
       </Field>
       <Field label="Mot de passe" name="password" error={fe?.password} required hint="10 caractères minimum, avec majuscule, minuscule et chiffre.">
-        {(p) => <Input {...p} type="password" autoComplete="new-password" minLength={10} />}
+        {(p) => <PasswordInput {...p} autoComplete="new-password" minLength={10} defaultValue={values.password} />}
       </Field>
       <div>
         <Checkbox
           name="terms"
+          defaultChecked={values.terms}
           label={
             <>
               J&apos;ai lu et j&apos;accepte les{" "}
@@ -72,7 +108,11 @@ export function SignUpForm({ referral, next }: { referral?: string; next?: strin
         />
         <FieldError message={fe?.terms} />
       </div>
-      <Checkbox name="marketing" label="J'accepte de recevoir la veille LinkProB2B par e-mail : deux sélections d'opportunités par semaine et les actualités du site (facultatif, désinscription en un clic)." />
+      <Checkbox
+        name="marketing"
+        defaultChecked={values.marketing}
+        label="J'accepte de recevoir la veille LinkProB2B par e-mail : deux sélections d'opportunités par semaine et les actualités du site (facultatif, désinscription en un clic)."
+      />
       {state && !state.ok && !fe && <Notice tone="error">{state.error}</Notice>}
       <SubmitButton full size="lg" pendingLabel="Création du compte…">
         Créer mon compte

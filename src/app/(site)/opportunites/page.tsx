@@ -37,8 +37,8 @@ export default async function OpportunitiesPage(props: PageProps<"/opportunites"
     <div className="container-page py-8 sm:py-10">
       <h1 className="text-2xl font-bold sm:text-3xl">Explorer les opportunités</h1>
       <p className="mt-1 max-w-3xl text-slate-600">
-        Appels d&apos;offres publics, consultations et besoins publiés par des entreprises, partout en France. La source de chaque opportunité est
-        toujours indiquée, avec un lien vers l&apos;annonce officielle.
+        Appels d&apos;offres publics, consultations et besoins publiés par des entreprises, partout en France.
+        <span className="hidden sm:inline"> La source de chaque opportunité est toujours indiquée, avec un lien vers l&apos;annonce officielle.</span>
       </p>
       <FreshnessBar stats={await getPlatformStats()} className="mt-3 mb-6" />
       <OpportunityResults filters={filters} rawParams={sp} basePath="/opportunites" />
