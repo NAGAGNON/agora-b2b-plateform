@@ -636,8 +636,9 @@ export async function enrichProspects(db: Db, { campaignId = null, deadline = Da
   const retryBefore = new Date(Date.now() - ENRICH_RETRY_DAYS * DAY).toISOString();
   // Erreur (site lent, service saturé) : nouvel essai après quelques heures, jamais en boucle à chaque passage
   const errorRetryBefore = new Date(Date.now() - ENRICH_ERROR_RETRY_HOURS * 3_600_000).toISOString();
-  const searchable = (p: { enrichment_status: string; enriched_at: string | null }) =>
-    p.enrichment_status === "PENDING" ||
+  const nowIso = new Date().toISOString();
+  const searchable = (p: { enrichment_status: string; enriched_at: string | null; enrichment_deferred_until: string | null }) =>
+    (p.enrichment_status === "PENDING" && (!p.enrichment_deferred_until || p.enrichment_deferred_until < nowIso)) ||
     (p.enrichment_status === "ERROR" && (!p.enriched_at || p.enriched_at < errorRetryBefore)) ||
     (["NO_WEBSITE", "NO_EMAIL", "BLOCKED"].includes(p.enrichment_status) && (!p.enriched_at || p.enriched_at < retryBefore));
   // Priorité : entreprises de la campagne sans e-mail, puis les autres
@@ -648,9 +649,9 @@ export async function enrichProspects(db: Db, { campaignId = null, deadline = Da
     ids.push(...(data ?? []).map((r) => r.prospect_id));
   }
   // Par paquets (adresse de requête bornée), dans l'ordre de priorité de la campagne
-  const rows: { id: string; name: string; city: string | null; siren: string | null; website: string | null; enrichment_status: string; enriched_at: string | null }[] = [];
+  const rows: { id: string; name: string; city: string | null; siren: string | null; website: string | null; enrichment_status: string; enriched_at: string | null; enrichment_deferred_until: string | null }[] = [];
   for (const part of chunk(ids, 200)) {
-    const { data, error } = await db.from("outreach_prospects").select("id, name, city, siren, website, enrichment_status, enriched_at").in("id", part).is("email", null).eq("status", "ACTIVE");
+    const { data, error } = await db.from("outreach_prospects").select("id, name, city, siren, website, enrichment_status, enriched_at, enrichment_deferred_until").in("id", part).is("email", null).eq("status", "ACTIVE");
     if (error) throw error;
     const byId = new Map((data ?? []).map((r) => [r.id, r]));
     for (const id of part) if (byId.has(id)) rows.push(byId.get(id)!);
@@ -660,10 +661,11 @@ export async function enrichProspects(db: Db, { campaignId = null, deadline = Da
   if (queue.length < budget) {
     const { data: more } = await db
       .from("outreach_prospects")
-      .select("id, name, city, siren, website, enrichment_status, enriched_at")
+      .select("id, name, city, siren, website, enrichment_status, enriched_at, enrichment_deferred_until")
       .is("email", null)
       .eq("status", "ACTIVE")
       .eq("enrichment_status", "PENDING")
+      .or(`enrichment_deferred_until.is.null,enrichment_deferred_until.lt.${nowIso}`)
       .eq("is_individual_entrepreneur", false)
       .order("updated_at", { ascending: false })
       .limit(budget - queue.length);
@@ -681,17 +683,19 @@ export async function enrichProspects(db: Db, { campaignId = null, deadline = Da
       .catch((e) => ({ status: "ERROR" as const, website: null, email: null, source: null, note: e instanceof Error ? e.message.slice(0, 200) : "Erreur" }))
       .finally(() => clearTimeout(timer));
     const now = new Date().toISOString();
-    // Service saturé : l'entreprise reste à rechercher (non décomptée de la limite du jour)
+    // Service saturé : l'entreprise reste à rechercher (non décomptée de la limite du jour), mais
+    // n'est reprise qu'après quelques heures : les passages suivants cherchent d'autres entreprises
     if (r.status === "ERROR" && r.note?.startsWith("[report]")) {
       result.deferred++;
       result.searched--;
-      await db.from("outreach_prospects").update({ enrichment_status: "PENDING", enrichment_note: r.note.replace("[report] ", ""), updated_at: now }).eq("id", p.id);
+      const until = new Date(Date.now() + ENRICH_DEFER_HOURS * 3_600_000).toISOString();
+      await db.from("outreach_prospects").update({ enrichment_status: "PENDING", enrichment_note: r.note.replace("[report] ", ""), enrichment_deferred_until: until, updated_at: now }).eq("id", p.id);
       return;
     }
     const email = r.email && !blocked.has(r.email) && !blocked.has(r.email.split("@")[1]) ? r.email : null;
     const { error } = await db
       .from("outreach_prospects")
-      .update({ enrichment_status: email ? "FOUND" : r.status === "FOUND" ? "NO_EMAIL" : r.status, enriched_at: now, enrichment_note: r.note || null, website: r.website ?? p.website, ...(email ? { email, email_source: r.source } : {}), updated_at: now })
+      .update({ enrichment_status: email ? "FOUND" : r.status === "FOUND" ? "NO_EMAIL" : r.status, enriched_at: now, enrichment_deferred_until: null, enrichment_note: r.note || null, website: r.website ?? p.website, ...(email ? { email, email_source: r.source } : {}), updated_at: now })
       .eq("id", p.id);
     if (error?.code === "23505") {
       await db.from("outreach_prospects").update({ enrichment_status: "NO_EMAIL", enriched_at: now, enrichment_note: "Adresse déjà utilisée par une autre entreprise" }).eq("id", p.id);
@@ -735,6 +739,8 @@ export function errorReason(note: string | null | undefined): string {
 
 /** Délai avant un nouvel essai après une erreur (site lent, panne passagère). */
 const ENRICH_ERROR_RETRY_HOURS = 12;
+/** Recherche reportée (service de recherche saturé) : reprise après ce délai. */
+const ENRICH_DEFER_HOURS = 6;
 // Recherches simultanées (chaque recherche attend surtout le réseau) : plus d'entreprises par passage
 const ENRICH_CONCURRENCY = 10;
 /** Délai avant une nouvelle recherche d'adresse pour une entreprise sans résultat. */

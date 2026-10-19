@@ -33,6 +33,20 @@ describe("outreach — adresses génériques uniquement", () => {
     expect(isGenericCompanyEmail("contact@orange.fr", "elec-ouest.fr")).toBe(true);
   });
 
+  it("boîte au nom de l'entreprise (raison sociale) acceptée, jamais un prénom ou un nom absent de la raison sociale", () => {
+    const name = "SARL Dupont Plomberie";
+    expect(isGenericCompanyEmail("sarl.dupont-plomberie@orange.fr", null, name)).toBe(true);
+    expect(isGenericCompanyEmail("dupontplomberie@wanadoo.fr", null, name)).toBe(true);
+    expect(isGenericCompanyEmail("dupont.plomberie@dupont-plomberie.fr", "dupont-plomberie.fr", name)).toBe(true);
+    expect(isGenericCompanyEmail("contact.dupont@dupont-plomberie.fr", "dupont-plomberie.fr", name)).toBe(true);
+    expect(isGenericCompanyEmail("jean.dupont@orange.fr", null, name)).toBe(false);
+    expect(isGenericCompanyEmail("jdupont@orange.fr", null, name)).toBe(false);
+    expect(isGenericCompanyEmail("dupont.plomberie@autre-domaine.fr", "dupont-plomberie.fr", name)).toBe(false);
+    expect(isGenericCompanyEmail("noreply@dupont-plomberie.fr", "dupont-plomberie.fr", name)).toBe(false);
+    // Sans raison sociale fournie : règle stricte inchangée
+    expect(isGenericCompanyEmail("dupontplomberie@wanadoo.fr", null)).toBe(false);
+  });
+
   it("extrait les adresses (mailto, texte, [at]) sans les images", () => {
     const html = `<a href="mailto:contact@elec-ouest.fr?subject=x">Écrire</a> info [at] elec-ouest.fr <img src="logo@2x.png">`;
     expect(extractEmails(html).sort()).toEqual(["contact@elec-ouest.fr", "info@elec-ouest.fr"]);

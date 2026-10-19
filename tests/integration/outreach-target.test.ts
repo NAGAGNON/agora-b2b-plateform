@@ -51,6 +51,18 @@ describe("Recherche d'adresses e-mail", () => {
     const status = async (id: string) => (await admin.from("outreach_prospects").select("enrichment_status, enrichment_note, enriched_at").eq("id", id).single()).data;
     expect(await status(pending)).toMatchObject({ enrichment_status: "PENDING", enriched_at: null });
     expect((await status(pending))?.enrichment_note).toMatch(/limite de requêtes/);
+    // Reportée de quelques heures : le passage suivant cherche d'autres entreprises au lieu de la reprendre
+    const deferred = (await admin.from("outreach_prospects").select("enrichment_deferred_until").eq("id", pending).single()).data?.enrichment_deferred_until;
+    expect(new Date(deferred!).getTime()).toBeGreaterThan(Date.now() + 5 * 3_600_000);
+    const before = (await admin.from("outreach_prospects").select("updated_at").eq("id", pending).single()).data!.updated_at;
+    vi.stubGlobal("fetch", async (url: string | URL | Request, init?: RequestInit) => {
+      if (!String(url).includes("api.search.brave.com")) return realFetch(url, init);
+      return new Response("{}", { status: 429 });
+    });
+    await enrichProspects(admin, { deadline: Date.now() + 15_000 });
+    vi.unstubAllGlobals();
+    // Non reprise pendant le report (fiche inchangée)
+    expect((await admin.from("outreach_prospects").select("updated_at").eq("id", pending).single()).data!.updated_at).toBe(before);
     expect(await status(recentError)).toMatchObject({ enrichment_status: "ERROR", enrichment_note: "Délai dépassé" });
     expect(r.errors).toBe(0);
     expect(r.deferred).toBeGreaterThanOrEqual(1);

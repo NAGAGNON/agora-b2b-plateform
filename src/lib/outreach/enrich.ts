@@ -83,12 +83,32 @@ export function isGenericLocalPart(local: string): boolean {
   return Boolean(m && GENERIC.has(m[1]));
 }
 
+const LEGAL_FORMS = new Set(["sarl", "sas", "sasu", "eurl", "sa", "snc", "scop", "ets", "etablissements", "societe", "entreprise", "groupe"]);
+
+/**
+ * Boîte au nom de l'ENTREPRISE (« sarl.dupont-elec@… », « dupontelec@… ») : chaque mot de la partie
+ * avant « @ » vient de la raison sociale, d'une forme juridique ou d'un mot générique, et au moins un
+ * vient de la raison sociale. Un prénom ou un nom absent de la raison sociale (« jean.dupont@ ») est refusé.
+ */
+export function isCompanyNamedLocalPart(local: string, companyName: string): boolean {
+  const l = local.trim().toLowerCase().replace(/[0-9]+$/, "");
+  if (REJECT.test(l)) return false;
+  const tokens = nameTokens(companyName).filter((t) => /^[a-z0-9]+$/.test(t));
+  if (!tokens.length) return false;
+  const compact = l.replace(/[._-]/g, "");
+  if (compact.length >= 4 && (compact === tokens.join("") || [...LEGAL_FORMS].some((f) => compact === f + tokens.join("")))) return true;
+  const parts = l.split(/[._-]+/).filter(Boolean);
+  if (!parts.length || parts.some((w) => !/^[a-z0-9]+$/.test(w))) return false;
+  const known = new Set(tokens);
+  return parts.some((w) => known.has(w) && w.length >= 4) && parts.every((w) => known.has(w) || LEGAL_FORMS.has(w) || GENERIC.has(w));
+}
+
 /** Adresse générique d'entreprise (jamais nominative) rattachée au site, ou null. */
-export function isGenericCompanyEmail(email: string, siteHost: string | null): boolean {
+export function isGenericCompanyEmail(email: string, siteHost: string | null, companyName?: string): boolean {
   const m = /^([a-z0-9._+-]+)@([a-z0-9.-]+\.[a-z]{2,})$/i.exec(email.trim().toLowerCase());
   if (!m) return false;
   const [, local, domain] = m;
-  if (!isGenericLocalPart(local)) return false;
+  if (!isGenericLocalPart(local) && !(companyName && isCompanyNamedLocalPart(local, companyName))) return false;
   if (siteHost && (domain === siteHost || domain.endsWith(`.${siteHost}`) || siteHost.endsWith(`.${domain}`))) return true;
   return FREE_MAIL.has(domain);
 }
@@ -238,7 +258,7 @@ export function dropcontactSearch(key: string, fetchImpl: typeof fetch = fetch):
         const d = body.data[0] ?? {};
         const website = d.website ? (/^https?:/i.test(d.website) ? d.website : `https://${d.website}`) : null;
         const host = website ? hostOf(website) : null;
-        const email = (d.email ?? []).map((e) => e.email).find((e) => isGenericCompanyEmail(e, host)) ?? null;
+        const email = (d.email ?? []).map((e) => e.email).find((e) => isGenericCompanyEmail(e, host, c.name)) ?? null;
         return { website, email, provider: "Dropcontact" };
       }
     }
@@ -251,7 +271,7 @@ export function dropcontactSearch(key: string, fetchImpl: typeof fetch = fetch):
  * ocr-rhone-alpes.fr, ocrrhonealpes.fr, …). Simple hypothèse : un domaine n'est retenu
  * qu'après vérification du SIREN sur le site (voir freeWebsiteSearch).
  */
-const LEGAL_PATHS = ["/mentions-legales", "/mentions-legales/", "/contact", "/nous-contacter"];
+const LEGAL_PATHS = ["/mentions-legales", "/mentions-legales/", "/contact", "/nous-contacter", "/mentions-legales.html", "/contact.html", "/mentions", "/informations-legales"];
 
 export function domainCandidates(name: string, city: string | null = null): string[] {
   const words = normalizeText(name)
@@ -355,7 +375,7 @@ export async function enrichCompany(
     if (!home || home.status >= 400) return { status: home && [401, 403, 429].includes(home.status) ? "BLOCKED" : "ERROR", website, email: null, source: null, note: `Site inaccessible (${home?.status ?? "adresse non publique"})` };
     const candidates = [home.text];
     const origin = new URL(website).origin;
-    for (const link of [...new Set([...contactLinks(home.text, website), ...LEGAL_PATHS.map((p) => origin + p)])].slice(0, 8)) {
+    for (const link of [...new Set([...contactLinks(home.text, website), ...LEGAL_PATHS.map((p) => origin + p)])].slice(0, 10)) {
       if (!allowed(new URL(link).pathname)) continue;
       const page = await fetchText(link, fetchImpl).catch(() => null);
       if (page?.text) {
@@ -364,7 +384,9 @@ export async function enrichCompany(
       }
     }
     for (const [i, html] of candidates.entries()) {
-      const email = extractEmails(html).find((e) => isGenericCompanyEmail(e, host));
+      // Adresse générique d'abord (contact@…), sinon boîte au nom de l'entreprise
+      const found = extractEmails(html);
+      const email = found.find((e) => isGenericCompanyEmail(e, host)) ?? found.find((e) => isGenericCompanyEmail(e, host, c.name));
       if (email) {
         return { status: "FOUND", website, email, source: `Site officiel de l'entreprise (${pages[i] ?? website}), consulté le ${new Date().toLocaleDateString("fr-FR")} — site trouvé via ${provider}`, note: "" };
       }
