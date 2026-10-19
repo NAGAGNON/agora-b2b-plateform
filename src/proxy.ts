@@ -76,8 +76,29 @@ export async function proxy(request: NextRequest) {
   return response;
 }
 
+/*
+ * Le proxy ne s'exécute que lorsqu'il sert à quelque chose (chaque exécution est facturée en temps
+ * de calcul par Vercel) : espaces privés, visiteurs connectés (rafraîchissement de la session) et
+ * sous-domaine Outreach. Les visiteurs anonymes et les robots d'indexation, la très grande majorité
+ * des requêtes, ne le déclenchent plus.
+ */
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|brand/|icon.png|apple-icon.png|robots.txt|sitemap.xml|.*\\.(?:png|jpg|jpeg|svg|webp|ico)$).*)",
+    "/dashboard/:path*",
+    "/admin/:path*",
+    "/onboarding/:path*",
+    "/outreach/:path*",
+    {
+      source: "/((?!_next/static|_next/image|brand/|icon.png|apple-icon.png|robots.txt|sitemap.xml|.*\\.(?:png|jpg|jpeg|svg|webp|ico)$).*)",
+      has: [{ type: "cookie", key: "sb-linkprob2b-auth-token" }],
+    },
+    {
+      source: "/((?!_next/static|_next/image|brand/|icon.png|apple-icon.png|robots.txt|sitemap.xml|.*\\.(?:png|jpg|jpeg|svg|webp|ico)$).*)",
+      has: [{ type: "cookie", key: "sb-linkprob2b-auth-token.0" }],
+    },
+    {
+      source: "/((?!_next/static|_next/image).*)",
+      has: [{ type: "host", value: "outreach\\..*" }],
+    },
   ],
 };

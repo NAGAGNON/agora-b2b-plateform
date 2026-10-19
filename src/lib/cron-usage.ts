@@ -11,7 +11,7 @@ import { parisDayStart, parisToday } from "@/lib/daily-report";
  */
 
 /** Plafond quotidien des tâches automatiques (le reste du forfait est laissé aux pages du site). */
-export const DAILY_CRON_CPU_BUDGET_MS = Number(process.env.CRON_CPU_BUDGET_MS) > 0 ? Number(process.env.CRON_CPU_BUDGET_MS) : 4 * 60_000;
+export const DAILY_CRON_CPU_BUDGET_MS = Number(process.env.CRON_CPU_BUDGET_MS) > 0 ? Number(process.env.CRON_CPU_BUDGET_MS) : 3 * 60_000;
 /** Forfait mensuel de l'offre gratuite de Vercel (temps CPU actif). */
 export const MONTHLY_CPU_ALLOWANCE_MS = 4 * 3_600_000;
 
