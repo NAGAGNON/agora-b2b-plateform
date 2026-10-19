@@ -92,10 +92,9 @@ describe("Objectif quotidien d'envois", () => {
     }
   });
 
-  it("valeurs par défaut : au moins 200 e-mails par jour visés, plafonds relevés en conséquence", async () => {
-    expect(original.daily_send_target).toBe(200);
-    expect(original.total_daily_send_cap).toBeGreaterThanOrEqual(200);
-    expect(original.daily_send_cap).toBeGreaterThanOrEqual(200);
-    expect(original.hourly_send_cap).toBeGreaterThanOrEqual(50);
+  it("valeurs par défaut : 50 e-mails de prospection par jour (budget Vercel plafonné)", async () => {
+    expect(original.daily_send_target).toBe(50);
+    expect(original.total_daily_send_cap).toBe(50);
+    expect(original.daily_send_cap).toBe(50);
   });
 });
