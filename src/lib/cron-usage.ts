@@ -3,17 +3,21 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { parisDayStart, parisToday } from "@/lib/daily-report";
 
 /**
- * Temps de calcul des tâches automatiques. L'offre gratuite de Vercel n'inclut que 4 h de temps CPU
- * actif par mois (environ 8 minutes par jour, pages du site comprises) ; au-delà, le site est mis en
- * pause. Chaque passage est mesuré, et au-delà du plafond quotidien les tâches lourdes et facultatives
+ * Temps de calcul des tâches automatiques. Vercel facture le temps CPU actif (pages du site comprises) :
+ * l'offre gratuite n'en inclut que 4 h par mois et met le site en pause au-delà ; l'offre payante
+ * facture les dépassements. Seuil de référence conservé : 4 h par mois. Chaque passage est mesuré, et au-delà du plafond quotidien les tâches lourdes et facultatives
  * (recherche d'adresses, campagnes complémentaires) attendent le lendemain ; l'envoi des e-mails déjà
  * prêts, la collecte et le bilan continuent.
  */
 
 /** Plafond quotidien des tâches automatiques (le reste du forfait est laissé aux pages du site). */
 export const DAILY_CRON_CPU_BUDGET_MS = Number(process.env.CRON_CPU_BUDGET_MS) > 0 ? Number(process.env.CRON_CPU_BUDGET_MS) : 3 * 60_000;
-/** Forfait mensuel de l'offre gratuite de Vercel (temps CPU actif). */
-export const MONTHLY_CPU_ALLOWANCE_MS = 4 * 3_600_000;
+/**
+ * Seuil mensuel de référence (temps CPU actif) : 4 h, le forfait de l'offre gratuite de Vercel, gardé
+ * comme garde-fou après le passage à l'offre payante pour éviter les dépassements facturés.
+ * Réglable avec CPU_MONTHLY_ALLOWANCE_MINUTES.
+ */
+export const MONTHLY_CPU_ALLOWANCE_MS = Number(process.env.CPU_MONTHLY_ALLOWANCE_MINUTES) > 0 ? Number(process.env.CPU_MONTHLY_ALLOWANCE_MINUTES) * 60_000 : 4 * 3_600_000;
 
 /** Démarre la mesure d'un passage ; `stop()` l'enregistre (sans jamais faire échouer la tâche). */
 export function startCronMeter(task: string) {
