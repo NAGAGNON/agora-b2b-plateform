@@ -925,6 +925,19 @@ export async function topUpToTarget(db: Db, deadline: number, { reachableOnly = 
   const before = await sentTodayCount(db);
   if (!target || before >= target) return { target, sent_before: before, ran: false, reason: "Objectif du jour atteint" };
   if (deadline - Date.now() < (reachableOnly ? 60_000 : 100_000)) return { target, sent_before: before, ran: false, reason: "Temps insuffisant dans ce passage" };
+  // Économie de temps de calcul : entreprises déjà joignables, mais une campagne complémentaire préparée
+  // il y a moins de 90 minutes n'a rien trouvé à envoyer → inutile de tout recalculer maintenant
+  const { data: recentTopUps } = !reachableOnly ? { data: null } : await db
+    .from("outreach_campaigns")
+    .select("stats")
+    .eq("kind", "MANUAL")
+    .is("launched_by", null)
+    .gte("created_at", new Date(Date.now() - 90 * 60_000).toISOString())
+    .order("created_at", { ascending: false })
+    .limit(2);
+  if (reachableOnly && recentTopUps?.length && recentTopUps.every((c) => !((c.stats as { emails_prepared?: number } | null)?.emails_prepared ?? 0))) {
+    return { target, sent_before: before, ran: false, reason: "Campagne complémentaire récente sans nouvel e-mail : nouvel essai plus tard" };
+  }
   // 1. Entreprises déjà joignables qui correspondent aux opportunités ouvertes des 14 derniers jours
   const reachable = await runManualCampaign(db, { userId: null, budgetMs: Math.min(150_000, deadline - Date.now() - 10_000), reachableOnly: true, lookbackDays: 14 }).catch(
     (e) => (logServerError("outreach top-up (joignables)", e), null),

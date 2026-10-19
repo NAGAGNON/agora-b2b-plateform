@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { startCronMeter } from "@/lib/cron-usage";
 import { timingSafeEqual } from "node:crypto";
 import { env } from "@/lib/env";
 import { logServerError } from "@/lib/errors";
@@ -27,7 +28,7 @@ function parisHour(now = new Date()): number {
  * super-administrateurs) à 21 h, heure de Paris : la tâche est planifiée à 19 h et 20 h UTC (heure
  * d'été / d'hiver) ; avant 21 h à Paris elle ne fait rien, et le rapport n'est envoyé qu'une fois.
  */
-export async function GET(req: Request) {
+async function run(req: Request) {
   if (!authorized(req)) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
   try {
     if (new URL(req.url).searchParams.get("soir") === "1") {
@@ -40,5 +41,16 @@ export async function GET(req: Request) {
   } catch (e) {
     logServerError("cron bilan", e);
     return NextResponse.json({ ok: false, error: e instanceof Error ? e.message : String(e) }, { status: 500 });
+  }
+}
+
+/** Passage mesuré (temps de calcul, voir src/lib/cron-usage.ts). */
+export async function GET(req: Request) {
+  if (!authorized(req)) return run(req);
+  const stop = startCronMeter(`bilan${new URL(req.url).search}`);
+  try {
+    return await run(req);
+  } finally {
+    await stop();
   }
 }

@@ -6,6 +6,7 @@ import { siteUrl } from "@/lib/seo";
 import { generateDailyReport, parisToday, type DailyFacts, type DailySummary } from "@/lib/daily-report";
 import { loadSocialPostFacts, renderSocialPost } from "@/lib/social-post";
 import { runGrowthStrategy } from "@/lib/growth/engine";
+import { cronCpuSummary } from "@/lib/cron-usage";
 import type { Change } from "@/lib/growth/strategy";
 import { logServerError } from "@/lib/errors";
 
@@ -57,7 +58,9 @@ const bullets = (items: { label?: string; text: string }[], color: string) =>
 /** Contenu de l'e-mail (HTML + texte) à partir du bilan enregistré. */
 export type GrowthSection = { changes: Change[]; watch: string[]; skipped?: string };
 
-export function renderDailyReportEmail(row: ReportRow, { socialPost = null, growth = null }: { socialPost?: string | null; growth?: GrowthSection | null } = {}) {
+export type CpuSection = Awaited<ReturnType<typeof cronCpuSummary>>;
+
+export function renderDailyReportEmail(row: ReportRow, { socialPost = null, growth = null, cpu = null }: { socialPost?: string | null; growth?: GrowthSection | null; cpu?: CpuSection | null } = {}) {
   const f = row.facts as DailyFacts;
   const s = row.summary as DailySummary | null;
   const a = f.audience.aujourdhui;
@@ -264,6 +267,24 @@ export function renderDailyReportEmail(row: ReportRow, { socialPost = null, grow
     }
   }
 
+  if (cpu) {
+    parts.push(h2("Consommation Vercel (temps de calcul)"));
+    parts.push(
+      muted(
+        `L'offre gratuite de Vercel inclut ${n(cpu.forfait_mensuel_minutes)} minutes de calcul par mois, pages du site comprises ; au-delà, le site est mis en pause. Les tâches automatiques ont un plafond de ${n(cpu.plafond_quotidien_secondes)} secondes par jour : au-delà, la recherche d'adresses attend le lendemain (les e-mails prêts partent quand même).`,
+      ),
+    );
+    parts.push(
+      tiles([
+        ["Calcul des tâches aujourd'hui (s)", n(cpu.secondes_aujourdhui)],
+        ["Plafond quotidien (s)", n(cpu.plafond_quotidien_secondes)],
+        ["Tâches, 30 derniers jours (min)", n(cpu.minutes_sur_30_jours)],
+      ]),
+    );
+    parts.push(table(["Tâche", "Passages", "Calcul (s)", "Durée (s)"], cpu.par_tache.map((t) => [t.tache, n(t.passages), n(t.secondes_de_calcul), n(t.duree_secondes)]), "Aucune mesure aujourd'hui."));
+    lines.push(`Consommation Vercel : ${n(cpu.secondes_aujourdhui)} s de calcul aujourd'hui (plafond ${n(cpu.plafond_quotidien_secondes)} s), ${n(cpu.minutes_sur_30_jours)} min sur 30 jours (forfait ${n(cpu.forfait_mensuel_minutes)} min, pages comprises).`, "");
+  }
+
   if (socialPost) {
     parts.push(h2("Message prêt à publier sur LinkedIn"));
     parts.push(muted("Construit avec les chiffres réels du jour. Copiez-le et publiez-le sur votre page LinkedIn (ou Google Business) pour attirer des visiteurs."));
@@ -322,7 +343,8 @@ export async function sendDailyReportEmail({ force = false, regenerate = true, n
   if (!to.length) return { sent: 0, skipped: "Aucun destinataire (DAILY_REPORT_EMAIL ou super-administrateur)", recipients: [] as string[] };
   // Message LinkedIn du jour : facultatif, ne bloque jamais l'envoi du rapport
   const socialPost = await loadSocialPostFacts(db, now).then((f) => renderSocialPost(f)).catch(() => null);
-  const msg = renderDailyReportEmail(row, { socialPost, growth });
+  const cpu = await cronCpuSummary(now).catch(() => null);
+  const msg = renderDailyReportEmail(row, { socialPost, growth, cpu });
   // Envoi du soir réservé avant l'envoi : une seule fois même si la tâche est déclenchée deux fois
   if (!force) {
     const { data: claimed } = await db.from("daily_reports").update({ emailed_at: now.toISOString() }).eq("day", day).is("emailed_at", null).select("day");

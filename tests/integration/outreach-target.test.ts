@@ -82,6 +82,16 @@ describe("Objectif quotidien d'envois", () => {
     expect(await topUpToTarget(admin, Date.now() + 30_000)).toMatchObject({ ran: false, target: 100, reason: "Temps insuffisant dans ce passage" });
   });
 
+  it("entreprises joignables : pas de nouveau calcul si la campagne complémentaire récente n'a rien trouvé", async () => {
+    await admin.from("outreach_settings").update({ daily_send_target: 10000, total_daily_send_cap: 10000 }).eq("id", true);
+    const { data: c } = await admin.from("outreach_campaigns").insert({ campaign_date: new Date().toISOString().slice(0, 10), kind: "MANUAL", status: "SENT", stats: { emails_prepared: 0 }, min_score: 70, subject_template: "s", intro_template: "i" }).select("id").single();
+    try {
+      expect(await topUpToTarget(admin, Date.now() + 200_000, { reachableOnly: true })).toMatchObject({ ran: false, reason: "Campagne complémentaire récente sans nouvel e-mail : nouvel essai plus tard" });
+    } finally {
+      await admin.from("outreach_campaigns").delete().eq("id", c!.id);
+    }
+  });
+
   it("valeurs par défaut : au moins 200 e-mails par jour visés, plafonds relevés en conséquence", async () => {
     expect(original.daily_send_target).toBe(200);
     expect(original.total_daily_send_cap).toBeGreaterThanOrEqual(200);

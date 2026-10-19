@@ -1,6 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import { sessionCookieOptions } from "@/lib/supabase/cookie";
+import { SESSION_COOKIE, sessionCookieOptions } from "@/lib/supabase/cookie";
 import { siteUrl } from "@/lib/seo";
 
 const PROTECTED_PREFIXES = ["/dashboard", "/admin", "/onboarding", "/outreach"];
@@ -33,6 +33,12 @@ function outreachHostRedirect(request: NextRequest): NextResponse | null {
 export async function proxy(request: NextRequest) {
   const hostRedirect = outreachHostRedirect(request);
   if (hostRedirect) return hostRedirect;
+  const path = request.nextUrl.pathname;
+  const isProtected = PROTECTED_PREFIXES.some((p) => path === p || path.startsWith(p + "/"));
+  // Visiteur sans session (la grande majorité, robots compris) : rien à rafraîchir, aucun appel —
+  // économise le temps de calcul facturé par Vercel à chaque page vue.
+  const hasSession = request.cookies.getAll().some((c) => c.name.startsWith(SESSION_COOKIE));
+  if (!hasSession && !isProtected) return NextResponse.next({ request });
   let response = NextResponse.next({ request });
   const url = process.env.SUPABASE_INTERNAL_URL ?? process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key =
@@ -60,8 +66,7 @@ export async function proxy(request: NextRequest) {
   const { data } = await supabase.auth.getClaims();
   const user = data?.claims?.sub ?? null;
 
-  const path = request.nextUrl.pathname;
-  if (!user && PROTECTED_PREFIXES.some((p) => path === p || path.startsWith(p + "/"))) {
+  if (!user && isProtected) {
     const redirect = request.nextUrl.clone();
     redirect.pathname = "/connexion";
     redirect.search = `?suite=${encodeURIComponent(path + request.nextUrl.search)}`;
@@ -71,8 +76,29 @@ export async function proxy(request: NextRequest) {
   return response;
 }
 
+/*
+ * Le proxy ne s'exécute que lorsqu'il sert à quelque chose (chaque exécution est facturée en temps
+ * de calcul par Vercel) : espaces privés, visiteurs connectés (rafraîchissement de la session) et
+ * sous-domaine Outreach. Les visiteurs anonymes et les robots d'indexation, la très grande majorité
+ * des requêtes, ne le déclenchent plus.
+ */
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|brand/|icon.png|apple-icon.png|robots.txt|sitemap.xml|.*\\.(?:png|jpg|jpeg|svg|webp|ico)$).*)",
+    "/dashboard/:path*",
+    "/admin/:path*",
+    "/onboarding/:path*",
+    "/outreach/:path*",
+    {
+      source: "/((?!_next/static|_next/image|brand/|icon.png|apple-icon.png|robots.txt|sitemap.xml|.*\\.(?:png|jpg|jpeg|svg|webp|ico)$).*)",
+      has: [{ type: "cookie", key: "sb-linkprob2b-auth-token" }],
+    },
+    {
+      source: "/((?!_next/static|_next/image|brand/|icon.png|apple-icon.png|robots.txt|sitemap.xml|.*\\.(?:png|jpg|jpeg|svg|webp|ico)$).*)",
+      has: [{ type: "cookie", key: "sb-linkprob2b-auth-token.0" }],
+    },
+    {
+      source: "/((?!_next/static|_next/image).*)",
+      has: [{ type: "host", value: "outreach\\..*" }],
+    },
   ],
 };

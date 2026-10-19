@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { startCronMeter } from "@/lib/cron-usage";
 import { timingSafeEqual } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { env } from "@/lib/env";
@@ -21,7 +22,7 @@ function authorized(req: Request): boolean {
  * vendredi, alertes quotidiennes) puis envoie progressivement. Rien n'est envoyé tant que
  * l'administrateur n'a pas activé la veille après un envoi test.
  */
-export async function GET(req: Request) {
+async function run(req: Request) {
   if (!authorized(req)) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
   try {
     const r = await runVeille(createAdminClient(), { deadline: Date.now() + 260_000, send: sendVeilleEmail, intervalMs: 1500 });
@@ -29,5 +30,16 @@ export async function GET(req: Request) {
   } catch (e) {
     logServerError("cron veille", e);
     return NextResponse.json({ ok: false, error: e instanceof Error ? e.message : String(e) }, { status: 500 });
+  }
+}
+
+/** Passage mesuré (temps de calcul, voir src/lib/cron-usage.ts). */
+export async function GET(req: Request) {
+  if (!authorized(req)) return run(req);
+  const stop = startCronMeter(`veille${new URL(req.url).search}`);
+  try {
+    return await run(req);
+  } finally {
+    await stop();
   }
 }
