@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { startCronMeter } from "@/lib/cron-usage";
 import { timingSafeEqual } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { env } from "@/lib/env";
@@ -39,7 +40,7 @@ function authorized(req: Request): boolean {
  * (articles, résumés d'alertes) ne refont rien une fois leur quota du jour atteint.
  */
 const REFRESH_AFTER_MS = 3.5 * 3_600_000;
-export async function GET(req: Request) {
+async function run(req: Request) {
   if (!authorized(req)) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
   const started = Date.now();
   const report: Record<string, unknown> = {};
@@ -88,4 +89,15 @@ export async function GET(req: Request) {
     .upsert({ key: "private.cron", value: { last_run_at: at, failed_steps: failed, history }, description: "Dernière exécution de la tâche planifiée" })
     .then(({ error }) => error && logServerError("cron trace", error));
   return NextResponse.json({ ok: failed.length === 0, ...report });
+}
+
+/** Passage mesuré (temps de calcul, voir src/lib/cron-usage.ts). */
+export async function GET(req: Request) {
+  if (!authorized(req)) return run(req);
+  const stop = startCronMeter(`quotidien${new URL(req.url).search}`);
+  try {
+    return await run(req);
+  } finally {
+    await stop();
+  }
 }

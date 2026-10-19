@@ -292,6 +292,19 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"cron_cpu_runs": {
+                  Row: {
+                    "cpu_ms": number,"id": number,"started_at": string,"task": string,"wall_ms": number
+                  }
+                  Insert: {
+                    "cpu_ms": number,"id"?: never,"started_at"?: string,"task": string,"wall_ms": number
+                  }
+                  Update: {
+                    "cpu_ms"?: number,"id"?: never,"started_at"?: string,"task"?: string,"wall_ms"?: number
+                  }
+                  Relationships: [
+                    
+                  ]
                 },"daily_reports": {
                   Row: {
                     "day": string,"emailed_at": string | null,"error": string | null,"facts": NonNullable<Json>,"generated_at": string,"model": string | null,"note": string | null,"summary": Json | null
