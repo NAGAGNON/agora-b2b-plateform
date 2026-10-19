@@ -82,10 +82,10 @@ describe("Objectif quotidien d'envois", () => {
     expect(await topUpToTarget(admin, Date.now() + 30_000)).toMatchObject({ ran: false, target: 100, reason: "Temps insuffisant dans ce passage" });
   });
 
-  it("valeurs par défaut : au moins 100 e-mails par jour visés, plafond relevé en conséquence", async () => {
-    const s = await loadSettings(admin);
-    expect(original.daily_send_target).toBe(100);
-    expect(original.total_daily_send_cap).toBeGreaterThanOrEqual(100);
-    expect(s.daily_send_target).toBe(100);
+  it("valeurs par défaut : au moins 200 e-mails par jour visés, plafonds relevés en conséquence", async () => {
+    expect(original.daily_send_target).toBe(200);
+    expect(original.total_daily_send_cap).toBeGreaterThanOrEqual(200);
+    expect(original.daily_send_cap).toBeGreaterThanOrEqual(200);
+    expect(original.hourly_send_cap).toBeGreaterThanOrEqual(50);
   });
 });

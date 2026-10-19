@@ -899,7 +899,7 @@ export async function runOutreachFollowUp(db: Db, { budgetMs = 270_000 }: { budg
   // D'abord les entreprises déjà joignables (rapide, sans recherche), puis la recherche d'adresses
   const reachableFirst = await topUpToTarget(db, Math.min(deadline, Date.now() + 130_000), { reachableOnly: true });
   const contacts = await enrichCampaignAndSend(db, { campaignId: campaign.id, deadline: deadline - 120_000 });
-  // Objectif quotidien (au moins 100 e-mails pertinents) pas encore atteint : nouvelle recherche
+  // Objectif quotidien (200 e-mails pertinents par défaut) pas encore atteint : nouvelle recherche
   // d'entreprises et d'adresses (campagne complémentaire), autant de passages que nécessaire.
   const topUp = await topUpToTarget(db, deadline);
   return { mode: "contacts" as const, ...contacts, reachable_first: reachableFirst, top_up: topUp };
