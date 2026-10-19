@@ -48,6 +48,8 @@ import { pageMetadata } from "@/lib/seo";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/format";
+import { REGIONS } from "@/lib/geo";
+import { homeRegions } from "@/lib/growth/engine";
 
 export const metadata = pageMetadata({
   title: "LinkProB2B — Appels d'offres et opportunités B2B en France",
@@ -83,14 +85,17 @@ const SECTOR_ICONS: Record<string, typeof Wrench> = {
 export default async function HomePage(props: PageProps<"/">) {
   const sp = await props.searchParams;
   const supabase = await createClient();
-  const [recent, sectors, { data: analyses }, { total: openTotal }, stats] = await Promise.all([
+  const [recent, sectors, { data: analyses }, { total: openTotal }, stats, { data: growth }] = await Promise.all([
     recentOpportunities(6),
     getSectors(),
     supabase.from("articles").select("slug, title, description, published_at").eq("status", "PUBLISHED").order("published_at", { ascending: false }).limit(3),
     // Même calcul que la page « Explorer les opportunités » (opportunités ouvertes)
     searchOpportunities(parseOpportunityFilters({}), 1),
     getPlatformStats(),
+    // Régions mises en avant : choisies chaque soir par la stratégie automatique (pages les plus consultées)
+    supabase.from("platform_settings").select("value").eq("key", "growth_public").maybeSingle(),
   ]);
+  const featuredRegions = homeRegions(growth?.value ?? null);
   const openCount = Number(openTotal);
   return (
     <>
@@ -135,16 +140,7 @@ export default async function HomePage(props: PageProps<"/">) {
             <SearchBar />
           </div>
           <nav aria-label="Opportunités par région" className="mt-4 flex max-w-5xl flex-wrap gap-2 text-sm">
-            {[
-              ["france", "France entière"],
-              ["bretagne", "Bretagne"],
-              ["ile-de-france", "Île-de-France"],
-              ["auvergne-rhone-alpes", "Auvergne-Rhône-Alpes"],
-              ["nouvelle-aquitaine", "Nouvelle-Aquitaine"],
-              ["occitanie", "Occitanie"],
-              ["hauts-de-france", "Hauts-de-France"],
-              ["provence-alpes-cote-d-azur", "Provence-Alpes-Côte d'Azur"],
-            ].map(([slug, label]) => (
+            {[["france", "France entière"] as const, ...featuredRegions.map((slug) => [slug, REGIONS.find((r) => r.slug === slug)?.name ?? slug] as const)].map(([slug, label]) => (
               <Link key={slug} href={`/opportunites/${slug}`} className="rounded-full bg-white/10 px-3 py-1 font-medium text-white ring-1 ring-white/20 hover:bg-white/20">
                 {label}
               </Link>

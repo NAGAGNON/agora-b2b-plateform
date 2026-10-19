@@ -9,6 +9,7 @@ import { configuredSearchers, enrichCompany } from "@/lib/outreach/enrich";
 import { decideRamp, RAMP_INTERVAL_DAYS } from "@/lib/outreach/ramp";
 import { refreshPublicAwards } from "@/lib/outreach/public-awards";
 import { parisDayStart, parisToday } from "@/lib/daily-report";
+import { currentStrategy } from "@/lib/growth/engine";
 
 /**
  * Chaîne quotidienne de LinkProB2B Outreach :
@@ -329,15 +330,21 @@ export async function buildDailyCampaign(
       const { data } = await db.from("outreach_recipients").select("email").in("email", part).eq("status", "SENT").gte("sent_at", new Date(minGap).toISOString());
       for (const r of data ?? []) if (r.email) mailedRecently.add(r.email.toLowerCase());
     }
+    // Stratégie automatique : secteurs dont les e-mails obtiennent le plus de clics et d'inscriptions
+    // envoyés (et recherchés) en premier. Simple ordre de passage : aucune entreprise n'est écartée.
+    const sectorPriority = (await currentStrategy(db).catch(() => null))?.outreach.sector_priority ?? {};
+    const oppSector = new Map(opps.map((o) => [o.id, o.sector_slug]));
     const rows = groups.map((g) => {
       const p = prospects.get(g.prospectId)!;
+      const sector = oppSector.get(g.opportunities[0]?.id ?? "");
+      const priority = Math.round((sector ? (sectorPriority[sector] ?? 0) : 0) * 10);
       const email = p.email?.toLowerCase() ?? null;
       const domain = email?.split("@")[1] ?? null;
       let status = "PENDING";
       if ((p.siren && (supp.SIREN.has(p.siren) || customerSirens.has(p.siren))) || (email && supp.EMAIL.has(email)) || (domain && supp.DOMAIN.has(domain))) status = "SUPPRESSED";
       else if ((p.last_contacted_at && new Date(p.last_contacted_at).getTime() > minGap) || (recentCounts.get(p.id) ?? 0) >= settings.max_contacts_per_30_days || pendingElsewhere.has(p.id) || (email && mailedRecently.has(email))) status = "FREQUENCY";
       else if (!email) status = "NO_EMAIL";
-      return { campaign_id: campaignId!, prospect_id: g.prospectId, email, score: g.score, reasons: g.reasons, status };
+      return { campaign_id: campaignId!, prospect_id: g.prospectId, email, score: g.score, reasons: g.reasons, status, priority };
     });
     for (const part of chunk(rows, 200)) {
       const { data: inserted, error } = await db.from("outreach_recipients").insert(part).select("id, prospect_id");
@@ -483,7 +490,7 @@ async function sendQueue(db: Db, deadline: number, sleep: (ms: number) => Promis
         if (result.stopped) break campaignsLoop;
         break;
       }
-      const { data: batch } = await db.from("outreach_recipients").select("id").eq("campaign_id", c.id).in("status", ["PENDING", "QUEUED"]).order("score", { ascending: false }).limit(room);
+      const { data: batch } = await db.from("outreach_recipients").select("id").eq("campaign_id", c.id).in("status", ["PENDING", "QUEUED"]).order("priority", { ascending: false }).order("score", { ascending: false }).limit(room);
       if (!batch?.length) break;
       const bundles = await loadRecipientBundles(db, batch.map((b) => b.id));
       for (const b of bundles) {
@@ -644,7 +651,7 @@ export async function enrichProspects(db: Db, { campaignId = null, deadline = Da
   // Priorité : entreprises de la campagne sans e-mail, puis les autres
   const ids: string[] = [];
   if (campaignId) {
-    const { data, error } = await db.from("outreach_recipients").select("prospect_id").eq("campaign_id", campaignId).eq("status", "NO_EMAIL").order("score", { ascending: false }).limit(Math.min(budget, 1000));
+    const { data, error } = await db.from("outreach_recipients").select("prospect_id").eq("campaign_id", campaignId).eq("status", "NO_EMAIL").order("priority", { ascending: false }).order("score", { ascending: false }).limit(Math.min(budget, 1000));
     if (error) throw error;
     ids.push(...(data ?? []).map((r) => r.prospect_id));
   }

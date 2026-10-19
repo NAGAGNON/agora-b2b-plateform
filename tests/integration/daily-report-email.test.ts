@@ -77,7 +77,7 @@ describe("Rapport de fin de journée par e-mail", () => {
     // Bilan du soir : consigne « complet et détaillé » transmise à la rédaction
     expect(JSON.stringify(parse.mock.calls.at(-1)?.[0].system)).toContain("FIN DE JOURNÉE");
     const mail = received[0].data.replace(/=\r?\n/g, "");
-    for (const section of ["Rapport de la journ", "Chiffres cl", "Google, articles et inscriptions", "Inscriptions du jour", "Audience", "Outreach", "Collecte des opportunit", "R=C3=A9f=C3=A9rencement", "Inscriptions et abonnements", "T=C3=A2ches automatiques du jour", "Recommandations pour demain"]) {
+    for (const section of ["Rapport de la journ", "Chiffres cl", "Google, articles et inscriptions", "Inscriptions du jour", "Audience", "Outreach", "Collecte des opportunit", "R=C3=A9f=C3=A9rencement", "Inscriptions et abonnements", "T=C3=A2ches automatiques du jour", "Recommandations pour demain", "Strat=C3=A9gie adapt=C3=A9e pour demain"]) {
       expect(mail).toContain(section);
     }
     const { data } = await admin.from("daily_reports").select("emailed_at, facts").eq("day", parisToday()).single();
@@ -108,5 +108,12 @@ describe("Rapport de fin de journée par e-mail", () => {
     expect(withPost.html).toContain("Message prêt à publier sur LinkedIn");
     expect(withPost.html).toContain("12 nouvelles offres &lt;b&gt;");
     expect(withPost.text).toContain("Message prêt à publier sur LinkedIn :\n12 nouvelles offres <b>");
+    // Stratégie du lendemain : décisions chiffrées et points à surveiller, échappés
+    const withGrowth = renderDailyReportEmail(data!, { growth: { changes: [{ domaine: "Articles", decision: "Thèmes <prioritaires>", raison: "3 visites Google." }], watch: ["accueil : 90 % repartent"] } });
+    expect(withGrowth.html).toContain("Stratégie adaptée pour demain");
+    expect(withGrowth.html).toContain("Thèmes &lt;prioritaires&gt;");
+    expect(withGrowth.html).toContain("Points à surveiller");
+    expect(withGrowth.text).toContain("- Articles : Thèmes <prioritaires>. 3 visites Google.");
+    expect(renderDailyReportEmail(data!, { growth: { changes: [], watch: [], skipped: "Stratégie automatique désactivée" } }).text).toContain("Stratégie : Stratégie automatique désactivée");
   });
 });

@@ -5,6 +5,9 @@ import { escapeHtml } from "@/lib/email/templates";
 import { siteUrl } from "@/lib/seo";
 import { generateDailyReport, parisToday, type DailyFacts, type DailySummary } from "@/lib/daily-report";
 import { loadSocialPostFacts, renderSocialPost } from "@/lib/social-post";
+import { runGrowthStrategy } from "@/lib/growth/engine";
+import type { Change } from "@/lib/growth/strategy";
+import { logServerError } from "@/lib/errors";
 
 /**
  * Rapport complet de la journée, envoyé par e-mail en fin de journée (tâche du soir) :
@@ -52,7 +55,9 @@ const bullets = (items: { label?: string; text: string }[], color: string) =>
     : muted("Rien à signaler.");
 
 /** Contenu de l'e-mail (HTML + texte) à partir du bilan enregistré. */
-export function renderDailyReportEmail(row: ReportRow, { socialPost = null }: { socialPost?: string | null } = {}) {
+export type GrowthSection = { changes: Change[]; watch: string[]; skipped?: string };
+
+export function renderDailyReportEmail(row: ReportRow, { socialPost = null, growth = null }: { socialPost?: string | null; growth?: GrowthSection | null } = {}) {
   const f = row.facts as DailyFacts;
   const s = row.summary as DailySummary | null;
   const a = f.audience.aujourdhui;
@@ -243,6 +248,22 @@ export function renderDailyReportEmail(row: ReportRow, { socialPost = null }: { 
   parts.push(table(["Passage", "Heure", "Étapes en échec"], t.passages_du_jour.map((x) => [x.passage, x.heure, x.etapes_en_echec.length ? x.etapes_en_echec.join(", ") : "aucune"]), "Aucun passage enregistré aujourd'hui."));
   lines.push("Tâches automatiques :", ...t.passages_du_jour.map((x) => `- ${x.heure} ${x.passage} : ${x.etapes_en_echec.length ? `échec ${x.etapes_en_echec.join(", ")}` : "OK"}`), "");
 
+  if (growth) {
+    parts.push(h2("Stratégie adaptée pour demain"));
+    if (growth.skipped) {
+      parts.push(muted(growth.skipped));
+      lines.push(`Stratégie : ${growth.skipped}`, "");
+    } else {
+      parts.push(muted("Calculée automatiquement à partir des chiffres réels des 14 derniers jours, pour attirer plus de visiteurs et d'inscriptions. Elle s'applique dès demain."));
+      parts.push(growth.changes.length ? bullets(growth.changes.map((c) => ({ label: c.domaine, text: `${c.decision}. ${c.raison}` })), "#0F766E") : muted("Aucun changement : la stratégie actuelle reste la meilleure d'après les chiffres."));
+      lines.push("Stratégie adaptée pour demain :", ...(growth.changes.length ? growth.changes.map((c) => `- ${c.domaine} : ${c.decision}. ${c.raison}`) : ["- Aucun changement."]), "");
+      if (growth.watch.length) {
+        parts.push(`<p style="margin:8px 0 4px;font-size:14px;font-weight:700;color:${NAVY}">Points à surveiller</p>`, bullets(growth.watch.map((text) => ({ text })), "#B45309"));
+        lines.push("Points à surveiller :", ...growth.watch.map((w) => `- ${w}`), "");
+      }
+    }
+  }
+
   if (socialPost) {
     parts.push(h2("Message prêt à publier sur LinkedIn"));
     parts.push(muted("Construit avec les chiffres réels du jour. Copiez-le et publiez-le sur votre page LinkedIn (ou Google Business) pour attirer des visiteurs."));
@@ -292,11 +313,16 @@ export async function sendDailyReportEmail({ force = false, regenerate = true, n
     row = await load();
   }
   if (!row) return { sent: 0, skipped: "Bilan du jour introuvable", recipients: [] as string[] };
+  // Stratégie du lendemain, adaptée aux chiffres : calculée même sans destinataire, ne bloque jamais l'envoi du rapport
+  const growth = await runGrowthStrategy(now, db).catch((err) => {
+    logServerError("growth strategy", err);
+    return { changes: [], watch: [], skipped: "Stratégie non recalculée ce soir (erreur technique) : celle d'hier reste appliquée." };
+  });
   const to = await reportRecipients();
   if (!to.length) return { sent: 0, skipped: "Aucun destinataire (DAILY_REPORT_EMAIL ou super-administrateur)", recipients: [] as string[] };
   // Message LinkedIn du jour : facultatif, ne bloque jamais l'envoi du rapport
   const socialPost = await loadSocialPostFacts(db, now).then((f) => renderSocialPost(f)).catch(() => null);
-  const msg = renderDailyReportEmail(row, { socialPost });
+  const msg = renderDailyReportEmail(row, { socialPost, growth });
   // Envoi du soir réservé avant l'envoi : une seule fois même si la tâche est déclenchée deux fois
   if (!force) {
     const { data: claimed } = await db.from("daily_reports").update({ emailed_at: now.toISOString() }).eq("day", day).is("emailed_at", null).select("day");
