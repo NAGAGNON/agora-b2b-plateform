@@ -387,6 +387,19 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"growth_snapshots": {
+                  Row: {
+                    "changes": NonNullable<Json>,"computed_at": string,"day": string,"metrics": NonNullable<Json>,"strategy": NonNullable<Json>
+                  }
+                  Insert: {
+                    "changes"?: NonNullable<Json>,"computed_at"?: string,"day": string,"metrics": NonNullable<Json>,"strategy": NonNullable<Json>
+                  }
+                  Update: {
+                    "changes"?: NonNullable<Json>,"computed_at"?: string,"day"?: string,"metrics"?: NonNullable<Json>,"strategy"?: NonNullable<Json>
+                  }
+                  Relationships: [
+                    
+                  ]
                 },"interests": {
                   Row: {
                     "buyer_note": string | null,"company_id": string,"created_at": string,"id": string,"message": string | null,"opportunity_id": string,"status": Database["public"]['Enums']["interest_status"],"updated_at": string,"user_id": string | null
@@ -770,13 +783,13 @@ isOneToOne: false
                   ]
                 },"outreach_recipients": {
                   Row: {
-                    "attempts": number,"campaign_id": string,"clicked_at": string | null,"converted_at": string | null,"created_at": string,"email": string | null,"error": string | null,"gate_viewed_at": string | null,"id": string,"intro": string | null,"landing_viewed_at": string | null,"last_attempt_at": string | null,"logged_in_at": string | null,"login_clicked_at": string | null,"offer_accessed_at": string | null,"opened_at": string | null,"opportunity_viewed_at": string | null,"prospect_id": string,"provider_id": string | null,"reasons": (string)[],"score": number,"sent_at": string | null,"signed_up_at": string | null,"signup_clicked_at": string | null,"smtp_response": string | null,"status": string,"subject": string | null,"transport": string | null,"unsubscribed_at": string | null,"updated_at": string
+                    "attempts": number,"campaign_id": string,"clicked_at": string | null,"converted_at": string | null,"created_at": string,"email": string | null,"error": string | null,"gate_viewed_at": string | null,"id": string,"intro": string | null,"landing_viewed_at": string | null,"last_attempt_at": string | null,"logged_in_at": string | null,"login_clicked_at": string | null,"offer_accessed_at": string | null,"opened_at": string | null,"opportunity_viewed_at": string | null,"priority": number,"prospect_id": string,"provider_id": string | null,"reasons": (string)[],"score": number,"sent_at": string | null,"signed_up_at": string | null,"signup_clicked_at": string | null,"smtp_response": string | null,"status": string,"subject": string | null,"transport": string | null,"unsubscribed_at": string | null,"updated_at": string
                   }
                   Insert: {
-                    "attempts"?: number,"campaign_id": string,"clicked_at"?: string | null,"converted_at"?: string | null,"created_at"?: string,"email"?: string | null,"error"?: string | null,"gate_viewed_at"?: string | null,"id"?: string,"intro"?: string | null,"landing_viewed_at"?: string | null,"last_attempt_at"?: string | null,"logged_in_at"?: string | null,"login_clicked_at"?: string | null,"offer_accessed_at"?: string | null,"opened_at"?: string | null,"opportunity_viewed_at"?: string | null,"prospect_id": string,"provider_id"?: string | null,"reasons"?: (string)[],"score": number,"sent_at"?: string | null,"signed_up_at"?: string | null,"signup_clicked_at"?: string | null,"smtp_response"?: string | null,"status"?: string,"subject"?: string | null,"transport"?: string | null,"unsubscribed_at"?: string | null,"updated_at"?: string
+                    "attempts"?: number,"campaign_id": string,"clicked_at"?: string | null,"converted_at"?: string | null,"created_at"?: string,"email"?: string | null,"error"?: string | null,"gate_viewed_at"?: string | null,"id"?: string,"intro"?: string | null,"landing_viewed_at"?: string | null,"last_attempt_at"?: string | null,"logged_in_at"?: string | null,"login_clicked_at"?: string | null,"offer_accessed_at"?: string | null,"opened_at"?: string | null,"opportunity_viewed_at"?: string | null,"priority"?: number,"prospect_id": string,"provider_id"?: string | null,"reasons"?: (string)[],"score": number,"sent_at"?: string | null,"signed_up_at"?: string | null,"signup_clicked_at"?: string | null,"smtp_response"?: string | null,"status"?: string,"subject"?: string | null,"transport"?: string | null,"unsubscribed_at"?: string | null,"updated_at"?: string
                   }
                   Update: {
-                    "attempts"?: number,"campaign_id"?: string,"clicked_at"?: string | null,"converted_at"?: string | null,"created_at"?: string,"email"?: string | null,"error"?: string | null,"gate_viewed_at"?: string | null,"id"?: string,"intro"?: string | null,"landing_viewed_at"?: string | null,"last_attempt_at"?: string | null,"logged_in_at"?: string | null,"login_clicked_at"?: string | null,"offer_accessed_at"?: string | null,"opened_at"?: string | null,"opportunity_viewed_at"?: string | null,"prospect_id"?: string,"provider_id"?: string | null,"reasons"?: (string)[],"score"?: number,"sent_at"?: string | null,"signed_up_at"?: string | null,"signup_clicked_at"?: string | null,"smtp_response"?: string | null,"status"?: string,"subject"?: string | null,"transport"?: string | null,"unsubscribed_at"?: string | null,"updated_at"?: string
+                    "attempts"?: number,"campaign_id"?: string,"clicked_at"?: string | null,"converted_at"?: string | null,"created_at"?: string,"email"?: string | null,"error"?: string | null,"gate_viewed_at"?: string | null,"id"?: string,"intro"?: string | null,"landing_viewed_at"?: string | null,"last_attempt_at"?: string | null,"logged_in_at"?: string | null,"login_clicked_at"?: string | null,"offer_accessed_at"?: string | null,"opened_at"?: string | null,"opportunity_viewed_at"?: string | null,"priority"?: number,"prospect_id"?: string,"provider_id"?: string | null,"reasons"?: (string)[],"score"?: number,"sent_at"?: string | null,"signed_up_at"?: string | null,"signup_clicked_at"?: string | null,"smtp_response"?: string | null,"status"?: string,"subject"?: string | null,"transport"?: string | null,"unsubscribed_at"?: string | null,"updated_at"?: string
                   }
                   Relationships: [
                     {
@@ -1428,6 +1441,9 @@ isOneToOne: false
                            },
 "express_interest":
 { Args: { "p_company_id": string,"p_message"?: string,"p_opportunity_id": string }; Returns: string
+                           },
+"growth_metrics":
+{ Args: { "p_from": string,"p_to": string }; Returns: Json
                            },
 "hit_rate_limit":
 { Args: { "p_key": string,"p_max": number,"p_window_seconds": number }; Returns: boolean

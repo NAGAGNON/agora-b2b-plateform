@@ -9,6 +9,8 @@ import { logServerError } from "@/lib/errors";
 import type { Json } from "@/lib/database.types";
 import { mergeNames } from "@/lib/article-figures";
 import { factNumbersText } from "@/lib/daily-report";
+import { ARTICLE_FAMILIES, topicSlugs, type GrowthStrategy } from "@/lib/growth/strategy";
+import { currentStrategy } from "@/lib/growth/engine";
 
 /**
  * Analyses de marché rédigées automatiquement à partir des opportunités réellement
@@ -144,7 +146,7 @@ function groupBy(opps: Opp[], key: (o: Opp) => string | null | undefined) {
  * par mois, avec au moins 5 opportunités ouvertes. En dernier recours, la synthèse
  * nationale du jour (un thème par date) garantit au moins un article quotidien.
  */
-export function candidateTopics(ctx: Awaited<ReturnType<typeof loadContext>>, now = new Date()): Topic[] {
+export function candidateTopics(ctx: Awaited<ReturnType<typeof loadContext>>, now = new Date(), strategy: GrowthStrategy | null = null): Topic[] {
   const month = now.toISOString().slice(0, 7);
   const day = now.toISOString().slice(0, 10);
   const families: Topic[][] = [[], [], [], [], []];
@@ -172,7 +174,13 @@ export function candidateTopics(ctx: Awaited<ReturnType<typeof loadContext>>, no
     const r = regionByName(name);
     if (r && opps.length >= MIN_OPPORTUNITIES) families[4].push({ key: `region:${r.slug}:${month}`, kind: "region", theme: `Région : ${r.name}`, page: `/opportunites/${r.slug}`, opps });
   }
-  const queues = families.map((f) => f.filter((t) => !ctx.used.has(t.key)).sort((a, b) => b.opps.length - a.opps.length));
+  // Stratégie automatique : thèmes les plus recherchés d'abord (pages consultées, visites Google), puis les plus fournis
+  const boosts = strategy?.articles.boosts ?? {};
+  const boost = (t: Topic) => topicSlugs(t.key, (code) => ctx.departments.get(code)?.slug).reduce((sum, slug) => sum + (boosts[slug] ?? 0), 0);
+  const sorted = families.map((f) => f.filter((t) => !ctx.used.has(t.key)).sort((a, b) => boost(b) - boost(a) || b.opps.length - a.opps.length));
+  // Familles dans l'ordre choisi par la stratégie (celles qui obtiennent le plus de lectures d'abord)
+  const order = strategy?.articles.family_order ?? ARTICLE_FAMILIES;
+  const queues = order.map((kind) => sorted[ARTICLE_FAMILIES.indexOf(kind)]).filter((q): q is Topic[] => Boolean(q));
   // Alternance des familles : secteur, département, croisement, acheteur, secteur…
   const ordered: Topic[] = [];
   while (queues.some((q) => q.length)) for (const q of queues) if (q.length) ordered.push(q.shift()!);
@@ -317,8 +325,8 @@ export async function generateArticles(count: number, opts: { autoPublish: boole
   const deadline = opts.deadline ?? Date.now() + 240_000;
   if (!process.env.ANTHROPIC_API_KEY) return { skipped: "ANTHROPIC_API_KEY absente" };
   if (count <= 0) return { generated: [] as Outcome[] };
-  const ctx = await loadContext();
-  const topics = candidateTopics(ctx);
+  const [ctx, strategy] = await Promise.all([loadContext(), currentStrategy().catch(() => null)]);
+  const topics = candidateTopics(ctx, new Date(), strategy);
   const results: Outcome[] = [];
   const done = () => results.filter((r) => r.status === (opts.autoPublish ? "PUBLISHED" : "DRAFT")).length;
   for (const t of topics) {
@@ -348,6 +356,8 @@ export async function runDailyArticles({ deadline }: { deadline?: number } = {})
   let q = db.from("articles").select("id", { count: "exact", head: true });
   q = autoPublish ? q.gte("published_at", since.toISOString()) : q.gte("created_at", since.toISOString());
   const { count } = await q;
-  const perDay = Math.min(3, Math.max(1, s.articles_per_day ?? 1));
+  // Rythme : le réglage de l'administration, relevé par la stratégie automatique si les articles amènent des visiteurs
+  const strategy = await currentStrategy(db).catch(() => null);
+  const perDay = Math.min(3, Math.max(1, s.articles_per_day ?? 1, strategy?.articles.per_day ?? 1));
   return generateArticles(perDay - (count ?? 0), { autoPublish, deadline });
 }
