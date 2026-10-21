@@ -271,7 +271,7 @@ export function renderDailyReportEmail(row: ReportRow, { socialPost = null, grow
     parts.push(h2("Consommation Vercel (temps de calcul)"));
     parts.push(
       muted(
-        `L'offre gratuite de Vercel inclut ${n(cpu.forfait_mensuel_minutes)} minutes de calcul par mois, pages du site comprises ; au-delà, le site est mis en pause. Les tâches automatiques ont un plafond de ${n(cpu.plafond_quotidien_secondes)} secondes par jour : au-delà, la recherche d'adresses attend le lendemain (les e-mails prêts partent quand même).`,
+        `Seuil de référence : ${n(cpu.forfait_mensuel_minutes)} minutes de calcul par mois, pages du site comprises (au-delà, Vercel facture un supplément). Les tâches automatiques ont un plafond de ${n(cpu.plafond_quotidien_secondes)} secondes par jour : au-delà, la recherche d'adresses attend le lendemain (les e-mails prêts partent quand même).`,
       ),
     );
     parts.push(
@@ -282,7 +282,7 @@ export function renderDailyReportEmail(row: ReportRow, { socialPost = null, grow
       ]),
     );
     parts.push(table(["Tâche", "Passages", "Calcul (s)", "Durée (s)"], cpu.par_tache.map((t) => [t.tache, n(t.passages), n(t.secondes_de_calcul), n(t.duree_secondes)]), "Aucune mesure aujourd'hui."));
-    lines.push(`Consommation Vercel : ${n(cpu.secondes_aujourdhui)} s de calcul aujourd'hui (plafond ${n(cpu.plafond_quotidien_secondes)} s), ${n(cpu.minutes_sur_30_jours)} min sur 30 jours (forfait ${n(cpu.forfait_mensuel_minutes)} min, pages comprises).`, "");
+    lines.push(`Consommation Vercel : ${n(cpu.secondes_aujourdhui)} s de calcul aujourd'hui (plafond ${n(cpu.plafond_quotidien_secondes)} s), ${n(cpu.minutes_sur_30_jours)} min sur 30 jours (seuil de référence ${n(cpu.forfait_mensuel_minutes)} min, pages comprises).`, "");
   }
 
   if (socialPost) {
