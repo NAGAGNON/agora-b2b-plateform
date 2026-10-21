@@ -47,7 +47,7 @@ export default function SubscriptionTermsPage() {
                 {paid.map((p) => (
                   <li key={p.code}>
                     <strong>{p.name}</strong> : {formatEuros(p.priceHT)} HT par mois, soit {formatEuros(priceTTC(p.priceHT))} TTC avec la TVA au taux de
-                    20 %.
+                    20 % ; ou, en abonnement annuel, {formatEuros(p.yearlyPriceHT)} HT par an, soit {formatEuros(priceTTC(p.yearlyPriceHT))} TTC.
                   </li>
                 ))}
               </ul>
@@ -89,8 +89,9 @@ export default function SubscriptionTermsPage() {
           title: "Durée et renouvellement",
           content: (
             <p>
-              L&apos;abonnement est mensuel, sans engagement de durée. Il se renouvelle automatiquement chaque mois à date anniversaire, le montant étant
-              prélevé sur le moyen de paiement enregistré, jusqu&apos;à résiliation.
+              L&apos;abonnement mensuel est sans engagement de durée : il se renouvelle automatiquement chaque mois à date anniversaire. L&apos;abonnement
+              annuel est payé d&apos;avance pour 12 mois et se renouvelle automatiquement chaque année à date anniversaire. Dans les deux cas, le montant
+              est prélevé sur le moyen de paiement enregistré, jusqu&apos;à résiliation.
             </p>
           ),
         },
@@ -120,7 +121,7 @@ export default function SubscriptionTermsPage() {
           title: "Résiliation",
           content: (
             <p>
-              La résiliation se fait en quelques clics depuis « Mon abonnement » (portail Stripe). Elle prend effet à la fin de la période mensuelle déjà
+              La résiliation se fait en quelques clics depuis « Mon abonnement » (portail Stripe). Elle prend effet à la fin de la période (mensuelle ou annuelle) déjà
               payée : vous conservez l&apos;offre jusqu&apos;à cette date, sans remboursement de la période en cours. {LEGAL.brand} peut résilier un
               abonnement en cas de manquement grave aux CGU, après information motivée.
             </p>
