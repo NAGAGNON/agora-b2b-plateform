@@ -2,9 +2,9 @@ import Link from "next/link";
 import { requireCompany } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/format";
-import { stripeConfigured, paidPlansOpen, stripeMode } from "@/lib/billing/stripe";
+import { stripeConfigured, paidPlansOpen, stripeMode, yearlyAvailable } from "@/lib/billing/stripe";
 import { confirmCheckoutSession, ENTITLED_STATUSES } from "@/lib/billing/sync";
-import { PLANS, PLAN_LABEL, formatEuros, planInfo, priceTTC, type PlanCode } from "@/lib/billing/plans";
+import { PLANS, PLAN_LABEL, formatEuros, planInfo, priceTTC, yearlyMonthlyHT, yearlySavingHT, type PlanCode } from "@/lib/billing/plans";
 import { Card, CardHeader } from "@/components/ui/card";
 import { Notice } from "@/components/ui/notice";
 import { Badge } from "@/components/ui/badge";
@@ -54,6 +54,7 @@ export default async function SubscriptionPage(props: PageProps<"/dashboard/abon
   const open = paidPlansOpen(session.isStaff);
   const mode = stripeMode();
   const amount = sub?.unit_amount_cents != null ? sub.unit_amount_cents / 100 : info.priceHT;
+  const yearly = sub?.billing_interval === "year";
 
   const limits: { key: keyof Usage; label: string }[] = [
     { key: "active_needs", label: "Besoins actifs" },
@@ -117,7 +118,7 @@ export default async function SubscriptionPage(props: PageProps<"/dashboard/abon
           <div>
             <p className="text-sm text-slate-500">Prix</p>
             <p className="font-heading text-2xl font-bold text-navy">
-              {plan === "FREE" ? "0 €" : `${formatEuros(amount)} HT / mois`}
+              {plan === "FREE" ? "0 €" : `${formatEuros(amount)} HT / ${yearly ? "an" : "mois"}`}
             </p>
             {plan !== "FREE" && <p className="text-xs text-slate-500">soit {formatEuros(priceTTC(amount))} TTC (TVA 20 %)</p>}
           </div>
@@ -199,7 +200,16 @@ export default async function SubscriptionPage(props: PageProps<"/dashboard/abon
                         <li key={h}>{h}</li>
                       ))}
                     </ul>
-                    <CheckoutForm plan={p.code as "PRO" | "BUSINESS"} label={p.cta} variant={p.popular ? "primary" : "secondary"} />
+                    <CheckoutForm plan={p.code as "PRO" | "BUSINESS"} label={`${p.cta} — mensuel`} variant={p.popular ? "primary" : "secondary"} />
+                    {yearlyAvailable(p.code as "PRO" | "BUSINESS") && (
+                      <div className="border-t border-slate-100 pt-3">
+                        <p className="mb-2 text-sm text-slate-700">
+                          <strong>Abonnement annuel : {formatEuros(p.yearlyPriceHT)} HT / an</strong> — 2 mois offerts, soit {formatEuros(yearlyMonthlyHT(p))} HT par
+                          mois ({formatEuros(yearlySavingHT(p))} HT d&apos;économie)
+                        </p>
+                        <CheckoutForm plan={p.code as "PRO" | "BUSINESS"} interval="year" label={`${p.cta} — annuel`} variant="outline" />
+                      </div>
+                    )}
                   </div>
                 </Card>
               ))}

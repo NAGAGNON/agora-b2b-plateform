@@ -3,7 +3,7 @@ import { Check } from "lucide-react";
 import { ButtonLink } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ComparisonTable } from "@/components/billing/comparison-table";
-import { PLANS, formatEuros, priceTTC } from "@/lib/billing/plans";
+import { PLANS, formatEuros, priceTTC, yearlyMonthlyHT, yearlySavingHT } from "@/lib/billing/plans";
 import { pageMetadata } from "@/lib/seo";
 import { Notice } from "@/components/ui/notice";
 import { stripeMode } from "@/lib/billing/stripe";
@@ -11,7 +11,7 @@ import { env } from "@/lib/env";
 
 export const metadata = pageMetadata({
   title: "Tarifs",
-  description: "LinkProB2B Gratuit, Pro (29 € HT/mois) et Business (59 € HT/mois) : sans engagement, résiliable à tout moment.",
+  description: "LinkProB2B Gratuit, Pro (59 € HT/mois ou 590 € HT/an) et Business (99 € HT/mois ou 990 € HT/an) : sans engagement en mensuel, 2 mois offerts en annuel.",
   path: "/tarifs",
 });
 
@@ -54,6 +54,12 @@ export default function PricingPage() {
             <p className="mt-1 text-xs text-slate-500">
               {p.priceHT > 0 ? `soit ${formatEuros(priceTTC(p.priceHT))} TTC (TVA 20 %) · sans engagement` : "Sans carte bancaire, sans limite de durée"}
             </p>
+            {p.yearlyPriceHT > 0 && (
+              <p className="mt-3 rounded-lg bg-teal-50 px-3 py-2 text-sm text-teal-800" data-testid={`yearly-${p.code}`}>
+                <strong>Ou {formatEuros(p.yearlyPriceHT)} HT / an</strong> : 2 mois offerts, soit {formatEuros(yearlyMonthlyHT(p))} HT par mois
+                ({formatEuros(yearlySavingHT(p))} HT d&apos;économie)
+              </p>
+            )}
             <ul className="mt-5 flex-1 space-y-2 text-sm">
               {p.highlights.map((h) => (
                 <li key={h} className="flex gap-2">

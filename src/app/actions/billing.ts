@@ -48,18 +48,21 @@ async function ensureCustomer(companyId: string, companyName: string, email: str
 
 const checkoutSchema = z.object({
   plan: z.enum(["PRO", "BUSINESS"]),
+  interval: z.enum(["month", "year"]).default("month"),
   acceptTerms: z.literal("on", { error: "Veuillez accepter les conditions d'abonnement pour continuer." }),
 });
 
 export async function startCheckout(_prev: ActionResult | null, fd: FormData): Promise<ActionResult> {
-  const parsed = checkoutSchema.safeParse({ plan: fd.get("plan"), acceptTerms: fd.get("acceptTerms") });
+  const parsed = checkoutSchema.safeParse({ plan: fd.get("plan"), interval: fd.get("interval") ?? undefined, acceptTerms: fd.get("acceptTerms") });
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Offre invalide." };
   const plan = parsed.data.plan as PaidPlan;
+  const interval = parsed.data.interval;
   const { session, error } = await adminCompany(`/dashboard/abonnement?offre=${plan}`);
   if (error) return { ok: false, error };
   if (!stripeConfigured()) return { ok: false, error: UNAVAILABLE };
   if (!paidPlansOpen(session.isStaff)) return { ok: false, error: "Les offres payantes ouvrent prochainement : le paiement en ligne est en cours de mise en service." };
   if (liveBlocked()) return { ok: false, error: "Paiement désactivé : le mode LIVE de Stripe n'est pas encore autorisé." };
+  if (interval === "year" && !priceIdFor(plan, "year")) return { ok: false, error: "L'abonnement annuel n'est pas encore disponible pour cette offre. Choisissez l'abonnement mensuel." };
   if (!(await rateLimit("billing-checkout", 10, 3600))) return { ok: false, error: "Trop de tentatives. Réessayez dans quelques minutes." };
 
   const companyId = session.activeCompany.company.id;
@@ -76,9 +79,9 @@ export async function startCheckout(_prev: ActionResult | null, fd: FormData): P
       mode: "subscription",
       customer,
       client_reference_id: companyId,
-      line_items: [{ price: priceIdFor(plan)!, quantity: 1 }],
-      subscription_data: { metadata: { company_id: companyId, plan }, ...(tax ? { default_tax_rates: [tax] } : {}) },
-      metadata: { company_id: companyId, plan, terms_accepted_at: new Date().toISOString(), accepted_by: session.userId },
+      line_items: [{ price: priceIdFor(plan, interval)!, quantity: 1 }],
+      subscription_data: { metadata: { company_id: companyId, plan, interval }, ...(tax ? { default_tax_rates: [tax] } : {}) },
+      metadata: { company_id: companyId, plan, interval, terms_accepted_at: new Date().toISOString(), accepted_by: session.userId },
       billing_address_collection: "required",
       customer_update: { address: "auto", name: "auto" },
       tax_id_collection: { enabled: true },
@@ -88,7 +91,7 @@ export async function startCheckout(_prev: ActionResult | null, fd: FormData): P
       cancel_url: `${env.siteUrl}/dashboard/abonnement?paiement=annule`,
     });
     url = checkout.url;
-    await db.from("audit_logs").insert({ actor_user_id: session.userId, action: "billing.checkout_started", entity_type: "company", entity_id: companyId, metadata: { plan, terms_accepted: true } });
+    await db.from("audit_logs").insert({ actor_user_id: session.userId, action: "billing.checkout_started", entity_type: "company", entity_id: companyId, metadata: { plan, interval, terms_accepted: true } });
   } catch (e) {
     logServerError("stripe checkout", e);
     return { ok: false, error: "Impossible d'ouvrir la page de paiement pour le moment. Réessayez dans quelques instants." };

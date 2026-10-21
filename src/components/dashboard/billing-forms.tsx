@@ -8,12 +8,23 @@ import { FieldError } from "@/components/ui/form";
 import type { ActionResult } from "@/lib/validation";
 
 /** Souscription : case d'acceptation non pré-cochée, obligatoire, contrôlée aussi côté serveur. */
-export function CheckoutForm({ plan, label, variant = "primary" }: { plan: "PRO" | "BUSINESS"; label: string; variant?: "primary" | "secondary" | "outline" }) {
+export function CheckoutForm({
+  plan,
+  label,
+  interval = "month",
+  variant = "primary",
+}: {
+  plan: "PRO" | "BUSINESS";
+  label: string;
+  interval?: "month" | "year";
+  variant?: "primary" | "secondary" | "outline";
+}) {
   const [state, action] = useActionState(startCheckout, null as ActionResult | null);
-  const id = `terms-${plan}`;
+  const id = `terms-${plan}-${interval}`;
   return (
     <form action={action} className="space-y-3">
       <input type="hidden" name="plan" value={plan} />
+      <input type="hidden" name="interval" value={interval} />
       <label htmlFor={id} className="flex cursor-pointer items-start gap-2.5 text-left text-xs text-slate-600">
         <input id={id} type="checkbox" name="acceptTerms" required className="mt-0.5 size-4 shrink-0 accent-teal" />
         <span>

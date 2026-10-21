@@ -12,20 +12,21 @@ process.env.STRIPE_SECRET_KEY = "sk_test_integration";
 process.env.STRIPE_WEBHOOK_SECRET = "whsec_integration_secret";
 process.env.STRIPE_PRO_PRICE_ID = "price_it_pro";
 process.env.STRIPE_BUSINESS_PRICE_ID = "price_it_business";
+process.env.STRIPE_PRO_YEARLY_PRICE_ID = "price_it_pro_yearly";
 
 const { POST } = await import("@/app/api/stripe/webhook/route");
-const { getStripe, stripeMode } = await import("@/lib/billing/stripe");
+const { getStripe, stripeMode, planForPrice, priceIdFor, yearlyAvailable } = await import("@/lib/billing/stripe");
 const { confirmCheckoutSession } = await import("@/lib/billing/sync");
 
 const stripe = new Stripe("sk_test_integration");
 const now = Math.floor(Date.now() / 1000);
 let seq = 0;
 
-function subscription(over: { id: string; companyId: string; price: string; status?: string; cancel?: boolean; amount?: number }) {
+function subscription(over: { id: string; companyId: string; price: string; status?: string; cancel?: boolean; amount?: number; interval?: "month" | "year"; customer?: string }) {
   return {
     id: over.id,
     object: "subscription",
-    customer: `cus_${RUN}`,
+    customer: over.customer ?? `cus_${RUN}`,
     status: over.status ?? "active",
     cancel_at_period_end: over.cancel ?? false,
     cancel_at: null,
@@ -40,8 +41,8 @@ function subscription(over: { id: string; companyId: string; price: string; stat
         {
           id: `si_${over.id}`,
           current_period_start: now,
-          current_period_end: now + 30 * 86400,
-          price: { id: over.price, unit_amount: over.amount ?? 2900, currency: "eur", recurring: { interval: "month" } },
+          current_period_end: now + (over.interval === "year" ? 365 : 30) * 86400,
+          price: { id: over.price, unit_amount: over.amount ?? 5900, currency: "eur", recurring: { interval: over.interval ?? "month" } },
         },
       ],
     },
@@ -191,12 +192,12 @@ describe("cycle d'abonnement piloté par les webhooks", () => {
   });
 
   it("Pro → Business (changement de formule)", async () => {
-    await send("customer.subscription.updated", subscription({ id: subId, companyId: coId, price: "price_it_business", amount: 5900 }));
+    await send("customer.subscription.updated", subscription({ id: subId, companyId: coId, price: "price_it_business", amount: 9900 }));
     expect(await planOf(coId)).toBe("BUSINESS");
   });
 
   it("paiement échoué : accès conservé pendant les relances, facture et alerte enregistrées", async () => {
-    vi.spyOn(getStripe().subscriptions, "retrieve").mockResolvedValue(subscription({ id: subId, companyId: coId, price: "price_it_business", status: "past_due", amount: 5900 }) as never);
+    vi.spyOn(getStripe().subscriptions, "retrieve").mockResolvedValue(subscription({ id: subId, companyId: coId, price: "price_it_business", status: "past_due", amount: 9900 }) as never);
     const invoice = {
       id: `in_${RUN}_1`, object: "invoice", customer: `cus_${RUN}`, number: "IT-0001", status: "open", amount_due: 7080, amount_paid: 0, currency: "eur",
       billing_reason: "subscription_cycle", period_start: now, period_end: now, hosted_invoice_url: "https://invoice.stripe.com/i/test", invoice_pdf: null,
@@ -214,7 +215,7 @@ describe("cycle d'abonnement piloté par les webhooks", () => {
   });
 
   it("paiement réussi : abonnement de nouveau actif", async () => {
-    vi.spyOn(getStripe().subscriptions, "retrieve").mockResolvedValue(subscription({ id: subId, companyId: coId, price: "price_it_business", amount: 5900 }) as never);
+    vi.spyOn(getStripe().subscriptions, "retrieve").mockResolvedValue(subscription({ id: subId, companyId: coId, price: "price_it_business", amount: 9900 }) as never);
     const r = await send("invoice.paid", {
       id: `in_${RUN}_1`, object: "invoice", customer: `cus_${RUN}`, number: "IT-0001", status: "paid", amount_due: 7080, amount_paid: 7080, currency: "eur",
       billing_reason: "subscription_cycle", period_start: now, period_end: now, hosted_invoice_url: null, invoice_pdf: "https://pay.stripe.com/invoice/test/pdf",
@@ -228,13 +229,13 @@ describe("cycle d'abonnement piloté par les webhooks", () => {
   });
 
   it("résiliation programmée puis fin d'abonnement : retour au Gratuit, données conservées", async () => {
-    await send("customer.subscription.updated", subscription({ id: subId, companyId: coId, price: "price_it_business", cancel: true, amount: 5900 }));
+    await send("customer.subscription.updated", subscription({ id: subId, companyId: coId, price: "price_it_business", cancel: true, amount: 9900 }));
     expect(await planOf(coId)).toBe("BUSINESS");
     const { data: n } = await admin.from("notifications").select("type").eq("user_id", owner.id).eq("type", "subscription_cancel_scheduled");
     expect(n?.length).toBe(1);
 
     const before = await admin.from("alerts").select("id", { count: "exact", head: true }).eq("user_id", owner.id);
-    await send("customer.subscription.deleted", subscription({ id: subId, companyId: coId, price: "price_it_business", status: "canceled", amount: 5900 }));
+    await send("customer.subscription.deleted", subscription({ id: subId, companyId: coId, price: "price_it_business", status: "canceled", amount: 9900 }));
     expect(await planOf(coId)).toBe("FREE");
     const after = await admin.from("alerts").select("id", { count: "exact", head: true }).eq("user_id", owner.id);
     expect(after.count).toBe(before.count);
@@ -243,6 +244,23 @@ describe("cycle d'abonnement piloté par les webhooks", () => {
     expect((await owner.client.from("alerts").insert({ user_id: owner.id, name: `IT ${RUN} alerte 3`, frequency: "DAILY" })).error?.hint).toBe("PLAN_LIMIT:alerts");
     const { data: end } = await admin.from("notifications").select("type").eq("user_id", owner.id).eq("type", "subscription_ended");
     expect(end?.length).toBe(1);
+  });
+
+  it("abonnement annuel : prix annuel reconnu, période annuelle enregistrée, MRR ramené au mois", async () => {
+    expect(priceIdFor("PRO", "year")).toBe("price_it_pro_yearly");
+    expect(planForPrice("price_it_pro_yearly")).toBe("PRO");
+    expect(yearlyAvailable("PRO")).toBe(true);
+    expect(yearlyAvailable("BUSINESS")).toBe(false);
+    const yid = `sub_${RUN}_yearly`;
+    await send("customer.subscription.created", subscription({ id: yid, companyId: otherCo, price: "price_it_pro_yearly", amount: 59000, interval: "year", customer: `cus_${RUN}_y` }));
+    expect(await planOf(otherCo)).toBe("PRO");
+    const { data: row } = await admin.from("subscriptions").select("billing_interval, unit_amount_cents").eq("stripe_subscription_id", yid).single();
+    expect(row).toEqual({ billing_interval: "year", unit_amount_cents: 59000 });
+    const boss = await user("admin-factu-annuel", "ADMIN");
+    const { data } = await boss.client.rpc("admin_billing_stats");
+    expect((data as Record<string, number>).mrr_cents).toBeGreaterThanOrEqual(Math.floor(59000 / 12));
+    await send("customer.subscription.deleted", subscription({ id: yid, companyId: otherCo, price: "price_it_pro_yearly", status: "canceled", amount: 59000, interval: "year", customer: `cus_${RUN}_y` }));
+    expect(await planOf(otherCo)).toBe("FREE");
   });
 
   it("checkout.session.completed : relit l'abonnement chez Stripe et l'applique", async () => {
@@ -265,6 +283,6 @@ describe("cycle d'abonnement piloté par les webhooks", () => {
     const boss = await user("admin-factu", "ADMIN");
     const { data, error: e2 } = await boss.client.rpc("admin_billing_stats");
     expect(e2).toBeNull();
-    expect((data as Record<string, number>).mrr_cents).toBeGreaterThanOrEqual(2900);
+    expect((data as Record<string, number>).mrr_cents).toBeGreaterThanOrEqual(5900);
   });
 });

@@ -1,6 +1,8 @@
 # Paiement Stripe (abonnements Pro et Business)
 
-Offres : **Gratuit** (0 €), **Pro** (29 € HT/mois), **Business** (59 € HT/mois), TVA 20 % en sus.
+Offres : **Gratuit** (0 €), **Pro** (59 € HT/mois), **Business** (99 € HT/mois), TVA 20 % en sus. Abonnement annuel : Pro 590 € HT/an, Business 990 € HT/an (2 mois offerts), proposé dès que les prix annuels sont configurés.
+
+> Changement de prix (octobre 2026) : un prix Stripe ne se modifie pas. Créer de nouveaux prix (59 € et 99 € mensuels, 590 € et 990 € annuels) sur les produits existants, puis remplacer les identifiants dans les variables d'environnement Vercel.
 Les limites sont appliquées **en base de données** (table `plans` + déclencheurs), jamais seulement dans l'interface.
 
 ## Fonctionnement
@@ -22,8 +24,10 @@ Garde-fou : une clé `sk_live_…` est refusée tant que `STRIPE_ALLOW_LIVE=1` n
 |---|---|---|
 | `STRIPE_SECRET_KEY` | `sk_test_…` | Developers → API keys → Secret key |
 | `STRIPE_PUBLISHABLE_KEY` | `pk_test_…` (facultative) | Developers → API keys → Publishable key |
-| `STRIPE_PRO_PRICE_ID` | `price_…` | Product catalog → produit « LinkProB2B Pro » → prix 29 € mensuel récurrent |
-| `STRIPE_BUSINESS_PRICE_ID` | `price_…` | Product catalog → produit « LinkProB2B Business » → prix 59 € mensuel récurrent |
+| `STRIPE_PRO_PRICE_ID` | `price_…` | Product catalog → produit « LinkProB2B Pro » → prix 59 € mensuel récurrent |
+| `STRIPE_BUSINESS_PRICE_ID` | `price_…` | Product catalog → produit « LinkProB2B Business » → prix 99 € mensuel récurrent |
+| `STRIPE_PRO_YEARLY_PRICE_ID` | `price_…` (facultative) | Produit « LinkProB2B Pro » → prix 590 € annuel récurrent (2 mois offerts) |
+| `STRIPE_BUSINESS_YEARLY_PRICE_ID` | `price_…` (facultative) | Produit « LinkProB2B Business » → prix 990 € annuel récurrent (2 mois offerts) |
 | `STRIPE_WEBHOOK_SECRET` | `whsec_…` | Developers → Webhooks → endpoint créé → Signing secret |
 | `STRIPE_TAX_RATE_ID` | `txr_…` (facultative) | Product catalog → Tax rates → TVA 20 % « exclusive » |
 

@@ -12,6 +12,7 @@ export type PlanInfo = {
   code: PlanCode;
   name: string;
   priceHT: number; // euros par mois, hors taxes
+  yearlyPriceHT: number; // euros par an, hors taxes (abonnement annuel : 2 mois offerts)
   tagline: string;
   highlights: string[];
   cta: string;
@@ -23,6 +24,7 @@ export const PLANS: PlanInfo[] = [
     code: "FREE",
     name: "Gratuit",
     priceHT: 0,
+    yearlyPriceHT: 0,
     tagline: "Pour découvrir LinkProB2B et publier un premier besoin.",
     highlights: ["Profil entreprise", "Recherche d'opportunités et d'entreprises", "1 besoin actif", "5 demandes de contact par mois", "10 favoris", "1 alerte"],
     cta: "Créer mon compte gratuitement",
@@ -30,7 +32,8 @@ export const PLANS: PlanInfo[] = [
   {
     code: "PRO",
     name: "Pro",
-    priceHT: 29,
+    priceHT: 59,
+    yearlyPriceHT: 590,
     tagline: "Pour développer votre activité avec des opportunités adaptées.",
     highlights: [
       "Besoins actifs illimités",
@@ -47,7 +50,8 @@ export const PLANS: PlanInfo[] = [
   {
     code: "BUSINESS",
     name: "Business",
-    priceHT: 59,
+    priceHT: 99,
+    yearlyPriceHT: 990,
     tagline: "Pour les équipes commerciales et achats.",
     highlights: ["Tout Pro, plus :", "Utilisateurs multiples", "300 demandes de contact par mois", "Badge Business sur votre profil", "Statistiques avancées"],
     cta: "Passer à Business",
@@ -62,6 +66,13 @@ export function planInfo(code: string | null | undefined): PlanInfo {
 
 export const formatEuros = (n: number) => n.toLocaleString("fr-FR", { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 }) + " €";
 export const priceTTC = (ht: number) => Math.round(ht * (1 + VAT_RATE) * 100) / 100;
+
+export type BillingInterval = "month" | "year";
+
+/** Économie de l'abonnement annuel par rapport à 12 mensualités (en euros HT). */
+export const yearlySavingHT = (p: PlanInfo) => p.priceHT * 12 - p.yearlyPriceHT;
+/** Prix annuel ramené au mois (en euros HT, arrondi au centime). */
+export const yearlyMonthlyHT = (p: PlanInfo) => Math.round((p.yearlyPriceHT / 12) * 100) / 100;
 
 /** Tableau comparatif (true = inclus, false = non inclus, texte = limite). */
 export const COMPARISON: { label: string; values: [string | boolean, string | boolean, string | boolean] }[] = [
