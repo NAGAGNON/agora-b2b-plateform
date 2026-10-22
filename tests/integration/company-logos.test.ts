@@ -61,6 +61,32 @@ describe("Logo repris du site de l'entreprise", () => {
     expect((await autoLogoFor(admin, id, fetchImpl))?.status).toBe("FOUND");
   });
 
+  it("logo automatique trouvé par l'ancienne méthode : recherché à nouveau et remplacé, ancien fichier supprimé", async () => {
+    const id = await setup("logo-ancien", SITE);
+    const old = `${id}/ancien-logo-site.png`;
+    await admin.storage.from("company-logos").upload(old, Buffer.from("x"), { contentType: "image/png" });
+    await admin.from("companies").update({ logo_path: old, logo_source: "AUTO", logo_auto_version: 1, logo_auto_checked_at: new Date().toISOString(), logo_auto_site: SITE }).eq("id", id);
+    const r = await processMissingLogos(admin, { limit: 200, fetchImpl });
+    expect(r.refreshed).toBeGreaterThanOrEqual(1);
+    const { data: c } = await admin.from("companies").select("logo_path, logo_source, logo_auto_version").eq("id", id).single();
+    expect(c?.logo_path).not.toBe(old);
+    expect(c?.logo_source).toBe("AUTO");
+    expect(c?.logo_auto_version).toBe(2);
+    expect((await admin.storage.from("company-logos").list(id)).data?.map((f) => f.name)).not.toContain("ancien-logo-site.png");
+    // Méthode à jour : plus de nouvelle recherche
+    calls = 0;
+    expect(await autoLogoFor(admin, id, fetchImpl)).toBeNull();
+    expect(calls).toBe(0);
+  });
+
+  it("logo déposé par l'entreprise, même ancien : jamais remplacé par la nouvelle recherche", async () => {
+    const id = await setup("logo-depose-ancien", SITE);
+    await admin.from("companies").update({ logo_path: `${id}/depose.png`, logo_source: null, logo_auto_version: 1 }).eq("id", id);
+    calls = 0;
+    expect(await autoLogoFor(admin, id, fetchImpl)).toBeNull();
+    expect(calls).toBe(0);
+  });
+
   it("traitement par lots : entreprises sans site notées, sans nouvel essai", async () => {
     const id = await setup("logo-sans-site", null);
     const r = await processMissingLogos(admin, { limit: 200, fetchImpl });
