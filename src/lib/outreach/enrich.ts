@@ -176,14 +176,14 @@ export function robotsAllows(robots: string, path: string): boolean {
 // ---------------------------------------------------------------- Réseau
 
 /** Refuse les adresses internes (protection contre les requêtes vers le réseau privé). */
-async function isPublicHost(host: string): Promise<boolean> {
+export async function isPublicHost(host: string): Promise<boolean> {
   if (/^(localhost|.*\.local|.*\.internal)$/i.test(host)) return false;
   const addrs = isIP(host) ? [{ address: host }] : await lookup(host, { all: true }).catch(() => []);
   if (!addrs.length) return false;
   return addrs.every(({ address }) => !/^(10\.|127\.|0\.|169\.254\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|::1$|f[cd]|fe80)/i.test(address));
 }
 
-async function fetchText(url: string, fetchImpl: typeof fetch, maxBytes = 800_000): Promise<{ status: number; text: string } | null> {
+export async function fetchText(url: string, fetchImpl: typeof fetch, maxBytes = 800_000): Promise<{ status: number; text: string } | null> {
   const u = new URL(url);
   if (!/^https?:$/.test(u.protocol) || !(await isPublicHost(u.hostname))) return null;
   const res = await fetchImpl(url, { headers: { "User-Agent": USER_AGENT, Accept: "text/html,text/plain;q=0.9" }, redirect: "follow", signal: AbortSignal.timeout(8000) });

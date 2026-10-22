@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useActionState, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Copy, Edit, Pause, Play, ShieldCheck, X, Archive, RotateCcw, Wrench } from "lucide-react";
 import { ActionForm } from "@/components/admin/action-form";
@@ -11,6 +11,8 @@ import { SubmitButton } from "@/components/ui/submit-button";
 import { useToast } from "@/components/ui/toast";
 import { markContactHandled, markDuplicate, moderateOpportunity, resolveReport, runMaintenance, setCompanyStatus, setUserRole, setUserStatus, updateSetting, verifyCompany, verifyExternal } from "@/app/actions/admin";
 import { PLATFORM_ROLE_LABELS, type PlatformRole } from "@/lib/constants";
+import { fetchMissingLogos } from "@/app/actions/admin-logos";
+import { Notice } from "@/components/ui/notice";
 
 type ModAction = "APPROVE" | "REJECT" | "REQUEST_CHANGES" | "SUSPEND" | "ARCHIVE" | "REINSTATE";
 const MOD: Record<ModAction, { label: string; icon: typeof Check; variant: "primary" | "outline" | "danger" | "secondary"; reason: boolean }> = {
@@ -238,5 +240,17 @@ export function MaintenanceButton() {
       </Button>
       {msg && <p className="text-sm text-slate-600">{msg}</p>}
     </div>
+  );
+}
+
+export function FetchLogosButton() {
+  const [state, action] = useActionState(fetchMissingLogos, null);
+  return (
+    <form action={action} className="space-y-2">
+      <SubmitButton size="sm" pendingLabel="Recherche en cours (environ une minute)…">
+        Récupérer les logos manquants
+      </SubmitButton>
+      {state && <Notice tone={state.ok ? "success" : "error"}>{state.ok ? state.message : state.error}</Notice>}
+    </form>
   );
 }

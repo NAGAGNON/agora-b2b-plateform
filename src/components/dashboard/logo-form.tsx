@@ -8,7 +8,7 @@ import { Notice } from "@/components/ui/notice";
 import { ALLOWED_LOGO_TYPES } from "@/lib/constants";
 
 /** Logo de l'entreprise : aperçu immédiat, enregistrement, remplacement et retrait. */
-export function LogoForm({ name, path }: { name: string; path: string | null }) {
+export function LogoForm({ name, path, auto = false }: { name: string; path: string | null; auto?: boolean }) {
   const [state, save] = useActionState(updateCompanyLogo, null);
   const [removed, remove] = useActionState(removeCompanyLogo, null);
   const [preview, setPreview] = useState<string | null>(null);
@@ -48,6 +48,9 @@ export function LogoForm({ name, path }: { name: string; path: string | null }) 
             {path ? "Remplacer le logo" : "Enregistrer le logo"}
           </SubmitButton>
         </form>
+        {auto && path && !preview && (
+          <p className="text-sm text-slate-600">Ce logo a été repris automatiquement de votre site internet. S&apos;il ne vous convient pas, remplacez-le ou retirez-le.</p>
+        )}
         <p className="text-xs text-slate-500">PNG, JPEG ou WebP, 2 Mo maximum. Un logo carré sur fond clair donne le meilleur rendu.</p>
         {path && (
           <form action={remove}>

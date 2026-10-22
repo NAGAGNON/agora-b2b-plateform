@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { newPage, RUN, signUpWithCompany } from "./helpers";
+import { login, newPage, RUN, signUpWithCompany } from "./helpers";
 
 test("logo de l'entreprise : rappel, ajout avec aperçu, affichage public, retrait", async ({ browser }) => {
   const page = await newPage(browser);
@@ -44,4 +44,15 @@ test("fichier refusé : format non accepté", async ({ browser }) => {
   await block.getByLabel("Fichier du logo").setInputFiles({ name: "logo.txt", mimeType: "text/plain", buffer: Buffer.from("pas une image") });
   await block.getByRole("button", { name: "Enregistrer le logo" }).click();
   await expect(block.locator('[role="alert"], .text-red-700, [data-tone="error"]').first()).toBeVisible();
+});
+
+test("administration : état des logos et recherche des logos manquants", async ({ browser }) => {
+  const page = await newPage(browser);
+  await login(page, "admin@demo.linkprob2b.test");
+  await page.goto("/admin/entreprises");
+  const panel = page.getByRole("region", { name: "Logos" });
+  await expect(panel).toContainText("Logos des entreprises");
+  await expect(panel).toContainText("sans logo à rechercher");
+  await panel.getByRole("button", { name: "Récupérer les logos manquants" }).click();
+  await expect(panel).toContainText(/entreprise\(s\) traitée\(s\)/, { timeout: 100_000 });
 });
