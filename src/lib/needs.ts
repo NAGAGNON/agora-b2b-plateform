@@ -112,7 +112,8 @@ export function analyzeNeed(o: NeedRow, ref: Awaited<ReturnType<typeof loadRefer
 
 /** Besoin publié par une entreprise inscrite, public, réel et encore ouvert. */
 export function isOpenNeed(o: Pick<NeedRow, "origin" | "status" | "visibility" | "is_demo" | "response_deadline">, now = Date.now()) {
-  // Besoin réservé aux inscrits : traité aussi (entreprises inscrites prévenues), sans prospection externe
+  // Besoin réservé aux inscrits : traité comme les autres (décision du propriétaire : on cherche des
+  // clients pour le demandeur, inscrits ou non) ; la fiche reste réservée aux comptes connectés.
   return o.origin === "INTERNAL" && o.status === "PUBLISHED" && ["PUBLIC", "MEMBERS_ONLY"].includes(o.visibility) && !o.is_demo && (!o.response_deadline || new Date(o.response_deadline).getTime() > now);
 }
 
@@ -232,8 +233,7 @@ export async function runNeedCampaign(db: DB, opportunityId: string, { now = new
     let outreach: NeedRunResult["prospects"];
     // Prospection : de nouvelles entreprises chaque jour (quota quotidien par besoin), une seule fois par jour
     const day = parisToday(now);
-    if (prospects && need.visibility !== "PUBLIC") outreach = { campaignId: existing?.outreach_campaign_id ?? null, identified: 0, relevant: 0, skipped: "Besoin réservé aux inscrits : pas de prospection hors de la plateforme" };
-    else if (prospects && existing?.prospects_added_on === day) outreach = { campaignId: existing.outreach_campaign_id, identified: 0, relevant: 0, skipped: "Entreprises du jour déjà ajoutées" };
+    if (prospects && existing?.prospects_added_on === day) outreach = { campaignId: existing.outreach_campaign_id, identified: 0, relevant: 0, skipped: "Entreprises du jour déjà ajoutées" };
     else if (prospects && Date.now() < deadline - 20_000) {
       const r = await buildNeedOutreachCampaign(db, opportunityId, { deadline: deadline - 15_000 });
       outreach = { campaignId: r.campaignId, identified: r.identified ?? 0, relevant: r.relevant ?? 0, skipped: r.skipped };

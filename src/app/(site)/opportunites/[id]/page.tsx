@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { JsonLd, breadcrumbLd } from "@/components/json-ld";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+import { createAdminClient } from "@/lib/supabase/admin";
 import type { Metadata } from "next";
 import {
   BadgeCheck,
@@ -86,6 +87,45 @@ export async function generateMetadata(props: PageProps<"/opportunites/[id]">): 
   });
 }
 
+/**
+ * Besoin « réservé aux membres » ouvert à un visiteur sans compte : jamais de détail. Arrivé par un
+ * e-mail de prospection qui lui proposait ce besoin, il voit la page d'accès « Créez votre compte » ;
+ * sinon, il est invité à s'inscrire et revient ensuite sur la fiche.
+ */
+async function membersOnlyGate(id: string) {
+  if (await getSession()) return null;
+  const db = createAdminClient();
+  const { data: o } = await db
+    .from("opportunities")
+    .select("id, title, city, department_code, sector_slug, response_deadline, budget_visible, budget_min, budget_max")
+    .eq("id", id)
+    .eq("status", "PUBLISHED")
+    .eq("visibility", "MEMBERS_ONLY")
+    .eq("is_demo", false)
+    .maybeSingle();
+  if (!o) return null;
+  const visitor = await outreachVisitor((await cookies()).get(OUTREACH_COOKIE)?.value);
+  const offered = visitor ? (await db.from("outreach_recipient_opportunities").select("opportunity_id").eq("recipient_id", visitor.id).eq("opportunity_id", id).maybeSingle()).data : null;
+  if (!visitor || !offered) redirect(`/inscription?suite=${encodeURIComponent(`/opportunites/${id}`)}`);
+  const h = await headers();
+  if (!h.get("next-router-prefetch") && h.get("purpose") !== "prefetch") await trackOutreach(visitor, "GATE_VIEW", { opportunityId: o.id });
+  const location = (await getLocationLabel())(o.city, o.department_code);
+  return (
+    <OfferAccessGate
+      token={visitor.token}
+      offer={{
+        id: o.id,
+        title: o.title,
+        buyer: null,
+        location,
+        sector: o.sector_slug ? sectorLabel(o.sector_slug, await getSectorLabels()) : null,
+        deadline: o.response_deadline,
+        budget: o.budget_visible ? formatBudget(o.budget_min, o.budget_max) : null,
+      }}
+    />
+  );
+}
+
 export default async function OpportunityPage(props: PageProps<"/opportunites/[id]">) {
   const { id } = await props.params;
   const sp = await props.searchParams;
@@ -97,7 +137,12 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
   }
 
   const o = await getOpportunityDetail(id);
-  if (!o || (o.is_demo && !(await showDemoData()))) notFound();
+  if (!o) {
+    const gate = await membersOnlyGate(id);
+    if (gate) return gate;
+    notFound();
+  }
+  if (o.is_demo && !(await showDemoData())) notFound();
   const session = await getSession();
   // Parcours « e-mail de prospection » : sans compte, le détail de l'offre n'est pas servi
   // (page d'accès « Créez votre compte »), quelle que soit l'URL utilisée pour arriver ici.

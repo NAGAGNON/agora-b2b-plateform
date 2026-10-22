@@ -21,7 +21,6 @@ function blocker(r: { status: string; visibility: string; is_demo: boolean; resp
   if (r.status === "PENDING_REVIEW") return "En attente de validation : validez-le dans Modération, la mise en relation démarre aussitôt.";
   if (r.status === "CHANGES_REQUESTED") return "Modifications demandées à l'entreprise : traité dès sa nouvelle validation.";
   if (r.status !== "PUBLISHED" || (r.response_deadline && new Date(r.response_deadline).getTime() < Date.now())) return "Besoin fermé ou échéance passée : plus de nouveaux envois.";
-  if (r.visibility !== "PUBLIC") return "Réservé aux inscrits : entreprises inscrites prévenues, pas de prospection hors de la plateforme.";
   return null;
 }
 
