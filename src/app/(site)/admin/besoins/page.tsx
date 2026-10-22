@@ -15,6 +15,9 @@ export const maxDuration = 120;
 /** Raison pour laquelle un besoin n'est pas (ou plus) mis en relation, en clair. */
 function blocker(r: { status: string; visibility: string; is_demo: boolean; response_deadline: string | null }) {
   if (r.is_demo) return "Besoin de démonstration : non traité.";
+  if (r.status === "DRAFT") return "Brouillon : pas encore soumis à validation. L'entreprise doit cliquer sur « Soumettre à validation » dans Mes besoins.";
+  if (r.status === "REJECTED") return "Publication refusée en modération : non traité.";
+  if (r.status === "SUSPENDED") return "Suspendu : rétablissez-le dans Modération pour reprendre la mise en relation.";
   if (r.status === "PENDING_REVIEW") return "En attente de validation : validez-le dans Modération, la mise en relation démarre aussitôt.";
   if (r.status === "CHANGES_REQUESTED") return "Modifications demandées à l'entreprise : traité dès sa nouvelle validation.";
   if (r.status !== "PUBLISHED" || (r.response_deadline && new Date(r.response_deadline).getTime() < Date.now())) return "Besoin fermé ou échéance passée : plus de nouveaux envois.";
@@ -36,7 +39,7 @@ export default async function AdminNeeds() {
     .from("opportunities")
     .select("id, title, status, visibility, published_at, created_at, response_deadline, is_demo, company:companies(name)")
     .eq("origin", "INTERNAL")
-    .in("status", ["PENDING_REVIEW", "CHANGES_REQUESTED", "PUBLISHED", "EXPIRED", "CLOSED"])
+    .in("status", ["DRAFT", "PENDING_REVIEW", "CHANGES_REQUESTED", "REJECTED", "SUSPENDED", "PUBLISHED", "EXPIRED", "CLOSED"])
     .order("created_at", { ascending: false })
     .limit(40);
   const rows = needs ?? [];
