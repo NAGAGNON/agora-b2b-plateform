@@ -23,6 +23,8 @@ export type DiscoveredCompany = {
   department_code: string | null;
   size_range: string | null;
   is_individual_entrepreneur: boolean;
+  /** Autres noms publics (sigle, enseignes, nom commercial) : pistes pour trouver le site officiel */
+  alt_names: string[];
   source_ref: string;
 };
 
@@ -35,12 +37,15 @@ type ApiEstablishment = {
   activite_principale?: string | null;
   etat_administratif?: string | null;
   est_siege?: boolean | null;
+  liste_enseignes?: string[] | null;
+  nom_commercial?: string | null;
 };
 
 type ApiCompany = {
   siren?: string;
   nom_complet?: string;
   nom_raison_sociale?: string | null;
+  sigle?: string | null;
   activite_principale?: string | null;
   tranche_effectif_salarie?: string | null;
   nature_juridique?: string | null;
@@ -97,8 +102,37 @@ export function mapApiCompany(c: ApiCompany, department?: string): DiscoveredCom
     department_code: establishmentDepartment(place),
     size_range: c.tranche_effectif_salarie ? (SIZE[c.tranche_effectif_salarie] ?? null) : null,
     is_individual_entrepreneur: ei,
+    alt_names: altNames(c, name, place),
     source_ref: `SIREN ${c.siren}${place.siret ? ` — établissement ${place.siret}` : ""}`,
   };
+}
+
+/** Sigle, enseignes, nom commercial et nom entre parenthèses de « nom_complet », sans doublon du nom principal. */
+export function altNames(c: ApiCompany, name: string, place?: ApiEstablishment | null): string[] {
+  const out: string[] = [];
+  const push = (v: string | null | undefined) => {
+    const t = (v ?? "").replace(/\s+/g, " ").trim();
+    if (t.length < 2 || t.length > 120) return;
+    if (t.toLowerCase() === name.toLowerCase() || out.some((o) => o.toLowerCase() === t.toLowerCase())) return;
+    out.push(t);
+  };
+  push(c.sigle);
+  for (const e of [place, c.siege]) {
+    for (const n of e?.liste_enseignes ?? []) push(n);
+    push(e?.nom_commercial);
+  }
+  for (const m of (c.nom_complet ?? "").matchAll(/\(([^)]+)\)/g)) push(m[1]);
+  return out.slice(0, 5);
+}
+
+/** Autres noms d'une entreprise déjà connue (recherche par SIREN, même API publique). */
+export async function companyAltNames(siren: string, name: string, { fetchImpl = fetch }: { fetchImpl?: typeof fetch } = {}): Promise<string[]> {
+  if (!/^\d{9}$/.test(siren)) return [];
+  const res = await fetchImpl(`${BASE}?q=${siren}&per_page=1`, { headers: { Accept: "application/json", "User-Agent": "LinkProB2B-Outreach/1.0 (+https://www.linkprob2b.com)" }, signal: AbortSignal.timeout(10_000) });
+  if (!res.ok) throw new Error(`API Recherche d'entreprises : HTTP ${res.status}`);
+  const body = (await res.json()) as { results?: ApiCompany[] };
+  const c = (body.results ?? []).find((x) => x.siren === siren);
+  return c ? altNames(c, name, c.siege) : [];
 }
 
 /**

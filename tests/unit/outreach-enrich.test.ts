@@ -131,11 +131,29 @@ describe("outreach — recherche complète (réseau simulé)", () => {
 describe("recherche gratuite du site officiel", () => {
   it("domaines déduits du nom (sans forme juridique)", async () => {
     const { domainCandidates } = await import("@/lib/outreach/enrich");
-    expect(domainCandidates("OCR RHONE ALPES")).toEqual(["ocr-rhone-alpes.fr", "ocr-rhone-alpes.com", "ocrrhonealpes.fr", "ocrrhonealpes.com", "ocr-rhone.fr", "ocr-rhone.com", "ocrrhone.fr", "ocrrhone.com", "ocr-rhone-alpes.net", "ocr-rhone-alpes.eu", "ocrrhonealpes.net", "ocrrhonealpes.eu"]);
-    expect(domainCandidates("SARL Électricité Dupont")).toEqual(["electricite-dupont.fr", "electricite-dupont.com", "electricitedupont.fr", "electricitedupont.com", "electricite-dupont.net", "electricite-dupont.eu", "electricitedupont.net", "electricitedupont.eu"]);
+    expect(domainCandidates("OCR RHONE ALPES")).toEqual(["ocr-rhone-alpes.fr", "ocr-rhone-alpes.com", "ocrrhonealpes.fr", "ocrrhonealpes.com", "ocr-rhone.fr", "ocr-rhone.com", "ocrrhone.fr", "ocrrhone.com", "ocr-rhone-alpes.net", "ocr-rhone-alpes.eu", "ocr-rhone-alpes.bzh", "ocrrhonealpes.net", "ocrrhonealpes.eu", "ocrrhonealpes.bzh"]);
+    expect(domainCandidates("SARL Électricité Dupont")).toEqual(["electricite-dupont.fr", "electricite-dupont.com", "electricitedupont.fr", "electricitedupont.com", "electricite-dupont.net", "electricite-dupont.eu", "electricite-dupont.bzh", "electricitedupont.net", "electricitedupont.eu", "electricitedupont.bzh"]);
     // Avec la ville : nom-ville.fr en plus
     expect(domainCandidates("Dupont Plomberie", "Brest")).toContain("dupont-plomberie-brest.fr");
     expect(domainCandidates("SAS")).toEqual([]);
+    // Sans les articles : « Les Menuiseries du Léon » → menuiseries-leon.fr
+    expect(domainCandidates("Les Menuiseries du Léon")).toContain("menuiseries-leon.fr");
+    expect(domainCandidates("Les Menuiseries du Léon").length).toBeLessThanOrEqual(16);
+  });
+
+  it("autres noms : sigle, enseignes, nom commercial, nom entre parenthèses", async () => {
+    const { altNames } = await import("@/lib/outreach/discovery");
+    const names = altNames(
+      { siren: "123456789", nom_complet: "SOCIETE BRETONNE DE MENUISERIE (SBM BOIS)", sigle: "SBM", siege: { liste_enseignes: ["MENUISERIE DU PORT"], nom_commercial: "Atelier Bois" } } as never,
+      "SOCIETE BRETONNE DE MENUISERIE",
+    );
+    expect(names).toEqual(["SBM", "MENUISERIE DU PORT", "Atelier Bois", "SBM BOIS"]);
+    expect(altNames({ siren: "1", nom_complet: "X", sigle: "x" } as never, "X")).toEqual([]);
+  });
+
+  it("adresse écrite en \\u0040 dans la page", async () => {
+    const { extractEmails } = await import("@/lib/outreach/enrich");
+    expect(extractEmails('<script>var m = "contact\\u0040menuiserie-leon.fr";</script>')).toContain("contact@menuiserie-leon.fr");
   });
 
   it("site retenu seulement si le SIREN y figure (même espacé)", async () => {
@@ -144,6 +162,9 @@ describe("recherche gratuite du site officiel", () => {
     expect(sirenOnPage("<p>SIRET : 12345678900012</p>", "123456789")).toBe(true);
     expect(sirenOnPage("<p>SIREN 987654321</p>", "123456789")).toBe(false);
     expect(sirenOnPage("<p>tél 0123456789</p>", "123456789")).toBe(false);
+    // Numéro de TVA intracommunautaire
+    expect(sirenOnPage("<p>TVA : FR 12 123 456 789</p>", "123456789")).toBe(true);
+    expect(sirenOnPage("<p>TVA FR12123456789</p>", "123456789")).toBe(true);
   });
 
   it("aucun SIREN connu : aucune hypothèse de site", async () => {

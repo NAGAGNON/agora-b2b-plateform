@@ -11,6 +11,8 @@ import { MIN_INDEXABLE, type Landing } from "@/lib/landing";
 import { getSession } from "@/lib/auth";
 import { getPlatformStats } from "@/lib/queries/platform";
 import { FreshnessBar } from "@/components/opportunities/freshness";
+import { AlertLeadForm } from "@/components/alert-lead-form";
+import { regionBySlug } from "@/lib/geo";
 
 export async function landingMetadata(landing: Landing, path: string, sp: RawSearchParams): Promise<Metadata> {
   const { total } = await searchOpportunities(parseOpportunityFilters(landing.fixed), 1);
@@ -62,9 +64,21 @@ export async function LandingPage({ landing, path, sp }: { landing: Landing; pat
       <h1 className="text-2xl font-bold sm:text-3xl">{landing.heading}</h1>
       <p className="mt-1 max-w-3xl text-slate-600">{landing.intro}</p>
       <FreshnessBar stats={await getPlatformStats()} className="mt-3 mb-4" />
+      {!session && landing.kind !== "france" && (
+        <div className="mb-6 max-w-3xl">
+          <AlertLeadForm
+            title="Recevoir ces marchés par e-mail"
+            label={landing.heading.replace(/^Opportunités (B2B )?(dans le département |en |— )?/, "")}
+            sector={typeof landing.fixed.secteur === "string" ? landing.fixed.secteur : null}
+            department={typeof landing.fixed.departement === "string" ? landing.fixed.departement : null}
+            region={typeof landing.fixed.region === "string" ? (regionBySlug(landing.fixed.region)?.name ?? null) : null}
+            path={path}
+          />
+        </div>
+      )}
       {landing.children && landing.children.length > 0 && (
         <details className="mb-6 rounded-xl border border-slate-200 bg-white p-4 text-sm">
-          <summary className="cursor-pointer font-semibold text-navy">{landing.kind === "region" ? "Par département" : "Par région"}</summary>
+          <summary className="cursor-pointer font-semibold text-navy">{landing.childrenLabel ?? (landing.kind === "region" ? "Par département" : "Par région")}</summary>
           <ul className="mt-3 flex flex-wrap gap-2">
             {landing.children.map((c) => (
               <li key={c.path}>
@@ -77,6 +91,22 @@ export async function LandingPage({ landing, path, sp }: { landing: Landing; pat
         </details>
       )}
       <OpportunityResults filters={filters} rawParams={sp} basePath={path} />
+      {landing.related && landing.related.links.length > 0 && (
+        <section className="mt-8" aria-labelledby="related-landings">
+          <h2 id="related-landings" className="text-lg font-bold">
+            {landing.related.label}
+          </h2>
+          <ul className="mt-3 flex flex-wrap gap-2 text-sm">
+            {landing.related.links.map((c) => (
+              <li key={c.path}>
+                <Link href={c.path} className="inline-block rounded-full bg-sky px-3 py-1 text-navy hover:bg-sky-200">
+                  {c.name}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       {!session && (
         <div className="mt-10 flex flex-col items-start gap-3 rounded-2xl bg-sky p-6 sm:flex-row sm:items-center sm:justify-between">
           <p className="font-semibold text-navy">Vous recherchez des opportunités similaires ? Créez votre compte LinkProB2B et recevez-les par alerte.</p>
