@@ -43,6 +43,13 @@ const TREATMENTS: Row[] = [
     recipients: "Prestataire d'envoi des e-mails",
   },
   {
+    purpose: "Suivi des comptes par e-mail : aide à la prise en main, opportunités publiées depuis la dernière visite, nouvelles fonctionnalités",
+    data: "Adresse e-mail, nom, date d'inscription et de dernière visite, secteurs et région de l'entreprise, ouverture et clics des e-mails",
+    basis: "Intérêt légitime (relation avec les titulaires d'un compte professionnel) ; au plus un e-mail par jour, opposition en un clic dans chaque e-mail",
+    retention: "Durée du compte ; arrêt immédiat en cas d'opposition",
+    recipients: "Prestataire d'envoi des e-mails",
+  },
+  {
     purpose: "Actualités de LinkProB2B",
     data: "Adresse e-mail, nom",
     basis: "Consentement (case facultative, non pré-cochée), retirable dans Paramètres",

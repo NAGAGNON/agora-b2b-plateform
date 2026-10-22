@@ -6,7 +6,7 @@ import { SubmitButton } from "@/components/ui/submit-button";
 import { sendFromToken } from "@/lib/veille/tracking";
 import { PRIVATE_METADATA } from "@/lib/seo";
 
-export const metadata: Metadata = { ...PRIVATE_METADATA, title: "Se désabonner de la veille" };
+export const metadata: Metadata = { ...PRIVATE_METADATA, title: "Ne plus recevoir nos e-mails" };
 
 /** Désinscription de la veille par e-mail : sans connexion, immédiate, le compte est conservé. */
 export default async function VeilleUnsubscribePage(props: PageProps<"/veille/desabonnement">) {
@@ -37,7 +37,7 @@ export default async function VeilleUnsubscribePage(props: PageProps<"/veille/de
             <CheckCircle2 className="size-10 text-teal-600" aria-hidden />
             <h1 className="mt-3 text-2xl font-bold">Désinscription confirmée</h1>
             <p className="mt-3 text-slate-600">
-              Vous ne recevrez plus la veille LinkProB2B par e-mail. Votre compte reste actif ; vous pouvez réactiver la veille à tout moment depuis votre espace.
+              Vous ne recevrez plus la veille ni les e-mails de suivi de LinkProB2B. Votre compte reste actif ; vous pouvez réactiver la veille à tout moment depuis votre espace.
             </p>
             <Link href="/dashboard/veille" className="mt-6 inline-block font-semibold text-teal-700 underline">
               Gérer mes préférences
@@ -46,7 +46,7 @@ export default async function VeilleUnsubscribePage(props: PageProps<"/veille/de
         ) : (
           <>
             <MailX className="size-10 text-navy" aria-hidden />
-            <h1 className="mt-3 text-2xl font-bold">Ne plus recevoir la veille par e-mail</h1>
+            <h1 className="mt-3 text-2xl font-bold">Ne plus recevoir nos e-mails (veille et suivi)</h1>
             <p className="mt-3 text-slate-600">
               En confirmant, l&apos;adresse <strong className="text-navy">{s.email}</strong> ne recevra plus les sélections ni les alertes quotidiennes de la veille. Les
               e-mails indispensables à votre compte (sécurité, messages) ne sont pas concernés.

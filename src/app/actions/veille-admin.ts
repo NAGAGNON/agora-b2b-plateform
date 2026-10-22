@@ -78,3 +78,17 @@ export async function testVeilleSmtp(_prev: ActionResult | null): Promise<Action
   const r = await verifySmtp();
   return r.ok ? { ok: true, message: r.message } : { ok: false, error: r.message };
 }
+
+/** Active ou suspend le suivi des inscrits (accueil, relances, nouveautés). */
+export async function setSuiviEnabled(_prev: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  await requireAdmin();
+  const enable = fd.get("enabled") === "1";
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("admin_update_setting", { p_key: "suivi", p_value: { enabled: enable } as never });
+  if (error) {
+    logServerError("suivi enable", error);
+    return { ok: false, error: "Modification refusée (droits ou double authentification)." };
+  }
+  revalidatePath("/admin/veille");
+  return { ok: true, message: enable ? "Suivi des inscrits activé." : "Suivi des inscrits suspendu." };
+}

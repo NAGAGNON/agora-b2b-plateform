@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { sendVeilleTest, setVeilleEnabled, testVeilleSmtp } from "@/app/actions/veille-admin";
+import { sendVeilleTest, setSuiviEnabled, setVeilleEnabled, testVeilleSmtp } from "@/app/actions/veille-admin";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { Notice } from "@/components/ui/notice";
 import { adminInput } from "@/components/admin/admin-filter";
@@ -59,6 +59,19 @@ export function VeilleSmtpTest() {
     <form action={action} className="space-y-2">
       <SubmitButton variant="outline" size="sm" pendingLabel="Connexion…">
         Tester la connexion au serveur d&apos;envoi
+      </SubmitButton>
+      {state && <Notice tone={state.ok ? "success" : "error"}>{state.ok ? state.message : state.error}</Notice>}
+    </form>
+  );
+}
+
+export function SuiviEnableForm({ enabled }: { enabled: boolean }) {
+  const [state, action] = useActionState(setSuiviEnabled, null);
+  return (
+    <form action={action} className="space-y-2">
+      <input type="hidden" name="enabled" value={enabled ? "0" : "1"} />
+      <SubmitButton variant={enabled ? "outline" : "primary"} pendingLabel="Enregistrement…">
+        {enabled ? "Suspendre le suivi des inscrits" : "Activer le suivi des inscrits"}
       </SubmitButton>
       {state && <Notice tone={state.ok ? "success" : "error"}>{state.ok ? state.message : state.error}</Notice>}
     </form>

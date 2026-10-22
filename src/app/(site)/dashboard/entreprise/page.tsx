@@ -6,6 +6,7 @@ import { getDepartments, getPlaces, getSectors } from "@/lib/queries/platform";
 import { Card, CardHeader } from "@/components/ui/card";
 import { Notice } from "@/components/ui/notice";
 import { CompanyForm } from "@/components/companies/company-form";
+import { LogoForm } from "@/components/dashboard/logo-form";
 import { InviteMemberForm, MemberControls } from "@/components/dashboard/profile-forms";
 import { COMPANY_ROLE_LABELS } from "@/lib/constants";
 import { formatDate } from "@/lib/format";
@@ -47,6 +48,14 @@ export default async function CompanySettingsPage() {
           Le badge « Entreprise vérifiée » est attribué par l&apos;équipe LinkProB2B après contrôle (SIREN, existence de l&apos;entreprise). Renseignez votre
           SIREN et contactez-nous pour en faire la demande.
         </Notice>
+      )}
+      {isAdmin && (
+        <Card id="logo">
+          <CardHeader title="Logo de l'entreprise" description={company.logo_path ? "Votre logo est en ligne." : "Ajoutez votre logo pour être reconnu au premier coup d'œil."} />
+          <div className="p-5">
+            <LogoForm name={company.name} path={company.logo_path} />
+          </div>
+        </Card>
       )}
       <Card>
         <CardHeader title="Profil de l'entreprise" description={isAdmin ? "Visible dans l'annuaire si l'option est cochée." : "Seuls les administrateurs de l'entreprise peuvent le modifier."} />

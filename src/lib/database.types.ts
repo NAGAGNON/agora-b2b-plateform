@@ -1244,13 +1244,13 @@ isOneToOne: true
                   ]
                 },"veille_sends": {
                   Row: {
-                    "attempts": number,"campaign_id": string,"clicked_at": string | null,"created_at": string,"email": string,"error": string | null,"id": string,"opened_at": string | null,"opportunity_ids": (string)[],"personalized": boolean,"sent_at": string | null,"status": string,"subject": string | null,"token": string,"unsubscribed_at": string | null,"user_id": string
+                    "attempts": number,"campaign_id": string,"clicked_at": string | null,"created_at": string,"email": string,"error": string | null,"id": string,"news_key": string | null,"opened_at": string | null,"opportunity_ids": (string)[],"personalized": boolean,"sent_at": string | null,"status": string,"step": string | null,"subject": string | null,"token": string,"unsubscribed_at": string | null,"user_id": string
                   }
                   Insert: {
-                    "attempts"?: number,"campaign_id": string,"clicked_at"?: string | null,"created_at"?: string,"email": string,"error"?: string | null,"id"?: string,"opened_at"?: string | null,"opportunity_ids"?: (string)[],"personalized"?: boolean,"sent_at"?: string | null,"status"?: string,"subject"?: string | null,"token"?: string,"unsubscribed_at"?: string | null,"user_id": string
+                    "attempts"?: number,"campaign_id": string,"clicked_at"?: string | null,"created_at"?: string,"email": string,"error"?: string | null,"id"?: string,"news_key"?: string | null,"opened_at"?: string | null,"opportunity_ids"?: (string)[],"personalized"?: boolean,"sent_at"?: string | null,"status"?: string,"step"?: string | null,"subject"?: string | null,"token"?: string,"unsubscribed_at"?: string | null,"user_id": string
                   }
                   Update: {
-                    "attempts"?: number,"campaign_id"?: string,"clicked_at"?: string | null,"created_at"?: string,"email"?: string,"error"?: string | null,"id"?: string,"opened_at"?: string | null,"opportunity_ids"?: (string)[],"personalized"?: boolean,"sent_at"?: string | null,"status"?: string,"subject"?: string | null,"token"?: string,"unsubscribed_at"?: string | null,"user_id"?: string
+                    "attempts"?: number,"campaign_id"?: string,"clicked_at"?: string | null,"created_at"?: string,"email"?: string,"error"?: string | null,"id"?: string,"news_key"?: string | null,"opened_at"?: string | null,"opportunity_ids"?: (string)[],"personalized"?: boolean,"sent_at"?: string | null,"status"?: string,"step"?: string | null,"subject"?: string | null,"token"?: string,"unsubscribed_at"?: string | null,"user_id"?: string
                   }
                   Relationships: [
                     {
@@ -1630,7 +1630,7 @@ isOneToOne: false
                            },
 "search_opportunities":
 { Args: { "p_city"?: string,"p_company_size"?: Database["public"]['Enums']["company_size"],"p_deadline_before"?: string,"p_department"?: string,"p_include_demo"?: boolean,"p_limit"?: number,"p_offset"?: number,"p_origin"?: Database["public"]['Enums']["opportunity_origin"],"p_place"?: string,"p_published_since"?: string,"p_q"?: string,"p_radius_km"?: number,"p_region"?: string,"p_sector"?: string,"p_skills"?: (string)[],"p_sort"?: string,"p_source"?: string,"p_status"?: string,"p_types"?: (Database["public"]['Enums']["opportunity_type"])[] }; Returns: {
-              "budget_max": number,"budget_min": number,"budget_visible": boolean,"city": string,"company_id": string,"company_name": string,"company_slug": string,"company_verified": boolean,"department_code": string,"distance_km": number,"effective_status": string,"external_buyer_name": string,"id": string,"is_demo": boolean,"origin": Database["public"]['Enums']["opportunity_origin"],"published_at": string,"rank": number,"region": string,"response_deadline": string,"sector_slug": string,"skills": (string)[],"source_name": string,"status": Database["public"]['Enums']["opportunity_status"],"summary": string,"title": string,"total_count": number,"type": Database["public"]['Enums']["opportunity_type"],"visibility": Database["public"]['Enums']["opportunity_visibility"]
+              "budget_max": number,"budget_min": number,"budget_visible": boolean,"city": string,"company_id": string,"company_logo_path": string,"company_name": string,"company_slug": string,"company_verified": boolean,"department_code": string,"distance_km": number,"effective_status": string,"external_buyer_name": string,"id": string,"is_demo": boolean,"origin": Database["public"]['Enums']["opportunity_origin"],"published_at": string,"rank": number,"region": string,"response_deadline": string,"sector_slug": string,"skills": (string)[],"source_name": string,"status": Database["public"]['Enums']["opportunity_status"],"summary": string,"title": string,"total_count": number,"type": Database["public"]['Enums']["opportunity_type"],"visibility": Database["public"]['Enums']["opportunity_visibility"]
             }[]
                            },
 "send_message":
@@ -1656,6 +1656,11 @@ isOneToOne: false
                            },
 "submit_proposal":
 { Args: { "p_additional_info"?: string,"p_company_id": string,"p_lead_time"?: string,"p_message": string,"p_opportunity_id": string,"p_price_amount"?: number,"p_price_details"?: string,"p_proposal_text"?: string,"p_valid_until"?: string }; Returns: string
+                           },
+"suivi_audience":
+{ Args: Record<PropertyKey, never>; Returns: {
+              "company_name": string,"company_region": string,"company_sectors": (string)[],"created_at": string,"email": string,"frequency": string,"full_name": string,"has_alert": boolean,"has_company": boolean,"has_logo": boolean,"keywords": (string)[],"last_seen_at": string,"profile_complete": boolean,"regions": (string)[],"sectors": (string)[],"types": (Database["public"]['Enums']["opportunity_type"])[],"user_id": string,"veille_on": boolean
+            }[]
                            },
 "track_event":
 { Args: { "p_event_name": string,"p_properties"?: Json }; Returns: undefined

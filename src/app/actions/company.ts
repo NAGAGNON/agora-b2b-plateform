@@ -93,17 +93,8 @@ export async function updateCompanyProfile(_prev: ActionResult | null, fd: FormD
 
   const logo = fd.get("logo");
   if (logo instanceof File && logo.size > 0) {
-    const v = await validateUpload(logo, { allowed: ALLOWED_LOGO_TYPES, maxBytes: MAX_LOGO_BYTES });
-    if (!v.ok) return { ok: false, error: v.error, fieldErrors: { logo: v.error } };
-    const path = storagePath(company.company.id, v.file.name);
-    const { error: upErr } = await supabase.storage.from("company-logos").upload(path, v.file.bytes, { contentType: v.file.mime });
-    if (upErr) {
-      logServerError("logo upload", upErr);
-      return { ok: false, error: "Le logo n'a pas pu être envoyé." };
-    }
-    const { data: prev } = await supabase.from("companies").select("logo_path").eq("id", company.company.id).single();
-    await supabase.from("companies").update({ logo_path: path }).eq("id", company.company.id);
-    if (prev?.logo_path) await supabase.storage.from("company-logos").remove([prev.logo_path]);
+    const saved = await saveLogo(supabase, company.company.id, logo);
+    if (!saved.ok) return saved;
   }
 
   if (d.description && d.sectors.length && d.skills.length) {
@@ -191,4 +182,56 @@ export async function deleteAccount(_prev: ActionResult | null, fd: FormData): P
   }
   await supabase.auth.signOut();
   redirect("/?compte=supprime");
+}
+
+type Supabase = Awaited<ReturnType<typeof createClient>>;
+
+/** Enregistre un nouveau logo puis supprime l'ancien fichier. */
+async function saveLogo(supabase: Supabase, companyId: string, logo: File): Promise<ActionResult> {
+  const v = await validateUpload(logo, { allowed: ALLOWED_LOGO_TYPES, maxBytes: MAX_LOGO_BYTES });
+  if (!v.ok) return { ok: false, error: v.error, fieldErrors: { logo: v.error } };
+  const path = storagePath(companyId, v.file.name);
+  const { error: upErr } = await supabase.storage.from("company-logos").upload(path, v.file.bytes, { contentType: v.file.mime });
+  if (upErr) {
+    logServerError("logo upload", upErr);
+    return { ok: false, error: "Le logo n'a pas pu être envoyé." };
+  }
+  const { data: prev } = await supabase.from("companies").select("logo_path").eq("id", companyId).single();
+  const { error } = await supabase.from("companies").update({ logo_path: path }).eq("id", companyId);
+  if (error) return actionError(error);
+  if (prev?.logo_path) await supabase.storage.from("company-logos").remove([prev.logo_path]);
+  return { ok: true, message: "Logo enregistré. Il apparaît sur votre fiche, dans l'annuaire et sur vos opportunités." };
+}
+
+async function logoAdmin(): Promise<{ companyId: string } | { error: string }> {
+  const session = await getSession();
+  const company = session?.activeCompany;
+  if (!company) return { error: "Aucune entreprise active." };
+  if (company.role !== "COMPANY_ADMIN") return { error: "Seul un administrateur de l'entreprise peut modifier le logo." };
+  return { companyId: company.company.id };
+}
+
+/** Ajout ou remplacement du logo (bloc « Logo » de l'espace entreprise). */
+export async function updateCompanyLogo(_prev: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  const who = await logoAdmin();
+  if ("error" in who) return { ok: false, error: who.error };
+  const logo = fd.get("logo");
+  if (!(logo instanceof File) || logo.size === 0) return { ok: false, error: "Choisissez une image.", fieldErrors: { logo: "Choisissez une image." } };
+  const r = await saveLogo(await createClient(), who.companyId, logo);
+  if (r.ok) revalidatePath("/", "layout");
+  return r;
+}
+
+/** Retire le logo (les initiales de l'entreprise s'affichent à la place). */
+export async function removeCompanyLogo(): Promise<ActionResult> {
+  const who = await logoAdmin();
+  if ("error" in who) return { ok: false, error: who.error };
+  const supabase = await createClient();
+  const { data: prev } = await supabase.from("companies").select("logo_path").eq("id", who.companyId).single();
+  if (!prev?.logo_path) return { ok: true, message: "Aucun logo à retirer." };
+  const { error } = await supabase.from("companies").update({ logo_path: null }).eq("id", who.companyId);
+  if (error) return actionError(error);
+  await supabase.storage.from("company-logos").remove([prev.logo_path]);
+  revalidatePath("/", "layout");
+  return { ok: true, message: "Logo retiré." };
 }
