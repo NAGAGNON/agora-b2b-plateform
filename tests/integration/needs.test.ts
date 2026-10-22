@@ -229,16 +229,23 @@ describe("Mise en relation d'un besoin publié", () => {
     expect(nc!.members_identified).toBeGreaterThanOrEqual(1);
   });
 
-  it("besoin réservé aux inscrits : traité (entreprises inscrites), sans prospection hors de la plateforme", async () => {
+  it("besoin réservé aux inscrits : traité comme les autres (entreprises inscrites et prospection dédiée)", async () => {
     const id = await need("Besoin réservé aux inscrits", { visibility: "MEMBERS_ONLY" });
     const r = await runNeedCampaign(admin, id, { deadline: Date.now() + 60_000 });
     expect(r.status).toBe("RUNNING");
     expect(r.members!.identified).toBeGreaterThan(0);
-    expect(r.prospects?.skipped).toMatch(/réservé aux inscrits/);
-    const { count } = await admin.from("outreach_campaigns").select("id", { count: "exact", head: true }).eq("kind", "NEED").eq("opportunity_id", id);
-    expect(count).toBe(0);
-    const daily = await processNeedCampaigns(admin, { deadline: Date.now() + 60_000, now: new Date(Date.now() + 86_400_000) });
-    expect(daily.results.some((x) => x.opportunityId === id)).toBe(true);
+    expect(r.prospects?.skipped ?? null).toBeNull();
+    expect(r.prospects?.campaignId).toBeTruthy();
+    await admin.from("outreach_campaigns").delete().eq("kind", "NEED").eq("opportunity_id", id);
+  });
+
+  it("entreprise inscrite sans secteur ni compétence déclarés : retenue si sa présentation recoupe le besoin", async () => {
+    await member("texte", "BOTH", { sectors: [], skills: [] });
+    await admin.from("company_profiles").update({ description: "Nous assurons la maintenance préventive et le dépannage de compresseurs d'air industriels." }).eq("company_id", C.texte);
+    const { data } = await admin.rpc("need_member_candidates", { p_opportunity_id: needId, p_limit: 100 });
+    const row = (data ?? []).find((c) => c.company_id === C.texte);
+    expect(row).toBeTruthy();
+    expect(row!.reasons.join(" ")).toMatch(/termes du besoin/);
   });
 
   it("données réservées : un utilisateur ne lit ni les campagnes ni les correspondances", async () => {

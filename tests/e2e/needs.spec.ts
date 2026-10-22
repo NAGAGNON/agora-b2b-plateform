@@ -96,3 +96,47 @@ test("un besoin validé déclenche la mise en relation, le message et le suivi",
   await visitor.goto("/opportunites?secteur=maintenance-industrielle");
   await expect(visitor.getByTestId("featured-needs")).toContainText(title);
 });
+
+test("administration : un besoin en brouillon ou en attente apparaît avec la raison", async ({ browser }) => {
+  const { data: co } = await db.from("companies").select("id").eq("is_demo", true).limit(1).single();
+  const draftTitle = `Brouillon ${RUN} de besoin`;
+  const { data: o, error } = await db
+    .from("opportunities")
+    .insert({ type: "QUOTE_REQUEST", origin: "INTERNAL", status: "DRAFT", visibility: "PUBLIC", company_id: co!.id, title: draftTitle, description: "Besoin enregistré en brouillon, pas encore soumis à validation par l'entreprise.", is_demo: false })
+    .select("id")
+    .single();
+  if (error) throw error;
+  try {
+    const admin = await newPage(browser);
+    await login(admin, "admin@demo.linkprob2b.test");
+    await admin.goto("/admin/besoins");
+    await expect(admin.getByTestId("need-row").filter({ hasText: draftTitle }).getByTestId("need-blocker")).toContainText("Brouillon : pas encore soumis");
+    await db.from("opportunities").update({ status: "PENDING_REVIEW" }).eq("id", o.id);
+    await admin.reload();
+    await expect(admin.getByTestId("need-row").filter({ hasText: draftTitle }).getByTestId("need-blocker")).toContainText("En attente de validation");
+  } finally {
+    await db.from("opportunities").delete().eq("id", o.id);
+  }
+});
+
+test("besoin réservé aux membres : un visiteur sans compte est invité à s'inscrire, puis retrouve la fiche", async ({ browser }) => {
+  const { data: co } = await db.from("companies").select("id").eq("is_demo", true).limit(1).single();
+  const t = `Réservé ${RUN} aux membres`;
+  const { data: o, error } = await db
+    .from("opportunities")
+    .insert({ type: "QUOTE_REQUEST", origin: "INTERNAL", status: "PUBLISHED", visibility: "MEMBERS_ONLY", company_id: co!.id, title: t, description: "Besoin réservé aux membres de la plateforme, ouvert après inscription.", is_demo: false, published_at: new Date().toISOString() })
+    .select("id")
+    .single();
+  if (error) throw error;
+  try {
+    const visitor = await newPage(browser);
+    await visitor.goto(`/opportunites/${o.id}`);
+    await expect(visitor).toHaveURL(new RegExp(`/inscription\\?suite=%2Fopportunites%2F${o.id}`));
+    const member = await newPage(browser);
+    await login(member, "fournisseur@demo.linkprob2b.test");
+    await member.goto(`/opportunites/${o.id}`);
+    await expect(member.getByRole("heading", { name: t })).toBeVisible();
+  } finally {
+    await db.from("opportunities").delete().eq("id", o.id);
+  }
+});

@@ -374,7 +374,7 @@ export async function buildNeedOutreachCampaign(
 ): Promise<BuildResult & { identified?: number; relevant?: number; added?: number }> {
   const settings = await loadSettings(db);
   const { data: o } = await db.from("opportunities").select(`${OPP_FIELDS}, origin`).eq("id", opportunityId).maybeSingle();
-  if (!o || o.origin !== "INTERNAL" || o.status !== "PUBLISHED" || o.visibility !== "PUBLIC" || o.is_demo) return { campaignId: null, skipped: "Besoin non publié publiquement" };
+  if (!o || o.origin !== "INTERNAL" || o.status !== "PUBLISHED" || o.is_demo) return { campaignId: null, skipped: "Besoin non publié" };
   const a = analyzeOpportunity(o);
   const { data: existing } = await db.from("outreach_campaigns").select("id, status").eq("kind", "NEED").eq("opportunity_id", opportunityId).maybeSingle();
   if (existing && ["BUILDING", "CANCELLED"].includes(existing.status)) return { campaignId: existing.id, skipped: existing.status === "BUILDING" ? "Campagne en cours de préparation" : "Campagne annulée par l'administrateur" };
