@@ -210,7 +210,7 @@ export default async function CompanyPage(props: PageProps<"/entreprises/[slug]"
               {opps && opps.length > 0 ? (
                 <div className="grid gap-4 md:grid-cols-2">
                   {opps.map((o) => (
-                    <OpportunityCard key={o.id} o={{ ...o, company_name: c.name, company_verified: Boolean(c.verified_at), budget_min: o.budget_visible ? o.budget_min : null, budget_max: o.budget_visible ? o.budget_max : null }} />
+                    <OpportunityCard key={o.id} o={{ ...o, company_name: c.name, company_verified: Boolean(c.verified_at), company_logo_path: c.logo_path, budget_min: o.budget_visible ? o.budget_min : null, budget_max: o.budget_visible ? o.budget_max : null }} />
                   ))}
                 </div>
               ) : (

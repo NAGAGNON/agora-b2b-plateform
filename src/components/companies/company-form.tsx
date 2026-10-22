@@ -174,9 +174,6 @@ export function CompanyForm({ mode, values = {}, places, departments, sectors, n
                 {(p) => <Input {...p} type="tel" defaultValue={values.contact_phone ?? ""} />}
               </Field>
             </div>
-            <Field label="Logo" name="logo" error={fe?.logo} hint="PNG, JPEG ou WebP — 2 Mo maximum.">
-              {(p) => <Input {...p} type="file" accept="image/png,image/jpeg,image/webp" className="h-auto py-2" />}
-            </Field>
             <Checkbox name="isPublic" defaultChecked={values.is_public ?? true} label="Afficher mon entreprise dans l'annuaire public" hint="Décochez pour masquer votre profil de l'annuaire (vos publications restent visibles)." />
           </fieldset>
         </>

@@ -122,6 +122,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
       <GettingStarted
         steps={[
           { done: missing.length === 0, label: "Compléter le profil de l'entreprise", hint: "Secteurs, zone, compétences : la base de vos recommandations.", href: "/dashboard/entreprise", cta: "Compléter le profil" },
+          { done: Boolean(company.logo_path), label: "Ajouter le logo de l'entreprise", hint: "Il s'affiche sur votre fiche, dans l'annuaire et sur vos opportunités.", href: "/dashboard/entreprise#logo", cta: "Ajouter mon logo" },
           { done: (alerts.count ?? 0) > 0, label: "Créer une alerte", hint: "Soyez prévenu dès qu'une opportunité correspond à vos critères.", href: "/dashboard/alertes", cta: "Créer une alerte" },
           { done: veilleOn, label: "Recevoir la veille par e-mail", hint: "Une sélection le lundi et le vendredi, ou chaque jour si vous préférez.", href: "/dashboard/veille", cta: "Choisir ma veille" },
           { done: (favs.count ?? 0) > 0, label: "Enregistrer une première opportunité", hint: "Ajoutez en favori les offres à suivre pour les retrouver ici.", href: supplier ? "/dashboard/recommandations" : "/opportunites", cta: "Voir les opportunités" },

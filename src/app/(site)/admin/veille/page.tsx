@@ -7,8 +7,9 @@ import { Card, CardHeader } from "@/components/ui/card";
 import { Notice } from "@/components/ui/notice";
 import { buttonClasses } from "@/components/ui/button";
 import { setVeilleCampaignStatus } from "@/app/actions/veille-admin";
-import { VeilleEnableForm, VeilleSmtpTest, VeilleTestForm } from "@/components/admin/veille-actions";
-import { editionsFor, loadVeilleSettings, previewFor, veilleStats } from "@/lib/veille/engine";
+import { SuiviEnableForm, VeilleEnableForm, VeilleSmtpTest, VeilleTestForm } from "@/components/admin/veille-actions";
+import { editionsFor, loadVeilleSettings, previewFor, suiviPreviewFor, suiviStats, veilleStats } from "@/lib/veille/engine";
+import { loadSuiviSettings, STEP_LABELS, type SuiviStep } from "@/lib/veille/suivi";
 import { criteriaFor } from "@/lib/veille/select";
 import { veilleFrom } from "@/lib/veille/send";
 import { checkDeliverability } from "@/lib/veille/deliverability";
@@ -17,7 +18,7 @@ import { parisToday } from "@/lib/daily-report";
 
 export const metadata = { title: "Veille par e-mail" };
 
-const KIND_LABELS: Record<string, string> = { INVITE: "Invitation à activer la veille", LAUNCH: "Lancement", MONDAY: "Lundi", FRIDAY: "Vendredi", DAILY: "Alerte quotidienne" };
+const KIND_LABELS: Record<string, string> = { INVITE: "Invitation à activer la veille", LAUNCH: "Lancement", MONDAY: "Lundi", FRIDAY: "Vendredi", DAILY: "Alerte quotidienne", SUIVI: "Suivi des inscrits" };
 const STATUS_LABELS: Record<string, string> = { BUILDING: "En préparation", SENDING: "En cours d'envoi", PAUSED: "Suspendue", SENT: "Envoyée", CANCELLED: "Annulée", EMPTY: "Rien à envoyer" };
 const FREQ_LABELS: Record<string, string> = { TWICE_WEEKLY: "Lundi et vendredi", DAILY: "Quotidienne" };
 
@@ -34,16 +35,20 @@ function Stat({ label, value, hint }: { label: string; value: number | string; h
 export default async function AdminVeille(props: PageProps<"/admin/veille">) {
   const session = await requireAdmin();
   const sp = await props.searchParams;
-  const kind = (typeof sp.edition === "string" && sp.edition in KIND_LABELS && sp.edition !== "INVITE" ? sp.edition : "LAUNCH") as VeilleKind;
+  const kind = (typeof sp.edition === "string" && sp.edition in KIND_LABELS && sp.edition !== "INVITE" && sp.edition !== "SUIVI" ? sp.edition : "LAUNCH") as VeilleKind;
   const forUser = typeof sp.pour === "string" ? sp.pour : "";
   const db = createAdminClient();
   const from = veilleFrom();
   const domain = from.address.split("@")[1] ?? "";
-  const [settings, stats, preview, dnsChecks] = await Promise.all([
+  const step = (typeof sp.suivi === "string" && sp.suivi in STEP_LABELS ? sp.suivi : "RETOUR") as SuiviStep;
+  const [settings, stats, preview, dnsChecks, suiviSettings, sStats, suiviPreview] = await Promise.all([
     loadVeilleSettings(db),
     veilleStats(db),
     previewFor(db, kind, forUser || null),
     domain ? checkDeliverability(domain).catch(() => []) : Promise.resolve([]),
+    loadSuiviSettings(db),
+    suiviStats(db),
+    suiviPreviewFor(db, step, forUser || session.userId),
   ]);
   const today = parisToday();
   const launchDone = stats.campaigns.some((c) => c.kind === "LAUNCH");
@@ -145,7 +150,7 @@ export default async function AdminVeille(props: PageProps<"/admin/veille">) {
         <CardHeader title="Aperçu" description="Rendu réel avec les annonces ouvertes du moment. Rien n'est enregistré ni envoyé." />
         <div className="space-y-3 p-5">
           <div className="flex flex-wrap gap-2">
-            {Object.entries(KIND_LABELS).filter(([k]) => k !== "INVITE").map(([k, l]) => (
+            {Object.entries(KIND_LABELS).filter(([k]) => k !== "INVITE" && k !== "SUIVI").map(([k, l]) => (
               <Link key={k} href={`/admin/veille?edition=${k}${forUser ? `&pour=${forUser}` : ""}`} className={buttonClasses({ variant: k === kind ? "primary" : "outline", size: "sm" })}>
                 {l}
               </Link>
@@ -168,6 +173,58 @@ export default async function AdminVeille(props: PageProps<"/admin/veille">) {
           ) : (
             <Notice tone="warning">Aucune opportunité pertinente : cet e-mail ne serait pas envoyé.</Notice>
           )}
+        </div>
+      </Card>
+
+      <Card id="suivi">
+        <CardHeader
+          title="Suivi des inscrits"
+          description="Accueil des nouveaux comptes (fiche et logo à J1, alerte à J3, découverte à J6), relance des absents (tous les 2 jours la première quinzaine, puis 3, 7 et 14 jours ; 14 jours si les derniers messages n'ont pas été ouverts) et nouveautés du site. Au plus un e-mail par personne et par jour, veille comprise, dans la limite du plafond quotidien. Désinscription en un clic dans chaque e-mail."
+        />
+        <div className="space-y-4 p-5">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <p className="text-sm font-semibold text-navy">{suiviSettings.enabled ? "Activé : préparé chaque matin avec la veille." : "Suspendu : aucun e-mail de suivi n'est préparé."}</p>
+            <SuiviEnableForm enabled={suiviSettings.enabled} />
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <caption className="sr-only">Envois de suivi sur 30 jours</caption>
+              <thead className="text-xs text-slate-500">
+                <tr>
+                  <th className="py-2 pr-3">Étape (30 jours)</th>
+                  <th className="py-2 pr-3">Envoyés</th>
+                  <th className="py-2 pr-3">Ouverts</th>
+                  <th className="py-2 pr-3">Clics</th>
+                  <th className="py-2 pr-3">Désinscriptions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(Object.keys(STEP_LABELS) as SuiviStep[]).map((k) => {
+                  const b = sStats[k] ?? { sent: 0, opened: 0, clicked: 0, unsubscribed: 0 };
+                  return (
+                    <tr key={k} className="border-t border-slate-100">
+                      <td className="py-2 pr-3">{STEP_LABELS[k]}</td>
+                      <td className="py-2 pr-3">{b.sent}</td>
+                      <td className="py-2 pr-3">{b.opened}</td>
+                      <td className="py-2 pr-3">{b.clicked}</td>
+                      <td className="py-2 pr-3">{b.unsubscribed}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {(Object.keys(STEP_LABELS) as SuiviStep[]).map((k) => (
+              <Link key={k} href={`/admin/veille?suivi=${k}${forUser ? `&pour=${forUser}` : ""}#suivi`} className={buttonClasses({ variant: k === step ? "primary" : "outline", size: "sm" })}>
+                {STEP_LABELS[k]}
+              </Link>
+            ))}
+          </div>
+          <p className="text-sm text-slate-600">
+            Aperçu pour {suiviPreview.member.email || "un compte type"} — objet : <strong>{suiviPreview.email.subject}</strong> — {suiviPreview.items.length} opportunité(s).
+          </p>
+          <iframe title="Aperçu de l'e-mail de suivi" srcDoc={suiviPreview.email.html} className="h-[720px] w-full rounded-lg border border-slate-200 bg-white" sandbox="" />
         </div>
       </Card>
 

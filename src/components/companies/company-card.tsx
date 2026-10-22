@@ -1,12 +1,12 @@
 import Link from "next/link";
-import Image from "next/image";
 import { BadgeCheck, MapPin } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { DemoBadge } from "@/components/demo";
 import { COMPANY_KIND_LABELS, sectorLabel, type CompanyKind } from "@/lib/constants";
 import { getSectorLabels } from "@/lib/queries/platform";
-import { initials } from "@/lib/format";
-import { logoUrl } from "@/lib/storage-urls";
+import { CompanyLogo } from "@/components/companies/company-logo";
+
+export { CompanyLogo };
 
 export type CompanyCardData = {
   slug: string;
@@ -22,16 +22,6 @@ export type CompanyCardData = {
   is_demo: boolean;
 };
 
-export function CompanyLogo({ name, path, size = 56 }: { name: string; path: string | null; size?: number }) {
-  const url = logoUrl(path);
-  return url ? (
-    <Image src={url} alt={`Logo ${name}`} width={size} height={size} className="shrink-0 rounded-xl border border-slate-200 bg-white object-contain" style={{ width: size, height: size }} unoptimized />
-  ) : (
-    <span aria-hidden className="flex shrink-0 items-center justify-center rounded-xl bg-navy font-heading font-bold text-white" style={{ width: size, height: size, fontSize: size / 2.8 }}>
-      {initials(name)}
-    </span>
-  );
-}
 
 export async function CompanyCard({ c }: { c: CompanyCardData }) {
   const labels = await getSectorLabels();

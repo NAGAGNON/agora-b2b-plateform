@@ -6,6 +6,7 @@ import { OPPORTUNITY_TYPE_LABELS, SECTOR_LABELS, sectorLabel } from "@/lib/const
 import { renderVeilleEmail, renderVeilleInvitation, type VeilleKind } from "@/lib/veille/render";
 import { cleanPool, criteriaFor, MIN_DAILY_ITEMS, MIN_NEWSLETTER_ITEMS, selectOpportunities, type AudienceMember, type VeilleOpportunity } from "@/lib/veille/select";
 import type { VeilleMessage, VeilleSendResult } from "@/lib/veille/send";
+import { buildSuivi, loadSuiviAudience, loadSuiviSettings, renderSuiviEmail, SUIVI_NEWS, type SuiviMember, type SuiviStep } from "@/lib/veille/suivi";
 
 type DB = SupabaseClient<Database>;
 
@@ -80,7 +81,7 @@ export async function loadAudience(db: DB): Promise<AudienceMember[]> {
 }
 
 /** Opportunités déjà envoyées (ou en attente d'envoi) à chaque destinataire : jamais deux fois la même. */
-async function alreadySent(db: DB, userIds: string[]) {
+export async function alreadySent(db: DB, userIds: string[]) {
   const map = new Map<string, Set<string>>();
   for (let i = 0; i < userIds.length; i += 200) {
     const { data } = await db.from("veille_sends").select("user_id, opportunity_ids").in("user_id", userIds.slice(i, i + 200)).in("status", ["PENDING", "SENDING", "SENT"]);
@@ -176,6 +177,9 @@ export async function processVeilleQueue(db: DB, settings: VeilleSettings, opts:
   const { count: sentToday } = await db.from("veille_sends").select("id", { count: "exact", head: true }).eq("status", "SENT").gte("sent_at", parisDayStart(parisToday(now())).toISOString());
   let remaining = Math.max(0, settings.daily_cap - (sentToday ?? 0));
   const audience = new Map((await loadAudience(db)).map((m) => [m.user_id, m]));
+  // Suivi des inscrits : destinataires et annonces récentes chargés une seule fois, à la demande
+  let suivi: { audience: Map<string, SuiviMember>; pool: VeilleOpportunity[] } | null = null;
+  const suiviData = async () => (suivi ??= { audience: new Map((await loadSuiviAudience(db)).map((m) => [m.user_id, m])), pool: await loadPool(db, 30, now()) });
   const touched = new Set<string>();
   while (Date.now() < opts.deadline) {
     if (remaining <= 0) {
@@ -184,7 +188,7 @@ export async function processVeilleQueue(db: DB, settings: VeilleSettings, opts:
     }
     const { data: next } = await db
       .from("veille_sends")
-      .select("id, campaign_id, user_id, email, token, opportunity_ids, attempts, campaign:veille_campaigns!inner(kind, status)")
+      .select("id, campaign_id, user_id, email, token, opportunity_ids, attempts, step, news_key, created_at, campaign:veille_campaigns!inner(kind, status)")
       .eq("status", "PENDING")
       .eq("campaign.status", "SENDING")
       .order("created_at")
@@ -194,7 +198,32 @@ export async function processVeilleQueue(db: DB, settings: VeilleSettings, opts:
     const { data: claimed } = await db.from("veille_sends").update({ status: "SENDING", attempts: s.attempts + 1 }).eq("id", s.id).eq("status", "PENDING").select("id");
     if (!claimed?.length) continue;
     touched.add(s.campaign_id);
-    const kind = (s.campaign as unknown as { kind: VeilleKind }).kind;
+    const kind = (s.campaign as unknown as { kind: VeilleKind | "SUIVI" }).kind;
+    if (kind === "SUIVI") {
+      const { audience: people, pool } = await suiviData();
+      const m = people.get(s.user_id);
+      const back = s.step === "RETOUR" && m?.last_seen_at && new Date(m.last_seen_at) > new Date(s.created_at);
+      if (!m || m.email !== s.email.toLowerCase() || back) {
+        await db.from("veille_sends").update({ status: "SKIPPED", error: back ? "Revenu sur le site depuis la préparation" : "Destinataire plus éligible (désinscription ou compte modifié)" }).eq("id", s.id);
+        result.skipped++;
+        continue;
+      }
+      const email = await renderSuiviForSend(db, s, m, pool, now());
+      if (!email) {
+        await db.from("veille_sends").update({ status: "SKIPPED", error: "Annonces expirées ou retirées depuis la préparation" }).eq("id", s.id);
+        result.skipped++;
+        continue;
+      }
+      const r = await opts.send({ to: s.email, subject: email.subject, html: email.html, text: email.text, token: s.token });
+      const stop = await recordResult(db, s, r, email.subject, email.itemIds, result);
+      if (r.status === "SENT") remaining--;
+      if (stop) {
+        result.stopped = stop;
+        break;
+      }
+      await sleep(opts.intervalMs ?? 2000);
+      continue;
+    }
     const member = audience.get(s.user_id);
     // Désinscrit, compte désactivé ou adresse modifiée depuis la préparation : pas d'envoi
     if (!member || member.email !== s.email.toLowerCase() || (kind !== "LAUNCH" && !eligibleFor(kind, member))) {
@@ -237,6 +266,44 @@ export async function processVeilleQueue(db: DB, settings: VeilleSettings, opts:
   return result;
 }
 
+/** Enregistre le résultat d'un envoi de suivi ; renvoie un motif d'arrêt de la file le cas échéant. */
+async function recordResult(db: DB, s: { id: string; email: string; attempts: number }, r: VeilleSendResult, subject: string, itemIds: string[], result: { sent: number; failed: number; bounced: number }): Promise<string | null> {
+  if (r.status === "SENT") {
+    await db.from("veille_sends").update({ status: "SENT", subject, opportunity_ids: itemIds, sent_at: new Date().toISOString(), error: null }).eq("id", s.id);
+    result.sent++;
+    return null;
+  }
+  if (r.status === "SKIPPED") {
+    await db.from("veille_sends").update({ status: "PENDING", attempts: s.attempts, error: r.error ?? null }).eq("id", s.id);
+    return r.error ?? "Aucun service d'envoi configuré";
+  }
+  if (r.permanent) {
+    await db.from("veille_sends").update({ status: "BOUNCED", error: r.error ?? null }).eq("id", s.id);
+    await db.from("veille_suppressions").upsert({ email: s.email.toLowerCase(), reason: "BOUNCE" }, { onConflict: "email", ignoreDuplicates: true });
+    result.bounced++;
+    return null;
+  }
+  const retry = r.retryable && s.attempts + 1 < 3;
+  await db.from("veille_sends").update({ status: retry ? "PENDING" : "FAILED", error: r.error ?? null }).eq("id", s.id);
+  result.failed++;
+  return /authentification/i.test(r.error ?? "") ? (r.error ?? "Erreur d'authentification") : null;
+}
+
+/** Rendu d'un e-mail de suivi juste avant l'envoi (annonces revérifiées). null : plus rien à montrer. */
+export async function renderSuiviForSend(db: DB, send: { token: string; opportunity_ids: string[]; step: string | null; news_key: string | null }, m: SuiviMember, pool: VeilleOpportunity[], now = new Date()) {
+  const { data } = send.opportunity_ids.length ? await db.from("opportunities").select(OPP_COLUMNS).in("id", send.opportunity_ids).eq("status", "PUBLISHED").eq("visibility", "PUBLIC").eq("is_demo", false) : { data: [] };
+  const valid = cleanPool(((data ?? []) as unknown as OppRow[]).map(toOpp), now);
+  const items = send.opportunity_ids.map((id) => valid.find((o) => o.id === id)).filter((o): o is VeilleOpportunity => Boolean(o));
+  const news = SUIVI_NEWS.find((n) => n.key === send.news_key) ?? null;
+  const step = (send.step ?? "RETOUR") as SuiviStep;
+  if (step === "RETOUR" && !items.length && !news) return null;
+  const { criteria, basis } = criteriaFor(m);
+  const lastSeen = new Date(m.last_seen_at ?? m.created_at).getTime();
+  const newSince = selectOpportunities(pool.filter((o) => o.published_at && new Date(o.published_at).getTime() > lastSeen), criteria, basis, new Set(), 1000).length;
+  const email = renderSuiviEmail({ step, base: siteUrl(), token: send.token, member: m, items, news, newSince, now, ...(await loadLabels(db)) });
+  return { ...email, itemIds: items.map((o) => o.id) };
+}
+
 export async function refreshCampaign(db: DB, id: string) {
   const { data } = await db.from("veille_sends").select("status").eq("campaign_id", id);
   const n = (st: string[]) => (data ?? []).filter((r) => st.includes(r.status)).length;
@@ -258,14 +325,23 @@ export async function runVeille(db: DB, opts: QueueOptions) {
   const settings = await loadVeilleSettings(db);
   // Invitation unique des inscrits sans accord (indépendante de l'activation des éditions)
   const invitations = settings.invitations_enabled === false ? null : await sendVeilleInvitations(db, { send: opts.send, deadline: opts.deadline - 60_000, sleep: opts.sleep, intervalMs: opts.intervalMs, now: opts.now?.() });
-  if (!settings.enabled) return { stopped: "Veille non activée par l'administrateur", invitations, editions: [], send: null };
+  const suiviOn = (await loadSuiviSettings(db)).enabled;
+  if (!settings.enabled && !suiviOn) return { stopped: "Veille et suivi non activés par l'administrateur", invitations, editions: [], suivi: null, send: null };
   const now = opts.now?.() ?? new Date();
   const date = parisToday(now);
-  const { count } = await db.from("veille_campaigns").select("id", { count: "exact", head: true }).eq("kind", "LAUNCH");
   const editions = [];
-  for (const kind of editionsFor(date, settings, (count ?? 0) > 0)) editions.push({ kind, ...(await buildEdition(db, kind, date, now)) });
+  if (settings.enabled) {
+    const { count } = await db.from("veille_campaigns").select("id", { count: "exact", head: true }).eq("kind", "LAUNCH");
+    for (const kind of editionsFor(date, settings, (count ?? 0) > 0)) editions.push({ kind, ...(await buildEdition(db, kind, date, now)) });
+  }
+  // Suivi des inscrits après la veille (une personne déjà servie aujourd'hui n'est pas relancée), dans la limite du plafond du jour
+  let suivi = null;
+  if (suiviOn) {
+    const { count: queued } = await db.from("veille_sends").select("id", { count: "exact", head: true }).gte("created_at", parisDayStart(date).toISOString());
+    suivi = await buildSuivi(db, { now, max: settings.daily_cap - (queued ?? 0), loadPool: (days) => loadPool(db, days, now), alreadySent: (ids) => alreadySent(db, ids) });
+  }
   const send = await processVeilleQueue(db, settings, opts);
-  return { stopped: send.stopped, invitations, editions, send };
+  return { stopped: send.stopped, invitations, editions, suivi, send };
 }
 
 /** Profil de veille d'un utilisateur précis (aperçu, envoi test), même hors des destinataires. */
@@ -418,4 +494,47 @@ export async function sendVeilleInvitations(db: DB, opts: { send: QueueOptions["
   await db.from("veille_campaigns").update({ status: left ? "SENDING" : "SENT", completed_at: left ? null : new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", campaignId);
   await refreshCampaign(db, campaignId);
   return result;
+}
+
+/** Aperçu d'un e-mail de suivi pour un utilisateur (ou un compte type), sans rien enregistrer. */
+export async function suiviPreviewFor(db: DB, step: SuiviStep, userId: string | null, now = new Date()) {
+  const base = userId ? await memberFor(db, userId) : null;
+  const { data: u } = userId ? await db.from("users").select("created_at, last_seen_at").eq("id", userId).maybeSingle() : { data: null };
+  const m: SuiviMember = {
+    ...(base ?? { user_id: "apercu", email: "", full_name: "", frequency: "TWICE_WEEKLY", sectors: [], regions: [], types: [], keywords: [], company_name: null, company_sectors: [], company_region: null, consent: "apercu" }),
+    created_at: u?.created_at ?? new Date(now.getTime() - 10 * 86_400_000).toISOString(),
+    last_seen_at: u?.last_seen_at ?? new Date(now.getTime() - 9 * 86_400_000).toISOString(),
+    has_company: Boolean(base?.company_name),
+    has_logo: false,
+    profile_complete: false,
+    has_alert: false,
+    veille_on: false,
+  };
+  const pool = await loadPool(db, 30, now);
+  const { criteria, basis } = criteriaFor(m);
+  const items = selectOpportunities(pool, criteria, basis, new Set(), step === "RETOUR" ? 6 : 3);
+  const news = SUIVI_NEWS.find((n) => !n.when || n.when(m)) ?? null;
+  const lastSeen = new Date(m.last_seen_at!).getTime();
+  const newSince = selectOpportunities(pool.filter((o) => o.published_at && new Date(o.published_at).getTime() > lastSeen), criteria, basis, new Set(), 1000).length;
+  return { member: m, items, email: renderSuiviEmail({ step, base: siteUrl(), token: "apercu", member: m, items, news: step === "PROFIL" || step === "ALERTE" ? null : news, newSince, now, ...(await loadLabels(db)) }) };
+}
+
+/** Chiffres du suivi sur 30 jours, par étape (envois, ouvertures, clics réellement enregistrés). */
+export async function suiviStats(db: DB, now = new Date()) {
+  const { data } = await db
+    .from("veille_sends")
+    .select("step, status, opened_at, clicked_at, unsubscribed_at")
+    .not("step", "is", null)
+    .gte("created_at", new Date(now.getTime() - 30 * 86_400_000).toISOString())
+    .limit(20000);
+  const by: Record<string, { sent: number; opened: number; clicked: number; unsubscribed: number }> = {};
+  for (const r of data ?? []) {
+    if (r.status !== "SENT") continue;
+    const b = (by[r.step!] ??= { sent: 0, opened: 0, clicked: 0, unsubscribed: 0 });
+    b.sent++;
+    if (r.opened_at) b.opened++;
+    if (r.clicked_at) b.clicked++;
+    if (r.unsubscribed_at) b.unsubscribed++;
+  }
+  return by;
 }

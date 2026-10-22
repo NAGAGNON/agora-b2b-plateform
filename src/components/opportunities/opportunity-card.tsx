@@ -3,6 +3,7 @@ import { CalendarClock, MapPin, Tag, BadgeCheck } from "lucide-react";
 import { OpportunityTypeBadge, OriginBadge } from "@/components/opportunities/opportunity-badge";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { DemoBadge } from "@/components/demo";
+import { CompanyLogo } from "@/components/companies/company-logo";
 import { sectorLabel, type OpportunityOrigin, type OpportunityType } from "@/lib/constants";
 import { getLocationLabel, getSectorLabels } from "@/lib/queries/platform";
 import { deadlineLabel, formatBudget, formatDate, isRecent } from "@/lib/format";
@@ -23,6 +24,7 @@ export type OpportunityCardData = {
   published_at: string | null;
   company_name?: string | null;
   company_verified?: boolean | null;
+  company_logo_path?: string | null;
   external_buyer_name?: string | null;
   source_name?: string | null;
   is_demo: boolean;
@@ -51,8 +53,9 @@ export async function OpportunityCard({ o, headingLevel = 3 }: { o: OpportunityC
         </Link>
       </H>
       {by && (
-        <p className="mt-1 flex items-center gap-1 text-sm text-slate-600 [overflow-wrap:anywhere]">
+        <p className="mt-1 flex items-center gap-1.5 text-sm text-slate-600 [overflow-wrap:anywhere]">
           {o.origin === "EXTERNAL" && <span className="sr-only">Acheteur : </span>}
+          {o.origin === "INTERNAL" && o.company_logo_path && <CompanyLogo name={by} path={o.company_logo_path} size={24} />}
           {by}
           {o.origin === "INTERNAL" && o.company_verified && <BadgeCheck className="size-4 text-teal-600" aria-label="Entreprise vérifiée" />}
         </p>

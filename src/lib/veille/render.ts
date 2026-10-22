@@ -17,8 +17,8 @@ export type VeilleEmailInput = {
 };
 
 const dateFmt = new Intl.DateTimeFormat("fr-FR", { timeZone: "Europe/Paris", day: "numeric", month: "long" });
-const day = (iso: string) => dateFmt.format(new Date(iso));
-const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1).trimEnd()}…` : s);
+export const day = (iso: string) => dateFmt.format(new Date(iso));
+export const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1).trimEnd()}…` : s);
 
 export function veilleSubject(kind: VeilleKind, count: number): string {
   if (kind === "LAUNCH") return "Votre veille B2B LinkProB2B — une première sélection d'opportunités ouvertes";
@@ -55,7 +55,7 @@ function intro(i: VeilleEmailInput): string[] {
   return [hello, i.kind === "MONDAY" ? "Voici une sélection des nouvelles opportunités B2B publiées cette semaine et encore ouvertes." : "Voici une sélection actualisée des dernières opportunités B2B encore ouvertes.", why];
 }
 
-function meta(o: VeilleOpportunity, i: VeilleEmailInput): string[] {
+function meta(o: VeilleOpportunity, i: Pick<VeilleEmailInput, "sectorLabel">): string[] {
   return [
     o.sector_slug ? i.sectorLabel(o.sector_slug) : null,
     [o.city, o.department_code ? `(${o.department_code})` : null].filter(Boolean).join(" ") || o.region,
@@ -63,26 +63,31 @@ function meta(o: VeilleOpportunity, i: VeilleEmailInput): string[] {
   ].filter((x): x is string => Boolean(x));
 }
 
-/** E-mail de veille (HTML adapté au mobile + version texte). Aucune donnée inventée : uniquement les champs présents. */
-export function renderVeilleEmail(i: VeilleEmailInput): { subject: string; html: string; text: string } {
-  const L = veilleLinks(i.base, i.token);
-  const subject = veilleSubject(i.kind, i.items.length);
-  const paragraphs = intro(i);
-  const cards = i.items
+/** Cartes d'opportunités (HTML) : type, titre, acheteur, résumé, lieu, date limite, source. */
+export function renderCards(items: VeilleOpportunity[], link: (id: string) => string, i: Pick<VeilleEmailInput, "sectorLabel" | "typeLabel">): string {
+  return items
     .map((o) => {
       const m = meta(o, i);
       const desc = o.summary ?? o.description;
       return `<tr><td style="padding:0 0 12px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #dbe4ee;border-radius:10px;background:#ffffff"><tr><td style="padding:16px 18px">
 <p style="margin:0 0 6px;font-size:12px;line-height:18px;color:#0F766E;font-weight:600;text-transform:uppercase;letter-spacing:.3px">${escapeHtml(i.typeLabel(o.type))}</p>
-<a href="${escapeHtml(L.item(o.id))}" style="font-size:16px;line-height:22px;font-weight:700;color:#0F2D4A;text-decoration:none">${escapeHtml(clip(o.title, 140))}</a>
+<a href="${escapeHtml(link(o.id))}" style="font-size:16px;line-height:22px;font-weight:700;color:#0F2D4A;text-decoration:none">${escapeHtml(clip(o.title, 140))}</a>
 ${o.origin === "EXTERNAL" && o.external_buyer_name ? `<p style="margin:6px 0 0;font-size:13px;line-height:19px;color:#334155">${escapeHtml(o.external_buyer_name)}</p>` : ""}
 ${desc ? `<p style="margin:8px 0 0;font-size:14px;line-height:21px;color:#475569">${escapeHtml(clip(desc.replace(/\s+/g, " ").trim(), 220))}</p>` : ""}
 ${m.length ? `<p style="margin:10px 0 0;font-size:12px;line-height:18px;color:#64748b">${m.map(escapeHtml).join(" · ")}</p>` : ""}
 <p style="margin:6px 0 0;font-size:12px;line-height:18px;color:#64748b">${o.response_deadline ? `<strong style="color:#0F2D4A">Réponse avant le ${escapeHtml(day(o.response_deadline))}</strong> · ` : ""}${escapeHtml(o.origin === "EXTERNAL" ? `Source : ${o.source}` : "Publiée sur LinkProB2B")}</p>
-<p style="margin:12px 0 0"><a href="${escapeHtml(L.item(o.id))}" style="font-size:14px;font-weight:600;color:#0F766E;text-decoration:none">Voir l'opportunité →</a></p>
+<p style="margin:12px 0 0"><a href="${escapeHtml(link(o.id))}" style="font-size:14px;font-weight:600;color:#0F766E;text-decoration:none">Voir l'opportunité →</a></p>
 </td></tr></table></td></tr>`;
     })
     .join("");
+}
+
+/** E-mail de veille (HTML adapté au mobile + version texte). Aucune donnée inventée : uniquement les champs présents. */
+export function renderVeilleEmail(i: VeilleEmailInput): { subject: string; html: string; text: string } {
+  const L = veilleLinks(i.base, i.token);
+  const subject = veilleSubject(i.kind, i.items.length);
+  const paragraphs = intro(i);
+  const cards = renderCards(i.items, L.item, i);
   const dailyBlock =
     i.frequency !== "DAILY"
       ? `<tr><td style="padding:8px 0 4px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0F2D4A;border-radius:12px"><tr><td style="padding:22px 22px">
