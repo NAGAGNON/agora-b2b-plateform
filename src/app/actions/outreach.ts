@@ -38,6 +38,7 @@ const settingsSchema = z.object({
   max_contacts_per_30_days: z.coerce.number().int().min(1).max(30),
   daily_send_cap: z.coerce.number().int().min(0).max(10000),
   total_daily_send_cap: z.coerce.number().int().min(0).max(10000),
+  need_daily_send_cap: z.coerce.number().int().min(0).max(2000),
   daily_send_target: z.coerce.number().int().min(0).max(10000),
   hourly_send_cap: z.coerce.number().int().min(0).max(2000),
   send_interval_seconds: z.coerce.number().int().min(0).max(300),

@@ -7,7 +7,8 @@
  *     score justifié ; les plus pertinentes reçoivent une notification (espace + e-mail selon leurs
  *     préférences), au plus une tous les 2 jours par entreprise, une relance au plus après 5 jours ;
  *  3. campagne de PROSPECTION dédiée (entreprises non inscrites, base Outreach) avec l'action
- *     « Envoyer un message », soumise aux limites, exclusions et à la validation de l'Outreach ;
+ *     « Envoyer un message », complétée chaque jour jusqu'au quota (150 entreprises par jour par
+ *     défaut) tant que le besoin est ouvert, soumise aux exclusions et à la validation de l'Outreach ;
  *  4. suivi : chiffres réellement enregistrés (vues, clics, e-mails, intérêts, réponses, échanges).
  * Rien n'est inventé : sans donnée, pas de correspondance ; sans adresse, pas d'e-mail.
  */
@@ -19,6 +20,7 @@ import { budgetLabel, loadReferentials } from "@/lib/outreach/data";
 import { buildNeedOutreachCampaign, enrichProspects, processSendQueue } from "@/lib/outreach/pipeline";
 import { COMPANY_SIZE_LABELS, OPPORTUNITY_TYPE_LABELS, type CompanySize, type OpportunityType } from "@/lib/constants";
 import { logServerError } from "@/lib/errors";
+import { parisToday } from "@/lib/daily-report";
 
 type DB = SupabaseClient<Database>;
 const DAY = 86_400_000;
@@ -213,7 +215,7 @@ export async function runNeedCampaign(db: DB, opportunityId: string, { now = new
   if (!need || need.origin !== "INTERNAL") return { opportunityId, status: "SKIPPED", note: "Pas un besoin d'entreprise inscrite" };
   const ref = await loadReferentials(db);
   const analysis = analyzeNeed(need, ref);
-  const { data: existing } = await db.from("need_campaigns").select("id, runs, outreach_campaign_id").eq("opportunity_id", opportunityId).maybeSingle();
+  const { data: existing } = await db.from("need_campaigns").select("id, runs, outreach_campaign_id, prospects_added_on").eq("opportunity_id", opportunityId).maybeSingle();
   if (!isOpenNeed(need, now.getTime())) {
     if (existing) await db.from("need_campaigns").update({ status: "CLOSED", updated_at: now.toISOString() }).eq("id", existing.id);
     return { opportunityId, status: "CLOSED", note: "Besoin non publié, privé, de démonstration ou fermé" };
@@ -227,9 +229,13 @@ export async function runNeedCampaign(db: DB, opportunityId: string, { now = new
   try {
     const members = await matchMembers(db, need, nc.id, now);
     let outreach: NeedRunResult["prospects"];
-    if (prospects && Date.now() < deadline - 20_000) {
+    // Prospection : de nouvelles entreprises chaque jour (quota quotidien par besoin), une seule fois par jour
+    const day = parisToday(now);
+    if (prospects && existing?.prospects_added_on === day) outreach = { campaignId: existing.outreach_campaign_id, identified: 0, relevant: 0, skipped: "Entreprises du jour déjà ajoutées" };
+    else if (prospects && Date.now() < deadline - 20_000) {
       const r = await buildNeedOutreachCampaign(db, opportunityId, { deadline: deadline - 15_000 });
       outreach = { campaignId: r.campaignId, identified: r.identified ?? 0, relevant: r.relevant ?? 0, skipped: r.skipped };
+      if (r.campaignId && !r.skipped) await db.from("need_campaigns").update({ prospects_added_on: day }).eq("id", nc.id);
       // Adresses manquantes recherchées, puis premiers envois si la campagne est validée (limites de l'Outreach)
       if (r.campaignId && !r.skipped && Date.now() < deadline - 40_000) {
         await enrichProspects(db, { campaignId: r.campaignId, deadline: Math.min(deadline - 30_000, Date.now() + 60_000) }).catch((e) => logServerError("need enrich", e));
@@ -293,8 +299,8 @@ export async function processNeedCampaigns(db: DB, { deadline = Date.now() + 120
   const results: NeedRunResult[] = [];
   for (const id of todo) {
     if (Date.now() > deadline - 30_000) break;
-    // Prospection seulement au premier passage (une campagne par besoin) ; la mise à jour quotidienne complète les entreprises inscrites
-    results.push(await runNeedCampaign(db, id, { now, deadline: Math.min(deadline, Date.now() + 100_000), prospects: !byId.has(id) || byId.get(id)?.status === "FAILED" }));
+    // Chaque jour : nouvelles entreprises inscrites et nouvelles entreprises prospectées (quota quotidien par besoin)
+    results.push(await runNeedCampaign(db, id, { now, deadline: Math.min(deadline, Date.now() + 100_000) }));
   }
   const reminders = Date.now() < deadline - 10_000 ? await remindMembers(db, now) : { reminded: 0 };
   // Besoins fermés depuis le dernier passage

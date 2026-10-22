@@ -167,6 +167,32 @@ describe("Mise en relation d'un besoin publié", () => {
     expect(res.headers.get("location")).toContain(`/opportunites/${needId}?message=1&`);
   });
 
+  it("complément quotidien : de nouvelles entreprises chaque jour, dans la limite du quota par besoin", async () => {
+    await prospect("pC", `pc-${RUN}@example.test`);
+    await prospect("pD", `pd-${RUN}@example.test`);
+    await admin.from("outreach_settings").update({ need_daily_send_cap: 1 }).eq("id", true);
+    const { data: camp } = await admin.from("outreach_campaigns").select("id").eq("kind", "NEED").eq("opportunity_id", needId).single();
+    const count = async () => ((await admin.from("outreach_recipients").select("prospect_id").eq("campaign_id", camp!.id)).data ?? []).map((r) => r.prospect_id);
+    const before = await count();
+    // Même jour : entreprises du jour déjà ajoutées
+    const same = await runNeedCampaign(admin, needId, { deadline: Date.now() + 60_000 });
+    expect(same.prospects?.skipped).toBe("Entreprises du jour déjà ajoutées");
+    expect(await count()).toHaveLength(before.length);
+    // Lendemain : une seule nouvelle entreprise (quota de 1), jamais une entreprise déjà contactée pour ce besoin
+    await runNeedCampaign(admin, needId, { now: new Date(Date.now() + 86_400_000), deadline: Date.now() + 60_000 });
+    const after = await count();
+    expect(after).toHaveLength(before.length + 1);
+    expect(after.filter((id) => id === P.pA)).toHaveLength(1);
+    expect([P.pC, P.pD]).toContain(after.find((id) => !before.includes(id)));
+    const { data: c } = await admin.from("outreach_campaigns").select("status, report").eq("id", camp!.id).single();
+    // Campagne relancée puis envoyée dans la foulée (simulation dans ce test)
+    expect(["VALIDATED", "SENDING", "SIMULATED"]).toContain(c!.status);
+    const { data: added } = await admin.from("outreach_recipients").select("status").eq("campaign_id", camp!.id).eq("prospect_id", after.find((id) => !before.includes(id))!).single();
+    expect(added!.status).toBe("SIMULATED");
+    expect(c!.report).toContain("jusqu'à 1 entreprises par jour");
+    await admin.from("outreach_settings").update({ need_daily_send_cap: 150 }).eq("id", true);
+  });
+
   it("suivi : chiffres réels (vues, prévenues, e-mails simulés distingués des envois réels, réponses)", async () => {
     await admin.from("analytics_events").insert({ event_name: "view_opportunity", properties: { opportunity_id: needId } });
     await admin.from("analytics_events").insert({ event_name: "need_message_click", properties: { opportunity_id: needId } });
@@ -177,7 +203,7 @@ describe("Mise en relation d'un besoin publié", () => {
     expect(m.messageClicks).toBe(1);
     expect(m.membersNotified).toBe(2);
     expect(m.emailsSent).toBe(0);
-    expect(m.emailsSimulated).toBe(1);
+    expect(m.emailsSimulated).toBe(2);
     expect(m.interests).toBe(1);
   });
 

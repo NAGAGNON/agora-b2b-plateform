@@ -47,7 +47,7 @@ export default async function AdminNeeds() {
           <h1 className="text-2xl font-bold">Besoins et mise en relation</h1>
           <p className="mt-1 max-w-3xl text-sm text-slate-600">
             Chaque besoin publié par une entreprise inscrite est analysé dès sa validation : entreprises inscrites correspondantes prévenues (au plus 25, une relance
-            après 5 jours), campagne de prospection dédiée dans l&apos;Outreach (au plus 30 entreprises, mêmes limites et exclusions), suivi des résultats. Les besoins
+            après 5 jours), campagne de prospection dédiée dans l&apos;Outreach, complétée chaque jour (150 entreprises par jour et par besoin par défaut, réglable dans Outreach → Paramètres ; mêmes exclusions, limite par heure commune), suivi des résultats. Les besoins
             manqués sont repris chaque jour.
           </p>
         </div>
