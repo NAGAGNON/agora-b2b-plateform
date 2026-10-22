@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { JsonLd, breadcrumbLd } from "@/components/json-ld";
 import { OpportunityResults } from "@/components/opportunities/opportunity-results";
+import { FeaturedNeeds } from "@/components/opportunities/featured-needs";
 import { ButtonLink } from "@/components/ui/button";
 import { searchOpportunities } from "@/lib/queries/opportunities";
 import { parseOpportunityFilters, type RawSearchParams } from "@/lib/search-params";
@@ -90,6 +91,7 @@ export async function LandingPage({ landing, path, sp }: { landing: Landing; pat
           </ul>
         </details>
       )}
+      {filters.page === 1 && <FeaturedNeeds sector={filters.sector} department={filters.department} region={filters.region ? (regionBySlug(filters.region)?.name ?? null) : null} />}
       <OpportunityResults filters={filters} rawParams={sp} basePath={path} />
       {landing.related && landing.related.links.length > 0 && (
         <section className="mt-8" aria-labelledby="related-landings">

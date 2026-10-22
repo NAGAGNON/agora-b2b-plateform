@@ -114,7 +114,7 @@ export default async function MyOpportunitiesPage(props: PageProps<"/dashboard/o
             <EmptyState
               icon={<Send className="size-6" aria-hidden />}
               title="Aucune manifestation d'intérêt"
-              description="Explorez les opportunités et cliquez sur « Je suis intéressé » pour entrer en relation avec un demandeur."
+              description="Explorez les opportunités et cliquez sur « Envoyer un message » pour entrer en relation avec un demandeur."
               action={<ButtonLink href="/opportunites">Explorer les opportunités</ButtonLink>}
             />
           }

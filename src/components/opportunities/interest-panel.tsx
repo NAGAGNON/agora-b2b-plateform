@@ -3,8 +3,8 @@
 import { useActionState, useState, useTransition } from "react";
 import type { ActionResult } from "@/lib/validation";
 import Link from "next/link";
-import { HandHeart, Send, KanbanSquare } from "lucide-react";
-import { expressInterest, trackInPipeline, withdrawInterest, withdrawProposal } from "@/app/actions/opportunities";
+import { MessageSquare, Send, KanbanSquare } from "lucide-react";
+import { expressInterest, trackInPipeline, trackNeedMessageClick, withdrawInterest, withdrawProposal } from "@/app/actions/opportunities";
 import { Button, ButtonLink, buttonClasses } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { Field, Textarea } from "@/components/ui/form";
@@ -25,11 +25,14 @@ type Props = {
   interest: { id: string; status: InterestStatus } | null;
   proposal: { id: string; status: ProposalStatus } | null;
   inPipeline: boolean;
+  /** Arrivée par « Envoyer un message » (e-mail, notification) : formulaire ouvert d'emblée */
+  openMessage?: boolean;
 };
 
-/** Panneau d'action d'un besoin interne : « Je suis intéressé » puis « Répondre ». */
+/** Panneau d'action d'un besoin interne : « Envoyer un message » puis « Répondre à la consultation ». */
 export function InterestPanel(p: Props) {
-  const [open, setOpen] = useState(false);
+  const canMessage = p.open && p.signedIn && p.hasCompany && !p.isOwner && (!p.interest || p.interest.status === "WITHDRAWN");
+  const [open, setOpen] = useState(Boolean(p.openMessage && canMessage));
   const [pending, start] = useTransition();
   const toast = useToast();
   const [state, action] = useActionState(async (prev: ActionResult | null, fd: FormData) => {
@@ -45,13 +48,24 @@ export function InterestPanel(p: Props) {
   if (!p.signedIn) {
     return (
       <div className="space-y-3">
-        <p className="text-sm text-slate-600">Créez un compte gratuit pour manifester votre intérêt et répondre à ce besoin.</p>
-        <ButtonLink href={`/connexion?suite=${encodeURIComponent(next)}`} full size="lg">
-          Se connecter pour répondre
-        </ButtonLink>
-        <ButtonLink href={`/inscription?suite=${encodeURIComponent(next)}`} full variant="outline">
-          Créer un compte
-        </ButtonLink>
+        <p className="text-sm text-slate-600">Vous pouvez répondre à ce besoin ? Écrivez directement à l&apos;entreprise qui l&apos;a publié (compte gratuit).</p>
+        {p.open ? (
+          <a href={`/api/besoins/${p.opportunityId}/message`} className={buttonClasses({ full: true, size: "lg" })} data-testid="need-message">
+            <MessageSquare className="size-5" aria-hidden /> Envoyer un message
+          </a>
+        ) : (
+          p.closedReason && <Notice tone="warning">{p.closedReason}</Notice>
+        )}
+        <a href={`/api/besoins/${p.opportunityId}/message?compte=1`} className={buttonClasses({ full: true, variant: "outline" })}>
+          J&apos;ai déjà un compte
+        </a>
+        <p className="text-center text-xs text-slate-500">
+          ou{" "}
+          <Link href={`/inscription?suite=${encodeURIComponent(next)}`} className="underline">
+            créer un compte
+          </Link>{" "}
+          pour suivre ce besoin
+        </p>
       </div>
     );
   }
@@ -93,9 +107,17 @@ export function InterestPanel(p: Props) {
         </div>
       )}
       {!canAct && p.closedReason && <Notice tone="warning">{p.closedReason}</Notice>}
-      {canAct && (!p.interest || p.interest.status === "WITHDRAWN") && (
-        <Button full size="lg" onClick={() => setOpen(true)}>
-          <HandHeart className="size-5" aria-hidden /> Je suis intéressé
+      {canMessage && (
+        <Button
+          full
+          size="lg"
+          data-testid="need-message"
+          onClick={() => {
+            setOpen(true);
+            void trackNeedMessageClick(p.opportunityId);
+          }}
+        >
+          <MessageSquare className="size-5" aria-hidden /> Envoyer un message
         </Button>
       )}
       {canAct && proposalEditable && (
@@ -152,11 +174,11 @@ export function InterestPanel(p: Props) {
           </button>
         )}
       </div>
-      <Modal open={open} onClose={() => setOpen(false)} title="Manifester votre intérêt" description="Le demandeur sera notifié et pourra vous contacter via la messagerie.">
+      <Modal open={open} onClose={() => setOpen(false)} title="Envoyer un message au demandeur" description="L'entreprise est prévenue tout de suite et peut vous répondre par la messagerie de LinkProB2B.">
         <form action={action} className="space-y-4">
           <input type="hidden" name="opportunityId" value={p.opportunityId} />
-          <Field label="Message au demandeur (facultatif)" name="message" hint="Présentez brièvement votre entreprise et votre capacité à répondre.">
-            {(f) => <Textarea {...f} rows={5} maxLength={2000} />}
+          <Field label="Votre message" name="message" required hint="Présentez votre entreprise, ce que vous proposez pour ce besoin et vos disponibilités.">
+            {(f) => <Textarea {...f} rows={6} minLength={10} maxLength={2000} required />}
           </Field>
           <ActionError state={state} />
           <div className="flex justify-end gap-2">

@@ -312,54 +312,8 @@ export async function buildDailyCampaign(
     }
     const groups = groupByProspect(pairs, settings.min_score, settings.max_opportunities_per_email);
 
-    // Historique des contacts (fréquence maximale sur 30 jours)
-    const recentCounts = new Map<string, number>();
-    for (const part of chunk(groups.map((g) => g.prospectId), 300)) {
-      const { data } = await db.from("outreach_recipients").select("prospect_id").in("prospect_id", part).eq("status", "SENT").gte("sent_at", new Date(Date.now() - 30 * DAY).toISOString());
-      for (const r of data ?? []) recentCounts.set(r.prospect_id, (recentCounts.get(r.prospect_id) ?? 0) + 1);
-    }
-    // Déjà en attente d'envoi dans une autre campagne (automatique, manuelle ou complémentaire) : pas deux e-mails
-    const pendingElsewhere = new Set<string>();
-    for (const part of chunk(groups.map((g) => g.prospectId), 300)) {
-      const { data } = await db.from("outreach_recipients").select("prospect_id").in("prospect_id", part).in("status", ["PENDING", "QUEUED", "SENDING"]).neq("campaign_id", campaignId!);
-      for (const r of data ?? []) pendingElsewhere.add(r.prospect_id);
-    }
-    const minGap = Date.now() - settings.min_days_between_contacts * DAY;
-    // Même adresse e-mail déjà contactée récemment via une autre entreprise (adresse partagée par un groupe)
-    const mailedRecently = new Set<string>();
-    const groupEmails = [...new Set(groups.map((g) => prospects.get(g.prospectId)?.email?.toLowerCase()).filter((e): e is string => Boolean(e)))];
-    for (const part of chunk(groupEmails, 200)) {
-      const { data } = await db.from("outreach_recipients").select("email").in("email", part).eq("status", "SENT").gte("sent_at", new Date(minGap).toISOString());
-      for (const r of data ?? []) if (r.email) mailedRecently.add(r.email.toLowerCase());
-    }
-    // Stratégie automatique : secteurs dont les e-mails obtiennent le plus de clics et d'inscriptions
-    // envoyés (et recherchés) en premier. Simple ordre de passage : aucune entreprise n'est écartée.
-    const sectorPriority = (await currentStrategy(db).catch(() => null))?.outreach.sector_priority ?? {};
     const oppSector = new Map(opps.map((o) => [o.id, o.sector_slug]));
-    const rows = groups.map((g) => {
-      const p = prospects.get(g.prospectId)!;
-      const sector = oppSector.get(g.opportunities[0]?.id ?? "");
-      const priority = Math.round((sector ? (sectorPriority[sector] ?? 0) : 0) * 10);
-      const email = p.email?.toLowerCase() ?? null;
-      const domain = email?.split("@")[1] ?? null;
-      let status = "PENDING";
-      if ((p.siren && (supp.SIREN.has(p.siren) || customerSirens.has(p.siren))) || (email && supp.EMAIL.has(email)) || (domain && supp.DOMAIN.has(domain))) status = "SUPPRESSED";
-      else if ((p.last_contacted_at && new Date(p.last_contacted_at).getTime() > minGap) || (recentCounts.get(p.id) ?? 0) >= settings.max_contacts_per_30_days || pendingElsewhere.has(p.id) || (email && mailedRecently.has(email))) status = "FREQUENCY";
-      else if (!email) status = "NO_EMAIL";
-      return { campaign_id: campaignId!, prospect_id: g.prospectId, email, score: g.score, reasons: g.reasons, status, priority };
-    });
-    for (const part of chunk(rows, 200)) {
-      const { data: inserted, error } = await db.from("outreach_recipients").insert(part).select("id, prospect_id");
-      if (error) throw error;
-      const links = (inserted ?? []).flatMap((r) =>
-        groups.find((g) => g.prospectId === r.prospect_id)!.opportunities.map((o, position) => ({ recipient_id: r.id, opportunity_id: o.id, score: o.score, reasons: o.reasons, position })),
-      );
-      for (const lp of chunk(links, 500)) {
-        const { error: e2 } = await db.from("outreach_recipient_opportunities").insert(lp);
-        if (e2) throw e2;
-      }
-      await db.from("outreach_events").insert((inserted ?? []).map((r) => ({ recipient_id: r.id, campaign_id: campaignId!, type: "PREPARED" })));
-    }
+    const rows = await insertRecipients(db, campaignId!, groups, prospects, settings, { supp, customerSirens, oppSector });
 
     // Opportunités traitées : profils ciblés et nombre de correspondances (campagne automatique uniquement)
     for (const a of manual ? [] : analyses.filter((x) => reached.has(x.id))) {
@@ -408,6 +362,180 @@ export async function buildDailyCampaign(
 }
 
 /**
+ * Campagne de prospection dédiée à UN besoin publié par une entreprise inscrite : entreprises de
+ * la même activité et de la zone (base Outreach, découverte limitée par la source publique),
+ * classées par score, au plus `maxRecipients`, avec les mêmes contrôles que la campagne
+ * quotidienne. Une seule campagne par besoin. Validation manuelle si l'Outreach l'exige.
+ */
+export async function buildNeedOutreachCampaign(
+  db: Db,
+  opportunityId: string,
+  { deadline = Date.now() + 90_000, maxRecipients, discover = true }: { deadline?: number; maxRecipients?: number; discover?: boolean } = {},
+): Promise<BuildResult & { identified?: number; relevant?: number; added?: number }> {
+  const settings = await loadSettings(db);
+  const { data: o } = await db.from("opportunities").select(`${OPP_FIELDS}, origin`).eq("id", opportunityId).maybeSingle();
+  if (!o || o.origin !== "INTERNAL" || o.status !== "PUBLISHED" || o.visibility !== "PUBLIC" || o.is_demo) return { campaignId: null, skipped: "Besoin non publié publiquement" };
+  const a = analyzeOpportunity(o);
+  const { data: existing } = await db.from("outreach_campaigns").select("id, status").eq("kind", "NEED").eq("opportunity_id", opportunityId).maybeSingle();
+  if (existing && ["BUILDING", "CANCELLED"].includes(existing.status)) return { campaignId: existing.id, skipped: existing.status === "BUILDING" ? "Campagne en cours de préparation" : "Campagne annulée par l'administrateur" };
+  let campaignId = existing?.id ?? null;
+  const priorStatus = existing?.status ?? null;
+  // Déjà dans la campagne (tous statuts) : jamais deux fois la même entreprise pour un besoin
+  const already = new Set<string>();
+  // Encore en attente d'envoi : la journée suivante complète jusqu'au quota, sans l'empiler
+  let waiting = 0;
+  if (campaignId) {
+    const rows = await selectAll((from, to) => db.from("outreach_recipients").select("prospect_id, status").eq("campaign_id", campaignId!).order("id").range(from, to));
+    for (const r of rows) {
+      already.add(r.prospect_id);
+      if (["PENDING", "QUEUED", "NO_EMAIL"].includes(r.status)) waiting++;
+    }
+    await db.from("outreach_campaigns").update({ status: "BUILDING", updated_at: new Date().toISOString() }).eq("id", campaignId);
+  } else {
+    const { data, error } = await db
+      .from("outreach_campaigns")
+      .insert({ campaign_date: today(), kind: "NEED", opportunity_id: opportunityId, status: "BUILDING", dry_run: settings.dry_run, min_score: settings.min_score, subject_template: "Besoin publié : {titre}", intro_template: "", updated_at: new Date().toISOString() })
+      .select("id")
+      .single();
+    if (error) {
+      if (error.code === "23505") return { campaignId: null, skipped: "Campagne déjà en préparation" };
+      throw error;
+    }
+    campaignId = data.id;
+  }
+  const quota = Math.max(0, (maxRecipients ?? settings.need_daily_send_cap) - waiting);
+  try {
+    const ref = await loadReferentials(db);
+    // Découverte (source publique SIRENE) pour élargir la base d'entreprises de ce métier dans la zone
+    const discovery = discover && settings.discovery_enabled && quota > 0 ? await discoverProspects(db, [a], Math.min(deadline - 30_000, Date.now() + 60_000), 10) : { calls: 0, added: 0, errors: 0 };
+    const [found, supp, customers] = await Promise.all([
+      quota > 0 ? candidates(db, a, { ...settings, max_prospects_per_opportunity: Math.max(settings.max_prospects_per_opportunity, quota + already.size) }) : Promise.resolve([]),
+      loadSuppressions(db),
+      selectAll((from, to) => db.from("companies").select("siren").not("siren", "is", null).order("id").range(from, to)),
+    ]);
+    const fresh = found.filter((p) => !already.has(p.id));
+    const prospects = new Map(fresh.map((p) => [p.id, p]));
+    const scored = fresh
+      .map((p) => ({ p, m: scoreMatch(a, p as ProspectInput, (x) => ref.sectorLabel(x) ?? x) }))
+      .filter((x) => x.m.score >= settings.min_score)
+      .sort((x, y) => y.m.score - x.m.score || Number(Boolean(y.p.email)) - Number(Boolean(x.p.email)));
+    // Les entreprises joignables d'abord, dans la limite du quota du jour pour ce besoin
+    const chosen = [...scored.filter((x) => x.p.email), ...scored.filter((x) => !x.p.email)].slice(0, quota);
+    const pairs = chosen.map((x) => ({ prospectId: x.p.id, opportunityId, score: x.m.score, reasons: x.m.reasons, deadline: o.response_deadline }));
+    const groups = groupByProspect(pairs, settings.min_score, 1);
+    const rows = await insertRecipients(db, campaignId!, groups, prospects, settings, {
+      supp,
+      customerSirens: new Set(customers.map((c) => c.siren!)),
+      oppSector: new Map([[opportunityId, o.sector_slug]]),
+    });
+    const { data: prev } = await db.from("outreach_campaigns").select("stats").eq("id", campaignId!).single();
+    const p = (prev?.stats ?? {}) as Record<string, number>;
+    const add = (k: string, n: number) => (p[k] ?? 0) + n;
+    const stats = {
+      prospects_analyzed: add("prospects_analyzed", fresh.length),
+      matches: add("matches", scored.length),
+      companies_selected: add("companies_selected", rows.filter((r) => r.status !== "SUPPRESSED" && r.status !== "FREQUENCY").length),
+      emails_prepared: add("emails_prepared", rows.filter((r) => r.status === "PENDING").length),
+      no_email: add("no_email", rows.filter((r) => r.status === "NO_EMAIL").length),
+      excluded_frequency: add("excluded_frequency", rows.filter((r) => r.status === "FREQUENCY").length),
+      excluded_suppressed: add("excluded_suppressed", rows.filter((r) => r.status === "SUPPRESSED").length),
+      discovery_calls: add("discovery_calls", discovery.calls),
+      discovery_added: add("discovery_added", discovery.added),
+    };
+    const addedToday = rows.filter((r) => r.status !== "SUPPRESSED" && r.status !== "FREQUENCY").length;
+    const report = [
+      `Campagne dédiée au besoin « ${o.title} » : jusqu'à ${settings.need_daily_send_cap} entreprises par jour tant que le besoin est ouvert.`,
+      `Dernier passage (${formatDate(today())}) : ${fresh.length} nouvelle(s) entreprise(s) de la même activité dans la zone, ${scored.length} d'au moins ${settings.min_score}/100, ${addedToday} ajoutée(s)${waiting ? ` (${waiting} encore en attente d'envoi)` : ""}.`,
+      `Au total : ${stats.companies_selected} entreprise(s) retenue(s), ${stats.emails_prepared} e-mail(s) préparé(s), ${stats.no_email} sans adresse (recherche d'adresse), ${stats.excluded_frequency} écartée(s) (contactée(s) récemment), ${stats.excluded_suppressed} écartée(s) (liste d'opposition ou déjà inscrite(s)).`,
+      stats.discovery_calls ? `Découverte : ${stats.discovery_added} entreprise(s) ajoutée(s) à la base (${stats.discovery_calls} requête(s) à la source publique).` : null,
+    ]
+      .filter(Boolean)
+      .join("\n");
+    // Validation : une campagne déjà validée le reste ; sinon validation automatique si l'Outreach ne l'exige pas
+    const wasValidated = priorStatus !== null && ["VALIDATED", "SENDING", "SENT", "SIMULATED"].includes(priorStatus);
+    const hasWork = stats.emails_prepared + stats.no_email > 0;
+    const status = wasValidated || (!settings.require_validation && hasWork) ? "VALIDATED" : priorStatus === "READY" || hasWork ? "READY" : (priorStatus ?? "READY");
+    await db
+      .from("outreach_campaigns")
+      .update({ status, ...(status === "VALIDATED" && !wasValidated ? { validated_at: new Date().toISOString() } : {}), stats, report, error: null, updated_at: new Date().toISOString() })
+      .eq("id", campaignId!);
+    return { campaignId, stats, identified: stats.prospects_analyzed, relevant: stats.companies_selected, added: addedToday };
+  } catch (e) {
+    logServerError("outreach need build", e);
+    await db.from("outreach_campaigns").update({ status: priorStatus ?? "FAILED", error: e instanceof Error ? e.message.slice(0, 500) : String(e) }).eq("id", campaignId!);
+    throw e;
+  }
+}
+
+type Groups = ReturnType<typeof groupByProspect>;
+type ProspectRow = Awaited<ReturnType<typeof candidates>>[number];
+
+/**
+ * Destinataires d'une campagne : une ligne par entreprise, avec les contrôles d'exclusion (liste
+ * d'opposition, entreprise déjà utilisatrice), de fréquence (délai minimum, maximum sur 30 jours,
+ * envoi déjà prévu ailleurs, même adresse) et d'adresse manquante. Commun aux campagnes
+ * quotidiennes, manuelles et dédiées à un besoin.
+ */
+async function insertRecipients(
+  db: Db,
+  campaignId: string,
+  groups: Groups,
+  prospects: Map<string, ProspectRow>,
+  settings: OutreachSettings,
+  { supp, customerSirens, oppSector }: { supp: Awaited<ReturnType<typeof loadSuppressions>>; customerSirens: Set<string>; oppSector: Map<string, string | null> },
+) {
+  // Historique des contacts (fréquence maximale sur 30 jours)
+  const recentCounts = new Map<string, number>();
+  for (const part of chunk(groups.map((g) => g.prospectId), 300)) {
+    const { data } = await db.from("outreach_recipients").select("prospect_id").in("prospect_id", part).eq("status", "SENT").gte("sent_at", new Date(Date.now() - 30 * DAY).toISOString());
+    for (const r of data ?? []) recentCounts.set(r.prospect_id, (recentCounts.get(r.prospect_id) ?? 0) + 1);
+  }
+  // Déjà en attente d'envoi dans une autre campagne (automatique, manuelle ou complémentaire) : pas deux e-mails
+  const pendingElsewhere = new Set<string>();
+  for (const part of chunk(groups.map((g) => g.prospectId), 300)) {
+    const { data } = await db.from("outreach_recipients").select("prospect_id").in("prospect_id", part).in("status", ["PENDING", "QUEUED", "SENDING"]).neq("campaign_id", campaignId);
+    for (const r of data ?? []) pendingElsewhere.add(r.prospect_id);
+  }
+  const minGap = Date.now() - settings.min_days_between_contacts * DAY;
+  // Même adresse e-mail déjà contactée récemment via une autre entreprise (adresse partagée par un groupe)
+  const mailedRecently = new Set<string>();
+  const groupEmails = [...new Set(groups.map((g) => prospects.get(g.prospectId)?.email?.toLowerCase()).filter((e): e is string => Boolean(e)))];
+  for (const part of chunk(groupEmails, 200)) {
+    const { data } = await db.from("outreach_recipients").select("email").in("email", part).eq("status", "SENT").gte("sent_at", new Date(minGap).toISOString());
+    for (const r of data ?? []) if (r.email) mailedRecently.add(r.email.toLowerCase());
+  }
+  // Stratégie automatique : secteurs dont les e-mails obtiennent le plus de clics et d'inscriptions
+  // envoyés (et recherchés) en premier. Simple ordre de passage : aucune entreprise n'est écartée.
+  const sectorPriority = (await currentStrategy(db).catch(() => null))?.outreach.sector_priority ?? {};
+  const rows = groups.map((g) => {
+    const p = prospects.get(g.prospectId)!;
+    const sector = oppSector.get(g.opportunities[0]?.id ?? "");
+    const priority = Math.round((sector ? (sectorPriority[sector] ?? 0) : 0) * 10);
+    const email = p.email?.toLowerCase() ?? null;
+    const domain = email?.split("@")[1] ?? null;
+    let status = "PENDING";
+    if ((p.siren && (supp.SIREN.has(p.siren) || customerSirens.has(p.siren))) || (email && supp.EMAIL.has(email)) || (domain && supp.DOMAIN.has(domain))) status = "SUPPRESSED";
+    else if ((p.last_contacted_at && new Date(p.last_contacted_at).getTime() > minGap) || (recentCounts.get(p.id) ?? 0) >= settings.max_contacts_per_30_days || pendingElsewhere.has(p.id) || (email && mailedRecently.has(email))) status = "FREQUENCY";
+    else if (!email) status = "NO_EMAIL";
+    return { campaign_id: campaignId, prospect_id: g.prospectId, email, score: g.score, reasons: g.reasons, status, priority };
+  });
+  for (const part of chunk(rows, 200)) {
+    const { data: inserted, error } = await db.from("outreach_recipients").insert(part).select("id, prospect_id");
+    if (error) throw error;
+    const links = (inserted ?? []).flatMap((r) =>
+      groups.find((g) => g.prospectId === r.prospect_id)!.opportunities.map((o, position) => ({ recipient_id: r.id, opportunity_id: o.id, score: o.score, reasons: o.reasons, position })),
+    );
+    for (const lp of chunk(links, 500)) {
+      const { error: e2 } = await db.from("outreach_recipient_opportunities").insert(lp);
+      if (e2) throw e2;
+    }
+    await db.from("outreach_events").insert((inserted ?? []).map((r) => ({ recipient_id: r.id, campaign_id: campaignId, type: "PREPARED" })));
+  }
+
+  return rows;
+}
+
+/**
  * 11–13. File d'envoi (worker) : campagnes validées, un e-mail à la fois, jamais en masse.
  *   prospect → file (destinataires PENDING / QUEUED) → worker → SMTP → envoyé
  * Avant CHAQUE envoi : liste d'opposition (adresse, domaine, SIREN), entreprise « Ne plus
@@ -452,19 +580,24 @@ async function sendQueue(db: Db, deadline: number, sleep: (ms: number) => Promis
     if (r.last_attempt_at) await db.from("outreach_prospects").update({ last_contacted_at: r.last_attempt_at }).eq("id", r.prospect_id).or(`last_contacted_at.is.null,last_contacted_at.lt.${r.last_attempt_at}`);
   }
 
-  const sentSince = async (since: string, autoOnly: boolean) => {
+  const sentSince = async (since: string, kinds: "AUTO" | "NEED" | "NOT_NEED" | "ALL") => {
     let q = db.from("outreach_recipients").select("id, campaign:outreach_campaigns!inner(kind)", { count: "exact", head: true }).eq("status", "SENT").gte("sent_at", since);
-    if (autoOnly) q = q.eq("campaign.kind", "AUTO");
+    if (kinds === "AUTO" || kinds === "NEED") q = q.eq("campaign.kind", kinds);
+    else if (kinds === "NOT_NEED") q = q.neq("campaign.kind", "NEED");
     return (await q).count ?? 0;
   };
-  const [autoToday, allToday, lastHour] = await Promise.all([sentSince(startOfDay, true), sentSince(startOfDay, false), sentSince(iso(Date.now() - 3_600_000), false)]);
+  const [autoToday, allToday, needToday, lastHour] = await Promise.all([sentSince(startOfDay, "AUTO"), sentSince(startOfDay, "NOT_NEED"), sentSince(startOfDay, "NEED"), sentSince(iso(Date.now() - 3_600_000), "ALL")]);
   let autoRemaining = Math.max(0, settings.daily_send_cap - autoToday);
+  // Limite quotidienne des campagnes automatiques et manuelles ; les besoins publiés ont leur propre quota
   let totalRemaining = Math.max(0, settings.total_daily_send_cap - allToday);
+  let needRemaining = Math.max(0, settings.need_daily_send_cap - needToday);
   let hourRemaining = Math.max(0, settings.hourly_send_cap - lastHour);
-  const result = { sent: 0, simulated: 0, failed: 0, skipped: 0, remaining_cap: Math.min(totalRemaining, hourRemaining), stopped: null as string | null };
+  const result = { sent: 0, simulated: 0, failed: 0, skipped: 0, remaining_cap: Math.min(totalRemaining + needRemaining, hourRemaining), stopped: null as string | null };
 
-  const { data: campaigns } = await db.from("outreach_campaigns").select("id, dry_run, kind").in("status", ["VALIDATED", "SENDING"]).order("campaign_date");
-  if (!campaigns?.length) return result;
+  const { data: listed } = await db.from("outreach_campaigns").select("id, dry_run, kind").in("status", ["VALIDATED", "SENDING"]).order("campaign_date");
+  if (!listed?.length) return result;
+  // Besoins publiés par des entreprises inscrites d'abord (mise en relation attendue)
+  const campaigns = [...listed.filter((c) => c.kind === "NEED"), ...listed.filter((c) => c.kind !== "NEED")];
   const ref = await loadReferentials(db);
   const blockers = realSendBlockers(settings);
   const supp = await loadSuppressions(db);
@@ -483,13 +616,18 @@ async function sendQueue(db: Db, deadline: number, sleep: (ms: number) => Promis
       result.stopped = `envoi réel suspendu : ${blockers[0]}`;
       continue;
     }
-    const capped = c.kind !== "MANUAL";
+    const need = c.kind === "NEED";
+    const capped = c.kind === "AUTO";
     await db.from("outreach_campaigns").update({ status: "SENDING" }).eq("id", c.id);
     while (Date.now() < deadline) {
-      const room = simulate ? 25 : Math.min(25, totalRemaining, hourRemaining, capped ? autoRemaining : 25);
+      const room = simulate ? 25 : Math.min(25, need ? needRemaining : totalRemaining, hourRemaining, capped ? autoRemaining : 25);
       if (room <= 0) {
-        result.stopped = !simulate && (totalRemaining <= 0 || hourRemaining <= 0) ? (totalRemaining <= 0 ? "limite quotidienne" : "limite horaire") : null;
-        if (result.stopped) break campaignsLoop;
+        if (!simulate && hourRemaining <= 0) {
+          result.stopped = "limite horaire";
+          break campaignsLoop;
+        }
+        // Quota des besoins épuisé : on passe aux autres campagnes (et inversement)
+        if (!simulate && !need && totalRemaining <= 0) result.stopped = "limite quotidienne";
         break;
       }
       const { data: batch } = await db.from("outreach_recipients").select("id").eq("campaign_id", c.id).in("status", ["PENDING", "QUEUED"]).order("priority", { ascending: false }).order("score", { ascending: false }).limit(room);
@@ -571,7 +709,8 @@ async function sendQueue(db: Db, deadline: number, sleep: (ms: number) => Promis
           await db.from("outreach_prospects").update({ last_contacted_at: done, contacts_count: b.prospect.contacts_count + 1, updated_at: done }).eq("id", b.prospect.id);
           await db.from("outreach_events").insert({ recipient_id: rid, campaign_id: c.id, type: "SENT", meta: { transport: r.transport ?? null } });
           result.sent++;
-          totalRemaining--;
+          if (need) needRemaining--;
+          else totalRemaining--;
           hourRemaining--;
           if (capped) autoRemaining--;
         } else if (r.status === "SKIPPED") {
@@ -607,7 +746,7 @@ async function sendQueue(db: Db, deadline: number, sleep: (ms: number) => Promis
     const { count: left } = await db.from("outreach_recipients").select("id", { count: "exact", head: true }).eq("campaign_id", c.id).in("status", ["PENDING", "QUEUED", "SENDING"]);
     if (!left) await db.from("outreach_campaigns").update({ status: simulate ? "SIMULATED" : "SENT", sent_at: new Date().toISOString() }).eq("id", c.id);
   }
-  result.remaining_cap = Math.min(totalRemaining, hourRemaining);
+  result.remaining_cap = Math.min(totalRemaining + needRemaining, hourRemaining);
   return result;
 }
 

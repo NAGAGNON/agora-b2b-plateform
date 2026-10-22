@@ -3,6 +3,10 @@ import { notFound } from "next/navigation";
 import { ExternalLink, FileText, Users, Inbox, Star, Scale } from "lucide-react";
 import { requireCompany } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { needMetrics } from "@/lib/needs";
+import { siteUrl } from "@/lib/seo";
+import { NeedVisibility } from "@/components/dashboard/need-visibility";
 import { Card, CardHeader, DashboardCard } from "@/components/ui/card";
 import { Notice } from "@/components/ui/notice";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -35,6 +39,10 @@ export default async function ManageOpportunityPage(props: PageProps<"/dashboard
     supabase.from("proposal_evaluations").select("proposal_id, score, note"),
     supabase.from("conversations").select("id, supplier_company_id").eq("opportunity_id", id),
   ]);
+  // Suivi de la mise en relation (besoin publié publiquement) : entreprise propriétaire vérifiée ci-dessus
+  const showVisibility = !o.is_demo && o.visibility === "PUBLIC" && ["PUBLISHED", "EXPIRED", "CLOSED"].includes(o.status);
+  const admin = showVisibility ? createAdminClient() : null;
+  const [metrics, analyzed] = admin ? await Promise.all([needMetrics(admin, id), admin.from("need_campaigns").select("id").eq("opportunity_id", id).maybeSingle().then((r) => Boolean(r.data))]) : [null, false];
   const evalBy = new Map((evaluations ?? []).map((e) => [e.proposal_id, e]));
   const convBy = new Map((conversations ?? []).map((c) => [c.supplier_company_id, c.id]));
   const activeProposals = (proposals ?? []).filter((p) => p.status !== "WITHDRAWN");
@@ -104,6 +112,8 @@ export default async function ManageOpportunityPage(props: PageProps<"/dashboard
           </Link>
         </div>
       </div>
+
+      {metrics && <NeedVisibility id={o.id} title={o.title} url={`${siteUrl()}/opportunites/${o.id}`} m={metrics} analyzed={analyzed} />}
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <DashboardCard label="Fournisseurs intéressés" value={activeInterests.length} icon={<Users className="size-5" aria-hidden />} />

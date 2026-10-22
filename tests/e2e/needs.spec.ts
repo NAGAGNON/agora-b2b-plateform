@@ -1,0 +1,98 @@
+import { config } from "dotenv";
+import { expect, test } from "@playwright/test";
+import { createClient } from "@supabase/supabase-js";
+import { RUN, login, newPage, signUpWithCompany } from "./helpers";
+
+config({ path: ".env.local" });
+const db = createClient(process.env.SUPABASE_URL!, (process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY)!, { auth: { persistSession: false } });
+const title = `Maintenance ${RUN} de compresseurs d'air`;
+let needId = "";
+
+test.afterAll(async () => {
+  if (needId) await db.from("opportunities").delete().eq("id", needId);
+});
+
+/**
+ * Besoin publié → mise en relation automatique : entreprise inscrite correspondante prévenue,
+ * « Envoyer un message » (connecté ou non), suivi côté demandeur et administration, mise en avant.
+ */
+test("un besoin validé déclenche la mise en relation, le message et le suivi", async ({ browser }) => {
+  test.setTimeout(240_000);
+  const buyer = await newPage(browser);
+  await signUpWithCompany(buyer, "besoin-acheteur", `E2E Besoin Acheteur ${RUN}`, "Entreprise demandeuse");
+  const supplier = await newPage(browser);
+  await signUpWithCompany(supplier, "besoin-fournisseur", `E2E Besoin Fournisseur ${RUN}`, "Fournisseur / prestataire");
+
+  const { data: company } = await db.from("companies").select("id").eq("name", `E2E Besoin Acheteur ${RUN}`).single();
+  const { data: supplierCo } = await db.from("companies").select("id").eq("name", `E2E Besoin Fournisseur ${RUN}`).single();
+  const { data: o, error } = await db
+    .from("opportunities")
+    .insert({
+      type: "QUOTE_REQUEST",
+      origin: "INTERNAL",
+      status: "PENDING_REVIEW",
+      visibility: "PUBLIC",
+      company_id: company!.id,
+      title,
+      summary: "Entretien préventif de trois compresseurs d'air.",
+      description: "Nous recherchons une entreprise de maintenance industrielle pour l'entretien préventif de trois compresseurs et du réseau hydraulique.",
+      sector_slug: "maintenance-industrielle",
+      skills: ["hydraulique", "compresseurs"],
+      city: "Brest",
+      department_code: "29",
+      region: "Bretagne",
+      response_deadline: new Date(Date.now() + 20 * 86_400_000).toISOString(),
+    })
+    .select("id")
+    .single();
+  if (error) throw error;
+  needId = o.id;
+
+  // Validation par la modération → mise en relation lancée automatiquement après la réponse
+  const moderator = await newPage(browser);
+  await login(moderator, "moderateur@demo.linkprob2b.test");
+  await moderator.goto("/admin/moderation");
+  const card = moderator.locator("li", { hasText: title });
+  await card.getByRole("button", { name: "Approuver et publier" }).click();
+  await moderator.getByRole("button", { name: "Confirmer" }).click();
+  await expect(moderator.getByText("Opportunité publiée.")).toBeVisible();
+  await expect
+    .poll(async () => (await db.from("need_matches").select("status").eq("opportunity_id", needId).eq("company_id", supplierCo!.id).maybeSingle()).data?.status ?? null, { timeout: 90_000 })
+    .toBe("NOTIFIED");
+
+  // Visiteur non connecté : « Envoyer un message » mène à l'inscription, retour sur le formulaire de message
+  const visitor = await newPage(browser);
+  await visitor.goto(`/opportunites/${needId}`);
+  await visitor.getByTestId("need-message").click();
+  await expect(visitor).toHaveURL(/\/inscription\?suite=.*message%3D1/);
+
+  // Fournisseur prévenu : la notification ouvre la fiche sur le formulaire de message
+  await supplier.goto("/dashboard/notifications");
+  await expect(supplier.getByText(`Un besoin correspond à votre activité : ${title}`)).toBeVisible();
+  await supplier.goto(`/opportunites/${needId}?message=1`);
+  const dialog = supplier.getByRole("dialog", { name: "Envoyer un message au demandeur" });
+  await expect(dialog).toBeVisible();
+  await dialog.getByLabel("Votre message").fill("Nous intervenons sur ce type de compresseurs, sous 24 h sur Brest.");
+  await dialog.getByRole("button", { name: "Envoyer" }).click();
+  await expect(supplier.getByText("Votre message a été envoyé à l'entreprise.", { exact: false })).toBeVisible();
+
+  // Demandeur : suivi de la visibilité (chiffres réels) et partage
+  await buyer.goto(`/dashboard/opportunites/${needId}`);
+  const panel = buyer.getByTestId("need-visibility");
+  await expect(panel).toContainText("Visibilité et mise en relation");
+  await expect(panel).toContainText("Entreprises inscrites prévenues");
+  await expect(panel.getByRole("button", { name: "Copier le lien" })).toBeVisible();
+
+  // Administration : suivi du besoin
+  const admin = await newPage(browser);
+  await login(admin, "admin@demo.linkprob2b.test");
+  await admin.goto("/admin/besoins");
+  const row = admin.getByTestId("need-row").filter({ hasText: title });
+  await expect(row).toContainText("Inscrites prévenues");
+  await expect(row).toContainText("Intérêts · réponses");
+  await expect(row.getByRole("button", { name: "Relancer" })).toBeVisible();
+
+  // Mise en avant au-dessus des annonces du secteur
+  await visitor.goto("/opportunites?secteur=maintenance-industrielle");
+  await expect(visitor.getByTestId("featured-needs")).toContainText(title);
+});

@@ -75,6 +75,8 @@ export function matchScore(o: VeilleOpportunity, c: VeilleCriteria): number | nu
     if (!hits && !c.sectors.length && !c.regions.length && !c.types.length) return null;
     score += hits * 3;
   }
+  // Besoin publié par une entreprise inscrite : mis en avant (une mise en relation est attendue)
+  if (o.origin === "INTERNAL") score += 4;
   return score;
 }
 
@@ -109,8 +111,10 @@ export function selectOpportunities(pool: VeilleOpportunity[], c: VeilleCriteria
       .slice(0, max)
       .map((x) => x.o);
   }
-  // Sélection générale : récentes, avec résumé et date limite de préférence, 2 au plus par secteur
-  const ranked = [...available].sort((a, b) => Number(Boolean(b.summary && b.response_deadline)) - Number(Boolean(a.summary && a.response_deadline)) || recent(a, b));
+  // Sélection générale : besoins d'entreprises inscrites d'abord, puis récentes avec résumé et date limite, 2 au plus par secteur
+  const ranked = [...available].sort(
+    (a, b) => Number(b.origin === "INTERNAL") - Number(a.origin === "INTERNAL") || Number(Boolean(b.summary && b.response_deadline)) - Number(Boolean(a.summary && a.response_deadline)) || recent(a, b),
+  );
   const perSector = new Map<string, number>();
   const out: VeilleOpportunity[] = [];
   for (const o of ranked) {
