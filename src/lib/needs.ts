@@ -112,7 +112,8 @@ export function analyzeNeed(o: NeedRow, ref: Awaited<ReturnType<typeof loadRefer
 
 /** Besoin publié par une entreprise inscrite, public, réel et encore ouvert. */
 export function isOpenNeed(o: Pick<NeedRow, "origin" | "status" | "visibility" | "is_demo" | "response_deadline">, now = Date.now()) {
-  return o.origin === "INTERNAL" && o.status === "PUBLISHED" && o.visibility === "PUBLIC" && !o.is_demo && (!o.response_deadline || new Date(o.response_deadline).getTime() > now);
+  // Besoin réservé aux inscrits : traité aussi (entreprises inscrites prévenues), sans prospection externe
+  return o.origin === "INTERNAL" && o.status === "PUBLISHED" && ["PUBLIC", "MEMBERS_ONLY"].includes(o.visibility) && !o.is_demo && (!o.response_deadline || new Date(o.response_deadline).getTime() > now);
 }
 
 /** Entreprises inscrites correspondantes : enregistrement, puis notification des plus pertinentes. */
@@ -218,7 +219,7 @@ export async function runNeedCampaign(db: DB, opportunityId: string, { now = new
   const { data: existing } = await db.from("need_campaigns").select("id, runs, outreach_campaign_id, prospects_added_on").eq("opportunity_id", opportunityId).maybeSingle();
   if (!isOpenNeed(need, now.getTime())) {
     if (existing) await db.from("need_campaigns").update({ status: "CLOSED", updated_at: now.toISOString() }).eq("id", existing.id);
-    return { opportunityId, status: "CLOSED", note: "Besoin non publié, privé, de démonstration ou fermé" };
+    return { opportunityId, status: "CLOSED", note: "Besoin non publié, de démonstration ou fermé" };
   }
   const { data: nc, error } = await db
     .from("need_campaigns")
@@ -231,7 +232,8 @@ export async function runNeedCampaign(db: DB, opportunityId: string, { now = new
     let outreach: NeedRunResult["prospects"];
     // Prospection : de nouvelles entreprises chaque jour (quota quotidien par besoin), une seule fois par jour
     const day = parisToday(now);
-    if (prospects && existing?.prospects_added_on === day) outreach = { campaignId: existing.outreach_campaign_id, identified: 0, relevant: 0, skipped: "Entreprises du jour déjà ajoutées" };
+    if (prospects && need.visibility !== "PUBLIC") outreach = { campaignId: existing?.outreach_campaign_id ?? null, identified: 0, relevant: 0, skipped: "Besoin réservé aux inscrits : pas de prospection hors de la plateforme" };
+    else if (prospects && existing?.prospects_added_on === day) outreach = { campaignId: existing.outreach_campaign_id, identified: 0, relevant: 0, skipped: "Entreprises du jour déjà ajoutées" };
     else if (prospects && Date.now() < deadline - 20_000) {
       const r = await buildNeedOutreachCampaign(db, opportunityId, { deadline: deadline - 15_000 });
       outreach = { campaignId: r.campaignId, identified: r.identified ?? 0, relevant: r.relevant ?? 0, skipped: r.skipped };
@@ -279,7 +281,7 @@ export async function processNeedCampaigns(db: DB, { deadline = Date.now() + 120
     .select("id, response_deadline, published_at")
     .eq("origin", "INTERNAL")
     .eq("status", "PUBLISHED")
-    .eq("visibility", "PUBLIC")
+    .in("visibility", ["PUBLIC", "MEMBERS_ONLY"])
     .eq("is_demo", false)
     .or(`response_deadline.is.null,response_deadline.gt.${now.toISOString()}`)
     .order("published_at", { ascending: false })
