@@ -1,5 +1,27 @@
+import { config } from "dotenv";
 import { expect, test } from "@playwright/test";
-import { newPage, expectNotFound } from "./helpers";
+import { createClient } from "@supabase/supabase-js";
+import { RUN, newPage, expectNotFound } from "./helpers";
+
+config({ path: ".env.local" });
+const db = createClient(process.env.SUPABASE_URL!, (process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY)!, { auth: { persistSession: false } });
+let oppId = "";
+
+// Une opportunité ouverte en Finistère, pour ne pas dépendre des données déjà présentes
+test.beforeAll(async () => {
+  const { data, error } = await db
+    .from("opportunities")
+    .insert({ type: "PUBLIC_TENDER", origin: "EXTERNAL", status: "PUBLISHED", visibility: "PUBLIC", title: `E2E ${RUN} Maintenance des installations de la station`, description: "Maintenance préventive des équipements industriels.", sector_slug: "maintenance-industrielle", department_code: "29", region: "Bretagne", response_deadline: new Date(Date.now() + 20 * 86_400_000).toISOString(), published_at: new Date().toISOString(), external_buyer_name: `Commune E2E ${RUN}` })
+    .select("id")
+    .single();
+  if (error) throw error;
+  oppId = data.id;
+});
+
+test.afterAll(async () => {
+  await db.from("opportunities").delete().eq("id", oppId);
+  await db.from("alert_leads").delete().like("email", "e2e-lead-%@example.test");
+});
 
 test("pages métier × département : titre, fil d'Ariane, liens, alerte par e-mail sans compte", async ({ browser }) => {
   const page = await newPage(browser);
@@ -30,6 +52,8 @@ test("page département : liens vers les métiers", async ({ browser }) => {
   const page = await newPage(browser);
   await page.goto("/opportunites/bretagne/finistere");
   await expect(page.getByText("Par métier")).toBeVisible();
+  await page.getByText("Par métier").click();
+  await expect(page.getByRole("link", { name: "Maintenance industrielle" }).first()).toHaveAttribute("href", "/opportunites/bretagne/finistere/maintenance-industrielle");
 });
 
 test("confirmation et désinscription d'une alerte : lien invalide signalé", async ({ browser }) => {
