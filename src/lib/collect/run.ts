@@ -21,6 +21,8 @@ export type RunStats = {
 };
 
 const FREQUENCY_MS: Record<string, number> = { hourly: 3_600_000, daily: 86_400_000, weekly: 7 * 86_400_000 };
+/** Annonce inchangée : la date de vérification n'est réécrite qu'une fois par jour au plus. */
+const VERIFY_REFRESH_MS = 20 * 3_600_000;
 
 function opportunityRow(item: NormalizedOpportunity, sectors: Set<string>, departments: Set<string>) {
   return {
@@ -241,9 +243,16 @@ export async function runSource(
       stats.errors.push(`${item.externalId} : ${e instanceof Error ? e.message : String(e)}`.slice(0, 300));
     }
   }
-  // Annonces inchangées : date de vérification mise à jour en une requête par lot
+  // Annonces inchangées : date de vérification mise à jour en une requête par lot, au plus une fois
+  // par jour (chaque réécriture coûte des écritures disque ; la date affichée est au jour près).
+  const verifiedCutoff = new Date(now.getTime() - VERIFY_REFRESH_MS).toISOString();
   for (const ids of chunks(unchangedIds, 300)) {
-    await db.from("opportunity_sources").update({ last_verified_at: now.toISOString(), verification_status: "VERIFIED" }).eq("source_id", source.id).in("opportunity_id", ids);
+    await db
+      .from("opportunity_sources")
+      .update({ last_verified_at: now.toISOString(), verification_status: "VERIFIED" })
+      .eq("source_id", source.id)
+      .in("opportunity_id", ids)
+      .or(`last_verified_at.is.null,last_verified_at.lt.${verifiedCutoff},verification_status.neq.VERIFIED`);
   }
 
   // 3. Nouvelles annonces : rapprochement avec les autres sources, puis insertion groupée

@@ -88,6 +88,22 @@ describe("collecte des sources externes", () => {
     expect(data?.title).toContain("et support");
   });
 
+  it("annonce inchangée : date de vérification réécrite une fois par jour au plus (écritures disque)", async () => {
+    const { data: opp } = await admin.from("opportunities").select("id").eq("external_reference", `TEST-${tag}-001`).single();
+    const old = new Date(Date.now() - 2 * 3_600_000).toISOString();
+    await admin.from("opportunity_sources").update({ last_verified_at: old }).eq("opportunity_id", opp!.id).eq("source_id", boamp.id);
+    const records = boampRecords(tag);
+    records[1].objet = `Infogérance et support du système d'information ${tag}`;
+    const fetchImpl = mockFetch(() => ({ total_count: 3, results: records }));
+    await runSource(boamp, { trigger: "manual", fetchImpl });
+    const read = async () => (await admin.from("opportunity_sources").select("last_verified_at").eq("opportunity_id", opp!.id).eq("source_id", boamp.id).single()).data?.last_verified_at;
+    expect(new Date((await read())!).getTime()).toBe(new Date(old).getTime());
+    const stale = new Date(Date.now() - 21 * 3_600_000).toISOString();
+    await admin.from("opportunity_sources").update({ last_verified_at: stale }).eq("opportunity_id", opp!.id).eq("source_id", boamp.id);
+    await runSource(boamp, { trigger: "manual", fetchImpl });
+    expect(new Date((await read())!).getTime()).toBeGreaterThan(Date.now() - 60_000);
+  });
+
   it("archive une annonce annulée à la source", async () => {
     const records = boampRecords(tag);
     records[0].nature_libelle = "Avis d'annulation";
