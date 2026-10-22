@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
@@ -11,6 +12,7 @@ import { env } from "@/lib/env";
 import { seedDemo, wipeDemo, type DemoCredential } from "@/lib/demo/seed";
 import { processAlertDigests, processEmailOutbox } from "@/lib/email/outbox";
 import { flushEmailsAfterResponse } from "@/lib/email/flush";
+import { runNeedCampaign } from "@/lib/needs";
 import { rateLimit } from "@/lib/rate-limit";
 import { externalOpportunitySchema, moderationSchema, parseForm, sourceSchema, type ActionResult } from "@/lib/validation";
 import type { Database, Json } from "@/lib/database.types";
@@ -34,6 +36,19 @@ export async function moderateOpportunity(_prev: ActionResult | null, fd: FormDa
   });
   if (error) return { ok: false, error: userMessage(error) };
   flushEmailsAfterResponse();
+  // Besoin publié : mise en relation automatique (entreprises inscrites, prospection dédiée), après la réponse
+  if (parsed.data.action === "APPROVE" || parsed.data.action === "REINSTATE") {
+    const id = parsed.data.opportunityId;
+    after(async () => {
+      try {
+        const db = createAdminClient();
+        await runNeedCampaign(db, id, { deadline: Date.now() + 100_000 });
+        if (env.emailTransport) await processEmailOutbox(40);
+      } catch (e) {
+        logServerError("need campaign after publish", e);
+      }
+    });
+  }
   revalidatePath("/admin", "layout");
   const labels: Record<string, string> = {
     APPROVE: "Opportunité publiée.",

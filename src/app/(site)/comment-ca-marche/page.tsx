@@ -33,7 +33,7 @@ export default function HowItWorksPage() {
       <h2>3. Côté fournisseur : trouvez et répondez</h2>
       <p>
         Recherchez par mots-clés, secteur, localisation et rayon, type, statut ou date limite. Enregistrez vos recherches, créez des alertes (immédiates,
-        quotidiennes ou hebdomadaires) et mettez des opportunités en favoris. Sur un besoin publié sur LinkProB2B, cliquez sur « Je suis intéressé » puis
+        quotidiennes ou hebdomadaires) et mettez des opportunités en favoris. Sur un besoin publié sur LinkProB2B, cliquez sur « Envoyer un message » pour écrire à l&apos;entreprise, puis
         « Répondre à la consultation » pour envoyer votre proposition (message, prix, délai, validité, pièces jointes).
       </p>
       <h2>4. Opportunités externes</h2>

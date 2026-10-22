@@ -68,10 +68,10 @@ test("parcours complet demandeur / modération / fournisseur", async ({ browser 
   expect((await download.body()).subarray(0, 4).toString()).toBe("%PDF");
 
   // 6. Manifestation d'intérêt
-  await supplier.getByRole("button", { name: "Je suis intéressé" }).click();
-  await supplier.getByLabel("Message au demandeur (facultatif)").fill("Nous intervenons sur ce type de pompes.");
-  await supplier.getByRole("button", { name: "Envoyer" }).click();
-  await expect(supplier.getByText("Votre intérêt a été transmis au demandeur.")).toBeVisible();
+  await supplier.getByRole("button", { name: "Envoyer un message" }).click();
+  await supplier.getByLabel("Votre message").fill("Nous intervenons sur ce type de pompes.");
+  await supplier.getByRole("button", { name: "Envoyer", exact: true }).click();
+  await expect(supplier.getByText("Votre message a été envoyé à l'entreprise.", { exact: false })).toBeVisible();
 
   // 7. Réponse à la consultation
   await supplier.getByRole("link", { name: "Répondre à la consultation" }).click();

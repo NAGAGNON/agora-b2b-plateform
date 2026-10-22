@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation";
 import { OpportunityResults } from "@/components/opportunities/opportunity-results";
+import { FeaturedNeeds } from "@/components/opportunities/featured-needs";
+import { regionBySlug } from "@/lib/geo";
 import { searchOpportunities } from "@/lib/queries/opportunities";
 import { PAGE_SIZE } from "@/lib/constants";
 import { parseOpportunityFilters } from "@/lib/search-params";
@@ -41,6 +43,9 @@ export default async function OpportunitiesPage(props: PageProps<"/opportunites"
         <span className="hidden sm:inline"> La source de chaque opportunité est toujours indiquée, avec un lien vers l&apos;annonce officielle.</span>
       </p>
       <FreshnessBar stats={await getPlatformStats()} className="mt-3 mb-6" />
+      {filters.page === 1 && !filters.q && filters.origin !== "EXTERNAL" && (
+        <FeaturedNeeds sector={filters.sector} department={filters.department} region={filters.region ? (regionBySlug(filters.region)?.name ?? null) : null} />
+      )}
       <OpportunityResults filters={filters} rawParams={sp} basePath="/opportunites" />
     </div>
   );

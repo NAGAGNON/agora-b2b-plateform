@@ -50,7 +50,7 @@ test("une opportunité externe est identifiée et renvoie vers la source", async
   await expect(page.getByText("Opportunité externe", { exact: true })).toBeVisible();
   await expect(page.getByText("Cette opportunité est issue d'une source externe", { exact: false })).toBeVisible();
   await expect(page.getByRole("link", { name: /Consulter l'opportunité originale/ })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Je suis intéressé" })).toHaveCount(0);
+  await expect(page.getByTestId("need-message")).toHaveCount(0);
 });
 
 test("les données de démonstration sont signalées", async ({ browser }) => {

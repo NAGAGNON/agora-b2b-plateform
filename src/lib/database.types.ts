@@ -532,6 +532,62 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"need_campaigns": {
+                  Row: {
+                    "analysis": NonNullable<Json>,"created_at": string,"error": string | null,"id": string,"last_run_at": string | null,"members_identified": number,"members_notified": number,"members_relevant": number,"note": string | null,"opportunity_id": string,"outreach_campaign_id": string | null,"prospects_identified": number,"prospects_relevant": number,"runs": number,"status": string,"updated_at": string
+                  }
+                  Insert: {
+                    "analysis"?: NonNullable<Json>,"created_at"?: string,"error"?: string | null,"id"?: string,"last_run_at"?: string | null,"members_identified"?: number,"members_notified"?: number,"members_relevant"?: number,"note"?: string | null,"opportunity_id": string,"outreach_campaign_id"?: string | null,"prospects_identified"?: number,"prospects_relevant"?: number,"runs"?: number,"status"?: string,"updated_at"?: string
+                  }
+                  Update: {
+                    "analysis"?: NonNullable<Json>,"created_at"?: string,"error"?: string | null,"id"?: string,"last_run_at"?: string | null,"members_identified"?: number,"members_notified"?: number,"members_relevant"?: number,"note"?: string | null,"opportunity_id"?: string,"outreach_campaign_id"?: string | null,"prospects_identified"?: number,"prospects_relevant"?: number,"runs"?: number,"status"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "need_campaigns_opportunity_id_fkey"
+      columns: ["opportunity_id"]
+isOneToOne: true
+      referencedRelation: "opportunities"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "need_campaigns_outreach_campaign_id_fkey"
+      columns: ["outreach_campaign_id"]
+isOneToOne: false
+      referencedRelation: "outreach_campaigns"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"need_matches": {
+                  Row: {
+                    "company_id": string,"created_at": string,"id": string,"need_campaign_id": string,"notified_at": string | null,"opportunity_id": string,"reasons": (string)[],"reminded_at": string | null,"score": number,"skip_reason": string | null,"status": string
+                  }
+                  Insert: {
+                    "company_id": string,"created_at"?: string,"id"?: string,"need_campaign_id": string,"notified_at"?: string | null,"opportunity_id": string,"reasons"?: (string)[],"reminded_at"?: string | null,"score": number,"skip_reason"?: string | null,"status"?: string
+                  }
+                  Update: {
+                    "company_id"?: string,"created_at"?: string,"id"?: string,"need_campaign_id"?: string,"notified_at"?: string | null,"opportunity_id"?: string,"reasons"?: (string)[],"reminded_at"?: string | null,"score"?: number,"skip_reason"?: string | null,"status"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "need_matches_company_id_fkey"
+      columns: ["company_id"]
+isOneToOne: false
+      referencedRelation: "companies"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "need_matches_need_campaign_id_fkey"
+      columns: ["need_campaign_id"]
+isOneToOne: false
+      referencedRelation: "need_campaigns"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "need_matches_opportunity_id_fkey"
+      columns: ["opportunity_id"]
+isOneToOne: false
+      referencedRelation: "opportunities"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"notifications": {
                   Row: {
                     "body": string | null,"created_at": string,"id": string,"link": string | null,"read_at": string | null,"title": string,"type": string,"user_id": string
@@ -677,13 +733,13 @@ isOneToOne: false
                   ]
                 },"outreach_campaigns": {
                   Row: {
-                    "campaign_date": string,"created_at": string,"dry_run": boolean,"error": string | null,"id": string,"intro_template": string,"kind": string,"launched_by": string | null,"min_score": number,"report": string | null,"sent_at": string | null,"stats": NonNullable<Json>,"status": string,"subject_template": string,"updated_at": string,"validated_at": string | null,"validated_by": string | null
+                    "campaign_date": string,"created_at": string,"dry_run": boolean,"error": string | null,"id": string,"intro_template": string,"kind": string,"launched_by": string | null,"min_score": number,"opportunity_id": string | null,"report": string | null,"sent_at": string | null,"stats": NonNullable<Json>,"status": string,"subject_template": string,"updated_at": string,"validated_at": string | null,"validated_by": string | null
                   }
                   Insert: {
-                    "campaign_date": string,"created_at"?: string,"dry_run"?: boolean,"error"?: string | null,"id"?: string,"intro_template": string,"kind"?: string,"launched_by"?: string | null,"min_score": number,"report"?: string | null,"sent_at"?: string | null,"stats"?: NonNullable<Json>,"status"?: string,"subject_template": string,"updated_at"?: string,"validated_at"?: string | null,"validated_by"?: string | null
+                    "campaign_date": string,"created_at"?: string,"dry_run"?: boolean,"error"?: string | null,"id"?: string,"intro_template": string,"kind"?: string,"launched_by"?: string | null,"min_score": number,"opportunity_id"?: string | null,"report"?: string | null,"sent_at"?: string | null,"stats"?: NonNullable<Json>,"status"?: string,"subject_template": string,"updated_at"?: string,"validated_at"?: string | null,"validated_by"?: string | null
                   }
                   Update: {
-                    "campaign_date"?: string,"created_at"?: string,"dry_run"?: boolean,"error"?: string | null,"id"?: string,"intro_template"?: string,"kind"?: string,"launched_by"?: string | null,"min_score"?: number,"report"?: string | null,"sent_at"?: string | null,"stats"?: NonNullable<Json>,"status"?: string,"subject_template"?: string,"updated_at"?: string,"validated_at"?: string | null,"validated_by"?: string | null
+                    "campaign_date"?: string,"created_at"?: string,"dry_run"?: boolean,"error"?: string | null,"id"?: string,"intro_template"?: string,"kind"?: string,"launched_by"?: string | null,"min_score"?: number,"opportunity_id"?: string | null,"report"?: string | null,"sent_at"?: string | null,"stats"?: NonNullable<Json>,"status"?: string,"subject_template"?: string,"updated_at"?: string,"validated_at"?: string | null,"validated_by"?: string | null
                   }
                   Relationships: [
                     {
@@ -691,6 +747,12 @@ isOneToOne: false
       columns: ["launched_by"]
 isOneToOne: false
       referencedRelation: "users"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "outreach_campaigns_opportunity_id_fkey"
+      columns: ["opportunity_id"]
+isOneToOne: false
+      referencedRelation: "opportunities"
       referencedColumns: ["id"]
     },{
       foreignKeyName: "outreach_campaigns_validated_by_fkey"
@@ -1527,6 +1589,11 @@ isOneToOne: false
                            },
 "my_company_ids":
 { Args: Record<PropertyKey, never>; Returns: string[]
+                           },
+"need_member_candidates":
+{ Args: { "p_limit"?: number,"p_opportunity_id": string }; Returns: {
+              "company_id": string,"members": number,"name": string,"reasons": (string)[],"score": number
+            }[]
                            },
 "notify_company":
 { Args: { "p_body": string,"p_company_id": string,"p_exclude_user"?: string,"p_link": string,"p_send_email"?: boolean,"p_title": string,"p_type": string }; Returns: undefined

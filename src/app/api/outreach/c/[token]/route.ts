@@ -24,7 +24,8 @@ export async function GET(req: Request, ctx: RouteContext<"/api/outreach/c/[toke
   let target = `${base}/opportunites/selection/${token}?${utm}`;
   if (o && isUuid(o)) {
     const { data } = await createAdminClient().from("outreach_recipient_opportunities").select("opportunity_id").eq("recipient_id", r.id).eq("opportunity_id", o).maybeSingle();
-    if (data) target = `${base}/opportunites/${o}?${utm}`;
+    // « Envoyer un message » (e-mail dédié à un besoin) : la fiche s'ouvre sur le formulaire de message
+    if (data) target = `${base}/opportunites/${o}?${new URL(req.url).searchParams.get("m") === "1" ? "message=1&" : ""}${utm}`;
   }
   // Vérification automatique par la messagerie : redirigée, mais pas comptée comme un clic
   if (!isAutomatedHit(req, r.sent_at)) await track(r, "CLICK", target.includes("/selection/") ? {} : { opportunityId: o! });

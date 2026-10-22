@@ -120,3 +120,87 @@ ${i.pixelUrl ? `<img src="${escapeHtml(i.pixelUrl)}" width="1" height="1" alt=""
   ].join("\n");
   return { subject: i.subject, html, text };
 }
+
+export type NeedEmailInput = {
+  companyName: string;
+  subject: string;
+  /** Activité de l'entreprise contactée (code NAF, secteur), telle qu'elle figure dans sa fiche publique */
+  activity: string;
+  need: EmailOpportunity & { budget: string | null; buyer: string | null };
+  messageUrl: string;
+  unsubscribeUrl: string;
+  pixelUrl?: string;
+  siteUrl: string;
+  reason: string;
+  dataSource: string;
+  sender: string[];
+};
+
+/**
+ * E-mail dédié à UN besoin publié par une entreprise inscrite : court, factuel, sans relation
+ * préalable supposée, avec une action principale « Envoyer un message ».
+ */
+export function renderNeedEmail(i: NeedEmailInput): { subject: string; html: string; text: string } {
+  const n = i.need;
+  const facts = [
+    n.sector ? ["Secteur", n.sector] : null,
+    n.location ? ["Lieu", n.location] : null,
+    n.budget ? ["Budget indiqué", n.budget] : null,
+    n.deadline ? ["Réponse souhaitée avant le", n.deadline] : null,
+  ].filter((x): x is string[] => Boolean(x));
+  const intro = `Une entreprise a publié sur LinkProB2B un besoin qui pourrait correspondre à l'activité de ${i.companyName}.`;
+  const why = `Au regard de votre activité (${i.activity})${n.location ? ` et de votre localisation` : ""}, nous pensons que cette demande peut vous intéresser. Vous pouvez consulter le détail et écrire directement à l'entreprise qui l'a publiée.`;
+  const html = `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><title>${escapeHtml(i.subject)}</title></head>
+<body style="margin:0;padding:0;background:${C.sky};font-family:Inter,Segoe UI,Arial,sans-serif;-webkit-text-size-adjust:100%">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0">${escapeHtml(n.title)}</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${C.sky}"><tr><td align="center" style="padding:24px 12px">
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px">
+<tr><td style="background:${C.navy};border-radius:14px 14px 0 0;padding:20px 28px"><a href="${escapeHtml(i.siteUrl)}" style="text-decoration:none"><img src="${escapeHtml(i.siteUrl)}/brand/logo-white.png" width="150" alt="LinkProB2B" style="display:block;border:0;width:150px;height:auto;color:#ffffff;font-size:20px;font-weight:700"></a></td></tr>
+<tr><td style="background:#ffffff;padding:28px 28px 8px">
+<p style="margin:0 0 6px;font-size:13px;color:${C.tealDark};font-weight:700;text-transform:uppercase;letter-spacing:.4px">Besoin publié par une entreprise</p>
+<p style="margin:0 0 12px;font-size:15px;line-height:23px;color:${C.slate}">Bonjour,</p>
+<p style="margin:0 0 16px;font-size:15px;line-height:23px;color:${C.slate}">${escapeHtml(intro)}</p>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid ${C.border};border-radius:12px;background:#ffffff;margin:0 0 16px"><tr><td style="padding:18px 20px">
+<p style="margin:0 0 8px;font-size:17px;line-height:23px;font-weight:700;color:${C.navy}">${escapeHtml(n.title)}</p>
+${n.buyer ? `<p style="margin:0 0 8px;font-size:13px;line-height:19px;color:${C.muted}">Publié par ${escapeHtml(n.buyer)}</p>` : ""}
+${n.summary ? `<p style="margin:0 0 12px;font-size:14px;line-height:21px;color:${C.slate}">${escapeHtml(n.summary)}</p>` : ""}
+${facts.map(([k, v]) => `<p style="margin:0 0 4px;font-size:13px;line-height:19px;color:${C.muted}">${escapeHtml(k)} : <strong style="color:${C.navy}">${escapeHtml(v)}</strong></p>`).join("")}
+</td></tr></table>
+<p style="margin:0 0 20px;font-size:15px;line-height:23px;color:${C.slate}">${escapeHtml(why)}</p>
+<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 12px"><tr><td style="border-radius:10px;background:${C.teal}"><a href="${escapeHtml(i.messageUrl)}" style="display:inline-block;padding:14px 28px;font-size:15px;font-weight:800;color:${C.navy};text-decoration:none;border-radius:10px;letter-spacing:.3px">ENVOYER UN MESSAGE</a></td></tr></table>
+<p style="margin:0 0 24px;font-size:13px;line-height:19px;color:${C.muted}">Création d'un compte gratuite, nécessaire pour échanger avec l'entreprise. <a href="${escapeHtml(n.url)}" style="color:${C.tealDark};font-weight:600">Voir le besoin</a></p>
+<p style="margin:0 0 24px;font-size:15px;line-height:23px;color:${C.slate}">L'équipe LinkProB2B</p>
+</td></tr>
+<tr><td style="padding:20px 28px;font-size:12px;line-height:18px;color:${C.muted}">
+<p style="margin:0 0 8px">${escapeHtml(i.reason)}</p>
+<p style="margin:0 0 8px">${escapeHtml(i.dataSource)}</p>
+<p style="margin:0 0 8px">${i.sender.map(escapeHtml).join("<br>")}</p>
+<p style="margin:0"><a href="${escapeHtml(i.unsubscribeUrl)}" style="color:${C.muted}">Ne plus recevoir de messages de LinkProB2B</a></p>
+</td></tr>
+</table></td></tr></table>
+${i.pixelUrl ? `<img src="${escapeHtml(i.pixelUrl)}" width="1" height="1" alt="" style="display:block;border:0;width:1px;height:1px">` : ""}
+</body></html>`;
+  const text = [
+    "Bonjour,",
+    "",
+    intro,
+    "",
+    `• ${n.title}`,
+    ...(n.buyer ? [`  Publié par ${n.buyer}`] : []),
+    ...(n.summary ? [`  ${n.summary}`] : []),
+    ...facts.map(([k, v]) => `  ${k} : ${v}`),
+    "",
+    why,
+    "",
+    `ENVOYER UN MESSAGE : ${i.messageUrl}`,
+    `Voir le besoin : ${n.url}`,
+    "",
+    "L'équipe LinkProB2B",
+    "",
+    i.reason,
+    i.dataSource,
+    ...i.sender,
+    `Ne plus recevoir de messages de LinkProB2B : ${i.unsubscribeUrl}`,
+  ].join("\n");
+  return { subject: i.subject, html, text };
+}

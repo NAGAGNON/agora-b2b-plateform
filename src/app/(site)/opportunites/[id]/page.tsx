@@ -423,6 +423,7 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
                   interest={interest?.data ?? null}
                   proposal={proposal?.data ?? null}
                   inPipeline={Boolean(pipeline?.data)}
+                  openMessage={sp.message === "1"}
                 />
               </div>
             )}
@@ -448,7 +449,7 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
             )}
             {isOpen && o.visibility === "PUBLIC" && !o.is_demo && (
               <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                <ShareLinks url={`${siteUrl()}/opportunites/${o.id}`} title={o.title} />
+                <ShareLinks url={`${siteUrl()}/opportunites/${o.id}`} title={o.title} needId={external ? undefined : o.id} label={external ? undefined : "Faire connaître ce besoin"} />
               </div>
             )}
           </aside>

@@ -6,6 +6,7 @@ import { env } from "@/lib/env";
 import { processAlertDigests, processEmailOutbox } from "@/lib/email/outbox";
 import { processLeadDigests } from "@/lib/alert-leads";
 import { processMissingLogos } from "@/lib/company-logos";
+import { processNeedCampaigns } from "@/lib/needs";
 import { runDueSources } from "@/lib/collect/run";
 import { importPlaces } from "@/lib/collect/places";
 import { logServerError } from "@/lib/errors";
@@ -75,6 +76,8 @@ async function run(req: Request) {
   await step("indexnow", () => submitChangedUrls());
   await step("digests", () => processAlertDigests());
   await step("alertes-email", () => processLeadDigests());
+  // Mise en relation des besoins publiés (filet de sécurité de la publication, relances) avant l'envoi des e-mails
+  await step("besoins", async () => (elapsed() < 190_000 ? processNeedCampaigns(createAdminClient(), { deadline: started + 215_000 }) : { skipped: "reporté au passage suivant (temps insuffisant)" }));
   await step("emails", () => processEmailOutbox(elapsed() < 220_000 ? 200 : 40));
   await step("logos", async () => (elapsed() < 200_000 ? processMissingLogos(createAdminClient(), { limit: 20, deadline: started + 230_000 }) : { skipped: "reporté au passage suivant (temps insuffisant)" }));
   await step("audience", async () => {

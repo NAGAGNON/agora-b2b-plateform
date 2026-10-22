@@ -5,7 +5,7 @@ import type { Database } from "@/lib/database.types";
 import { siteUrl } from "@/lib/seo";
 import { LEGAL } from "@/lib/legal";
 import { clip, formatDate } from "@/lib/format";
-import { fillTemplate, renderOutreachEmail, type EmailOpportunity } from "@/lib/outreach/email";
+import { fillTemplate, renderNeedEmail, renderOutreachEmail, type EmailOpportunity } from "@/lib/outreach/email";
 import { recipientToken } from "@/lib/outreach/token";
 
 export type Db = SupabaseClient<Database>;
@@ -104,7 +104,7 @@ export function realSendBlockers(settings: OutreachSettings): string[] {
 export type RecipientBundle = {
   recipient: Database["public"]["Tables"]["outreach_recipients"]["Row"];
   prospect: Database["public"]["Tables"]["outreach_prospects"]["Row"];
-  campaign: Pick<Database["public"]["Tables"]["outreach_campaigns"]["Row"], "id" | "subject_template" | "intro_template" | "campaign_date">;
+  campaign: Pick<Database["public"]["Tables"]["outreach_campaigns"]["Row"], "id" | "subject_template" | "intro_template" | "campaign_date" | "kind">;
   opportunities: {
     id: string;
     title: string;
@@ -117,6 +117,10 @@ export type RecipientBundle = {
     response_deadline: string | null;
     external_buyer_name: string | null;
     status: string;
+    budget_min?: number | null;
+    budget_max?: number | null;
+    budget_visible?: boolean;
+    company?: { name: string } | null;
     source: { name: string | null; reference: string | null; url: string | null } | null;
     score: number;
     reasons: string[];
@@ -135,7 +139,7 @@ export async function loadRecipientBundles(db: Db, recipientIds: string[]): Prom
     const { data, error } = await db
       .from("outreach_recipients")
       .select(
-        "*, prospect:outreach_prospects(*), campaign:outreach_campaigns(id, subject_template, intro_template, campaign_date), items:outreach_recipient_opportunities(score, reasons, excluded, position, opportunity:opportunities(id, title, summary, description, sector_slug, city, department_code, region, response_deadline, external_buyer_name, status, origin, source:opportunity_sources(is_primary, external_id, original_url, external_source:external_sources(name))))",
+        "*, prospect:outreach_prospects(*), campaign:outreach_campaigns(id, subject_template, intro_template, campaign_date, kind), items:outreach_recipient_opportunities(score, reasons, excluded, position, opportunity:opportunities(id, title, summary, description, sector_slug, city, department_code, region, response_deadline, external_buyer_name, status, origin, budget_min, budget_max, budget_visible, company:companies(name), source:opportunity_sources(is_primary, external_id, original_url, external_source:external_sources(name))))",
       )
       .in("id", ids);
     if (error) throw error;
@@ -209,6 +213,7 @@ export function templateVars(b: RecipientBundle, ref: Referentials, opps: Recipi
 
 /** E-mail complet d'un destinataire (aperçu ou envoi). */
 export function buildEmail(b: RecipientBundle, ref: Referentials, { withPixel = true }: { withPixel?: boolean } = {}) {
+  if (b.campaign.kind === "NEED") return buildNeedEmail(b, ref, { withPixel });
   const urls = outreachUrls(b.recipient.id);
   const opps = b.opportunities.filter((o) => !o.excluded);
   const vars = templateVars(b, ref, opps);
@@ -252,4 +257,48 @@ export function windowStart(days: number): Date {
   const d = new Date(Date.now() - (days - 1) * 86_400_000);
   d.setUTCHours(0, 0, 0, 0);
   return d;
+}
+
+/** E-mail d'une campagne dédiée à un besoin (une seule annonce, action « Envoyer un message »). */
+function buildNeedEmail(b: RecipientBundle, ref: Referentials, { withPixel }: { withPixel: boolean }) {
+  const urls = outreachUrls(b.recipient.id);
+  const o = b.opportunities.filter((x) => !x.excluded)[0];
+  const vars = templateVars(b, ref, o ? [o] : []);
+  const item: EmailOpportunity = {
+    id: o?.id ?? "",
+    title: o?.title ?? "",
+    sector: ref.sectorLabel(o?.sector_slug ?? null),
+    location: o ? ref.location(o.city, o.department_code, o.region) : null,
+    deadline: o?.response_deadline ? formatDate(o.response_deadline) : null,
+    summary: o ? clip((o.summary ?? o.description).replace(/\s+/g, " "), 260) : null,
+    source: null,
+    url: o ? urls.opportunity(o.id) : urls.landingTracked,
+  };
+  const company = Array.isArray(o?.company) ? o?.company[0] : o?.company;
+  const budget = o?.budget_visible ? budgetLabel(o.budget_min ?? null, o.budget_max ?? null) : null;
+  const activity = b.prospect.naf_label ?? (b.prospect.naf_code ? `code NAF ${b.prospect.naf_code}` : vars.secteur.toLowerCase());
+  const subject = fillTemplate(b.recipient.subject ?? "Besoin publié : {titre}", { ...vars, titre: clip(item.title, 80) });
+  const email = renderNeedEmail({
+    companyName: b.prospect.name,
+    subject,
+    activity,
+    need: { ...item, budget, buyer: company?.name ?? null },
+    messageUrl: o ? `${urls.opportunity(o.id)}&m=1` : urls.landingTracked,
+    unsubscribeUrl: urls.unsubscribePage,
+    pixelUrl: withPixel ? urls.pixel : undefined,
+    siteUrl: siteUrl(),
+    reason: `Vous recevez ce message car l'activité de ${b.prospect.name} (${activity})${b.prospect.department_code ? ` et sa localisation (${b.prospect.department_code})` : ""} correspondent à ce besoin. Il s'agit d'un message ponctuel : nous limitons volontairement la fréquence de ces envois.`,
+    dataSource: `Coordonnées professionnelles de votre entreprise : ${b.prospect.source}${b.prospect.email_source ? ` ; adresse e-mail : ${b.prospect.email_source}` : ""}.`,
+    sender: senderLines(),
+  });
+  return { ...email, urls, opportunities: [item] };
+}
+
+const euros = (n: number) => `${new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(n)} €`;
+/** Budget lisible, seulement s'il a été indiqué. */
+export function budgetLabel(min: number | null, max: number | null): string | null {
+  if (min && max) return min === max ? euros(min) : `${euros(min)} à ${euros(max)}`;
+  if (max) return `jusqu'à ${euros(max)}`;
+  if (min) return `à partir de ${euros(min)}`;
+  return null;
 }

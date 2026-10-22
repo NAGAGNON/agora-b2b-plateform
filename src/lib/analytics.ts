@@ -16,7 +16,9 @@ export type AnalyticsEvent =
   | "source_outbound_clicked"
   | "profile_completed"
   | "view_company"
-  | "search_companies";
+  | "search_companies"
+  | "need_message_click"
+  | "need_share_click";
 
 /**
  * Enregistre un événement produit (sans IP, sans e-mail, sans contenu saisi).

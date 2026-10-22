@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { track } from "@/lib/analytics";
 import { getSession } from "@/lib/auth";
 import { logServerError, actionError } from "@/lib/errors";
 import { flushEmailsAfterResponse } from "@/lib/email/flush";
@@ -35,9 +37,23 @@ export async function expressInterest(_prev: ActionResult | null, fd: FormData):
     p_message: parsed.data.message,
   });
   if (error) return actionError(error);
+  // Suivi de la mise en relation : l'entreprise proposée pour ce besoin a répondu
+  await createAdminClient().from("need_matches").update({ status: "RESPONDED" }).eq("opportunity_id", parsed.data.opportunityId).eq("company_id", session.activeCompany.company.id);
   flushEmailsAfterResponse();
   revalidatePath(`/opportunites/${parsed.data.opportunityId}`);
-  return { ok: true, message: "Votre intérêt a été transmis au demandeur." };
+  return { ok: true, message: parsed.data.message ? "Votre message a été envoyé à l'entreprise. Elle est prévenue et pourra vous répondre par la messagerie." : "Votre intérêt a été transmis au demandeur." };
+}
+
+/** Clic sur « Envoyer un message » d'un besoin (membre connecté) : compté pour le suivi du besoin. */
+export async function trackNeedMessageClick(opportunityId: string): Promise<void> {
+  if (!z.uuid().safeParse(opportunityId).success) return;
+  await track("need_message_click", { opportunity_id: opportunityId, signed_in: true });
+}
+
+/** Partage d'un besoin (lien copié, LinkedIn, e-mail…) : compté pour le suivi du besoin. */
+export async function trackNeedShare(opportunityId: string, channel: string): Promise<void> {
+  if (!z.uuid().safeParse(opportunityId).success) return;
+  await track("need_share_click", { opportunity_id: opportunityId, channel: channel.slice(0, 20) });
 }
 
 export async function withdrawInterest(interestId: string, opportunityId: string): Promise<ActionResult> {
@@ -70,6 +86,7 @@ export async function submitProposal(_prev: ActionResult<{ id: string }> | null,
     p_additional_info: d.additionalInfo,
   });
   if (error || !proposalId) return actionError(error);
+  await createAdminClient().from("need_matches").update({ status: "RESPONDED" }).eq("opportunity_id", d.opportunityId).eq("company_id", session.activeCompany.company.id);
 
   flushEmailsAfterResponse();
   revalidatePath(`/opportunites/${d.opportunityId}`);
