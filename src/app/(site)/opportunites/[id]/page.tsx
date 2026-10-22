@@ -539,7 +539,11 @@ async function SimilarOpportunities({
   for (const scope of [department ? { p_department: department } : null, region ? { p_region: region } : null, {}]) {
     if (!scope || rows.length >= 6) continue;
     const { data } = await supabase.rpc("search_opportunities", { ...base, ...scope });
-    for (const r of data ?? []) if (!seen.has(r.id) && rows.length < 6) (seen.add(r.id), rows.push(r));
+    for (const r of data ?? []) {
+      if (seen.has(r.id) || rows.length >= 6) continue;
+      seen.add(r.id);
+      rows.push(r);
+    }
   }
   if (rows.length === 0) return null;
   return (
