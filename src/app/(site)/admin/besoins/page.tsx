@@ -12,6 +12,16 @@ import { formatDate } from "@/lib/format";
 export const metadata = { title: "Besoins et mise en relation" };
 export const maxDuration = 120;
 
+/** Raison pour laquelle un besoin n'est pas (ou plus) mis en relation, en clair. */
+function blocker(r: { status: string; visibility: string; is_demo: boolean; response_deadline: string | null }) {
+  if (r.is_demo) return "Besoin de démonstration : non traité.";
+  if (r.status === "PENDING_REVIEW") return "En attente de validation : validez-le dans Modération, la mise en relation démarre aussitôt.";
+  if (r.status === "CHANGES_REQUESTED") return "Modifications demandées à l'entreprise : traité dès sa nouvelle validation.";
+  if (r.status !== "PUBLISHED" || (r.response_deadline && new Date(r.response_deadline).getTime() < Date.now())) return "Besoin fermé ou échéance passée : plus de nouveaux envois.";
+  if (r.visibility !== "PUBLIC") return "Réservé aux inscrits : entreprises inscrites prévenues, pas de prospection hors de la plateforme.";
+  return null;
+}
+
 const STATUS: Record<string, string> = { RUNNING: "En cours", CLOSED: "Clôturée", FAILED: "En échec", ANALYZED: "Analysée", SKIPPED: "Ignorée" };
 
 /**
@@ -24,14 +34,13 @@ export default async function AdminNeeds() {
   const db = createAdminClient();
   const { data: needs } = await db
     .from("opportunities")
-    .select("id, title, status, published_at, response_deadline, is_demo, company:companies(name)")
+    .select("id, title, status, visibility, published_at, created_at, response_deadline, is_demo, company:companies(name)")
     .eq("origin", "INTERNAL")
-    .eq("visibility", "PUBLIC")
-    .eq("is_demo", false)
-    .in("status", ["PUBLISHED", "EXPIRED", "CLOSED"])
-    .order("published_at", { ascending: false, nullsFirst: false })
+    .in("status", ["PENDING_REVIEW", "CHANGES_REQUESTED", "PUBLISHED", "EXPIRED", "CLOSED"])
+    .order("created_at", { ascending: false })
     .limit(40);
   const rows = needs ?? [];
+  const pending = rows.filter((r) => r.status === "PENDING_REVIEW").length;
   const { data: campaigns } = rows.length ? await db.from("need_campaigns").select("opportunity_id, status, analysis, note, error, last_run_at, outreach_campaign_id").in("opportunity_id", rows.map((r) => r.id)) : { data: [] };
   const byId = new Map((campaigns ?? []).map((c) => [c.opportunity_id, c]));
   const metrics = await Promise.all(rows.map((r) => needMetrics(db, r.id)));
@@ -70,10 +79,10 @@ export default async function AdminNeeds() {
       </section>
 
       <Card>
-        <CardHeader title={`${rows.length} besoin(s) publié(s)`} description="« Préparés » : e-mails prévus, en attente d'envoi (limites quotidiennes, validation). « Sans adresse » : recherche d'adresse générique en cours." />
+        <CardHeader title={`${rows.length} besoin(s)${pending ? `, dont ${pending} en attente de validation` : ""}`} description="« Préparés » : e-mails prévus, en attente d'envoi (limites quotidiennes, validation). « Sans adresse » : recherche d'adresse générique en cours." />
         {!rows.length ? (
           <div className="p-5">
-            <EmptyState title="Aucun besoin publié pour le moment" description="Dès qu'une entreprise publie un besoin, sa mise en relation apparaît ici." />
+            <EmptyState title="Aucun besoin pour le moment" description="Dès qu'une entreprise publie un besoin, il apparaît ici (y compris en attente de validation)." />
           </div>
         ) : (
           <ul className="divide-y divide-slate-100" data-testid="needs-table">
@@ -91,7 +100,7 @@ export default async function AdminNeeds() {
                         {r.title}
                       </Link>
                       <p className="text-xs text-slate-500">
-                        {company?.name ?? "—"} · publié le {formatDate(r.published_at)}
+                        {company?.name ?? "—"} · {r.published_at ? `publié le ${formatDate(r.published_at)}` : `créé le ${formatDate(r.created_at)}`}
                         {r.response_deadline ? ` · réponse avant le ${formatDate(r.response_deadline)}` : ""}
                       </p>
                       {c && (
@@ -107,6 +116,19 @@ export default async function AdminNeeds() {
                       <span className="rounded-full bg-sky px-2 py-0.5 text-xs font-semibold text-navy">{c ? (STATUS[c.status] ?? c.status) : "Pas encore analysé"}</span>
                     </div>
                   </div>
+                  {blocker(r) && (
+                    <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900" data-testid="need-blocker">
+                      {blocker(r)}
+                      {r.status === "PENDING_REVIEW" && (
+                        <>
+                          {" "}
+                          <Link href="/admin/moderation" className="font-semibold underline">
+                            Ouvrir la modération
+                          </Link>
+                        </>
+                      )}
+                    </p>
+                  )}
                   <dl className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4 lg:grid-cols-8">
                     {[
                       ["Inscrites identifiées", `${m.membersIdentified} (${m.membersRelevant} pertinentes)`],
@@ -138,7 +160,7 @@ export default async function AdminNeeds() {
                         </>
                       )}
                     </p>
-                    {r.status === "PUBLISHED" && <RerunNeedButton id={r.id} />}
+                    {r.status === "PUBLISHED" && !r.is_demo && <RerunNeedButton id={r.id} />}
                   </div>
                 </li>
               );

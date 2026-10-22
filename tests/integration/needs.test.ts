@@ -229,6 +229,18 @@ describe("Mise en relation d'un besoin publié", () => {
     expect(nc!.members_identified).toBeGreaterThanOrEqual(1);
   });
 
+  it("besoin réservé aux inscrits : traité (entreprises inscrites), sans prospection hors de la plateforme", async () => {
+    const id = await need("Besoin réservé aux inscrits", { visibility: "MEMBERS_ONLY" });
+    const r = await runNeedCampaign(admin, id, { deadline: Date.now() + 60_000 });
+    expect(r.status).toBe("RUNNING");
+    expect(r.members!.identified).toBeGreaterThan(0);
+    expect(r.prospects?.skipped).toMatch(/réservé aux inscrits/);
+    const { count } = await admin.from("outreach_campaigns").select("id", { count: "exact", head: true }).eq("kind", "NEED").eq("opportunity_id", id);
+    expect(count).toBe(0);
+    const daily = await processNeedCampaigns(admin, { deadline: Date.now() + 60_000, now: new Date(Date.now() + 86_400_000) });
+    expect(daily.results.some((x) => x.opportunityId === id)).toBe(true);
+  });
+
   it("données réservées : un utilisateur ne lit ni les campagnes ni les correspondances", async () => {
     const { data: a } = await U.match.client.from("need_matches").select("id").eq("opportunity_id", needId);
     const { data: b } = await U.match.client.from("need_campaigns").select("id").eq("opportunity_id", needId);
