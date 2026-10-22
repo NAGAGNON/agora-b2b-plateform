@@ -53,7 +53,7 @@ export default async function CompanySettingsPage() {
         <Card id="logo">
           <CardHeader title="Logo de l'entreprise" description={company.logo_path ? "Votre logo est en ligne." : "Ajoutez votre logo pour être reconnu au premier coup d'œil."} />
           <div className="p-5">
-            <LogoForm name={company.name} path={company.logo_path} />
+            <LogoForm name={company.name} path={company.logo_path} auto={company.logo_source === "AUTO"} />
           </div>
         </Card>
       )}

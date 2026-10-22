@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -10,6 +11,7 @@ import { ACTIVE_COMPANY_COOKIE, getSession } from "@/lib/auth";
 import { logServerError, actionError } from "@/lib/errors";
 import { safeInternalPath } from "@/lib/safe-path";
 import { storagePath, validateUpload } from "@/lib/files";
+import { autoLogoFor } from "@/lib/company-logos";
 import { ALLOWED_LOGO_TYPES, MAX_LOGO_BYTES } from "@/lib/constants";
 import { companyProfileSchema, companySchema, emailSchema, parseForm, userProfileSchema, type ActionResult } from "@/lib/validation";
 
@@ -36,6 +38,7 @@ export async function createCompany(_prev: ActionResult | null, fd: FormData): P
     p_skills: d.skills,
   });
   if (error || !companyId) return actionError(error);
+  fetchLogoAfterResponse(companyId);
   (await cookies()).set(ACTIVE_COMPANY_COOKIE, companyId, { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/" });
   revalidatePath("/", "layout");
   redirect(safeNext(fd.get("suite"), "/dashboard?bienvenue=1"));
@@ -96,6 +99,9 @@ export async function updateCompanyProfile(_prev: ActionResult | null, fd: FormD
     const saved = await saveLogo(supabase, company.company.id, logo);
     if (!saved.ok) return saved;
   }
+
+  // Pas de logo : recherche sur le site de l'entreprise (une fois par adresse de site)
+  fetchLogoAfterResponse(company.company.id);
 
   if (d.description && d.sectors.length && d.skills.length) {
     await supabase.rpc("track_event", { p_event_name: "profile_completed" });
@@ -200,6 +206,7 @@ async function saveLogo(supabase: Supabase, companyId: string, logo: File): Prom
   const { error } = await supabase.from("companies").update({ logo_path: path }).eq("id", companyId);
   if (error) return actionError(error);
   if (prev?.logo_path) await supabase.storage.from("company-logos").remove([prev.logo_path]);
+  await createAdminClient().from("companies").update({ logo_source: null }).eq("id", companyId);
   return { ok: true, message: "Logo enregistré. Il apparaît sur votre fiche, dans l'annuaire et sur vos opportunités." };
 }
 
@@ -231,7 +238,20 @@ export async function removeCompanyLogo(): Promise<ActionResult> {
   if (!prev?.logo_path) return { ok: true, message: "Aucun logo à retirer." };
   const { error } = await supabase.from("companies").update({ logo_path: null }).eq("id", who.companyId);
   if (error) return actionError(error);
+  // Retrait volontaire : le logo n'est plus recherché automatiquement sur le site
+  const { data: c } = await supabase.from("companies").select("website").eq("id", who.companyId).single();
+  await createAdminClient().from("companies").update({ logo_source: null, logo_auto_checked_at: new Date().toISOString(), logo_auto_site: c?.website ?? "", logo_auto_note: "Logo retiré par l'entreprise" }).eq("id", who.companyId);
   await supabase.storage.from("company-logos").remove([prev.logo_path]);
   revalidatePath("/", "layout");
   return { ok: true, message: "Logo retiré." };
+}
+
+function fetchLogoAfterResponse(companyId: string) {
+  after(async () => {
+    try {
+      await autoLogoFor(createAdminClient(), companyId);
+    } catch (e) {
+      logServerError("auto logo", e);
+    }
+  });
 }

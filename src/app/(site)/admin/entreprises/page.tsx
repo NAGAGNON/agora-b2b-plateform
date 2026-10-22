@@ -8,42 +8,105 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { Pagination } from "@/components/ui/pagination";
 import { DemoBadge } from "@/components/demo";
 import { AdminFilter, adminInput } from "@/components/admin/admin-filter";
-import { StatusWithReason, VerifyCompanyButton } from "@/components/admin/admin-actions";
+import {
+  FetchLogosButton,
+  StatusWithReason,
+  VerifyCompanyButton,
+} from "@/components/admin/admin-actions";
+import { CompanyLogo } from "@/components/companies/company-logo";
 import { COMPANY_KIND_LABELS } from "@/lib/constants";
 import { formatDate } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
 import { PLAN_LABEL, type PlanCode } from "@/lib/billing/plans";
 
 export const metadata = { title: "Entreprises" };
+export const maxDuration = 120;
 const PER = 25;
 
-export default async function AdminCompanies(props: PageProps<"/admin/entreprises">) {
+export default async function AdminCompanies(
+  props: PageProps<"/admin/entreprises">,
+) {
   const session = await requireStaff();
   const sp = await props.searchParams;
-  const q = typeof sp.q === "string" ? sp.q.trim().replace(/[%_,()]/g, "").slice(0, 100) : "";
-  const status = sp.statut === "ACTIVE" || sp.statut === "SUSPENDED" || sp.statut === "PENDING" ? sp.statut : undefined;
+  const q =
+    typeof sp.q === "string"
+      ? sp.q
+          .trim()
+          .replace(/[%_,()]/g, "")
+          .slice(0, 100)
+      : "";
+  const status =
+    sp.statut === "ACTIVE" ||
+    sp.statut === "SUSPENDED" ||
+    sp.statut === "PENDING"
+      ? sp.statut
+      : undefined;
   const page = Math.max(1, Number(sp.page) || 1);
   const supabase = await createClient();
   let query = supabase
     .from("companies")
-    .select("id, slug, name, siren, kind, city, department_code, status, verified_at, verification_note, created_at, is_demo, plan_code, company_members(count), opportunities(count)", { count: "exact" })
+    .select(
+      "id, slug, name, siren, website, logo_path, logo_source, logo_auto_note, kind, city, department_code, status, verified_at, verification_note, created_at, is_demo, plan_code, company_members(count), opportunities(count)",
+      { count: "exact" },
+    )
     .order("created_at", { ascending: false })
     .range((page - 1) * PER, page * PER - 1);
   if (q) query = query.or(`name.ilike.%${q}%,siren.ilike.%${q}%`);
   if (status) query = query.eq("status", status);
-  const { data, count } = await query;
+  const counts = (f: (q: ReturnType<typeof base>) => ReturnType<typeof base>) =>
+    f(base()).then((r) => r.count ?? 0);
+  const base = () =>
+    supabase
+      .from("companies")
+      .select("id", { count: "exact", head: true })
+      .eq("is_demo", false);
+  const [{ data, count }, withLogo, autoLogo, todo] = await Promise.all([
+    query,
+    counts((x) => x.not("logo_path", "is", null)),
+    counts((x) => x.eq("logo_source", "AUTO")),
+    counts((x) => x.is("logo_path", null).is("logo_auto_checked_at", null)),
+  ]);
   const n = (v: unknown) => (v as { count: number }[])[0]?.count ?? 0;
   return (
     <div>
       <h1 className="mb-4 text-2xl font-bold">Entreprises</h1>
       <AdminFilter action="/admin/entreprises">
-        <input name="q" defaultValue={q} placeholder="Nom ou SIREN" className={adminInput} aria-label="Rechercher" />
-        <select name="statut" defaultValue={status ?? ""} className={adminInput} aria-label="Statut">
+        <input
+          name="q"
+          defaultValue={q}
+          placeholder="Nom ou SIREN"
+          className={adminInput}
+          aria-label="Rechercher"
+        />
+        <select
+          name="statut"
+          defaultValue={status ?? ""}
+          className={adminInput}
+          aria-label="Statut"
+        >
           <option value="">Tous statuts</option>
           <option value="ACTIVE">Actives</option>
           <option value="SUSPENDED">Suspendues</option>
         </select>
       </AdminFilter>
+      <section
+        className="mb-4 flex flex-wrap items-start justify-between gap-4 rounded-xl border border-slate-200 bg-white p-4"
+        aria-label="Logos"
+      >
+        <div className="text-sm text-slate-600">
+          <p className="font-semibold text-navy">Logos des entreprises</p>
+          <p>
+            {withLogo} avec logo (dont {autoLogo} récupéré(s) sur leur site) ·{" "}
+            {todo} sans logo à rechercher
+          </p>
+          <p className="mt-1 text-xs">
+            Site renseigné par l&apos;entreprise ou retrouvé grâce à son SIREN ;
+            règles du site respectées ; un logo déposé n&apos;est jamais
+            remplacé. La tâche quotidienne en traite 20 par passage.
+          </p>
+        </div>
+        <FetchLogosButton />
+      </section>
       <p className="mb-3 text-sm text-slate-600">{count ?? 0} entreprise(s)</p>
       <DataTable
         rows={data ?? []}
@@ -56,35 +119,102 @@ export default async function AdminCompanies(props: PageProps<"/admin/entreprise
             header: "Entreprise",
             primary: true,
             cell: (c) => (
-              <div>
-                <Link href={`/entreprises/${c.slug}`} className="inline-flex items-center gap-1 font-semibold text-navy hover:text-teal-700">
-                  {c.name} {c.verified_at && <BadgeCheck className="size-4 text-teal-600" aria-label="Vérifiée" />}
-                </Link>{" "}
-                {c.is_demo && <DemoBadge />}
-                <p className="text-xs text-slate-500">
-                  {COMPANY_KIND_LABELS[c.kind]} · {c.city ?? "—"} {c.department_code && `(${c.department_code})`} · SIREN {c.siren ?? "non renseigné"}
-                </p>
-                {c.verification_note && <p className="text-xs text-teal-700">Vérification : {c.verification_note}</p>}
+              <div className="flex items-start gap-3">
+                <CompanyLogo name={c.name} path={c.logo_path} size={36} />
+                <div className="min-w-0">
+                  <Link
+                    href={`/entreprises/${c.slug}`}
+                    className="inline-flex items-center gap-1 font-semibold text-navy hover:text-teal-700"
+                  >
+                    {c.name}{" "}
+                    {c.verified_at && (
+                      <BadgeCheck
+                        className="size-4 text-teal-600"
+                        aria-label="Vérifiée"
+                      />
+                    )}
+                  </Link>{" "}
+                  {c.is_demo && <DemoBadge />}
+                  <p className="text-xs text-slate-500">
+                    {COMPANY_KIND_LABELS[c.kind]} · {c.city ?? "—"}{" "}
+                    {c.department_code && `(${c.department_code})`} · SIREN{" "}
+                    {c.siren ?? "non renseigné"}
+                  </p>
+                  {c.verification_note && (
+                    <p className="text-xs text-teal-700">
+                      Vérification : {c.verification_note}
+                    </p>
+                  )}
+                  {(c.logo_source === "AUTO" ||
+                    (!c.logo_path && c.logo_auto_note)) && (
+                    <p className="text-xs text-slate-500">
+                      Logo :{" "}
+                      {c.logo_source === "AUTO"
+                        ? "récupéré sur le site"
+                        : c.logo_auto_note}
+                    </p>
+                  )}
+                </div>
               </div>
             ),
           },
-          { key: "status", header: "Statut", cell: (c) => <StatusBadge kind="account" status={c.status} /> },
-          { key: "plan", header: "Offre", cell: (c) => <Badge tone={c.plan_code === "BUSINESS" ? "navy" : c.plan_code === "PRO" ? "teal" : "slate"}>{PLAN_LABEL[c.plan_code as PlanCode] ?? "Gratuit"}</Badge> },
-          { key: "counts", header: "Membres / publications", hideOnMobile: true, cell: (c) => `${n(c.company_members)} / ${n(c.opportunities)}` },
-          { key: "date", header: "Créée", hideOnMobile: true, cell: (c) => formatDate(c.created_at) },
+          {
+            key: "status",
+            header: "Statut",
+            cell: (c) => <StatusBadge kind="account" status={c.status} />,
+          },
+          {
+            key: "plan",
+            header: "Offre",
+            cell: (c) => (
+              <Badge
+                tone={
+                  c.plan_code === "BUSINESS"
+                    ? "navy"
+                    : c.plan_code === "PRO"
+                      ? "teal"
+                      : "slate"
+                }
+              >
+                {PLAN_LABEL[c.plan_code as PlanCode] ?? "Gratuit"}
+              </Badge>
+            ),
+          },
+          {
+            key: "counts",
+            header: "Membres / publications",
+            hideOnMobile: true,
+            cell: (c) => `${n(c.company_members)} / ${n(c.opportunities)}`,
+          },
+          {
+            key: "date",
+            header: "Créée",
+            hideOnMobile: true,
+            cell: (c) => formatDate(c.created_at),
+          },
           {
             key: "actions",
             header: "Actions",
             cell: (c) => (
               <div className="flex flex-wrap gap-2">
                 <StatusWithReason kind="company" id={c.id} current={c.status} />
-                {session.isAdmin && <VerifyCompanyButton id={c.id} verified={Boolean(c.verified_at)} />}
+                {session.isAdmin && (
+                  <VerifyCompanyButton
+                    id={c.id}
+                    verified={Boolean(c.verified_at)}
+                  />
+                )}
               </div>
             ),
           },
         ]}
       />
-      <Pagination page={page} pageCount={Math.ceil((count ?? 0) / PER)} basePath="/admin/entreprises" params={sp} />
+      <Pagination
+        page={page}
+        pageCount={Math.ceil((count ?? 0) / PER)}
+        basePath="/admin/entreprises"
+        params={sp}
+      />
     </div>
   );
 }
