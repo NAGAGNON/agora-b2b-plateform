@@ -4,6 +4,7 @@ import { timingSafeEqual } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { env } from "@/lib/env";
 import { processAlertDigests, processEmailOutbox } from "@/lib/email/outbox";
+import { processLeadDigests } from "@/lib/alert-leads";
 import { runDueSources } from "@/lib/collect/run";
 import { importPlaces } from "@/lib/collect/places";
 import { logServerError } from "@/lib/errors";
@@ -72,6 +73,7 @@ async function run(req: Request) {
   await step("articles", async () => (elapsed() < 150_000 ? runDailyArticles({ deadline: started + 220_000 }) : { skipped: "reporté au passage suivant (temps insuffisant)" }));
   await step("indexnow", () => submitChangedUrls());
   await step("digests", () => processAlertDigests());
+  await step("alertes-email", () => processLeadDigests());
   await step("emails", () => processEmailOutbox(elapsed() < 220_000 ? 200 : 40));
   await step("audience", async () => {
     const { data, error } = await createAdminClient().rpc("purge_page_views");

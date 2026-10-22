@@ -40,7 +40,10 @@ import { ShareLinks } from "@/components/share-links";
 import { cookies, headers } from "next/headers";
 import { OfferAccessGate } from "@/components/opportunities/offer-access-gate";
 import { OUTREACH_COOKIE, outreachVisitor, track as trackOutreach } from "@/lib/outreach/tracking";
-import { getSectorLabels, showDemoData, getLocationLabel } from "@/lib/queries/platform";
+import { getSectorLabels, showDemoData, getLocationLabel, getDepartments, getOpenCounts } from "@/lib/queries/platform";
+import { regionByName } from "@/lib/geo";
+import { AlertLeadForm } from "@/components/alert-lead-form";
+import { MIN_INDEXABLE } from "@/lib/landing";
 import { getSession } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { track } from "@/lib/analytics";
@@ -153,29 +156,41 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
   const budget = o.budget_visible ? formatBudget(o.budget_min, o.budget_max) : null;
   const deadline = deadlineLabel(o.response_deadline);
   const crumbSector = o.sector_slug ? sectorLabel(o.sector_slug, await getSectorLabels()) : null;
+  // Fil d'Ariane géographique et métier : région › département › métier dans le département (pages d'atterrissage)
+  const [departments, count] = await Promise.all([getDepartments(), getOpenCounts()]);
+  const dep = departments.find((d) => d.code === o.department_code) ?? null;
+  const depRegion = dep ? regionByName(dep.region) : null;
+  const depPath = dep && depRegion ? `/opportunites/${depRegion.slug}/${dep.slug}` : null;
+  const crumbs = [
+    { name: "Opportunités", path: "/opportunites" },
+    ...(depRegion ? [{ name: depRegion.name, path: `/opportunites/${depRegion.slug}` }] : []),
+    ...(dep && depPath ? [{ name: dep.name, path: depPath }] : []),
+    ...(o.sector_slug && crumbSector
+      ? [
+          dep && depPath && count("department_sector", `${dep.code}|${o.sector_slug}`) >= MIN_INDEXABLE
+            ? { name: crumbSector, path: `${depPath}/${o.sector_slug}` }
+            : { name: crumbSector, path: `/opportunites/${o.sector_slug}` },
+        ]
+      : []),
+  ];
+  const leadLabel = [crumbSector, dep ? `${dep.name} (${dep.code})` : o.region].filter(Boolean).join(" — ") || "similaires";
+  const showLeadForm = !session && !o.is_demo && o.visibility === "PUBLIC";
 
   return (
     <div className="bg-slate-50/60">
       <div className="container-page py-6 sm:py-10">
         <JsonLd
-          data={breadcrumbLd([
-            { name: "Opportunités", path: "/opportunites" },
-            ...(o.sector_slug && crumbSector ? [{ name: crumbSector, path: `/opportunites/${o.sector_slug}` }] : []),
-            { name: o.title, path: `/opportunites/${o.id}` },
-          ])}
+          data={breadcrumbLd([...crumbs, { name: o.title, path: `/opportunites/${o.id}` }])}
         />
         <nav aria-label="Fil d'Ariane" className="mb-4 text-sm text-slate-500">
-          <Link href="/opportunites" className="hover:underline">
-            Opportunités
-          </Link>
-          {o.sector_slug && (
-            <>
-              {" / "}
-              <Link href={`/opportunites/${o.sector_slug}`} className="hover:underline">
-                {crumbSector}
+          {crumbs.map((c, i) => (
+            <span key={c.path}>
+              {i > 0 && " / "}
+              <Link href={c.path} className="hover:underline">
+                {c.name}
               </Link>
-            </>
-          )}
+            </span>
+          ))}
         </nav>
 
         {effectiveStatus === "EXPIRED" && (
@@ -420,6 +435,17 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
                 </a>
               )}
             </div>
+            {showLeadForm && (
+              <AlertLeadForm
+                compact
+                label={leadLabel}
+                sector={o.sector_slug}
+                department={o.department_code}
+                region={o.region}
+                opportunityId={o.id}
+                path={`/opportunites/${o.id}`}
+              />
+            )}
             {isOpen && o.visibility === "PUBLIC" && !o.is_demo && (
               <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                 <ShareLinks url={`${siteUrl()}/opportunites/${o.id}`} title={o.title} />
@@ -427,8 +453,16 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
             )}
           </aside>
         </div>
+        <SimilarOpportunities
+          id={o.id}
+          sector={o.sector_slug}
+          department={o.department_code}
+          region={o.region}
+          signedIn={Boolean(session)}
+          morePath={crumbs.at(-1)?.path ?? "/opportunites"}
+          moreLabel={leadLabel}
+        />
         <PartnersBlock sector={o.sector_slug} department={o.department_code} external={external} />
-        <SimilarOpportunities id={o.id} sector={o.sector_slug} region={o.region} signedIn={Boolean(session)} />
       </div>
     </div>
   );
@@ -479,20 +513,45 @@ async function PartnersBlock({ sector, department, external }: { sector: string 
   );
 }
 
-/** Opportunités ouvertes du même secteur, de préférence dans la même région. */
-async function SimilarOpportunities({ id, sector, region, signedIn }: { id: string; sector: string | null; region: string | null; signedIn: boolean }) {
+/** Opportunités ouvertes du même secteur : d'abord le même département, puis la région, puis la France. */
+async function SimilarOpportunities({
+  id,
+  sector,
+  department,
+  region,
+  signedIn,
+  morePath,
+  moreLabel,
+}: {
+  id: string;
+  sector: string | null;
+  department: string | null;
+  region: string | null;
+  signedIn: boolean;
+  morePath: string;
+  moreLabel: string;
+}) {
   if (!sector) return null;
   const supabase = await createClient();
-  const base = { p_sector: sector, p_status: "OPEN", p_sort: "recent", p_limit: 5, p_include_demo: await showDemoData() };
-  let { data } = await supabase.rpc("search_opportunities", { ...base, ...(region ? { p_region: region } : {}) });
-  if ((data ?? []).filter((r) => r.id !== id).length < 2 && region) ({ data } = await supabase.rpc("search_opportunities", base));
-  const rows = (data ?? []).filter((r) => r.id !== id).slice(0, 4);
+  const base = { p_sector: sector, p_status: "OPEN", p_sort: "recent", p_limit: 7, p_include_demo: await showDemoData() };
+  const seen = new Set([id]);
+  const rows: NonNullable<Awaited<ReturnType<typeof supabase.rpc<"search_opportunities">>>["data"]> = [];
+  for (const scope of [department ? { p_department: department } : null, region ? { p_region: region } : null, {}]) {
+    if (!scope || rows.length >= 6) continue;
+    const { data } = await supabase.rpc("search_opportunities", { ...base, ...scope });
+    for (const r of data ?? []) if (!seen.has(r.id) && rows.length < 6) (seen.add(r.id), rows.push(r));
+  }
   if (rows.length === 0) return null;
   return (
     <section className="mt-12" aria-labelledby="similaires">
-      <h2 id="similaires" className="mb-4 text-xl font-bold">
-        Opportunités similaires
-      </h2>
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+        <h2 id="similaires" className="text-xl font-bold">
+          Opportunités similaires
+        </h2>
+        <Link href={morePath} className="text-sm font-semibold text-teal-700 underline">
+          Tous les marchés {moreLabel}
+        </Link>
+      </div>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {rows.map((r) => (
           <OpportunityCard key={r.id} o={r} headingLevel={3} />

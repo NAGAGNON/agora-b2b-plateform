@@ -26,7 +26,9 @@ export default async function SignUpPage(props: PageProps<"/inscription">) {
   const forOffer = Boolean(referral && next?.startsWith("/opportunites/"));
   // Lien reçu par e-mail : l'adresse destinataire est pré-remplie (activation immédiate du compte)
   const recipient = referral ? await recipientFromReferral(referral) : null;
-  const defaultEmail = recipient?.email && referralStillTrusted(recipient) ? recipient.email : undefined;
+  // Sinon : adresse transmise par un lien LinkProB2B (alerte par e-mail confirmée), simple pré-remplissage
+  const fromLink = typeof sp.email === "string" && /^[^\s@]{1,64}@[^\s@]{1,190}\.[a-z]{2,24}$/i.test(sp.email) ? sp.email : undefined;
+  const defaultEmail = recipient?.email && referralStillTrusted(recipient) ? recipient.email : fromLink;
   return (
     <AuthShell
       title={forOffer ? "Créez votre compte pour accéder à cette offre" : "Créer un compte"}

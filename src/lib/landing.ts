@@ -1,5 +1,5 @@
 import "server-only";
-import { getDepartments, getSectors } from "@/lib/queries/platform";
+import { getDepartments, getOpenCounts, getSectors } from "@/lib/queries/platform";
 import { REGIONS, regionBySlug, regionByName } from "@/lib/geo";
 import type { RawSearchParams } from "@/lib/search-params";
 
@@ -7,12 +7,13 @@ import type { RawSearchParams } from "@/lib/search-params";
  * Pages d'atterrissage SEO de /opportunites :
  *  /opportunites/france · /opportunites/<région> · /opportunites/<département> · /opportunites/<secteur>
  *  /opportunites/<région>/<département> · /opportunites/<région>/<secteur>
+ *  /opportunites/<région>/<département>/<secteur> (métier × département : « appels d'offres menuiserie Finistère »)
  * Indexables uniquement avec suffisamment d'opportunités ouvertes (pas de pages vides).
  */
 export const MIN_INDEXABLE = 3;
 
 export type Landing = {
-  kind: "france" | "region" | "department" | "sector" | "region-sector";
+  kind: "france" | "region" | "department" | "sector" | "region-sector" | "department-sector";
   /** Filtres imposés par la page (paramètres d'URL de la recherche) */
   fixed: RawSearchParams;
   title: string;
@@ -22,17 +23,53 @@ export type Landing = {
   crumbs: { name: string; path: string }[];
   /** Liens vers des sous-pages (départements d'une région, régions…) */
   children?: { name: string; path: string }[];
+  /** Titre du bloc de liens (« Par département », « Par métier »…) */
+  childrenLabel?: string;
+  /** Second bloc de liens (pages voisines) */
+  related?: { label: string; links: { name: string; path: string }[] };
 };
 
-export async function resolveLanding(slug: string, sub?: string): Promise<Landing | null> {
-  const [sectors, departments] = await Promise.all([getSectors(), getDepartments()]);
+/** « dans le Finistère (29) », « en Gironde (33) »… : forme simple et neutre « dans le département X (code) ». */
+const inDep = (d: { name: string; code: string }) => `${d.name} (${d.code})`;
+
+export async function resolveLanding(slug: string, sub?: string, third?: string): Promise<Landing | null> {
+  const [sectors, departments, count] = await Promise.all([getSectors(), getDepartments(), getOpenCounts()]);
   const region = regionBySlug(slug);
+  if (third) {
+    // Métier × département : /opportunites/<région>/<département>/<secteur>
+    const dep = region && departments.find((d) => d.slug === sub && d.region === region.name);
+    const sector = sectors.find((s) => s.slug === third);
+    if (!region || !dep || !sector) return null;
+    const label = sector.label.toLowerCase();
+    const depPath = `/opportunites/${region.slug}/${dep.slug}`;
+    const otherSectors = sectors.filter((s) => s.slug !== sector.slug && count("department_sector", `${dep.code}|${s.slug}`) > 0);
+    const nearby = departments.filter((d) => d.region === region.name && d.code !== dep.code && count("department_sector", `${d.code}|${sector.slug}`) > 0);
+    return {
+      kind: "department-sector",
+      fixed: { departement: dep.code, secteur: sector.slug },
+      title: `Appels d'offres ${label} — ${inDep(dep)}`,
+      heading: `${sector.label} — ${inDep(dep)}`,
+      intro: `Appels d'offres, marchés publics et besoins d'entreprises en ${label} dans le département ${inDep(dep)}, mis à jour chaque jour. Activez une alerte pour recevoir les nouveaux marchés dès leur publication.`,
+      description: `Marchés publics et appels d'offres ${label} dans le département ${inDep(dep)} : consultations ouvertes, échéances et acheteurs, mis à jour chaque jour. Alerte gratuite.`,
+      crumbs: [
+        { name: region.name, path: `/opportunites/${region.slug}` },
+        { name: dep.name, path: depPath },
+        { name: sector.label, path: `${depPath}/${sector.slug}` },
+      ],
+      childrenLabel: `Autres métiers — ${inDep(dep)}`,
+      children: otherSectors.map((s) => ({ name: s.label, path: `${depPath}/${s.slug}` })),
+      related: nearby.length
+        ? { label: `${sector.label} dans les départements voisins`, links: nearby.map((d) => ({ name: inDep(d), path: `/opportunites/${region.slug}/${d.slug}/${sector.slug}` })) }
+        : undefined,
+    };
+  }
   if (sub) {
     if (!region) return null;
     const dep = departments.find((d) => d.slug === sub && d.region === region.name);
-    if (dep) return departmentLanding(dep, region.slug);
+    if (dep) return departmentLanding(dep, region.slug, sectors, count);
     const sector = sectors.find((s) => s.slug === sub);
     if (!sector) return null;
+    const deps = departments.filter((d) => d.region === region.name && count("department_sector", `${d.code}|${sector.slug}`) > 0);
     return {
       kind: "region-sector",
       fixed: { region: region.slug, secteur: sector.slug },
@@ -41,6 +78,8 @@ export async function resolveLanding(slug: string, sub?: string): Promise<Landin
       intro: `Appels d'offres, consultations et besoins d'entreprises en ${sector.label.toLowerCase()} dans la région ${region.name}.`,
       description: `Opportunités B2B et marchés publics en ${sector.label.toLowerCase()} en ${region.name} : appels d'offres, consultations et besoins d'entreprises, mis à jour chaque jour.`,
       crumbs: [{ name: region.name, path: `/opportunites/${region.slug}` }, { name: sector.label, path: `/opportunites/${region.slug}/${sector.slug}` }],
+      childrenLabel: "Par département",
+      children: deps.map((d) => ({ name: inDep(d), path: `/opportunites/${region.slug}/${d.slug}/${sector.slug}` })),
     };
   }
   if (slug === "france") {
@@ -82,11 +121,17 @@ export async function resolveLanding(slug: string, sub?: string): Promise<Landin
     };
   }
   const dep = departments.find((d) => d.slug === slug);
-  if (dep) return departmentLanding(dep, regionByName(dep.region)?.slug ?? null);
+  if (dep) return departmentLanding(dep, regionByName(dep.region)?.slug ?? null, sectors, count);
   return null;
 }
 
-function departmentLanding(dep: { code: string; name: string; slug: string; region: string }, regionSlug: string | null): Landing {
+function departmentLanding(
+  dep: { code: string; name: string; slug: string; region: string },
+  regionSlug: string | null,
+  sectors: { slug: string; label: string }[],
+  count: (dimension: string, key: string) => number,
+): Landing {
+  const withOpps = regionSlug ? sectors.filter((s) => count("department_sector", `${dep.code}|${s.slug}`) > 0) : [];
   return {
     kind: "department",
     fixed: { departement: dep.code },
@@ -98,5 +143,7 @@ function departmentLanding(dep: { code: string; name: string; slug: string; regi
       ...(regionSlug ? [{ name: dep.region, path: `/opportunites/${regionSlug}` }] : []),
       { name: dep.name, path: regionSlug ? `/opportunites/${regionSlug}/${dep.slug}` : `/opportunites/${dep.slug}` },
     ],
+    childrenLabel: "Par métier",
+    children: withOpps.map((s) => ({ name: s.label, path: `/opportunites/${regionSlug}/${dep.slug}/${s.slug}` })),
   };
 }

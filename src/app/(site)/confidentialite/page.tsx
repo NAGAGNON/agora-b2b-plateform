@@ -36,6 +36,13 @@ const TREATMENTS: Row[] = [
     recipients: "Resend (envoi)",
   },
   {
+    purpose: "Alertes par e-mail sans compte (« Recevoir les marchés similaires »)",
+    data: "Adresse e-mail, critères choisis (métier, département ou région), page d'origine, dates de demande, de confirmation et d'envoi",
+    basis: "Consentement (case non pré-cochée, confirmé par un lien envoyé par e-mail), retirable en un clic dans chaque e-mail",
+    retention: "Jusqu'à la désinscription ; une demande jamais confirmée n'entraîne aucun envoi",
+    recipients: "Prestataire d'envoi des e-mails",
+  },
+  {
     purpose: "Actualités de LinkProB2B",
     data: "Adresse e-mail, nom",
     basis: "Consentement (case facultative, non pré-cochée), retirable dans Paramètres",

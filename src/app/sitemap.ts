@@ -78,7 +78,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   for (const r of REGIONS) {
     if (n("region", r.name) < MIN_INDEXABLE) continue;
     landing(`/opportunites/${r.slug}`);
-    for (const d of DEPARTMENTS.filter((d) => d.region === r.name)) if (n("department", d.code) >= MIN_INDEXABLE) landing(`/opportunites/${r.slug}/${d.slug}`);
+    for (const d of DEPARTMENTS.filter((d) => d.region === r.name)) {
+      if (n("department", d.code) < MIN_INDEXABLE) continue;
+      landing(`/opportunites/${r.slug}/${d.slug}`);
+      // Métier × département : seulement les pages avec un contenu réel
+      for (const s of SECTORS) if (n("department_sector", `${d.code}|${s.slug}`) >= MIN_INDEXABLE) landing(`/opportunites/${r.slug}/${d.slug}/${s.slug}`);
+    }
     for (const s of SECTORS) if (n("region_sector", `${r.name}|${s.slug}`) >= MIN_INDEXABLE) landing(`/opportunites/${r.slug}/${s.slug}`);
   }
   for (const s of SECTORS) if (n("sector", s.slug) >= MIN_INDEXABLE) landing(`/opportunites/${s.slug}`);

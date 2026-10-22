@@ -23,7 +23,26 @@ export type Database = {
           }
         },"public": {
           Tables: {
-            "alerts": {
+            "alert_leads": {
+                  Row: {
+                    "confirmation_sent_at": string | null,"confirmed_at": string | null,"consent_text": string,"created_at": string,"department_code": string | null,"email": string,"emails_sent": number,"id": string,"last_sent_at": string | null,"region": string | null,"sector_slug": string | null,"source_opportunity_id": string | null,"source_path": string | null,"status": string,"token": string,"unsubscribed_at": string | null
+                  }
+                  Insert: {
+                    "confirmation_sent_at"?: string | null,"confirmed_at"?: string | null,"consent_text": string,"created_at"?: string,"department_code"?: string | null,"email": string,"emails_sent"?: number,"id"?: string,"last_sent_at"?: string | null,"region"?: string | null,"sector_slug"?: string | null,"source_opportunity_id"?: string | null,"source_path"?: string | null,"status"?: string,"token"?: string,"unsubscribed_at"?: string | null
+                  }
+                  Update: {
+                    "confirmation_sent_at"?: string | null,"confirmed_at"?: string | null,"consent_text"?: string,"created_at"?: string,"department_code"?: string | null,"email"?: string,"emails_sent"?: number,"id"?: string,"last_sent_at"?: string | null,"region"?: string | null,"sector_slug"?: string | null,"source_opportunity_id"?: string | null,"source_path"?: string | null,"status"?: string,"token"?: string,"unsubscribed_at"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "alert_leads_source_opportunity_id_fkey"
+      columns: ["source_opportunity_id"]
+isOneToOne: false
+      referencedRelation: "opportunities"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"alerts": {
                   Row: {
                     "company_size": Database["public"]['Enums']["company_size"] | null,"created_at": string,"department_code": string | null,"frequency": Database["public"]['Enums']["alert_frequency"],"id": string,"include_external": boolean,"is_active": boolean,"keywords": string | null,"last_sent_at": string | null,"name": string,"place_slug": string | null,"radius_km": number | null,"region": string | null,"sector_slug": string | null,"skills": (string)[],"type": Database["public"]['Enums']["opportunity_type"] | null,"unsubscribe_token": string,"user_id": string
                   }
