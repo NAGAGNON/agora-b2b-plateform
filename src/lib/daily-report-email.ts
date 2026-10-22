@@ -271,18 +271,19 @@ export function renderDailyReportEmail(row: ReportRow, { socialPost = null, grow
     parts.push(h2("Consommation Vercel (temps de calcul)"));
     parts.push(
       muted(
-        `Seuil de référence : ${n(cpu.forfait_mensuel_minutes)} minutes de calcul par mois, pages du site comprises (au-delà, Vercel facture un supplément). Les tâches automatiques ont un plafond de ${n(cpu.plafond_quotidien_secondes)} secondes par jour : au-delà, la recherche d'adresses attend le lendemain (les e-mails prêts partent quand même).`,
+        `Seuil de référence : ${n(cpu.forfait_mensuel_minutes)} minutes de calcul par mois, pages du site comprises (au-delà, Vercel facture un supplément). La prospection a son propre plafond de ${n(cpu.plafond_quotidien_secondes)} secondes par jour (${n(cpu.secondes_prospection_aujourdhui)} s utilisées aujourd'hui) : au-delà, la recherche d'adresses attend le lendemain (les e-mails prêts partent quand même).`,
       ),
     );
     parts.push(
       tiles([
         ["Calcul des tâches aujourd'hui (s)", n(cpu.secondes_aujourdhui)],
-        ["Plafond quotidien (s)", n(cpu.plafond_quotidien_secondes)],
+        ["Prospection aujourd'hui (s)", n(cpu.secondes_prospection_aujourdhui)],
+        ["Plafond quotidien prospection (s)", n(cpu.plafond_quotidien_secondes)],
         ["Tâches, 30 derniers jours (min)", n(cpu.minutes_sur_30_jours)],
       ]),
     );
     parts.push(table(["Tâche", "Passages", "Calcul (s)", "Durée (s)"], cpu.par_tache.map((t) => [t.tache, n(t.passages), n(t.secondes_de_calcul), n(t.duree_secondes)]), "Aucune mesure aujourd'hui."));
-    lines.push(`Consommation Vercel : ${n(cpu.secondes_aujourdhui)} s de calcul aujourd'hui (plafond ${n(cpu.plafond_quotidien_secondes)} s), ${n(cpu.minutes_sur_30_jours)} min sur 30 jours (seuil de référence ${n(cpu.forfait_mensuel_minutes)} min, pages comprises).`, "");
+    lines.push(`Consommation Vercel : ${n(cpu.secondes_aujourdhui)} s de calcul aujourd'hui, dont ${n(cpu.secondes_prospection_aujourdhui)} s pour la prospection (plafond ${n(cpu.plafond_quotidien_secondes)} s), ${n(cpu.minutes_sur_30_jours)} min sur 30 jours (seuil de référence ${n(cpu.forfait_mensuel_minutes)} min, pages comprises).`, "");
   }
 
   if (socialPost) {
