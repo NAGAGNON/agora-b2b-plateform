@@ -116,7 +116,7 @@ export function isGenericCompanyEmail(email: string, siteHost: string | null, co
 /** Adresses présentes dans une page HTML (liens mailto et texte, y compris « [at] »). */
 export function extractEmails(html: string): string[] {
   const text = html
-    .replace(/&#64;|&#x40;/gi, "@")
+    .replace(/&#64;|&#x40;|\\u0040/gi, "@")
     .replace(/\s*[[(]\s*(at|arobase)\s*[\])]\s*/gi, "@")
     .replace(/\s*[[(]\s*(dot|point)\s*[\])]\s*/gi, ".");
   const found = new Set<string>();
@@ -195,7 +195,7 @@ async function fetchText(url: string, fetchImpl: typeof fetch, maxBytes = 800_00
   return { status: res.status, text };
 }
 
-export type WebsiteSearch = (company: { name: string; city: string | null; siren: string | null }) => Promise<{ website: string | null; email?: string | null; provider: string } | null>;
+export type WebsiteSearch = (company: { name: string; city: string | null; siren: string | null; alt_names?: string[] }) => Promise<{ website: string | null; email?: string | null; provider: string } | null>;
 
 /** Erreur d'un service de recherche saturé (limite de requêtes ou forfait épuisé) : à réessayer plus tard. */
 export class SearchQuotaError extends Error {}
@@ -273,6 +273,8 @@ export function dropcontactSearch(key: string, fetchImpl: typeof fetch = fetch):
  */
 const LEGAL_PATHS = ["/mentions-legales", "/mentions-legales/", "/contact", "/nous-contacter", "/mentions-legales.html", "/contact.html", "/mentions", "/informations-legales"];
 
+const ARTICLES = new Set(["le", "la", "les", "l", "de", "du", "des", "d", "et", "en", "au", "aux"]);
+
 export function domainCandidates(name: string, city: string | null = null): string[] {
   const words = normalizeText(name)
     .replace(/\b(sarl|sas|sasu|eurl|sa|sci|snc|scop|ets|etablissements|societe|entreprise)\b/g, " ")
@@ -283,6 +285,9 @@ export function domainCandidates(name: string, city: string | null = null): stri
   const joined = words.join("");
   const dashed = words.join("-");
   if (joined.length >= 3 && joined.length <= 40) labels.add(dashed).add(joined);
+  // Sans les petits mots (« Les Menuiseries du Léon » → menuiseries-leon, menuiseriesleon)
+  const core = words.filter((w) => !ARTICLES.has(w));
+  if (core.length && core.length < words.length && core.join("").length >= 3) labels.add(core.join("-")).add(core.join(""));
   // Nom long : les deux premiers mots (ex. « Dupont Electricite Services » → dupont-electricite)
   if (words.length > 2) labels.add(words.slice(0, 2).join("-")).add(words.slice(0, 2).join(""));
   // Nom suivi de la ville (ex. « Dupont Plomberie », Brest → dupont-plomberie-brest.fr)
@@ -290,15 +295,16 @@ export function domainCandidates(name: string, city: string | null = null): stri
   const out: string[] = [];
   for (const l of labels) for (const tld of ["fr", "com"]) out.push(`${l}.${tld}`);
   if (cityWord && joined.length + cityWord.length <= 50) out.push(`${dashed}-${cityWord}.fr`);
-  for (const l of [...labels].slice(0, 2)) for (const tld of ["net", "eu"]) out.push(`${l}.${tld}`);
-  return [...new Set(out)].slice(0, 12);
+  for (const l of [...labels].slice(0, 2)) for (const tld of ["net", "eu", "bzh"]) out.push(`${l}.${tld}`);
+  return [...new Set(out)].slice(0, 16);
 }
 
 /** Le SIREN (9 chiffres, éventuellement espacés « 123 456 789 ») figure-t-il dans la page ? */
 export function sirenOnPage(html: string, siren: string): boolean {
   if (!/^\d{9}$/.test(siren)) return false;
-  const text = html.replace(/<[^>]+>/g, " ").replace(/(\d)[\s\u00a0.]+(?=\d)/g, "$1");
-  return new RegExp(`(^|\\D)${siren}`).test(text);
+  const text = html.replace(/<[^>]+>/g, " ").replace(/([0-9A-Z])[\s\u00a0.]+(?=\d)/gi, "$1");
+  // SIREN seul ou en tête du SIRET, ou dans le numéro de TVA intracommunautaire (FR + 2 caractères + SIREN)
+  return new RegExp(`(^|\\D)${siren}`).test(text) || new RegExp(`FR[0-9A-Z]{2}${siren}(\\D|$)`, "i").test(text);
 }
 
 /**
@@ -309,8 +315,9 @@ export function sirenOnPage(html: string, siren: string): boolean {
 export function freeWebsiteSearch(fetchImpl: typeof fetch = fetch): WebsiteSearch {
   return async (c) => {
     if (!c.siren) return null;
-    // Résolution DNS de tous les domaines plausibles en parallèle : seuls ceux qui existent sont visités
-    const candidates = domainCandidates(c.name, c.city);
+    // Résolution DNS de tous les domaines plausibles en parallèle : seuls ceux qui existent sont visités.
+    // Raison sociale d'abord, puis sigle, enseignes et nom commercial (souvent le nom du site).
+    const candidates = [...new Set([c.name, ...(c.alt_names ?? [])].flatMap((n) => domainCandidates(n, c.city)))].slice(0, 32);
     const exists = await Promise.all(candidates.map((d) => isPublicHost(d).catch(() => false)));
     for (const domain of candidates.filter((_, i) => exists[i])) {
       try {
@@ -341,7 +348,7 @@ export type EnrichResult = { status: "FOUND" | "NO_WEBSITE" | "NO_EMAIL" | "BLOC
 
 /** Recherche complète pour une entreprise. */
 export async function enrichCompany(
-  c: { name: string; city: string | null; siren: string | null; website: string | null },
+  c: { name: string; city: string | null; siren: string | null; website: string | null; alt_names?: string[] },
   searchers: WebsiteSearch[],
   fetchImpl: typeof fetch = fetch,
 ): Promise<EnrichResult> {

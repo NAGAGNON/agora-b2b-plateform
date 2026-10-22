@@ -2,7 +2,7 @@ import "server-only";
 import { logServerError } from "@/lib/errors";
 import { formatDate } from "@/lib/format";
 import { analyzeOpportunity, contentFingerprint, groupByProspect, scoreMatch, type OpportunityAnalysis, type ProspectInput } from "@/lib/outreach/matching";
-import { DISCOVERY_SOURCE, discoverCompanies } from "@/lib/outreach/discovery";
+import { DISCOVERY_SOURCE, companyAltNames, discoverCompanies } from "@/lib/outreach/discovery";
 import { buildEmail, loadRecipientBundles, loadReferentials, loadSettings, loadSuppressions, realSendBlockers, selectAll, type Db, type OutreachSettings } from "@/lib/outreach/data";
 import { sendOutreachEmail } from "@/lib/outreach/send";
 import { configuredSearchers, enrichCompany } from "@/lib/outreach/enrich";
@@ -135,6 +135,8 @@ export async function discoverProspects(db: Db, analyses: OpportunityAnalysis[],
         region: ref.department(c.department_code)?.region ?? null,
         size_range: c.size_range,
         is_individual_entrepreneur: c.is_individual_entrepreneur,
+        alt_names: c.alt_names,
+        alt_names_checked_at: new Date().toISOString(),
         intervention_zone: "REGIONAL",
         source: DISCOVERY_SOURCE,
         source_ref: c.source_ref,
@@ -656,33 +658,59 @@ export async function enrichProspects(db: Db, { campaignId = null, deadline = Da
     ids.push(...(data ?? []).map((r) => r.prospect_id));
   }
   // Par paquets (adresse de requête bornée), dans l'ordre de priorité de la campagne
-  const rows: { id: string; name: string; city: string | null; siren: string | null; website: string | null; enrichment_status: string; enriched_at: string | null; enrichment_deferred_until: string | null }[] = [];
+  type Row = {
+    id: string;
+    name: string;
+    city: string | null;
+    siren: string | null;
+    website: string | null;
+    enrichment_status: string;
+    enriched_at: string | null;
+    enrichment_deferred_until: string | null;
+    alt_names: string[];
+    alt_names_checked_at: string | null;
+    size_range: string | null;
+    is_individual_entrepreneur: boolean;
+  };
+  const rows: Row[] = [];
   for (const part of chunk(ids, 200)) {
-    const { data, error } = await db.from("outreach_prospects").select("id, name, city, siren, website, enrichment_status, enriched_at, enrichment_deferred_until").in("id", part).is("email", null).eq("status", "ACTIVE");
+    const { data, error } = await db.from("outreach_prospects").select(ENRICH_FIELDS).in("id", part).is("email", null).eq("status", "ACTIVE");
     if (error) throw error;
     const byId = new Map((data ?? []).map((r) => [r.id, r]));
     for (const id of part) if (byId.has(id)) rows.push(byId.get(id)!);
   }
-  const queue = rows.filter(searchable);
+  // Entreprises avec salariés d'abord (elles ont bien plus souvent un site), entrepreneurs individuels en dernier
+  const rank = (p: Row) => (p.is_individual_entrepreneur ? 2 : hasEmployees(p.size_range) ? 0 : 1);
+  const queue = rows.filter(searchable).sort((a, b) => rank(a) - rank(b));
   result.already_searched = rows.length - queue.length;
-  if (queue.length < budget) {
-    const { data: more } = await db
+  // Hors campagne : d'abord les entreprises avec salariés, puis les autres
+  for (const withStaff of [true, false]) {
+    if (queue.length >= budget) break;
+    let q = db
       .from("outreach_prospects")
-      .select("id, name, city, siren, website, enrichment_status, enriched_at, enrichment_deferred_until")
+      .select(ENRICH_FIELDS)
       .is("email", null)
       .eq("status", "ACTIVE")
       .eq("enrichment_status", "PENDING")
       .or(`enrichment_deferred_until.is.null,enrichment_deferred_until.lt.${nowIso}`)
-      .eq("is_individual_entrepreneur", false)
-      .order("updated_at", { ascending: false })
-      .limit(budget - queue.length);
-    for (const p of more ?? []) if (!queue.some((q) => q.id === p.id)) queue.push(p);
+      .eq("is_individual_entrepreneur", false);
+    q = withStaff ? q.not("size_range", "is", null).neq("size_range", "0 salarié") : q.or("size_range.is.null,size_range.eq.0 salarié");
+    const { data: more } = await q.order("updated_at", { ascending: false }).limit(budget - queue.length);
+    for (const p of more ?? []) if (!queue.some((x) => x.id === p.id)) queue.push(p);
   }
   const supp = await loadSuppressions(db, ["EMAIL", "DOMAIN"]);
   const blocked = new Set([...supp.EMAIL, ...supp.DOMAIN]);
   const work = queue.slice(0, budget);
   const handle = async (p: (typeof work)[number]) => {
     result.searched++;
+    // Autres noms publics (sigle, enseignes) pour les entreprises découvertes avant leur enregistrement
+    if (!p.alt_names_checked_at && p.siren && !p.website) {
+      const names = await companyAltNames(p.siren, p.name).catch(() => null);
+      if (names) {
+        p.alt_names = names;
+        await db.from("outreach_prospects").update({ alt_names: names, alt_names_checked_at: new Date().toISOString() }).eq("id", p.id);
+      }
+    }
     // Temps borné par entreprise (sites lents) : la tâche garde le temps d'envoyer les e-mails
     let timer: ReturnType<typeof setTimeout> | undefined;
     const timeout = new Promise<never>((_, reject) => (timer = setTimeout(() => reject(new Error("Délai dépassé : nouvel essai plus tard")), ENRICH_COMPANY_TIMEOUT_MS)));
@@ -750,6 +778,8 @@ const ENRICH_ERROR_RETRY_HOURS = 12;
 const ENRICH_DEFER_HOURS = 6;
 // Recherches simultanées (chaque recherche attend surtout le réseau) : plus d'entreprises par passage
 const ENRICH_CONCURRENCY = 10;
+const ENRICH_FIELDS = "id, name, city, siren, website, enrichment_status, enriched_at, enrichment_deferred_until, alt_names, alt_names_checked_at, size_range, is_individual_entrepreneur";
+const hasEmployees = (size: string | null) => Boolean(size && size !== "0 salarié");
 /** Délai avant une nouvelle recherche d'adresse pour une entreprise sans résultat. */
 const ENRICH_RETRY_DAYS = 30;
 
