@@ -9,7 +9,7 @@ const png = (w: number, h: number, colors = true) =>
     .toBuffer();
 
 describe("repérage du logo dans la page d'accueil", () => {
-  it("ordre : logo déclaré, image « logo », icône haute définition ; jamais d'image de contenu", () => {
+  it("ordre : logo de l'en-tête (lien d'accueil), logo déclaré, image « logo », icône ; jamais d'image de contenu", () => {
     const html = `<html><head>
       <link rel="icon" href="/favicon.ico">
       <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
@@ -18,11 +18,29 @@ describe("repérage du logo dans la page d'accueil", () => {
       </head><body><header><a class="site-logo" href="/"><img src="/img/entete.png" alt="Accueil"></a></header>
       <img src="/photos/equipe.jpg" alt="Notre équipe"><img src="/img/Logo-Dupont.webp" alt="Dupont"></body></html>`;
     const c = logoCandidates(html, "https://exemple.fr/");
-    expect(c[0]).toBe("https://exemple.fr/img/logo-ld.png");
+    expect(c[0]).toBe("https://exemple.fr/img/entete.png");
+    expect(c[1]).toBe("https://exemple.fr/img/logo-ld.png");
     expect(c).toContain("https://exemple.fr/img/Logo-Dupont.webp");
-    expect(c).toContain("https://exemple.fr/img/entete.png");
-    expect(c).toContain("https://exemple.fr/apple-touch-icon.png");
+    expect(c.indexOf("https://exemple.fr/apple-touch-icon.png")).toBeGreaterThan(c.indexOf("https://exemple.fr/img/Logo-Dupont.webp"));
     expect(c.join(" ")).not.toMatch(/equipe|banniere|favicon\.ico/);
+  });
+
+  it("visuel de campagne et logos de partenaires écartés au profit du vrai logo de l'en-tête", () => {
+    const html = `<html><head><meta property="og:image" content="/uploads/campagne-octobre-rose-logo.jpg">
+      <script type="application/ld+json">{"@context":"https://schema.org","@type":"Event","logo":"/uploads/logo-salon-2025.png"}</script></head>
+      <body><header><nav><a href="https://www.groupe-sinai.fr/" class="navbar-brand"><img src="/assets/sinai.svg" alt="Groupe Sinaï"></a></nav></header>
+      <section class="slider"><img src="/uploads/logo-campagne-noel.png" alt="Logo campagne Noël"></section>
+      <footer><img src="/partenaires/logo-qualibat.png" alt="Qualibat"><img src="/img/logo-linkedin.png" alt="LinkedIn"></footer></body></html>`;
+    const c = logoCandidates(html, "https://www.groupe-sinai.fr/", "Groupe Sinaï");
+    expect(c[0]).toBe("https://www.groupe-sinai.fr/assets/sinai.svg");
+    expect(c.join(" ")).not.toMatch(/campagne|noel|salon|qualibat|linkedin/i);
+  });
+
+  it("logo dessiné dans la page (SVG du lien d'accueil) : repris en image", () => {
+    const html = `<body><header><a href="/" class="logo" aria-label="Accueil"><svg viewBox="0 0 100 30"><rect width="100" height="30" fill="#0F2D4A"/></svg></a></header></body>`;
+    const c = logoCandidates(html, "https://exemple.fr/");
+    expect(c[0]).toMatch(/^data:image\/svg\+xml;base64,/);
+    expect(Buffer.from(c[0].split(",")[1], "base64").toString()).toContain('xmlns="http://www.w3.org/2000/svg"');
   });
 });
 

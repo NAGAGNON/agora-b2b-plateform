@@ -16,7 +16,7 @@ export async function fetchMissingLogos(): Promise<ActionResult> {
     revalidatePath("/entreprises");
     return {
       ok: true,
-      message: `${r.checked} entreprise(s) traitée(s) : ${r.found} logo(s) ajouté(s), ${r.noSite} sans site connu, ${r.notFound} sans logo exploitable, ${r.blocked} site(s) fermé(s) ou refusant l'exploration${r.errors ? `, ${r.errors} erreur(s)` : ""}.${r.remaining ? ` Il en reste ${r.remaining} : relancez, ou laissez la tâche quotidienne continuer.` : ""}`,
+      message: `${r.checked} entreprise(s) traitée(s) : ${r.found} logo(s) ajouté(s)${r.refreshed ? ` (dont ${r.refreshed} remplacé(s) par le logo de l'en-tête du site)` : ""}, ${r.noSite} sans site connu, ${r.notFound} sans logo exploitable, ${r.blocked} site(s) fermé(s) ou refusant l'exploration${r.errors ? `, ${r.errors} erreur(s)` : ""}.${r.remaining ? ` Il en reste ${r.remaining} : relancez, ou laissez la tâche quotidienne continuer.` : ""}`,
     };
   } catch (e) {
     logServerError("admin logos", e);
