@@ -5,12 +5,17 @@ import { parisDayStart, parisToday } from "@/lib/daily-report";
 /**
  * Temps de calcul des tâches automatiques. Vercel facture le temps CPU actif (pages du site comprises) :
  * l'offre gratuite n'en inclut que 4 h par mois et met le site en pause au-delà ; l'offre payante
- * facture les dépassements. Seuil de référence conservé : 4 h par mois. Chaque passage est mesuré, et au-delà du plafond quotidien les tâches lourdes et facultatives
- * (recherche d'adresses, campagnes complémentaires) attendent le lendemain ; l'envoi des e-mails déjà
- * prêts, la collecte et le bilan continuent.
+ * facture les dépassements. Seuil de référence conservé : 4 h par mois. Chaque passage est mesuré, et au-delà du plafond quotidien de la PROSPECTION
+ * (passages « outreach » et « envoi », comptés à part) la recherche d'adresses et les campagnes
+ * complémentaires attendent le lendemain ; l'envoi des e-mails déjà prêts, la collecte et le bilan continuent.
+ * La collecte, les articles et la veille ne consomment pas ce plafond : sinon la prospection serait
+ * bloquée dès le matin par les autres tâches.
  */
 
-/** Plafond quotidien des tâches automatiques (le reste du forfait est laissé aux pages du site). */
+/** Tâches comptées dans le plafond de la prospection (préfixes des noms de passage). */
+export const PROSPECTION_TASKS = ["outreach", "envoi"] as const;
+
+/** Plafond quotidien du temps de calcul de la prospection (le reste du forfait est laissé aux autres tâches et aux pages). */
 export const DAILY_CRON_CPU_BUDGET_MS = Number(process.env.CRON_CPU_BUDGET_MS) > 0 ? Number(process.env.CRON_CPU_BUDGET_MS) : 3 * 60_000;
 /**
  * Seuil mensuel de référence (temps CPU actif) : 4 h, le forfait de l'offre gratuite de Vercel, gardé
@@ -35,15 +40,17 @@ export function startCronMeter(task: string) {
   };
 }
 
-/** Temps de calcul consommé aujourd'hui (heure de Paris) par les tâches automatiques. */
-export async function cronCpuToday(now = new Date()): Promise<number> {
-  const { data } = await createAdminClient().from("cron_cpu_runs").select("cpu_ms").gte("started_at", parisDayStart(parisToday(now)).toISOString()).limit(5000);
-  return (data ?? []).reduce((t, r) => t + r.cpu_ms, 0);
+export const isProspectionTask = (task: string) => PROSPECTION_TASKS.some((p) => task === p || task.startsWith(`${p}?`) || task.startsWith(`${p}-`));
+
+/** Temps de calcul consommé aujourd'hui (heure de Paris) par les tâches automatiques (toutes, ou la prospection seule). */
+export async function cronCpuToday(now = new Date(), { prospectionOnly = false }: { prospectionOnly?: boolean } = {}): Promise<number> {
+  const { data } = await createAdminClient().from("cron_cpu_runs").select("task, cpu_ms").gte("started_at", parisDayStart(parisToday(now)).toISOString()).limit(5000);
+  return (data ?? []).filter((r) => !prospectionOnly || isProspectionTask(r.task)).reduce((t, r) => t + r.cpu_ms, 0);
 }
 
-/** Plafond du jour atteint : les tâches lourdes et facultatives attendent le lendemain. */
+/** Plafond du jour de la prospection atteint : recherche d'adresses et campagnes complémentaires attendent le lendemain. */
 export async function cronCpuBudgetReached(now = new Date()): Promise<boolean> {
-  return (await cronCpuToday(now).catch(() => 0)) >= DAILY_CRON_CPU_BUDGET_MS;
+  return (await cronCpuToday(now, { prospectionOnly: true }).catch(() => 0)) >= DAILY_CRON_CPU_BUDGET_MS;
 }
 
 /** Récapitulatif pour le bilan : par tâche aujourd'hui, et total sur 30 jours glissants. */
@@ -61,6 +68,7 @@ export async function cronCpuSummary(now = new Date()) {
   const sec = (ms: number) => Math.round(ms / 1000);
   return {
     secondes_aujourdhui: sec([...today.values()].reduce((t, x) => t + x.cpu_ms, 0)),
+    secondes_prospection_aujourdhui: sec([...today.entries()].filter(([task]) => isProspectionTask(task)).reduce((t, [, x]) => t + x.cpu_ms, 0)),
     plafond_quotidien_secondes: sec(DAILY_CRON_CPU_BUDGET_MS),
     minutes_sur_30_jours: Math.round(rows.reduce((t, x) => t + x.cpu_ms, 0) / 60_000),
     forfait_mensuel_minutes: MONTHLY_CPU_ALLOWANCE_MS / 60_000,

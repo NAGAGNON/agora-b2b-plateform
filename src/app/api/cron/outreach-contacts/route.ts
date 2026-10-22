@@ -6,6 +6,7 @@ import { env } from "@/lib/env";
 import { logServerError } from "@/lib/errors";
 import { runManualCampaign, runOutreachFollowUp, runSendPass } from "@/lib/outreach/pipeline";
 import { cronCpuBudgetReached } from "@/lib/cron-usage";
+import { parisToday } from "@/lib/daily-report";
 
 export const maxDuration = 300;
 
@@ -24,13 +25,22 @@ function authorized(req: Request): boolean {
  * `complement=1` (midi et après-midi) : campagne complémentaire avec les opportunités collectées
  * depuis le matin, mêmes garde-fous (exclusions, délai entre deux e-mails à une même entreprise).
  */
+/** Campagne automatique du jour présente et utilisable (ni absente, ni en échec, ni bloquée en préparation). */
+async function dailyCampaignOk(db: ReturnType<typeof createAdminClient>) {
+  const { data: c } = await db.from("outreach_campaigns").select("status, updated_at").eq("campaign_date", parisToday()).eq("kind", "AUTO").maybeSingle();
+  if (!c || c.status === "FAILED") return false;
+  return !(c.status === "BUILDING" && Date.now() - new Date(c.updated_at).getTime() > 10 * 60_000);
+}
+
 async function run(req: Request) {
   if (!authorized(req)) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
   const db = createAdminClient();
   try {
-    // Plafond quotidien de temps de calcul atteint (forfait Vercel) : seuls les e-mails déjà prêts
-    // partent ; la recherche d'adresses et les campagnes complémentaires reprennent demain.
-    if (await cronCpuBudgetReached()) {
+    // Plafond quotidien de temps de calcul de la prospection atteint (forfait Vercel) : seuls les e-mails
+    // déjà prêts partent ; la recherche d'adresses et les campagnes complémentaires reprennent demain.
+    // Exception : la campagne du jour manque, a échoué ou s'est arrêtée en route → elle est toujours
+    // (re)préparée, sinon aucune prospection ne partirait de la journée.
+    if ((await dailyCampaignOk(db)) && (await cronCpuBudgetReached())) {
       return NextResponse.json({ ok: true, mode: "envoi seul", reason: "Plafond quotidien de temps de calcul atteint", send: await runSendPass(db, { budgetMs: 240_000 }) });
     }
     const complement = new URL(req.url).searchParams.get("complement") === "1";
