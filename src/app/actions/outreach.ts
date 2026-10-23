@@ -88,7 +88,7 @@ export async function runOutreachNow(_prev: ActionResult | null, fd: FormData): 
     return done(`Campagne préparée : ${r.stats?.emails_prepared ?? 0} e-mail(s), ${r.stats?.no_email ?? 0} entreprise(s) sans adresse.`);
   } catch (e) {
     logServerError("outreach run", e);
-    return { ok: false, error: `La préparation a échoué : ${e instanceof Error ? e.message : "erreur inconnue"}` };
+    return { ok: false, error: `La préparation a échoué : ${errText(e)}` };
   }
 }
 
@@ -113,7 +113,7 @@ export async function launchManualCampaign(): Promise<ActionResult> {
     return done(`${parts.join(" · ")}.`);
   } catch (e) {
     logServerError("outreach manual run", e);
-    return { ok: false, error: `Le lancement a échoué : ${e instanceof Error ? e.message : "erreur inconnue"}` };
+    return { ok: false, error: `Le lancement a échoué : ${errText(e)}` };
   }
 }
 
@@ -124,6 +124,17 @@ export async function testSmtpConnection(): Promise<ActionResult> {
   const { verifySmtp } = await import("@/lib/email/smtp");
   const r = await verifySmtp();
   return r.ok ? { ok: true, message: r.message } : { ok: false, error: r.message };
+}
+
+/** Message lisible d'une erreur, y compris les erreurs de la base (objets { message, details }). */
+function errText(e: unknown): string {
+  if (e instanceof Error) return e.message;
+  if (e && typeof e === "object") {
+    const o = e as { message?: unknown; details?: unknown; code?: unknown };
+    const parts = [o.message, o.details, o.code ? `code ${String(o.code)}` : null].filter((x) => typeof x === "string" && x);
+    if (parts.length) return parts.join(" — ");
+  }
+  return typeof e === "string" && e ? e : "erreur inconnue";
 }
 
 // ---------------------------------------------------------------- Campagnes
@@ -367,7 +378,7 @@ export async function enrichCampaignNow(_prev: ActionResult | null, fd: FormData
     return done(`${enrichmentReport(r.enrichment)}${r.send.sent ? ` ${r.send.sent} e-mail(s) envoyé(s).` : ""}`);
   } catch (e) {
     logServerError("outreach enrich campaign", e);
-    return { ok: false, error: `La recherche a échoué : ${e instanceof Error ? e.message : "erreur inconnue"}` };
+    return { ok: false, error: `La recherche a échoué : ${errText(e)}` };
   }
 }
 
