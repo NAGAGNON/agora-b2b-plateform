@@ -27,9 +27,10 @@ function pct(a: number, b: number) {
 export default async function AdminHome(props: PageProps<"/admin">) {
   const session = await requireStaff();
   const sp = await props.searchParams;
-  const supabase = await createClient();
+  // Statistiques calculées sur toute la base : plus longues qu'une page publique
+  const supabase = await createClient({ timeoutMs: 25_000 });
   const period = PERIODS.find((p) => String(p) === sp.periode) ?? 30;
-  const [{ data }, { data: audience }, { data: billing }, { data: detail }, { data: reports }, { data: seo }, socialPost] = await Promise.all([
+  const [{ data, error: statsError }, { data: audience }, { data: billing }, { data: detail }, { data: reports }, { data: seo }, socialPost] = await Promise.all([
     supabase.rpc("admin_stats"),
     supabase.rpc("admin_audience_stats", { p_days: period }),
     supabase.rpc("admin_billing_stats"),
@@ -45,6 +46,7 @@ export default async function AdminHome(props: PageProps<"/admin">) {
   const stripeMode = stripeModeOf();
   return (
     <div className="space-y-8">
+      {statsError && <Notice tone="error">Les compteurs n&apos;ont pas pu être chargés (base lente). Rechargez la page dans un instant.</Notice>}
       {sp.refus === "admin" && <Notice tone="error">Cette page est réservée aux administrateurs.</Notice>}
       <div>
         <h1 className="text-2xl font-bold">Vue d&apos;ensemble</h1>
