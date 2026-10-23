@@ -16,8 +16,9 @@ export async function refreshDailyReport(): Promise<ActionResult> {
     const r = await generateDailyReport();
     revalidatePath("/admin");
     return r.error ? { ok: false, error: r.error } : { ok: true, message: "Bilan mis à jour." };
-  } catch {
-    return { ok: false, error: "Analyse impossible pour le moment." };
+  } catch (e) {
+    const m = e instanceof Error ? e.message : e && typeof e === "object" && "message" in e ? String((e as { message: unknown }).message) : "";
+    return { ok: false, error: `Analyse impossible pour le moment${m ? ` : ${m}` : "."}` };
   }
 }
 
