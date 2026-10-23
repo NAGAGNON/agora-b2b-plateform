@@ -11,5 +11,7 @@ import { env } from "@/lib/env";
 export function createAdminClient() {
   return createClient<Database>(env.supabaseServerUrl, env.supabaseSecretKey, {
     auth: { persistSession: false, autoRefreshToken: false },
+    // Base indisponible : requête abandonnée au bout de 25 s (au lieu d'attendre indéfiniment)
+    global: { fetch: (input, init) => fetch(input, { ...init, signal: init?.signal ?? AbortSignal.timeout(25_000) }) },
   });
 }

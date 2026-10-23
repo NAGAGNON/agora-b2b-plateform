@@ -22,6 +22,8 @@ export const showDemoData = cache(async (): Promise<boolean> => {
 
 /** Vrai si des données de démonstration existent (affiche le bandeau d'avertissement). */
 export const hasDemoData = cache(async (): Promise<boolean> => {
+  // Production : jamais de démonstration, donc aucune lecture de la base sur chaque page
+  if (env.isProduction) return false;
   try {
     const settings = await getSettings();
     if (settings.demo && settings.demo.show_banner === false) return false;
