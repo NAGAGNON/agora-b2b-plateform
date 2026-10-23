@@ -75,3 +75,12 @@ export async function cronCpuSummary(now = new Date()) {
     par_tache: [...today.entries()].sort((a, b) => b[1].cpu_ms - a[1].cpu_ms).map(([tache, x]) => ({ tache, passages: x.passages, secondes_de_calcul: sec(x.cpu_ms), duree_secondes: sec(x.wall_ms) })),
   };
 }
+
+/**
+ * Pause temporaire des tâches planifiées (récupération de la base Supabase après saturation du
+ * budget disque, 23/10/2026) : jusqu'à cette date, les tâches ne lisent ni n'écrivent rien.
+ */
+export const CRON_PAUSED_UNTIL = "2026-10-24T02:30:00Z";
+export function cronPausedResponse(): Response | null {
+  return Date.now() < Date.parse(CRON_PAUSED_UNTIL) ? Response.json({ paused: true, until: CRON_PAUSED_UNTIL }) : null;
+}
