@@ -12,6 +12,9 @@ import { sessionCookieOptions } from "@/lib/supabase/cookie";
 export async function createClient() {
   const cookieStore = await cookies();
   return createServerClient<Database>(env.supabaseServerUrl, env.supabasePublishableKey, {
+    // Base lente ou indisponible : requête abandonnée au bout de 10 s (message d'erreur affiché)
+    // plutôt qu'une page qui charge sans fin.
+    global: { fetch: (input, init) => fetch(input, { ...init, signal: init?.signal ?? AbortSignal.timeout(10_000) }) },
     cookieOptions: sessionCookieOptions(env.siteUrl.startsWith("https://")),
     cookies: {
       getAll() {
