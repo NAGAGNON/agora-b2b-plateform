@@ -1,3 +1,4 @@
+import { cronPausedResponse } from "@/lib/cron-usage";
 import { NextResponse } from "next/server";
 import { startCronMeter } from "@/lib/cron-usage";
 import { timingSafeEqual } from "node:crypto";
@@ -47,6 +48,8 @@ async function run(req: Request) {
 /** Passage mesuré (temps de calcul, voir src/lib/cron-usage.ts). */
 export async function GET(req: Request) {
   if (!authorized(req)) return run(req);
+  const paused = cronPausedResponse();
+  if (paused) return paused;
   const stop = startCronMeter(`bilan${new URL(req.url).search}`);
   try {
     return await run(req);
