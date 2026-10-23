@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -48,22 +49,18 @@ export async function processNeedsNow(): Promise<ActionResult> {
 /** « Lancer la campagne besoins » (Vue d'ensemble Outreach) : besoins ouverts + envoi immédiat de leurs e-mails. */
 export async function launchNeedCampaignsNow(): Promise<ActionResult> {
   await requireAdmin();
-  const started = Date.now();
-  try {
-    const db = createAdminClient();
-    const r = await processNeedCampaigns(db, { deadline: started + 90_000 });
-    if (env.emailTransport) await processEmailOutbox(60);
-    // Adresses des entreprises retenues, puis envoi immédiat
-    const e = await enrichNeedCampaigns(db, { deadline: started + 240_000 });
-    const send = await runSendPass(db, { budgetMs: Math.max(20_000, 280_000 - (Date.now() - started)) });
-    revalidatePath("/outreach");
-    revalidatePath("/admin/besoins");
-    return {
-      ok: true,
-      message: `${r.processed} besoin(s) traité(s) · ${e.found} adresse(s) trouvée(s) · ${e.sent + send.sent} e-mail(s) envoyé(s)${send.stopped ? ` (arrêt : ${send.stopped})` : ""}. La suite part automatiquement aux passages d'envoi de la journée.`,
-    };
-  } catch (e) {
-    logServerError("launch needs", e);
-    return { ok: false, error: "Le lancement a échoué. Réessayez plus tard." };
-  }
+  // En arrière-plan (jusqu'à 5 min) : réponse immédiate, résultat visible dans Besoins et mise en relation
+  after(async () => {
+    const started = Date.now();
+    try {
+      const db = createAdminClient();
+      await processNeedCampaigns(db, { deadline: started + 90_000 });
+      if (env.emailTransport) await processEmailOutbox(60);
+      await enrichNeedCampaigns(db, { deadline: started + 230_000 });
+      await runSendPass(db, { budgetMs: Math.max(20_000, 270_000 - (Date.now() - started)) });
+    } catch (e) {
+      logServerError("launch needs", e);
+    }
+  });
+  return { ok: true, message: "Campagne besoins lancée : recherche des adresses puis envoi, pendant 5 minutes environ. Résultat dans « Besoins et mise en relation »." };
 }

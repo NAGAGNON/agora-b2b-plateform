@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { z } from "zod";
 import { getStaffActionSession } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -98,23 +99,18 @@ export async function runOutreachNow(_prev: ActionResult | null, fd: FormData): 
  */
 export async function launchManualCampaign(): Promise<ActionResult> {
   const { session } = await admin();
-  try {
-    const r = await runManualCampaign(createAdminClient(), { userId: session.userId });
-    await audit(session.userId, "outreach.manual_run", r.build.campaignId ?? "none", { ...(r.build.stats ?? {}), sent: r.send?.sent ?? 0 });
-    revalidatePath("/outreach");
-    revalidatePath("/outreach/campagnes");
-    const st = r.build.stats ?? {};
-    const parts = [
-      `Campagne manuelle lancée : ${st.companies_selected ?? 0} entreprise(s) sélectionnée(s)`,
-      r.enrichment ? `${r.enrichment.found} adresse(s) trouvée(s)` : null,
-      r.send ? `${r.send.sent} e-mail(s) envoyé(s)${r.send.simulated ? `, ${r.send.simulated} simulé(s)` : ""}` : "en attente de votre validation (Paramètres)",
-      st.excluded_frequency ? `${st.excluded_frequency} entreprise(s) déjà contactée(s) récemment, non relancée(s)` : null,
-    ].filter(Boolean);
-    return done(`${parts.join(" · ")}.`);
-  } catch (e) {
-    logServerError("outreach manual run", e);
-    return { ok: false, error: `Le lancement a échoué : ${errText(e)}` };
-  }
+  // Campagne en arrière-plan (jusqu'à 5 min) : le bouton répond tout de suite, sans risque de
+  // délai dépassé côté navigateur ; le résultat s'affiche dans Campagnes et le journal d'audit.
+  after(async () => {
+    try {
+      const r = await runManualCampaign(createAdminClient(), { userId: session.userId, budgetMs: 260_000 });
+      await audit(session.userId, "outreach.manual_run", r.build.campaignId ?? "none", { ...(r.build.stats ?? {}), found: r.enrichment?.found ?? 0, sent: r.send?.sent ?? 0 });
+    } catch (e) {
+      logServerError("outreach manual run", e);
+      await audit(session.userId, "outreach.manual_run_failed", "none", { error: errText(e) }).catch(() => undefined);
+    }
+  });
+  return done("Prospection lancée : recherche des entreprises et des adresses puis envoi, pendant 5 minutes environ. Rechargez la page Campagnes dans quelques minutes pour voir le résultat.");
 }
 
 /** « Tester la connexion SMTP » (Paramètres) : connexion et authentification, sans envoyer d'e-mail. */
