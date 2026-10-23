@@ -36,6 +36,7 @@ import { DemoBadge } from "@/components/demo";
 import { CompanyLogo } from "@/components/companies/company-card";
 import { buttonClasses } from "@/components/ui/button";
 import { getOpportunityDetail } from "@/lib/queries/opportunities";
+import { visitorRpc } from "@/lib/queries/public-cache";
 import { buyerSlug } from "@/lib/buyer-slug";
 import { ShareLinks } from "@/components/share-links";
 import { cookies, headers } from "next/headers";
@@ -578,13 +579,13 @@ async function SimilarOpportunities({
   moreLabel: string;
 }) {
   if (!sector) return null;
-  const supabase = await createClient();
   const base = { p_sector: sector, p_status: "OPEN", p_sort: "recent", p_limit: 7, p_include_demo: await showDemoData() };
   const seen = new Set([id]);
-  const rows: NonNullable<Awaited<ReturnType<typeof supabase.rpc<"search_opportunities">>>["data"]> = [];
+  const rows: NonNullable<Awaited<ReturnType<typeof visitorRpc<"search_opportunities">>>["data"]> = [];
   for (const scope of [department ? { p_department: department } : null, region ? { p_region: region } : null, {}]) {
     if (!scope || rows.length >= 6) continue;
-    const { data } = await supabase.rpc("search_opportunities", { ...base, ...scope });
+    // Résultat public en cache (visiteurs anonymes, robots) : pas de nouvelle recherche à chaque fiche vue
+    const { data } = await visitorRpc("search_opportunities", { ...base, ...scope });
     for (const r of data ?? []) {
       if (seen.has(r.id) || rows.length >= 6) continue;
       seen.add(r.id);

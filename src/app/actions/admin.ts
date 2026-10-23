@@ -1,6 +1,7 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
+import { PUBLIC_CACHE_TAG } from "@/lib/queries/public-cache";
 import { after } from "next/server";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -50,6 +51,8 @@ export async function moderateOpportunity(_prev: ActionResult | null, fd: FormDa
     });
   }
   revalidatePath("/admin", "layout");
+  // Listes et compteurs publics en cache : la publication (ou le retrait) apparaît tout de suite
+  revalidateTag(PUBLIC_CACHE_TAG, { expire: 0 });
   const labels: Record<string, string> = {
     APPROVE: "Opportunité publiée.",
     REJECT: "Publication refusée.",
