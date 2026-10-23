@@ -67,13 +67,26 @@ const ssl = local ? false : process.env.DATABASE_CA_CERT ? { ca: process.env.DAT
 const dir = join(process.cwd(), "supabase", "migrations");
 const files = readdirSync(dir).filter((f) => /^\d+_.+\.sql$/.test(f)).sort();
 
-const client = new pg.Client({ connectionString: url.toString(), ssl, application_name: "linkprob2b-migrate" });
-await client.connect();
+const client = new pg.Client({ connectionString: url.toString(), ssl, application_name: "linkprob2b-migrate", connectionTimeoutMillis: 20_000 });
+// Base saturée ou injoignable : le déploiement continue sans migrer (les migrations restent
+// à appliquer au déploiement suivant) plutôt que de bloquer une correction urgente.
 try {
-  await client.query("select pg_advisory_lock(727274001)");
-  await client.query(`create schema if not exists supabase_migrations;
+  await client.connect();
+} catch (e) {
+  console.warn(`[migrations] Base injoignable (${e instanceof Error ? e.message : e}) : migrations reportées au prochain déploiement.`);
+  process.exit(0);
+}
+try {
+  let rows;
+  try {
+    await client.query("select pg_advisory_lock(727274001)");
+    await client.query(`create schema if not exists supabase_migrations;
     create table if not exists supabase_migrations.schema_migrations (version text primary key, statements text[], name text)`);
-  const { rows } = await client.query("select version from supabase_migrations.schema_migrations");
+    ({ rows } = await client.query("select version from supabase_migrations.schema_migrations"));
+  } catch (e) {
+    console.warn(`[migrations] Base indisponible (${e instanceof Error ? e.message : e}) : migrations reportées au prochain déploiement.`);
+    process.exit(0);
+  }
   const done = new Set(rows.map((r) => r.version));
   const pending = files.filter((f) => !done.has(f.split("_")[0]));
   console.log(`[migrations] ${files.length} migration(s), ${files.length - pending.length} déjà appliquée(s), ${pending.length} à appliquer.`);
