@@ -26,7 +26,7 @@ export const PLANS: PlanInfo[] = [
     priceHT: 0,
     yearlyPriceHT: 0,
     tagline: "Pour découvrir LinkProB2B et publier un premier besoin.",
-    highlights: ["Profil entreprise", "Recherche d'opportunités et d'entreprises", "1 besoin actif", "5 demandes de contact par mois", "10 favoris", "1 alerte"],
+    highlights: ["Profil entreprise", "Recherche d'opportunités et d'entreprises", "5 besoins actifs", "5 demandes de contact par mois", "10 favoris", "1 alerte"],
     cta: "Créer mon compte gratuitement",
   },
   {

@@ -114,12 +114,14 @@ describe("webhook Stripe : sécurité", () => {
 });
 
 describe("offre Gratuite : limites appliquées côté serveur", () => {
-  it("1 besoin actif", async () => {
+  it("5 besoins actifs", async () => {
     const mk = (n: number) =>
       owner.client.from("opportunities").insert({ company_id: coId, type: "NEED", status: "DRAFT", title: `IT ${RUN} mon besoin ${n}`, description: "Description de test suffisamment longue.", sector_slug: "maintenance-industrielle", city: "Brest" }).select("id").single();
-    const a = await mk(1);
-    const b = await mk(2);
-    expect((await owner.client.from("opportunities").update({ status: "PENDING_REVIEW" }).eq("id", a.data!.id)).error).toBeNull();
+    for (let n = 1; n <= 5; n++) {
+      const a = await mk(n);
+      expect((await owner.client.from("opportunities").update({ status: "PENDING_REVIEW" }).eq("id", a.data!.id)).error).toBeNull();
+    }
+    const b = await mk(6);
     const { error } = await owner.client.from("opportunities").update({ status: "PENDING_REVIEW" }).eq("id", b.data!.id);
     expect(error?.hint).toBe("PLAN_LIMIT:active_needs");
   });
@@ -153,7 +155,7 @@ describe("offre Gratuite : limites appliquées côté serveur", () => {
 
   it("expose l'utilisation de l'offre aux seuls membres", async () => {
     const { data } = await owner.client.rpc("company_usage", { p_company_id: coId });
-    expect(data).toMatchObject({ plan: "FREE", active_needs: 1, contact_requests_month: 5, alerts: 1 });
+    expect(data).toMatchObject({ plan: "FREE", active_needs: 5, contact_requests_month: 5, alerts: 1 });
     const { error } = await other.client.rpc("company_usage", { p_company_id: coId });
     expect(error?.code).toBe("42501");
   });
