@@ -509,6 +509,7 @@ export async function suiviPreviewFor(db: DB, step: SuiviStep, userId: string | 
     profile_complete: false,
     has_alert: false,
     veille_on: false,
+    has_need: false,
   };
   const pool = await loadPool(db, 30, now);
   const { criteria, basis } = criteriaFor(m);

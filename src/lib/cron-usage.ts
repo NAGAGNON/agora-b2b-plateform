@@ -16,7 +16,7 @@ import { parisDayStart, parisToday } from "@/lib/daily-report";
 export const PROSPECTION_TASKS = ["outreach", "envoi"] as const;
 
 /** Plafond quotidien du temps de calcul de la prospection (le reste du forfait est laissé aux autres tâches et aux pages). */
-export const DAILY_CRON_CPU_BUDGET_MS = Number(process.env.CRON_CPU_BUDGET_MS) > 0 ? Number(process.env.CRON_CPU_BUDGET_MS) : 3 * 60_000;
+export const DAILY_CRON_CPU_BUDGET_MS = Number(process.env.CRON_CPU_BUDGET_MS) > 0 ? Number(process.env.CRON_CPU_BUDGET_MS) : 5 * 60_000;
 /**
  * Seuil mensuel de référence (temps CPU actif) : 4 h, le forfait de l'offre gratuite de Vercel, gardé
  * comme garde-fou après le passage à l'offre payante pour éviter les dépassements facturés.

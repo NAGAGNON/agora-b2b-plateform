@@ -1726,7 +1726,7 @@ isOneToOne: false
                            },
 "suivi_audience":
 { Args: Record<PropertyKey, never>; Returns: {
-              "company_name": string,"company_region": string,"company_sectors": (string)[],"created_at": string,"email": string,"frequency": string,"full_name": string,"has_alert": boolean,"has_company": boolean,"has_logo": boolean,"keywords": (string)[],"last_seen_at": string,"profile_complete": boolean,"regions": (string)[],"sectors": (string)[],"types": (Database["public"]['Enums']["opportunity_type"])[],"user_id": string,"veille_on": boolean
+              "company_name": string,"company_region": string,"company_sectors": (string)[],"created_at": string,"email": string,"frequency": string,"full_name": string,"has_alert": boolean,"has_company": boolean,"has_logo": boolean,"has_need": boolean,"keywords": (string)[],"last_seen_at": string,"profile_complete": boolean,"regions": (string)[],"sectors": (string)[],"types": (Database["public"]['Enums']["opportunity_type"])[],"user_id": string,"veille_on": boolean
             }[]
                            },
 "track_event":
