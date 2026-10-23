@@ -24,7 +24,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const key = process.env.SUPABASE_PUBLISHABLE_KEY ?? process.env.SUPABASE_ANON_KEY;
   if (!url || !key) return entries;
   // Client anonyme : seules les données publiques sont lisibles (RLS).
-  const db = createClient<Database>(url, key, { auth: { persistSession: false } });
+  // Base lente ou indisponible (préparation du site, incident) : requête abandonnée au bout de 15 s,
+  // le plan du site est alors servi avec les pages fixes et régénéré à l'heure suivante.
+  const db = createClient<Database>(url, key, {
+    auth: { persistSession: false },
+    global: { fetch: (input, init) => fetch(input, { ...init, signal: init?.signal ?? AbortSignal.timeout(15_000) }) },
+  });
   // Lecture par pages : l'API de la base renvoie au plus 1000 lignes par requête
   const paged = async <T,>(query: (from: number, to: number) => PromiseLike<{ data: T[] | null }>, maxPages: number) => {
     const all: T[] = [];
