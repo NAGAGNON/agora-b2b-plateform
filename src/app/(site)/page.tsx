@@ -85,15 +85,17 @@ const SECTOR_ICONS: Record<string, typeof Wrench> = {
 export default async function HomePage(props: PageProps<"/">) {
   const sp = await props.searchParams;
   const supabase = await createClient();
+  // Base lente ou indisponible : chaque bloc a sa valeur de repli, la page s'affiche toujours
+  const safe = <T, F = T>(p: PromiseLike<T>, fallback: F): Promise<T | F> => Promise.resolve(p).catch(() => fallback);
   const [recent, sectors, { data: analyses }, { total: openTotal }, stats, { data: growth }] = await Promise.all([
-    recentOpportunities(6),
-    getSectors(),
-    supabase.from("articles").select("slug, title, description, published_at").eq("status", "PUBLISHED").order("published_at", { ascending: false }).limit(3),
+    safe(recentOpportunities(6), []),
+    safe(getSectors(), []),
+    safe(supabase.from("articles").select("slug, title, description, published_at").eq("status", "PUBLISHED").order("published_at", { ascending: false }).limit(3), { data: null }),
     // Même calcul que la page « Explorer les opportunités » (opportunités ouvertes)
-    searchOpportunities(parseOpportunityFilters({}), 1),
-    getPlatformStats(),
+    safe(searchOpportunities(parseOpportunityFilters({}), 1), { rows: [], total: 0, error: true as const }),
+    safe(getPlatformStats(), null),
     // Régions mises en avant : choisies chaque soir par la stratégie automatique (pages les plus consultées)
-    supabase.from("platform_settings").select("value").eq("key", "growth_public").maybeSingle(),
+    safe(supabase.from("platform_settings").select("value").eq("key", "growth_public").maybeSingle(), { data: null }),
   ]);
   const featuredRegions = homeRegions(growth?.value ?? null);
   const openCount = Number(openTotal);
