@@ -7,7 +7,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/errors";
 import { processEmailOutbox } from "@/lib/email/outbox";
 import { env } from "@/lib/env";
-import { processNeedCampaigns, runNeedCampaign } from "@/lib/needs";
+import { enrichNeedCampaigns, processNeedCampaigns, runNeedCampaign } from "@/lib/needs";
 import { runSendPass } from "@/lib/outreach/pipeline";
 import type { ActionResult } from "@/lib/validation";
 
@@ -51,14 +51,16 @@ export async function launchNeedCampaignsNow(): Promise<ActionResult> {
   const started = Date.now();
   try {
     const db = createAdminClient();
-    const r = await processNeedCampaigns(db, { deadline: started + 150_000 });
+    const r = await processNeedCampaigns(db, { deadline: started + 90_000 });
     if (env.emailTransport) await processEmailOutbox(60);
-    const send = await runSendPass(db, { budgetMs: Math.max(30_000, 270_000 - (Date.now() - started)) });
+    // Adresses des entreprises retenues, puis envoi immédiat
+    const e = await enrichNeedCampaigns(db, { deadline: started + 240_000 });
+    const send = await runSendPass(db, { budgetMs: Math.max(20_000, 280_000 - (Date.now() - started)) });
     revalidatePath("/outreach");
     revalidatePath("/admin/besoins");
     return {
       ok: true,
-      message: `${r.processed} besoin(s) traité(s) · ${send.sent} e-mail(s) envoyé(s)${send.stopped ? ` (arrêt : ${send.stopped})` : ""}. La suite part automatiquement aux passages d'envoi de la journée.`,
+      message: `${r.processed} besoin(s) traité(s) · ${e.found} adresse(s) trouvée(s) · ${e.sent + send.sent} e-mail(s) envoyé(s)${send.stopped ? ` (arrêt : ${send.stopped})` : ""}. La suite part automatiquement aux passages d'envoi de la journée.`,
     };
   } catch (e) {
     logServerError("launch needs", e);
