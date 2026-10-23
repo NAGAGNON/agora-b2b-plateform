@@ -22,7 +22,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const url = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_PUBLISHABLE_KEY ?? process.env.SUPABASE_ANON_KEY;
-  if (!url || !key) return entries;
+  // Préparation du site (build) : pages fixes seulement, sans dépendre de la base ; le plan complet
+  // est régénéré au premier passage d'un robot puis toutes les heures.
+  if (!url || !key || process.env.NEXT_PHASE === "phase-production-build") return entries;
   // Client anonyme : seules les données publiques sont lisibles (RLS).
   // Base lente ou indisponible (préparation du site, incident) : requête abandonnée au bout de 15 s,
   // le plan du site est alors servi avec les pages fixes et régénéré à l'heure suivante.
