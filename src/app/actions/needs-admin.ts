@@ -8,6 +8,7 @@ import { logServerError } from "@/lib/errors";
 import { processEmailOutbox } from "@/lib/email/outbox";
 import { env } from "@/lib/env";
 import { processNeedCampaigns, runNeedCampaign } from "@/lib/needs";
+import { runSendPass } from "@/lib/outreach/pipeline";
 import type { ActionResult } from "@/lib/validation";
 
 /** Relance la mise en relation d'un besoin (nouvelles entreprises inscrites, campagne en échec). */
@@ -41,5 +42,26 @@ export async function processNeedsNow(): Promise<ActionResult> {
   } catch (e) {
     logServerError("process needs", e);
     return { ok: false, error: "Le traitement a échoué. Réessayez plus tard." };
+  }
+}
+
+/** « Lancer la campagne besoins » (Vue d'ensemble Outreach) : besoins ouverts + envoi immédiat de leurs e-mails. */
+export async function launchNeedCampaignsNow(): Promise<ActionResult> {
+  await requireAdmin();
+  const started = Date.now();
+  try {
+    const db = createAdminClient();
+    const r = await processNeedCampaigns(db, { deadline: started + 150_000 });
+    if (env.emailTransport) await processEmailOutbox(60);
+    const send = await runSendPass(db, { budgetMs: Math.max(30_000, 270_000 - (Date.now() - started)) });
+    revalidatePath("/outreach");
+    revalidatePath("/admin/besoins");
+    return {
+      ok: true,
+      message: `${r.processed} besoin(s) traité(s) · ${send.sent} e-mail(s) envoyé(s)${send.stopped ? ` (arrêt : ${send.stopped})` : ""}. La suite part automatiquement aux passages d'envoi de la journée.`,
+    };
+  } catch (e) {
+    logServerError("launch needs", e);
+    return { ok: false, error: "Le lancement a échoué. Réessayez plus tard." };
   }
 }

@@ -4,6 +4,7 @@ import { RefreshCw, Send } from "lucide-react";
 import { ActionForm } from "@/components/admin/action-form";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { launchManualCampaign, runOutreachNow, testSmtpConnection } from "@/app/actions/outreach";
+import { launchNeedCampaignsNow } from "@/app/actions/needs-admin";
 
 /** Lance immédiatement la synchronisation et la préparation de la campagne du jour. */
 export function RunNowButton({ force = false, label = "Préparer la campagne du jour" }: { force?: boolean; label?: string }) {
@@ -21,7 +22,18 @@ export function LaunchManualButton() {
   return (
     <ActionForm action={launchManualCampaign} hidden={{}}>
       <SubmitButton pendingLabel="Campagne en cours (jusqu'à 5 min)…">
-        <Send className="size-4" aria-hidden /> Lancer une campagne maintenant
+        <Send className="size-4" aria-hidden /> Lancer la prospection habituelle
+      </SubmitButton>
+    </ActionForm>
+  );
+}
+
+/** Campagne pour les besoins publiés par les entreprises inscrites (quota séparé de la prospection habituelle). */
+export function LaunchNeedsButton() {
+  return (
+    <ActionForm action={launchNeedCampaignsNow} hidden={{}}>
+      <SubmitButton variant="outline" pendingLabel="Campagne besoins en cours (jusqu'à 5 min)…">
+        <Send className="size-4" aria-hidden /> Lancer la campagne besoins
       </SubmitButton>
     </ActionForm>
   );

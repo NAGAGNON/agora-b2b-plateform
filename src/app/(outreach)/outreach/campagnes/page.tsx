@@ -6,7 +6,7 @@ import { campaignLabel } from "@/lib/outreach/matching";
 import { EmptyState } from "@/components/ui/states";
 import { Pagination } from "@/components/ui/pagination";
 
-// « Lancer une campagne maintenant » : chaîne complète (jusqu'à 5 minutes)
+// « Lancer la prospection habituelle » : chaîne complète (jusqu'à 5 minutes)
 export const maxDuration = 300;
 
 export const metadata = { title: "Campagnes" };

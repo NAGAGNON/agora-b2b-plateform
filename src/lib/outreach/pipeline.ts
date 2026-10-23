@@ -215,7 +215,7 @@ export type BuildResult = { campaignId: string | null; skipped?: string; stats?:
 
 /**
  * 3–9. Construction de la campagne du jour (prévisualisation).
- * `manual` : campagne lancée à la main (Outreach → « Lancer une campagne maintenant »), sans limite
+ * `manual` : campagne lancée à la main (Outreach → « Lancer la prospection habituelle »), sans limite
  * de nombre par jour. Elle reprend les opportunités récentes (fenêtre de détection) sans changer leur
  * état : la campagne automatique du jour n'est pas modifiée. Mêmes garde-fous (exclusions, fréquence).
  */
@@ -586,13 +586,16 @@ async function sendQueue(db: Db, deadline: number, sleep: (ms: number) => Promis
     else if (kinds === "NOT_NEED") q = q.neq("campaign.kind", "NEED");
     return (await q).count ?? 0;
   };
-  const [autoToday, allToday, needToday, lastHour] = await Promise.all([sentSince(startOfDay, "AUTO"), sentSince(startOfDay, "NOT_NEED"), sentSince(startOfDay, "NEED"), sentSince(iso(Date.now() - 3_600_000), "ALL")]);
+  const hourAgo = iso(Date.now() - 3_600_000);
+  const [autoToday, allToday, needToday, lastHour, needLastHour] = await Promise.all([sentSince(startOfDay, "AUTO"), sentSince(startOfDay, "NOT_NEED"), sentSince(startOfDay, "NEED"), sentSince(hourAgo, "NOT_NEED"), sentSince(hourAgo, "NEED")]);
   let autoRemaining = Math.max(0, settings.daily_send_cap - autoToday);
   // Limite quotidienne des campagnes automatiques et manuelles ; les besoins publiés ont leur propre quota
   let totalRemaining = Math.max(0, settings.total_daily_send_cap - allToday);
   let needRemaining = Math.max(0, settings.need_daily_send_cap - needToday);
+  // Limite horaire propre à chaque type : les besoins ne prennent pas la place de la prospection habituelle
   let hourRemaining = Math.max(0, settings.hourly_send_cap - lastHour);
-  const result = { sent: 0, simulated: 0, failed: 0, skipped: 0, remaining_cap: Math.min(totalRemaining + needRemaining, hourRemaining), stopped: null as string | null };
+  let needHourRemaining = Math.max(0, settings.hourly_send_cap - needLastHour);
+  const result = { sent: 0, simulated: 0, failed: 0, skipped: 0, remaining_cap: Math.min(totalRemaining, hourRemaining) + Math.min(needRemaining, needHourRemaining), stopped: null as string | null };
 
   const { data: listed } = await db.from("outreach_campaigns").select("id, dry_run, kind").in("status", ["VALIDATED", "SENDING"]).order("campaign_date");
   if (!listed?.length) return result;
@@ -620,11 +623,11 @@ async function sendQueue(db: Db, deadline: number, sleep: (ms: number) => Promis
     const capped = c.kind === "AUTO";
     await db.from("outreach_campaigns").update({ status: "SENDING" }).eq("id", c.id);
     while (Date.now() < deadline) {
-      const room = simulate ? 25 : Math.min(25, need ? needRemaining : totalRemaining, hourRemaining, capped ? autoRemaining : 25);
+      const room = simulate ? 25 : Math.min(25, need ? needRemaining : totalRemaining, need ? needHourRemaining : hourRemaining, capped ? autoRemaining : 25);
       if (room <= 0) {
-        if (!simulate && hourRemaining <= 0) {
+        if (!simulate && (need ? needHourRemaining : hourRemaining) <= 0) {
           result.stopped = "limite horaire";
-          break campaignsLoop;
+          break;
         }
         // Quota des besoins épuisé : on passe aux autres campagnes (et inversement)
         if (!simulate && !need && totalRemaining <= 0) result.stopped = "limite quotidienne";
@@ -709,9 +712,13 @@ async function sendQueue(db: Db, deadline: number, sleep: (ms: number) => Promis
           await db.from("outreach_prospects").update({ last_contacted_at: done, contacts_count: b.prospect.contacts_count + 1, updated_at: done }).eq("id", b.prospect.id);
           await db.from("outreach_events").insert({ recipient_id: rid, campaign_id: c.id, type: "SENT", meta: { transport: r.transport ?? null } });
           result.sent++;
-          if (need) needRemaining--;
-          else totalRemaining--;
-          hourRemaining--;
+          if (need) {
+            needRemaining--;
+            needHourRemaining--;
+          } else {
+            totalRemaining--;
+            hourRemaining--;
+          }
           if (capped) autoRemaining--;
         } else if (r.status === "SKIPPED") {
           // Envoi coupé ou non configuré : rien n'est parti, l'e-mail reste dans la file
@@ -746,7 +753,7 @@ async function sendQueue(db: Db, deadline: number, sleep: (ms: number) => Promis
     const { count: left } = await db.from("outreach_recipients").select("id", { count: "exact", head: true }).eq("campaign_id", c.id).in("status", ["PENDING", "QUEUED", "SENDING"]);
     if (!left) await db.from("outreach_campaigns").update({ status: simulate ? "SIMULATED" : "SENT", sent_at: new Date().toISOString() }).eq("id", c.id);
   }
-  result.remaining_cap = Math.min(totalRemaining + needRemaining, hourRemaining);
+  result.remaining_cap = Math.min(totalRemaining, hourRemaining) + Math.min(needRemaining, needHourRemaining);
   return result;
 }
 
