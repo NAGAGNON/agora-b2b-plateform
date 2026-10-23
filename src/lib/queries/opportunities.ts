@@ -5,10 +5,10 @@ import { filtersToRpcArgs, type OpportunityFilters } from "@/lib/search-params";
 import { logServerError } from "@/lib/errors";
 import { PAGE_SIZE } from "@/lib/constants";
 import { showDemoData } from "@/lib/queries/platform";
+import { visitorRpc } from "@/lib/queries/public-cache";
 
 export async function searchOpportunities(filters: OpportunityFilters, pageSize = PAGE_SIZE) {
-  const supabase = await createClient();
-  const { data, error } = await supabase.rpc("search_opportunities", { ...filtersToRpcArgs(filters, pageSize), p_include_demo: await showDemoData() });
+  const { data, error } = await visitorRpc("search_opportunities", { ...filtersToRpcArgs(filters, pageSize), p_include_demo: await showDemoData() });
   if (error) {
     logServerError("search_opportunities", error);
     return { rows: [], total: 0, error: true as const };
@@ -18,8 +18,7 @@ export async function searchOpportunities(filters: OpportunityFilters, pageSize 
 }
 
 export async function recentOpportunities(limit = 6) {
-  const supabase = await createClient();
-  const { data } = await supabase.rpc("search_opportunities", { p_status: "OPEN", p_sort: "recent", p_limit: limit, p_include_demo: await showDemoData() });
+  const { data } = await visitorRpc("search_opportunities", { p_status: "OPEN", p_sort: "recent", p_limit: limit, p_include_demo: await showDemoData() });
   return data ?? [];
 }
 

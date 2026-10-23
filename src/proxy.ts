@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE, sessionCookieOptions } from "@/lib/supabase/cookie";
 import { siteUrl } from "@/lib/seo";
 
+const PROXY_TIMEOUT_MS = 3000;
 const PROTECTED_PREFIXES = ["/dashboard", "/admin", "/onboarding", "/outreach"];
 
 /**
@@ -47,7 +48,11 @@ export async function proxy(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !key) return response;
 
+  // Supabase lent ou indisponible : chaque appel est coupé au bout de 3 s, pour que la page
+  // s'affiche (ou renvoie vers la connexion) au lieu de dépasser le délai du proxy (erreur 504).
+  const timedFetch: typeof fetch = (input, init) => fetch(input, { ...init, signal: init?.signal ?? AbortSignal.timeout(PROXY_TIMEOUT_MS) });
   const supabase = createServerClient(url, key, {
+    global: { fetch: timedFetch },
     cookieOptions: sessionCookieOptions(siteUrl().startsWith("https://")),
     cookies: {
       getAll() {
@@ -63,8 +68,13 @@ export async function proxy(request: NextRequest) {
 
   // Jeton vérifié localement (clé publique du projet mise en cache) : pas d'aller-retour vers le
   // serveur d'authentification à chaque clic. Le jeton expiré est rafraîchi ici (cookies mis à jour).
-  const { data } = await supabase.auth.getClaims();
-  const user = data?.claims?.sub ?? null;
+  const claims = await Promise.race([
+    supabase.auth.getClaims().catch(() => null),
+    new Promise<"timeout">((resolve) => setTimeout(() => resolve("timeout"), PROXY_TIMEOUT_MS + 500)),
+  ]);
+  // Pas de réponse à temps : la page décide (contrôles côté serveur), sans bloquer le visiteur
+  if (claims === "timeout") return response;
+  const user = claims?.data?.claims?.sub ?? null;
 
   if (!user && isProtected) {
     const redirect = request.nextUrl.clone();

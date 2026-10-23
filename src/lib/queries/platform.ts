@@ -3,6 +3,7 @@ import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { SECTORS, SECTOR_LABELS, type SectorOption } from "@/lib/constants";
 import { env } from "@/lib/env";
+import { visitorRpc } from "@/lib/queries/public-cache";
 
 export const getSettings = cache(async () => {
   const supabase = await createClient();
@@ -22,6 +23,8 @@ export const showDemoData = cache(async (): Promise<boolean> => {
 
 /** Vrai si des données de démonstration existent (affiche le bandeau d'avertissement). */
 export const hasDemoData = cache(async (): Promise<boolean> => {
+  // Production : jamais de démonstration, donc aucune lecture de la base sur chaque page
+  if (env.isProduction) return false;
   try {
     const settings = await getSettings();
     if (settings.demo && settings.demo.show_banner === false) return false;
@@ -89,16 +92,14 @@ export type PlatformStats = {
 
 /** Indicateurs publics de fraîcheur (agrégats réels, jamais estimés). */
 export const getPlatformStats = cache(async (): Promise<PlatformStats | null> => {
-  const supabase = await createClient();
-  const { data, error } = await supabase.rpc("public_platform_stats");
+  const { data, error } = await visitorRpc("public_platform_stats", undefined as never, { always: true });
   if (error || !data) return null;
   return data as unknown as PlatformStats;
 });
 
 /** Opportunités ouvertes par dimension (région, département, secteur, couples) : pages d'atterrissage et liens internes. */
 export const getOpenCounts = cache(async () => {
-  const supabase = await createClient();
-  const { data } = await supabase.rpc("open_opportunity_counts");
+  const { data } = await visitorRpc("open_opportunity_counts", undefined as never, { always: true });
   const map = new Map<string, number>();
   for (const r of data ?? []) map.set(`${r.dimension}:${r.key ?? ""}`, Number(r.n));
   return (dimension: string, key: string) => map.get(`${dimension}:${key}`) ?? 0;

@@ -4,11 +4,11 @@ import { createClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/errors";
 import { PAGE_SIZE } from "@/lib/constants";
 import { showDemoData } from "@/lib/queries/platform";
+import { visitorRpc } from "@/lib/queries/public-cache";
 import type { CompanyFilters } from "@/lib/search-params";
 
 export async function searchCompanies(f: CompanyFilters, pageSize = PAGE_SIZE) {
-  const supabase = await createClient();
-  const { data, error } = await supabase.rpc("search_companies", {
+  const { data, error } = await visitorRpc("search_companies", {
     p_q: f.q,
     p_sector: f.sector,
     p_department: f.department,
