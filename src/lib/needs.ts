@@ -392,3 +392,21 @@ export function needAlert(m: NeedMetrics, publishedAt: string | null, now = Date
   if (age >= 5) return "Aucune réponse";
   return null;
 }
+
+/**
+ * Recherche d'adresses prioritaire pour les campagnes des besoins ouverts, puis envoi : sans elle,
+ * les entreprises retenues restent « sans adresse » et le quota quotidien n'est jamais atteint.
+ */
+export async function enrichNeedCampaigns(db: DB, { deadline = Date.now() + 90_000 }: { deadline?: number } = {}) {
+  const { enrichCampaignAndSend } = await import("@/lib/outreach/pipeline");
+  const { data } = await db.from("need_campaigns").select("outreach_campaign_id").eq("status", "RUNNING").not("outreach_campaign_id", "is", null).order("last_run_at", { ascending: false }).limit(20);
+  let found = 0;
+  let sent = 0;
+  for (const c of data ?? []) {
+    if (Date.now() > deadline - 20_000) break;
+    const r = await enrichCampaignAndSend(db, { campaignId: c.outreach_campaign_id!, deadline });
+    found += r.enrichment.found;
+    sent += r.send.sent;
+  }
+  return { found, sent };
+}

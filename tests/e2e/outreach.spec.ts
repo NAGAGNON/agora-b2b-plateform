@@ -64,7 +64,8 @@ test("tableau de bord, prévisualisation de campagne et paramètres", async ({ b
   await expect(page.getByRole("link", { name: /campagnes? complémentaires?/ })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Vue d'ensemble", level: 1 })).toBeVisible();
   await expect(page.getByText(/Mode simulation|Envoi réel/).first()).toBeVisible();
-  await expect(page.getByRole("button", { name: "Lancer une campagne maintenant" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Lancer la prospection habituelle" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Lancer la campagne besoins" })).toBeVisible();
   await page.goto(`/outreach/campagnes/${campaignId}`);
   await expect(page.getByRole("heading", { level: 1 })).toContainText("Campagne du");
   await expect(page.getByRole("link", { name: `${T} Élec Ouest` })).toBeVisible();

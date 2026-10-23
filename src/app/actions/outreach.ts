@@ -93,7 +93,7 @@ export async function runOutreachNow(_prev: ActionResult | null, fd: FormData): 
 }
 
 /**
- * « Lancer une campagne maintenant » : campagne manuelle complète (entreprises → adresses → envoi),
+ * « Lancer la prospection habituelle » : campagne manuelle complète (entreprises → adresses → envoi),
  * autant de fois que voulu dans la journée. La campagne automatique n'est pas modifiée.
  */
 export async function launchManualCampaign(): Promise<ActionResult> {

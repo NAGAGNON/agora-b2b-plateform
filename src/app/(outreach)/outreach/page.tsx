@@ -4,12 +4,12 @@ import { formatDate, formatDateTime } from "@/lib/format";
 import { realSendBlockers, windowStart, type OutreachSettings } from "@/lib/outreach/data";
 import { BarChart, Funnel } from "@/components/outreach/charts";
 import { CAMPAIGN_STATUS, PageHead, Panel, Stat, StatusBadge, fmtN, pct } from "@/components/outreach/ui";
-import { LaunchManualButton, RunNowButton } from "@/components/outreach/run-button";
+import { LaunchManualButton, LaunchNeedsButton, RunNowButton } from "@/components/outreach/run-button";
 import { campaignLabel } from "@/lib/outreach/matching";
 import { Notice } from "@/components/ui/notice";
 import { EmptyState } from "@/components/ui/states";
 
-// « Lancer une campagne maintenant » : chaîne complète (jusqu'à 5 minutes)
+// « Lancer la prospection habituelle » : chaîne complète (jusqu'à 5 minutes)
 export const maxDuration = 300;
 
 export const metadata = { title: "Vue d'ensemble" };
@@ -93,6 +93,7 @@ export default async function OutreachOverview() {
         action={
           <div className="flex flex-wrap gap-2">
             <LaunchManualButton />
+            <LaunchNeedsButton />
             <RunNowButton />
           </div>
         }

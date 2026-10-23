@@ -9,12 +9,12 @@ import { sessionCookieOptions } from "@/lib/supabase/cookie";
  * Client Supabase lié à la session de l'utilisateur (cookies).
  * Toutes les requêtes sont soumises à la Row Level Security.
  */
-export async function createClient() {
+export async function createClient({ timeoutMs = 8_000 }: { timeoutMs?: number } = {}) {
   const cookieStore = await cookies();
   return createServerClient<Database>(env.supabaseServerUrl, env.supabasePublishableKey, {
-    // Base lente ou indisponible : requête abandonnée au bout de 8 s (message d'erreur affiché)
+    // Base lente ou indisponible : requête abandonnée au bout de 8 s par défaut (message d'erreur affiché)
     // plutôt qu'une page qui charge sans fin.
-    global: { fetch: (input, init) => fetch(input, { ...init, signal: init?.signal ?? AbortSignal.timeout(8_000) }) },
+    global: { fetch: (input, init) => fetch(input, { ...init, signal: init?.signal ?? AbortSignal.timeout(timeoutMs) }) },
     cookieOptions: sessionCookieOptions(env.siteUrl.startsWith("https://")),
     cookies: {
       getAll() {
