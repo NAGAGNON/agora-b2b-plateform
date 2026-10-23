@@ -13,6 +13,7 @@ const PAGES: Record<string, string> = {
   logo: "/dashboard/entreprise#logo",
   alertes: "/dashboard/alertes",
   pipeline: "/dashboard/pipeline",
+  publier: "/publier",
 };
 
 /** Lien d'un e-mail de veille : clic enregistré puis redirection vers la page annoncée (toujours sur le site). */

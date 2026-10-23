@@ -27,9 +27,14 @@ export type SuiviMember = AudienceMember & {
   profile_complete: boolean;
   has_alert: boolean;
   veille_on: boolean;
+  /** L'entreprise a déjà publié au moins un besoin */
+  has_need: boolean;
 };
 
-export type SuiviStep = "PROFIL" | "ALERTE" | "DECOUVERTE" | "RETOUR";
+export type SuiviStep = "PROFIL" | "ALERTE" | "DECOUVERTE" | "BESOIN" | "RETOUR";
+
+/** Invitation à publier un besoin : tous les 3 jours, tant que l'entreprise n'en a publié aucun. */
+export const BESOIN_INTERVAL_DAYS = 3;
 
 /** Historique des envois à une personne (veille et suivi). */
 export type SuiviHistory = {
@@ -41,9 +46,11 @@ export type SuiviHistory = {
   news: Set<string>;
   /** E-mails de suivi consécutifs jamais ouverts (les plus récents) */
   unopened: number;
+  /** Dernière invitation à publier un besoin */
+  lastBesoin: Date | null;
 };
 
-export const emptyHistory = (): SuiviHistory => ({ lastSuivi: null, lastAny: null, steps: new Set(), news: new Set(), unopened: 0 });
+export const emptyHistory = (): SuiviHistory => ({ lastSuivi: null, lastAny: null, steps: new Set(), news: new Set(), unopened: 0, lastBesoin: null });
 
 /** Nouveautés réelles du site, de la plus récente à la plus ancienne. `when` : à qui elle s'adresse. */
 export type SuiviNews = { key: string; title: string; text: string; cta: string; page: string; when?: (m: SuiviMember) => boolean };
@@ -101,6 +108,8 @@ export function planSuivi(m: SuiviMember, h: SuiviHistory, now: Date): { step: S
     if (age >= 3 && !h.steps.has("ALERTE") && !m.has_alert && m.frequency !== "DAILY") return { step: "ALERTE", news: null };
     if (age >= 6 && !h.steps.has("DECOUVERTE")) return { step: "DECOUVERTE", news };
   }
+  // Entreprise inscrite sans besoin publié : invitation tous les 3 jours
+  if (m.has_company && !m.has_need && age >= 1 && (!h.lastBesoin || daysBetween(h.lastBesoin, now) >= BESOIN_INTERVAL_DAYS - 0.15)) return { step: "BESOIN", news: null };
   // Relance des absents
   const lastSeen = new Date(m.last_seen_at ?? m.created_at);
   const inactive = daysBetween(lastSeen, now);
@@ -142,6 +151,7 @@ export async function loadHistories(db: DB, userIds: string[], now: Date): Promi
       if (r.step) {
         if (!h.lastSuivi || at > h.lastSuivi) h.lastSuivi = at;
         h.steps.add(r.step);
+        if (r.step === "BESOIN" && (!h.lastBesoin || at > h.lastBesoin)) h.lastBesoin = at;
         if (r.news_key) h.news.add(r.news_key);
         // Du plus récent au plus ancien : e-mails de suivi consécutifs jamais ouverts
         if (r.status === "SENT" && !streakDone.has(r.user_id)) {
@@ -155,7 +165,7 @@ export async function loadHistories(db: DB, userIds: string[], now: Date): Promi
   return map;
 }
 
-const ITEMS: Record<SuiviStep, number> = { PROFIL: 3, ALERTE: 3, DECOUVERTE: 3, RETOUR: 6 };
+const ITEMS: Record<SuiviStep, number> = { PROFIL: 3, ALERTE: 3, DECOUVERTE: 3, BESOIN: 0, RETOUR: 6 };
 
 /**
  * Prépare le suivi du jour (après les éditions de veille : une personne déjà servie aujourd'hui est ignorée).
@@ -219,7 +229,7 @@ export async function buildSuivi(
   return { campaignId: campaign.id, recipients: rows.length, created: true, steps };
 }
 
-export const STEP_LABELS: Record<SuiviStep, string> = { PROFIL: "Accueil — fiche entreprise", ALERTE: "Accueil — alerte", DECOUVERTE: "Accueil — découverte", RETOUR: "Relance des absents" };
+export const STEP_LABELS: Record<SuiviStep, string> = { PROFIL: "Accueil — fiche entreprise", ALERTE: "Accueil — alerte", DECOUVERTE: "Accueil — découverte", BESOIN: "Invitation à publier un besoin", RETOUR: "Relance des absents" };
 
 export type SuiviEmailInput = {
   step: SuiviStep;
@@ -293,6 +303,29 @@ function content(i: SuiviEmailInput): { subject: string; kicker: string; title: 
         "Soigner votre fiche : les acheteurs consultent l'annuaire pour trouver des fournisseurs près de chez eux.",
       ],
       cta: { label: "Ouvrir mon tableau de bord", page: "tableau" },
+    };
+  }
+  if (i.step === "BESOIN") {
+    const variants = [
+      `${first ? `${first}, d` : "D"}es prestataires peuvent venir à vous`,
+      `Votre prochain fournisseur est peut-être déjà sur LinkProB2B`,
+      `Un besoin à pourvoir${company ? ` chez ${company}` : ""} ? Publiez-le gratuitement`,
+    ];
+    return {
+      subject: variants[Math.floor(i.now.getTime() / DAY) % variants.length],
+      kicker: "Gagnez du temps sur vos achats",
+      title: "Publiez votre besoin, les entreprises vous répondent",
+      paragraphs: [
+        hello,
+        "Vous cherchez un prestataire, un sous-traitant ou un fournisseur ? Au lieu de démarcher vous-même, décrivez votre besoin en quelques minutes sur LinkProB2B.",
+        "Dès sa validation, nous le présentons aux entreprises inscrites dont l'activité correspond, et nous allons chercher pour vous d'autres entreprises concernées. Vous recevez leurs réponses directement dans votre messagerie.",
+      ],
+      checklist: [
+        "Gratuit : jusqu'à 5 besoins actifs avec l'offre gratuite.",
+        "Ciblé : seules les entreprises du bon métier et de la bonne zone sont contactées.",
+        "Sans engagement : vous choisissez librement avec qui échanger.",
+      ],
+      cta: { label: "Publier mon besoin", page: "publier" },
     };
   }
   const n = i.newSince;

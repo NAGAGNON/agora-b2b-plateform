@@ -23,6 +23,7 @@ const member = (o: Partial<SuiviMember> = {}): SuiviMember => ({
   has_logo: true,
   profile_complete: true,
   has_alert: true,
+  has_need: true,
   veille_on: false,
   ...o,
 });
@@ -107,5 +108,16 @@ describe("e-mail de suivi", () => {
     const e = renderSuiviEmail({ ...base, step: "ALERTE", member: member({ full_name: "", company_sectors: [] }), items: [opp], news: null, newSince: 0 });
     expect(e.subject).toBe("Ne ratez plus les opportunités qui vous concernent");
     expect(e.html).toContain("Bonjour,");
+  });
+
+  it("invite tous les 3 jours une entreprise sans besoin publié", () => {
+    const m = member({ created_at: ago(30), last_seen_at: ago(1), has_need: false });
+    expect(planSuivi(m, history(), NOW)?.step).toBe("BESOIN");
+    expect(planSuivi(m, history({ lastBesoin: new Date(ago(2)), lastSuivi: new Date(ago(2)), lastAny: new Date(ago(2)) }), NOW)).toBeNull();
+    expect(planSuivi(m, history({ lastBesoin: new Date(ago(3)), lastSuivi: new Date(ago(3)), lastAny: new Date(ago(3)) }), NOW)?.step).toBe("BESOIN");
+    // Besoin déjà publié : plus d'invitation
+    expect(planSuivi({ ...m, has_need: true }, history(), NOW)).toBeNull();
+    const e = renderSuiviEmail({ base: "https://www.linkprob2b.com", token: "11111111-1111-4111-8111-111111111111", now: NOW, sectorLabel: () => "Électricité", typeLabel: () => "Marché public", step: "BESOIN", member: member({ has_need: false }), items: [], news: null, newSince: 0 });
+    expect(e.text).toMatch(/Publier mon besoin/);
   });
 });
