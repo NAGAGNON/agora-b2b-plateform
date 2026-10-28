@@ -476,6 +476,9 @@ type ProspectRow = Awaited<ReturnType<typeof candidates>>[number];
  * envoi déjà prévu ailleurs, même adresse) et d'adresse manquante. Commun aux campagnes
  * quotidiennes, manuelles et dédiées à un besoin.
  */
+/** Entreprises sans adresse enregistrées par campagne (la base gratuite est limitée à 0,5 Go). */
+const MAX_STORED_NO_EMAIL = 300;
+
 async function insertRecipients(
   db: Db,
   campaignId: string,
@@ -519,7 +522,17 @@ async function insertRecipients(
     else if (!email) status = "NO_EMAIL";
     return { campaign_id: campaignId, prospect_id: g.prospectId, email, score: g.score, reasons: g.reasons, status, priority };
   });
-  for (const part of chunk(rows, 200)) {
+  // Entreprises sans adresse : seules les mieux notées sont enregistrées (la recherche d'adresses
+  // ne traite que celles-là) ; les autres sont seulement comptées dans le bilan de la campagne.
+  const noEmailKept = new Set(
+    rows
+      .filter((r) => r.status === "NO_EMAIL")
+      .sort((a, b) => b.priority - a.priority || b.score - a.score)
+      .slice(0, MAX_STORED_NO_EMAIL)
+      .map((r) => r.prospect_id),
+  );
+  const stored = rows.filter((r) => r.status !== "NO_EMAIL" || noEmailKept.has(r.prospect_id));
+  for (const part of chunk(stored, 200)) {
     const { data: inserted, error } = await db.from("outreach_recipients").insert(part).select("id, prospect_id");
     if (error) throw error;
     const links = (inserted ?? []).flatMap((r) =>

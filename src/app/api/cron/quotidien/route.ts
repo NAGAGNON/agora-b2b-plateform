@@ -81,6 +81,17 @@ async function run(req: Request) {
   await step("besoins", async () => (elapsed() < 190_000 ? processNeedCampaigns(createAdminClient(), { deadline: started + 215_000 }) : { skipped: "reporté au passage suivant (temps insuffisant)" }));
   await step("emails", () => processEmailOutbox(elapsed() < 220_000 ? 200 : 40));
   await step("logos", async () => (elapsed() < 200_000 ? processMissingLogos(createAdminClient(), { limit: 20, deadline: started + 230_000 }) : { skipped: "reporté au passage suivant (temps insuffisant)" }));
+  // Lignes de campagne inutiles (entreprises sans adresse, déjà contactées) des jours passés : par paquets
+  await step("purge-campagnes", async () => {
+    let deleted = 0;
+    while (elapsed() < 255_000) {
+      const { data, error } = await createAdminClient().rpc("purge_campaign_placeholders", { p_limit: 5000 });
+      if (error) throw error;
+      deleted += data ?? 0;
+      if (!data) break;
+    }
+    return { deleted };
+  });
   await step("audience", async () => {
     const { data, error } = await createAdminClient().rpc("purge_page_views");
     if (error) throw error;
