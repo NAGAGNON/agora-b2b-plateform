@@ -96,6 +96,12 @@
   html {
     -webkit-text-size-adjust: 100%;
   }
+  /* Garde-fou mobile : aucun élément ne peut élargir la page au-delà de l'écran
+     (« clip » ne crée pas de zone de défilement et préserve les en-têtes collants). */
+  html,
+  body {
+    overflow-x: clip;
+  }
   body {
     @apply bg-white font-sans text-slate antialiased;
   }
