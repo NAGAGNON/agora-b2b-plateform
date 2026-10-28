@@ -17,6 +17,8 @@ const CTA_LABELS: Record<string, string> = {
   opportunity_expired: "Voir l'opportunité",
   alert_match: "Voir l'opportunité",
   need_match: "Voir le besoin et envoyer un message",
+  need_no_response: "Voir les conseils",
+  need_deadline_soon: "Comparer les réponses",
   alert_digest: "Voir les opportunités",
   lead_confirm: "Confirmer mon alerte",
   lead_digest: "Créer mon compte gratuit",

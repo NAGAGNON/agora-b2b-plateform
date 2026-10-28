@@ -588,6 +588,17 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"need_reminders": {
+                  Row: {
+                    "kind": string,"opportunity_id": string,"sent_at": string
+                  }
+                  Insert: {
+                    "kind": string,"opportunity_id": string,"sent_at"?: string
+                  }
+                  Update: {
+                    "kind"?: string,"opportunity_id"?: string,"sent_at"?: string
+                  }
+                  Relationships: []
                 },"notifications": {
                   Row: {
                     "body": string | null,"created_at": string,"id": string,"link": string | null,"read_at": string | null,"title": string,"type": string,"user_id": string
@@ -1639,6 +1650,9 @@ isOneToOne: false
                            },
 "purge_campaign_placeholders":
 { Args: { "p_limit"?: number }; Returns: number
+                           },
+"process_need_reminders":
+{ Args: { "p_limit"?: number }; Returns: Json
                            },
 "purge_page_views":
 { Args: Record<PropertyKey, never>; Returns: number

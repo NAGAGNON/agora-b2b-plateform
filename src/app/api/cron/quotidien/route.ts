@@ -79,6 +79,12 @@ async function run(req: Request) {
   await step("alertes-email", () => processLeadDigests());
   // Mise en relation des besoins publiés (filet de sécurité de la publication, relances) avant l'envoi des e-mails
   await step("besoins", async () => (elapsed() < 190_000 ? processNeedCampaigns(createAdminClient(), { deadline: started + 215_000 }) : { skipped: "reporté au passage suivant (temps insuffisant)" }));
+  // Rappels aux demandeurs : besoin sans réponse après 3 jours, date limite dans moins de 48 h
+  await step("rappels-besoins", async () => {
+    const { data, error } = await createAdminClient().rpc("process_need_reminders", { p_limit: 100 });
+    if (error) throw error;
+    return data;
+  });
   await step("emails", () => processEmailOutbox(elapsed() < 220_000 ? 200 : 40));
   await step("logos", async () => (elapsed() < 200_000 ? processMissingLogos(createAdminClient(), { limit: 20, deadline: started + 230_000 }) : { skipped: "reporté au passage suivant (temps insuffisant)" }));
   // Lignes de campagne inutiles (entreprises sans adresse, déjà contactées) des jours passés : par paquets
