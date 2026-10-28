@@ -129,7 +129,7 @@ export default async function HomePage(props: PageProps<"/">) {
               </p>
             </div>
 
-            {/* Spot de présentation (lecture automatique, voix off activable) */}
+            {/* Spot de présentation (lecture automatique, musique activable) */}
             <div className="relative animate-pop [animation-delay:350ms]">
               <div aria-hidden className="absolute -inset-4 rounded-[2rem] bg-gradient-to-tr from-teal/30 via-glow/20 to-electric/20 blur-2xl" />
               <div className="relative aspect-video overflow-hidden rounded-3xl bg-navy shadow-2xl ring-1 ring-slate-200">

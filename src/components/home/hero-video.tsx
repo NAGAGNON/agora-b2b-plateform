@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Pause, Play, Volume2, VolumeX } from "lucide-react";
 
 /**
- * Spot de présentation LinkProB2B (30 s, voix off) : lancé automatiquement, sans le son et en boucle,
+ * Spot de présentation LinkProB2B (30 s, musique d'ambiance originale, sans voix) : lancé automatiquement, sans le son et en boucle,
  * sur ordinateur comme sur téléphone. Si le navigateur bloque la lecture automatique (mode économie
  * d'énergie, par exemple), elle démarre au premier geste du visiteur sur la page.
  * Le visiteur peut activer le son ou mettre la vidéo en pause.
