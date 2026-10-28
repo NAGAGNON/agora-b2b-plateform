@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { freeLaunch } from "@/lib/billing/entitlements";
+import { PageHero } from "@/components/layout/page-hero";
 import { Check } from "lucide-react";
 import { ButtonLink } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,20 +17,35 @@ export const metadata = pageMetadata({
   path: "/tarifs",
 });
 
-export default function PricingPage() {
+const LAUNCH_HIGHLIGHTS = [
+  "Profil entreprise et annuaire",
+  "Recherche d'opportunités et alertes e-mail",
+  "Besoins publiés et réponses reçues, sans limite",
+  "Favoris, recommandations et pipeline commercial",
+  "Messagerie avec les entreprises",
+];
+
+export default async function PricingPage() {
   // Paiement réel seulement en mode LIVE : sinon les offres payantes sont annoncées, pas vendues
   const paidOpen = stripeMode() === "live" || !env.isProduction;
+  // Phase de lancement : toutes les fonctionnalités gratuites pour les inscrits ; offres payantes prévues
+  const launch = await freeLaunch();
   return (
+    <>
+    <PageHero
+      eyebrow="Offres LinkProB2B"
+      image="/images/illustrations/accord.webp"
+      title="Tarifs"
+      intro={
+        launch
+          ? "Pendant la phase de lancement, toutes les fonctionnalités de LinkProB2B sont gratuites pour les inscrits. Les offres Pro et Business sont prévues pour plus tard."
+          : "Commencez gratuitement. Passez à Pro lorsque vous avez besoin de davantage d'opportunités, d'alertes et d'outils commerciaux."
+      }
+    />
     <div className="container-page py-10 sm:py-14">
-      <div className="mx-auto max-w-2xl text-center">
-        <h1 className="text-3xl font-bold sm:text-4xl">Tarifs</h1>
-        <p className="mt-3 text-lg text-slate-600">
-          Commencez gratuitement. Passez à Pro lorsque vous avez besoin de davantage d&apos;opportunités, d&apos;alertes et d&apos;outils commerciaux.
-        </p>
-      </div>
 
-      {!paidOpen && (
-        <Notice tone="info" title="Offres payantes : ouverture prochaine" className="mx-auto mt-8 max-w-2xl">
+      {!paidOpen && !launch && (
+        <Notice tone="info" title="Offres payantes : ouverture prochaine" className="mx-auto max-w-2xl">
           Le paiement en ligne est en cours de mise en service : les offres Pro et Business ne peuvent pas encore être souscrites. L&apos;offre Gratuite
           est disponible dès maintenant, sans carte bancaire.
         </Notice>
@@ -38,7 +55,7 @@ export default function PricingPage() {
         {PLANS.map((p) => (
           <div
             key={p.code}
-            className={`relative flex flex-col rounded-2xl border bg-white p-6 shadow-sm ${p.popular ? "border-teal ring-2 ring-teal" : "border-slate-200"}`}
+            className={`reveal glow-card relative flex flex-col rounded-2xl border bg-white p-6 shadow-sm ${p.popular ? "border-teal ring-2 ring-teal" : "border-slate-200"}`}
           >
             {p.popular && (
               <Badge tone="navy" className="absolute -top-3 left-1/2 -translate-x-1/2 uppercase">
@@ -46,7 +63,7 @@ export default function PricingPage() {
               </Badge>
             )}
             <h2 className="text-xl font-bold">LinkProB2B {p.name}</h2>
-            <p className="mt-1 min-h-10 text-sm text-slate-600">{p.tagline}</p>
+            <p className="mt-1 min-h-10 text-sm text-slate-600">{launch && p.code === "FREE" ? "Toutes les fonctionnalités, gratuitement, pendant la phase de lancement." : p.tagline}</p>
             <p className="mt-4 font-heading text-4xl font-bold text-navy">
               {formatEuros(p.priceHT)}
               {p.priceHT > 0 && <span className="text-base font-medium text-slate-500"> HT / mois</span>}
@@ -60,8 +77,11 @@ export default function PricingPage() {
                 ({formatEuros(yearlySavingHT(p))} HT d&apos;économie)
               </p>
             )}
+            {launch && p.code !== "FREE" && (
+              <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-sm font-medium text-amber-800">Offre prévue : pas encore proposée à l&apos;achat.</p>
+            )}
             <ul className="mt-5 flex-1 space-y-2 text-sm">
-              {p.highlights.map((h) => (
+              {(launch && p.code === "FREE" ? LAUNCH_HIGHLIGHTS : p.highlights).map((h) => (
                 <li key={h} className="flex gap-2">
                   <Check className="mt-0.5 size-4 shrink-0 text-teal-700" aria-hidden />
                   <span>{h}</span>
@@ -84,6 +104,11 @@ export default function PricingPage() {
         <h2 id="compare" className="text-2xl font-bold">
           Comparer les offres
         </h2>
+        {launch && (
+          <p className="mt-2 text-sm text-slate-600">
+            Limites prévues après la phase de lancement. Aujourd&apos;hui, les inscrits ont accès à toutes les fonctionnalités, sans limite commerciale.
+          </p>
+        )}
         <ComparisonTable />
       </section>
 
@@ -114,5 +139,6 @@ export default function PricingPage() {
         </p>
       </section>
     </div>
+    </>
   );
 }

@@ -10,7 +10,7 @@ export const metadata = pageMetadata({
 
 export default function BuyersPage() {
   return (
-    <ContentPage title="Pour les demandeurs" intro="Décrivez votre besoin une fois, recevez des réponses comparables, choisissez en confiance.">
+    <ContentPage eyebrow="Acheteurs et donneurs d'ordres" image="/images/illustrations/reunion.webp" title="Pour les demandeurs" intro="Décrivez votre besoin une fois, recevez des réponses comparables, choisissez en confiance.">
       <h2>Publier</h2>
       <p>Un formulaire en six étapes vous guide : type de demande, informations, besoin technique, conditions, aperçu, publication.</p>
       <h2>Gérer vos consultations</h2>

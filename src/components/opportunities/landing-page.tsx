@@ -14,6 +14,8 @@ import { getPlatformStats } from "@/lib/queries/platform";
 import { FreshnessBar } from "@/components/opportunities/freshness";
 import { AlertLeadForm } from "@/components/alert-lead-form";
 import { regionBySlug } from "@/lib/geo";
+import { PageHero } from "@/components/layout/page-hero";
+import { familyPhoto, sectorFamilySlug } from "@/components/opportunities/sector-visual";
 
 export async function landingMetadata(landing: Landing, path: string, sp: RawSearchParams): Promise<Metadata> {
   const { total } = await searchOpportunities(parseOpportunityFilters(landing.fixed), 1);
@@ -45,26 +47,37 @@ export async function LandingPage({ landing, path, sp }: { landing: Landing; pat
   const filters = parseOpportunityFilters({ ...sp, ...landing.fixed });
   const session = await getSession();
   const crumbs = [{ name: "Opportunités", path: "/opportunites" }, ...landing.crumbs];
+  const sector = typeof landing.fixed.secteur === "string" ? landing.fixed.secteur : null;
+  const family = sectorFamilySlug(sector);
   return (
-    <div className="container-page py-8 sm:py-10">
+    <>
       <JsonLd data={breadcrumbLd(crumbs)} />
-      <nav aria-label="Fil d'Ariane" className="mb-3 text-sm text-slate-500">
-        {crumbs.map((c, i) => (
-          <span key={c.path}>
-            {i > 0 && " / "}
-            {i < crumbs.length - 1 ? (
-              <Link href={c.path} className="hover:underline">
-                {c.name}
-              </Link>
-            ) : (
-              <span className="text-navy">{c.name}</span>
-            )}
-          </span>
-        ))}
-      </nav>
-      <h1 className="text-2xl font-bold sm:text-3xl">{landing.heading}</h1>
-      <p className="mt-1 max-w-3xl text-slate-600">{landing.intro}</p>
-      <FreshnessBar stats={await getPlatformStats()} className="mt-3 mb-4" />
+      <PageHero
+        compact={!family}
+        eyebrow={landing.kind === "france" ? "France entière" : undefined}
+        image={family ? familyPhoto(family) : undefined}
+        title={landing.heading}
+        intro={landing.intro}
+        before={
+          <nav aria-label="Fil d'Ariane" className="mb-3 text-sm text-slate-600">
+            {crumbs.map((c, i) => (
+              <span key={c.path}>
+                {i > 0 && " / "}
+                {i < crumbs.length - 1 ? (
+                  <Link href={c.path} className="hover:underline">
+                    {c.name}
+                  </Link>
+                ) : (
+                  <span className="text-navy">{c.name}</span>
+                )}
+              </span>
+            ))}
+          </nav>
+        }
+      >
+        <FreshnessBar stats={await getPlatformStats()} />
+      </PageHero>
+      <div className="container-page py-8 sm:py-10">
       {!session && landing.kind !== "france" && (
         <div className="mb-6 max-w-3xl">
           <AlertLeadForm
@@ -115,6 +128,7 @@ export async function LandingPage({ landing, path, sp }: { landing: Landing; pat
           <ButtonLink href="/inscription">Créer mon compte gratuitement</ButtonLink>
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 }

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PageHero } from "@/components/layout/page-hero";
 import { notFound } from "next/navigation";
 import Image from "next/image";
 import { BarChart3 } from "lucide-react";
@@ -38,15 +39,18 @@ export default async function AnalysesPage(props: PageProps<"/analyses">) {
     .range((page - 1) * PER_PAGE, page * PER_PAGE - 1);
   if (page > 1 && !data?.length) notFound();
   return (
-    <div className="container-page py-10 sm:py-14">
-      <h1 className="text-3xl font-bold sm:text-4xl">Analyses des marchés</h1>
-      <p className="mt-3 max-w-2xl text-lg text-slate-600">
-        Chaque jour, une nouvelle analyse des marchés publics et des besoins
+    <>
+      <PageHero
+        eyebrow="Données BOAMP, TED et entreprises inscrites"
+        image="/images/illustrations/tableau-de-bord.webp"
+        title="Analyses des marchés"
+        intro={<>Chaque jour, une nouvelle analyse des marchés publics et des besoins
         d&apos;entreprises : par région, par département, par secteur ou par
         acheteur. Chaque chiffre est établi à partir des opportunités réellement
         publiées (BOAMP, TED et besoins des entreprises inscrites), à la date
-        indiquée, avec des liens vers les opportunités concernées.
-      </p>
+        indiquée, avec des liens vers les opportunités concernées.</>}
+      />
+    <div className="container-page py-10 sm:py-14">
       <nav aria-label="Opportunités par région" className="mt-6">
         <h2 className="text-sm font-bold tracking-wide text-slate-500 uppercase">
           Explorer les opportunités par région
@@ -72,7 +76,7 @@ export default async function AnalysesPage(props: PageProps<"/analyses">) {
             <li key={a.slug}>
               <Link
                 href={`/analyses/${a.slug}`}
-                className="group flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:border-teal hover:shadow-md"
+                className="group reveal glow-card flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
               >
                 <Image
                   src={`/visuels/analyses/${a.slug}`}
@@ -109,5 +113,6 @@ export default async function AnalysesPage(props: PageProps<"/analyses">) {
       )}
       <Pagination page={page} pageCount={Math.ceil((count ?? 0) / PER_PAGE)} basePath="/analyses" params={sp} />
     </div>
+    </>
   );
 }

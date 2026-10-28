@@ -2,6 +2,7 @@ import { Directory } from "@/components/companies/directory";
 import { parseCompanyFilters } from "@/lib/search-params";
 import { listingIndexing, pageMetadata } from "@/lib/seo";
 import { ButtonLink } from "@/components/ui/button";
+import { PageHero } from "@/components/layout/page-hero";
 
 export async function generateMetadata(props: PageProps<"/entreprises">) {
   const sp = await props.searchParams;
@@ -17,15 +18,19 @@ export async function generateMetadata(props: PageProps<"/entreprises">) {
 export default async function DirectoryPage(props: PageProps<"/entreprises">) {
   const sp = await props.searchParams;
   return (
-    <div className="container-page py-8 sm:py-10">
-      <h1 className="text-2xl font-bold sm:text-3xl">Annuaire des entreprises</h1>
-      <p className="mt-1 max-w-3xl text-slate-600">
-        Trouvez des entreprises, fournisseurs et prestataires correspondant à vos besoins : secteur, localisation, compétences et services.
-      </p>
-      <p className="mt-1 max-w-3xl text-sm text-slate-500">
-        Seules les entreprises ayant choisi d&apos;apparaître dans l&apos;annuaire sont affichées. Les informations sont déclarées par les entreprises
-        elles-mêmes ; le badge « vérifiée » indique un contrôle effectué par LinkProB2B.
-      </p>
+    <>
+      <PageHero
+        eyebrow="Fournisseurs et prestataires"
+        image="/images/illustrations/equipe.webp"
+        title="Annuaire des entreprises"
+        intro="Trouvez des entreprises, fournisseurs et prestataires correspondant à vos besoins : secteur, localisation, compétences et services."
+      >
+        <p className="max-w-3xl text-sm text-slate-600">
+          Seules les entreprises ayant choisi d&apos;apparaître dans l&apos;annuaire sont affichées. Les informations sont déclarées par les entreprises
+          elles-mêmes ; le badge « vérifiée » indique un contrôle effectué par LinkProB2B.
+        </p>
+      </PageHero>
+      <div className="container-page py-8 sm:py-10">
       <div className="mt-4 mb-6 flex flex-col gap-3 rounded-2xl border border-teal/40 bg-teal-50 p-4 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-navy">
           <strong>Vous êtes fournisseur ou prestataire ?</strong> Référencez gratuitement votre entreprise pour être trouvé par les acheteurs et recevoir
@@ -41,6 +46,7 @@ export default async function DirectoryPage(props: PageProps<"/entreprises">) {
         </div>
       </div>
       <Directory filters={parseCompanyFilters(sp)} rawParams={sp} basePath="/entreprises" />
-    </div>
+      </div>
+    </>
   );
 }

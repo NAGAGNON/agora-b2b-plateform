@@ -21,7 +21,7 @@ export default async function GuidePage(props: PageProps<"/ressources/[slug]">) 
   const g = GUIDES.find((x) => x.slug === slug);
   if (!g) notFound();
   return (
-    <ContentPage title={g.title} intro={g.description}>
+    <ContentPage eyebrow="Guide pratique" title={g.title} intro={g.description}>
       <JsonLd
         data={[
           articleLd({ title: g.title, description: g.description, path: `/ressources/${g.slug}` }),

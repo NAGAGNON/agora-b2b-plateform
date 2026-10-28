@@ -1,4 +1,5 @@
 import { Mail, ShieldCheck, Flag } from "lucide-react";
+import { PageHero } from "@/components/layout/page-hero";
 import { ContactForm } from "@/components/public-forms";
 import { pageMetadata } from "@/lib/seo";
 
@@ -20,10 +21,10 @@ export default async function ContactPage(props: PageProps<"/contact">) {
   const subject = typeof sp.objet === "string" ? SUBJECTS[sp.objet] : undefined;
   const reference = typeof sp.ref === "string" && /^[0-9a-f-]{36}$/.test(sp.ref) ? sp.ref : undefined;
   return (
+    <>
+    <PageHero compact eyebrow="Nous écrire" title="Contact" intro="Une question, une demande de retrait, un partenariat ? Écrivez-nous." />
     <div className="container-page grid gap-10 py-10 sm:py-14 lg:grid-cols-[1fr_22rem]">
       <div>
-        <h1 className="text-3xl font-bold">Contact</h1>
-        <p className="mt-2 mb-8 text-slate-600">Une question, une demande de retrait, un partenariat ? Écrivez-nous.</p>
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8">
           <ContactForm defaultSubject={subject} reference={reference} />
         </div>
@@ -49,5 +50,6 @@ export default async function ContactPage(props: PageProps<"/contact">) {
         </div>
       </aside>
     </div>
+    </>
   );
 }

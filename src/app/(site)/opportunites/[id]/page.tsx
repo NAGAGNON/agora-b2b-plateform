@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SectorVisual } from "@/components/opportunities/sector-visual";
 import { JsonLd, breadcrumbLd } from "@/components/json-ld";
 import { notFound, redirect } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -256,7 +257,8 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
         )}
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_22rem]">
-          <article className="min-w-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm [overflow-wrap:anywhere] sm:p-8">
+          <article className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-sm [overflow-wrap:anywhere] sm:p-8">
+            <SectorVisual sector={o.sector_slug} priority className="-mx-5 -mt-5 mb-5 h-36 sm:-mx-8 sm:-mt-8 sm:mb-6 sm:h-48" />
             <div className="flex flex-wrap items-center gap-2">
               <OriginBadge origin={o.origin} type={o.type} />
               {o.type !== "EXTERNAL_OPPORTUNITY" && <OpportunityTypeBadge type={o.type} />}

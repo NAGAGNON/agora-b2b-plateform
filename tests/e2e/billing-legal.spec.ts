@@ -4,13 +4,14 @@ import { login, newPage } from "./helpers";
 test("page Tarifs : trois offres, prix HT, comparatif et appels à l'action", async ({ browser }) => {
   const page = await newPage(browser);
   await page.goto("/tarifs");
-  await expect(page.getByText("Commencez gratuitement. Passez à Pro lorsque vous avez besoin de davantage d'opportunités")).toBeVisible();
+  await expect(page.getByText("Pendant la phase de lancement, toutes les fonctionnalités de LinkProB2B sont gratuites pour les inscrits.")).toBeVisible();
+  await expect(page.getByText("Offre prévue : pas encore proposée à l'achat.").first()).toBeVisible();
   for (const name of ["LinkProB2B Gratuit", "LinkProB2B Pro", "LinkProB2B Business"]) await expect(page.getByRole("heading", { name })).toBeVisible();
   await expect(page.getByText("Recommandé", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("Le plus populaire")).toHaveCount(0);
-  await expect(page.getByText("59 € HT / mois").first()).toBeVisible();
-  await expect(page.getByTestId("yearly-PRO")).toContainText("590 € HT / an");
-  await expect(page.getByTestId("yearly-BUSINESS")).toContainText("990 € HT / an");
+  await expect(page.getByText("29 € HT / mois").first()).toBeVisible();
+  await expect(page.getByTestId("yearly-PRO")).toContainText("290 € HT / an");
+  await expect(page.getByTestId("yearly-BUSINESS")).toContainText("590 € HT / an");
   await expect(page.getByRole("link", { name: "Créer mon compte gratuitement" })).toHaveAttribute("href", "/inscription");
   await expect(page.getByRole("link", { name: "Passer à Pro" })).toHaveAttribute("href", "/dashboard/abonnement?offre=PRO");
   await expect(page.getByRole("link", { name: "Passer à Business" })).toHaveAttribute("href", "/dashboard/abonnement?offre=BUSINESS");
@@ -23,11 +24,23 @@ test("page Tarifs : trois offres, prix HT, comparatif et appels à l'action", as
 test("page d'accueil : message et appels à l'action", async ({ browser }) => {
   const page = await newPage(browser);
   await page.goto("/");
-  await expect(page.getByRole("heading", { level: 1 })).toContainText("La plateforme B2B pour trouver des opportunités commerciales");
-  await expect(page.getByText("Découvrez chaque jour de nouvelles opportunités")).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("Les bonnes opportunités commencent ici.");
+  await expect(page.getByText("Trouvez des partenaires, découvrez des opportunités et développez votre activité.")).toBeVisible();
+  await expect(page.getByText("Gratuit · Sans carte bancaire · Des opportunités partout en France", { exact: false })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Trouvez les marchés de votre secteur" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Ce que vous pouvez faire dès maintenant" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Découvrir les opportunités" }).first()).toHaveAttribute("href", "/opportunites");
-  await expect(page.getByRole("link", { name: "Découvrir LinkProB2B Pro" }).first()).toHaveAttribute("href", "/tarifs");
+  await expect(page.getByRole("link", { name: "Créer mon compte gratuit" }).first()).toHaveAttribute("href", "/inscription");
+  await expect(page.getByRole("link", { name: /Voir les besoins publiés/ }).first()).toHaveAttribute("href", "/opportunites?origine=INTERNAL");
+  await expect(page.getByRole("link", { name: /Parcourir l'annuaire/ })).toHaveAttribute("href", "/entreprises");
+  await expect(page.getByRole("main").getByRole("link", { name: "Publier un besoin" }).first()).toHaveAttribute("href", "/publier");
+  // Le spot de présentation démarre seul, sans le son
+  await expect(page.getByRole("button", { name: "Activer le son" })).toBeVisible();
+  // Clic mesuré puis navigation vers les opportunités, sans inscription
+  await page.getByRole("link", { name: "Découvrir les opportunités" }).first().click();
+  await expect(page).toHaveURL(/\/opportunites$/);
+  await expect(page.getByRole("heading", { level: 1, name: "Explorer les opportunités" })).toBeVisible();
+  await page.goto("/");
 });
 
 test("Mon abonnement : offre Gratuite, utilisation, souscription avec case non pré-cochée", async ({ browser }) => {
@@ -47,11 +60,13 @@ test("Mon abonnement : offre Gratuite, utilisation, souscription avec case non p
   await expect(page.getByRole("link", { name: "Mon abonnement" }).first()).toBeVisible();
 });
 
-test("paywall : encart discret sur le pipeline en offre Gratuite", async ({ browser }) => {
+test("phase de lancement : pipeline accessible en offre Gratuite, sans encart d'abonnement", async ({ browser }) => {
   const page = await newPage(browser);
   await login(page, "fournisseur@demo.linkprob2b.test");
   await page.goto("/dashboard/pipeline");
-  await expect(page.getByRole("link", { name: "Découvrir LinkProB2B Pro" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Découvrir LinkProB2B Pro" })).toHaveCount(0);
+  await page.goto("/dashboard/abonnement");
+  await expect(page.getByText("Phase de lancement : tout est gratuit")).toBeVisible();
 });
 
 const LEGAL = [

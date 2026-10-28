@@ -85,6 +85,7 @@ export default async function AnalysePage(
   );
   return (
     <ContentPage
+      eyebrow="Analyse des marchés"
       title={a.title}
       intro={body.intro}
       updated={a.published_at ? formatDate(a.published_at) : undefined}

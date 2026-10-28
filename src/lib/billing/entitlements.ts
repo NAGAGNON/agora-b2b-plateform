@@ -11,3 +11,19 @@ export const companyPlan = cache(async (companyId: string): Promise<PlanCode> =>
 });
 
 export const isPaid = (plan: PlanCode) => plan !== "FREE";
+
+/**
+ * Phase de lancement : toutes les fonctionnalités sont gratuites (interrupteur « billing.free_launch »,
+ * activé par défaut). Les limites de l'offre Gratuite ne s'appliquent qu'une fois la phase terminée.
+ */
+export const freeLaunch = cache(async (): Promise<boolean> => {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("free_launch");
+  return error ? true : data !== false;
+});
+
+/** Accès complet aux fonctionnalités : offre payante, ou phase de lancement gratuite. */
+export async function hasFullAccess(companyId: string): Promise<boolean> {
+  const [plan, launch] = await Promise.all([companyPlan(companyId), freeLaunch()]);
+  return launch || isPaid(plan);
+}

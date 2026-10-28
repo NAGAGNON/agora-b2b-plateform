@@ -26,7 +26,7 @@ const STATUS_LABEL: Record<string, string> = {
 
 const INVOICE_STATUS: Record<string, string> = { paid: "Payée", open: "À payer", void: "Annulée", uncollectible: "Irrécouvrable", draft: "Brouillon" };
 
-type Usage = { plan: PlanCode; features: Record<string, number | boolean | null>; active_needs: number; contact_requests_month: number; favorites: number; alerts: number; members: number };
+type Usage = { plan: PlanCode; features: Record<string, number | boolean | null>; active_needs: number; contact_requests_month: number; favorites: number; alerts: number; members: number; free_launch?: boolean };
 
 export default async function SubscriptionPage(props: PageProps<"/dashboard/abonnement">) {
   const sp = await props.searchParams;
@@ -70,6 +70,13 @@ export default async function SubscriptionPage(props: PageProps<"/dashboard/abon
         <h1 className="text-2xl font-bold">Mon abonnement</h1>
         <p className="mt-1 text-sm text-slate-500">Offre de l&apos;entreprise {company.name}.</p>
       </div>
+
+      {usage?.free_launch && plan === "FREE" && (
+        <Notice tone="success" title="Phase de lancement : tout est gratuit">
+          Votre entreprise a accès à toutes les fonctionnalités de LinkProB2B (besoins, réponses, alertes, favoris, recommandations, pipeline
+          commercial), sans abonnement ni carte bancaire. Les offres Pro et Business sont prévues pour plus tard ; vous serez prévenu à l&apos;avance.
+        </Notice>
+      )}
 
       {mode === "test" && open && (
         <Notice tone="info" title="Paiement en mode test">
@@ -163,7 +170,7 @@ export default async function SubscriptionPage(props: PageProps<"/dashboard/abon
         </Card>
       )}
 
-      {plan !== "BUSINESS" && !sub && (
+      {plan !== "BUSINESS" && !sub && !(usage?.free_launch && !open) && (
         <section aria-labelledby="upgrade-title">
           <h2 id="upgrade-title" className="text-lg font-bold">
             Passer à une offre supérieure

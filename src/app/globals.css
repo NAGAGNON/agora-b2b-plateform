@@ -153,6 +153,14 @@
     background-size: 48px 48px;
     mask-image: radial-gradient(ellipse 80% 70% at 50% 40%, #000 30%, transparent 100%);
   }
+  /* Variante claire du quadrillage (en-têtes sur fond blanc) */
+  .bg-tech-grid-light {
+    background-image:
+      linear-gradient(to right, rgb(10 26 51 / 0.05) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(10 26 51 / 0.05) 1px, transparent 1px);
+    background-size: 44px 44px;
+    mask-image: radial-gradient(ellipse 75% 80% at 60% 30%, #000 25%, transparent 100%);
+  }
   /* Texte en dégradé animé (turquoise → cyan → bleu électrique) */
   .text-gradient {
     background: linear-gradient(90deg, var(--color-teal), var(--color-glow), #7dd3fc, var(--color-teal));
@@ -200,6 +208,16 @@
  * Apparition au défilement, sans JavaScript (animation liée au défilement).
  * Sans transparence : le texte reste lisible à tout instant ; navigateurs non compatibles : contenu affiché tel quel.
  */
+/* Texte en dégradé sur fond clair : teintes foncées pour rester lisible (contraste AA) */
+.text-gradient-dark {
+  background: linear-gradient(90deg, var(--color-teal-700), #0e7490, var(--color-petrol), var(--color-teal-700));
+  background-size: 200% auto;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  animation: var(--animate-shimmer);
+}
+
 @supports (animation-timeline: view()) {
   @media (prefers-reduced-motion: no-preference) {
     .reveal {

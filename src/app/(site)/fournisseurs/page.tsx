@@ -11,7 +11,7 @@ export const metadata = pageMetadata({
 
 export default function SuppliersPage() {
   return (
-    <ContentPage title="Pour les fournisseurs" intro="Repérez les besoins des entreprises de votre secteur, répondez au bon moment et suivez vos opportunités.">
+    <ContentPage eyebrow="Fournisseurs et prestataires" image="/images/secteurs/industrie.webp" title="Pour les fournisseurs" intro="Repérez les besoins des entreprises de votre secteur, répondez au bon moment et suivez vos opportunités.">
       <h2>Ce que vous pouvez faire</h2>
       <ul>
         <li>Présenter votre entreprise : secteurs, compétences, zone d&apos;intervention, certifications ;</li>

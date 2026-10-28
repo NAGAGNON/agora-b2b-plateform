@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { PageHero } from "@/components/layout/page-hero";
 import Link from "next/link";
 import { Landmark } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
@@ -30,12 +31,15 @@ export default async function BuyersPage(props: PageProps<"/acheteurs">) {
   if (page > 1 && !rows.length) notFound();
   const hasNext = (data ?? []).length > PER_PAGE;
   return (
+    <>
+      <PageHero
+        eyebrow="Marchés publics"
+        image="/images/illustrations/gratte-ciel.webp"
+        title="Acheteurs publics"
+        intro={<>Les communes, intercommunalités, départements, régions, hôpitaux et autres organismes publics qui ont des appels d&apos;offres en cours, à partir des
+        annonces officielles (BOAMP, TED). Les acheteurs avec le plus d&apos;appels d&apos;offres ouverts apparaissent en premier.</>}
+      />
     <div className="container-page py-10 sm:py-14">
-      <h1 className="text-3xl font-bold sm:text-4xl">Acheteurs publics</h1>
-      <p className="mt-3 max-w-2xl text-lg text-slate-600">
-        Les communes, intercommunalités, départements, régions, hôpitaux et autres organismes publics qui ont des appels d&apos;offres en cours, à partir des
-        annonces officielles (BOAMP, TED). Les acheteurs avec le plus d&apos;appels d&apos;offres ouverts apparaissent en premier.
-      </p>
       {rows.length ? (
         <ul className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {rows.map((b) => (
@@ -60,5 +64,6 @@ export default async function BuyersPage(props: PageProps<"/acheteurs">) {
       )}
       <Pagination page={page} pageCount={hasNext ? page + 1 : page} basePath="/acheteurs" params={sp} />
     </div>
+    </>
   );
 }
