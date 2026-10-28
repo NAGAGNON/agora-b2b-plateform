@@ -60,7 +60,7 @@ begin
         'Date limite de votre besoin dans moins de 48 h',
         'La date limite de réponse de « ' || o.title || ' » approche. Réponses et marques d''intérêt reçues : ' || v_responses
           || '. Vous pouvez comparer les réponses, prolonger la date limite en modifiant le besoin, ou le clôturer.',
-        '/dashboard/opportunites/' || o.id);
+        '/dashboard/opportunites/' || o.id || '?onglet=comparer');
       n_deadline := n_deadline + 1;
     end if;
   end loop;

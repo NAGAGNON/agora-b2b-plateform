@@ -39,7 +39,7 @@ describe("rappels des besoins", () => {
   it("envoie chaque rappel une seule fois, uniquement aux besoins concernés", async () => {
     expect((await admin.rpc("process_need_reminders", { p_limit: 500 })).error).toBeNull();
     expect(await notes("need_no_response")).toEqual([`/dashboard/opportunites/${ids.silent}`]);
-    expect(await notes("need_deadline_soon")).toEqual([`/dashboard/opportunites/${ids.soon}`]);
+    expect(await notes("need_deadline_soon")).toEqual([`/dashboard/opportunites/${ids.soon}?onglet=comparer`]);
     const { data: mails } = await admin.from("email_outbox").select("subject").eq("user_id", owner.id).in("payload->>type", ["need_no_response", "need_deadline_soon"]);
     expect(mails?.length).toBe(2);
     // Second passage : rien de plus
