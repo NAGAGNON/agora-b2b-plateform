@@ -1,25 +1,37 @@
 @import "tailwindcss";
 
 @theme {
-  /* Identité : bleu nuit profond (confiance), turquoise de la marque (opportunités), ambre (échéances) */
-  --color-navy: #0b2540;
-  --color-navy-700: #163a5c;
-  --color-navy-900: #071a2d;
-  --color-petrol: #0d4a5e;
-  --color-teal: #14b8a6;
+  /*
+   * Identité « tech » : bleu nuit profond (confiance), turquoise lumineux de la marque (action),
+   * reflets cyan, bleu électrique et violet (décor uniquement), ambre (échéances).
+   */
+  --color-navy: #0a1a33;
+  --color-navy-700: #142c52;
+  --color-navy-900: #050d1d;
+  --color-petrol: #0c3b66;
+  --color-teal: #14c2ad;
+  --color-teal-400: #3ddbc6;
   --color-teal-600: #0d9488;
   --color-teal-700: #0f766e;
-  --color-teal-50: #e6f7f5;
+  --color-teal-50: #e7f8f6;
+  --color-glow: #22d3ee;
+  --color-electric: #3b82f6;
+  --color-violet: #7c6cff;
   --color-amber: #f59e0b;
   --color-amber-50: #fff7e6;
   --color-amber-800: #92400e;
-  --color-sky: #eaf6f3;
-  --color-canvas: #f5f8f7;
+  --color-sky: #edf4fb;
+  --color-canvas: #f3f6fb;
   --color-slate: #2b3a48;
   --font-sans: "Inter Variable", Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-heading: "Manrope Variable", Manrope, ui-sans-serif, system-ui, sans-serif;
   --animate-rise: rise 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) both;
   --animate-ticker: ticker 45s linear infinite;
+  --animate-aurora: aurora 18s ease-in-out infinite alternate;
+  --animate-float: float 6s ease-in-out infinite;
+  --animate-pop: pop 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  --animate-shimmer: shimmer 6s linear infinite;
+  --animate-grid: grid-pan 30s linear infinite;
 
   /* Apparition par dévoilement (sans transparence : le texte reste lisible à tout instant) */
   @keyframes rise {
@@ -30,6 +42,44 @@
     to {
       clip-path: inset(0 0 -20% 0);
       transform: none;
+    }
+  }
+  @keyframes aurora {
+    0% {
+      transform: translate3d(0, 0, 0) scale(1);
+    }
+    50% {
+      transform: translate3d(8%, -6%, 0) scale(1.15);
+    }
+    100% {
+      transform: translate3d(-6%, 8%, 0) scale(0.95);
+    }
+  }
+  @keyframes pop {
+    from {
+      transform: translateY(28px) scale(0.95);
+    }
+    to {
+      transform: none;
+    }
+  }
+  @keyframes float {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-10px);
+    }
+  }
+  @keyframes shimmer {
+    to {
+      background-position: 200% center;
+    }
+  }
+  @keyframes grid-pan {
+    to {
+      background-position: 48px 48px;
     }
   }
   @keyframes ticker {
@@ -91,6 +141,96 @@
   }
   .prose-content a {
     @apply font-medium text-teal-700 underline underline-offset-2;
+  }
+}
+
+@layer components {
+  /* Quadrillage lumineux des fonds sombres, estompé sur les bords */
+  .bg-tech-grid {
+    background-image:
+      linear-gradient(to right, rgb(255 255 255 / 0.06) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(255 255 255 / 0.06) 1px, transparent 1px);
+    background-size: 48px 48px;
+    mask-image: radial-gradient(ellipse 80% 70% at 50% 40%, #000 30%, transparent 100%);
+  }
+  /* Texte en dégradé animé (turquoise → cyan → bleu électrique) */
+  .text-gradient {
+    background: linear-gradient(90deg, var(--color-teal), var(--color-glow), #7dd3fc, var(--color-teal));
+    background-size: 200% auto;
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+    animation: var(--animate-shimmer);
+  }
+  /* Bordure lumineuse au survol des cartes */
+  .glow-card {
+    transition:
+      transform 0.25s ease,
+      box-shadow 0.25s ease,
+      border-color 0.25s ease;
+  }
+  .glow-card:hover {
+    transform: translateY(-4px);
+    border-color: var(--color-teal);
+    box-shadow:
+      0 18px 40px -18px rgb(20 194 173 / 0.55),
+      0 0 0 1px rgb(20 194 173 / 0.35);
+  }
+  /* Reflet qui balaie le bouton principal au survol */
+  .btn-shine {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+  }
+  .btn-shine::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: linear-gradient(110deg, transparent 30%, rgb(255 255 255 / 0.45) 50%, transparent 70%);
+    transform: translateX(-120%);
+    transition: transform 0.7s ease;
+  }
+  .btn-shine:hover::after {
+    transform: translateX(120%);
+  }
+}
+
+/*
+ * Apparition au défilement, sans JavaScript (animation liée au défilement).
+ * Sans transparence : le texte reste lisible à tout instant ; navigateurs non compatibles : contenu affiché tel quel.
+ */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .reveal {
+      animation: reveal-up linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 70%;
+    }
+    .reveal-line {
+      transform-origin: left;
+      animation: draw-line linear both;
+      animation-timeline: view();
+      animation-range: entry 20% cover 45%;
+    }
+  }
+}
+@keyframes reveal-up {
+  from {
+    transform: translateY(48px) scale(0.96);
+    filter: blur(6px);
+  }
+  to {
+    transform: none;
+    filter: none;
+  }
+}
+@keyframes draw-line {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
   }
 }
 

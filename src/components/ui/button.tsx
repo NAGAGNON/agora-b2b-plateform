@@ -7,12 +7,12 @@ type Size = "sm" | "md" | "lg";
 
 const variants: Record<Variant, string> = {
   // Texte marine sur teal : contraste 5,5:1 (le blanc sur #14B8A6 n'atteint que 2,5:1, insuffisant).
-  primary: "bg-teal text-navy hover:bg-teal-400 shadow-sm",
-  secondary: "bg-navy text-white hover:bg-navy-700 shadow-sm",
+  primary: "btn-shine bg-teal text-navy hover:bg-teal-400 shadow-sm shadow-teal/20 hover:-translate-y-px hover:shadow-lg hover:shadow-teal/30",
+  secondary: "bg-navy text-white hover:bg-navy-700 shadow-sm hover:-translate-y-px hover:shadow-md",
   outline: "border border-slate-300 bg-white text-navy hover:border-navy hover:bg-sky",
   ghost: "text-navy hover:bg-sky",
   danger: "bg-red-600 text-white hover:bg-red-700 shadow-sm",
-  light: "bg-white text-navy hover:bg-sky shadow-sm",
+  light: "bg-white text-navy hover:bg-sky shadow-sm hover:-translate-y-px hover:shadow-md",
 };
 const sizes: Record<Size, string> = {
   sm: "h-9 px-3 text-sm gap-1.5",
@@ -22,7 +22,7 @@ const sizes: Record<Size, string> = {
 
 export function buttonClasses({ variant = "primary", size = "md", full = false, className }: { variant?: Variant; size?: Size; full?: boolean; className?: string } = {}) {
   return cn(
-    "inline-flex items-center justify-center rounded-lg font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60 whitespace-nowrap",
+    "inline-flex items-center justify-center rounded-lg font-semibold transition duration-200 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:opacity-60 whitespace-nowrap",
     variants[variant],
     sizes[size],
     full && "w-full",

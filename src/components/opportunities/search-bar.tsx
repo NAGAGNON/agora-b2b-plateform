@@ -62,7 +62,7 @@ export async function SearchBar({ defaults = {} }: { defaults?: { q?: string; se
             ))}
           </select>
         </div>
-        <button type="submit" className="flex h-12 items-center justify-center gap-2 rounded-xl bg-teal px-6 font-semibold text-navy hover:bg-teal-400">
+        <button type="submit" className="btn-shine flex h-12 items-center justify-center gap-2 rounded-xl bg-teal px-6 font-semibold text-navy transition hover:bg-teal-400 hover:shadow-lg hover:shadow-teal/30">
           <Search className="size-5" aria-hidden /> Rechercher
         </button>
       </div>
