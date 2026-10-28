@@ -4,6 +4,7 @@ import { OpportunityTypeBadge, OriginBadge } from "@/components/opportunities/op
 import { StatusBadge } from "@/components/ui/status-badge";
 import { DemoBadge } from "@/components/demo";
 import { CompanyLogo } from "@/components/companies/company-logo";
+import { SectorVisual } from "@/components/opportunities/sector-visual";
 import { sectorLabel, type OpportunityOrigin, type OpportunityType } from "@/lib/constants";
 import { getLocationLabel, getSectorLabels } from "@/lib/queries/platform";
 import { deadlineLabel, formatBudget, formatDate, isRecent } from "@/lib/format";
@@ -38,8 +39,11 @@ export async function OpportunityCard({ o, headingLevel = 3 }: { o: OpportunityC
   const closed = o.effective_status && o.effective_status !== "PUBLISHED";
   const by = o.origin === "EXTERNAL" ? o.external_buyer_name : o.company_name;
   const isNew = isRecent(o.published_at) && !closed;
+  const sector = o.sector_slug ? sectorLabel(o.sector_slug, await getSectorLabels()) : null;
+  const urgent = Boolean(deadline && !closed && (deadline === "Dernier jour" || /^Encore [1-7] jours?$/.test(deadline)));
   return (
-    <article className="group relative flex h-full flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-teal hover:shadow-md">
+    <article className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-teal hover:shadow-lg">
+      <SectorVisual sector={o.sector_slug} label={sector} className="-mx-5 -mt-5 mb-4 h-20" />
       <div className="flex flex-wrap items-center gap-1.5">
         <OriginBadge origin={o.origin} type={o.type} />
         {o.type !== "EXTERNAL_OPPORTUNITY" && <OpportunityTypeBadge type={o.type} />}
@@ -76,14 +80,14 @@ export async function OpportunityCard({ o, headingLevel = 3 }: { o: OpportunityC
           <div className="flex items-center gap-2">
             <Tag className="size-4 shrink-0 text-slate-500" aria-hidden />
             <dt className="sr-only">Secteur</dt>
-            <dd>{sectorLabel(o.sector_slug, await getSectorLabels())}</dd>
+            <dd>{sector}</dd>
           </div>
         )}
         {deadline && (
           <div className="flex items-center gap-2">
             <CalendarClock className="size-4 shrink-0 text-slate-500" aria-hidden />
             <dt className="sr-only">Échéance</dt>
-            <dd className={deadline.startsWith("Encore") || deadline === "Dernier jour" ? "font-semibold text-navy" : undefined}>{deadline}</dd>
+            <dd className={urgent ? "rounded-full bg-amber-50 px-2 font-semibold text-amber-800 ring-1 ring-amber/40" : deadline.startsWith("Encore") ? "font-semibold text-navy" : undefined}>{deadline}</dd>
           </div>
         )}
       </dl>

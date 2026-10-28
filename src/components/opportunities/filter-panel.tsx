@@ -1,6 +1,7 @@
 import { OPPORTUNITY_TYPE_LABELS, COMPANY_SIZE_LABELS, type OpportunityType, type CompanySize } from "@/lib/constants";
 import type { OpportunityFilters } from "@/lib/search-params";
 import { getPublicSources, getSectors } from "@/lib/queries/platform";
+import { groupSectors } from "@/lib/sector-families";
 import { REGIONS } from "@/lib/geo";
 import { Label } from "@/components/ui/form";
 
@@ -24,13 +25,17 @@ export async function FilterFields({ f, departments, places, idPrefix }: { f: Op
         <input id={id("q")} name="q" defaultValue={f.q} placeholder="ex. maintenance compresseurs" className={sel} />
       </div>
       <div>
-        <Label htmlFor={id("secteur")}>Secteur</Label>
+        <Label htmlFor={id("secteur")}>Secteur d&apos;activité</Label>
         <select id={id("secteur")} name="secteur" defaultValue={f.sector ?? ""} className={sel}>
           <option value="">Tous les secteurs</option>
-          {(await getSectors()).map((s) => (
-            <option key={s.slug} value={s.slug}>
-              {s.label}
-            </option>
+          {groupSectors(await getSectors()).map(({ family, sectors }) => (
+            <optgroup key={family.slug} label={family.label}>
+              {sectors.map((s) => (
+                <option key={s.slug} value={s.slug}>
+                  {s.label}
+                </option>
+              ))}
+            </optgroup>
           ))}
         </select>
       </div>

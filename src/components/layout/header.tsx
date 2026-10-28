@@ -17,6 +17,7 @@ export const PUBLIC_NAV = [
   { href: "/entreprises", label: "Annuaire" },
   { href: "/analyses", label: "Analyses", wide: true },
   { href: "/ressources", label: "Ressources" },
+  { href: "/a-propos", label: "À propos", wide: true },
 ];
 
 export const ACCOUNT_NAV = [
