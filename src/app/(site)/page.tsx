@@ -290,25 +290,21 @@ export default async function HomePage(props: PageProps<"/">) {
           </h2>
           <p className="reveal mt-3 max-w-2xl text-slate-700">Choisissez votre famille de métiers, puis votre secteur : vous voyez aussitôt les opportunités ouvertes qui vous concernent.</p>
           <ul className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {families.map(({ family, sectors: list }, i) => {
+            {families.map(({ family, sectors: list }) => {
               const Icon = FAMILY_ICONS[family.slug] ?? Building2;
-              const featured = i === 0;
               return (
-                <li
-                  key={family.slug}
-                  className={`group reveal glow-card overflow-hidden rounded-2xl p-6 ${featured ? "border border-navy bg-navy text-white sm:col-span-2 lg:col-span-1 lg:row-span-2" : "border border-slate-200 bg-white"}`}
-                >
-                  <SectorVisual family={family.slug} className={`-mx-6 -mt-6 mb-5 ${featured ? "h-40 lg:h-80" : "h-32"}`} />
-                  <span className={`relative -mt-12 flex size-12 items-center justify-center rounded-xl shadow-lg ring-4 ${featured ? "bg-teal text-navy ring-navy" : "bg-white text-teal-700 ring-white"}`}>
+                <li key={family.slug} className="group reveal glow-card overflow-hidden rounded-2xl border border-slate-200 bg-white p-6">
+                  <SectorVisual family={family.slug} className="-mx-6 -mt-6 mb-5 h-32" />
+                  <span className="relative -mt-12 flex size-12 items-center justify-center rounded-xl bg-white text-teal-700 shadow-lg ring-4 ring-white">
                     <Icon className="size-6" aria-hidden />
                   </span>
-                  <h3 className={`mt-4 text-xl font-bold ${featured ? "text-white" : ""}`}>{family.label}</h3>
+                  <h3 className="mt-4 text-xl font-bold">{family.label}</h3>
                   <ul className="mt-4 flex flex-wrap gap-2">
                     {list.map((s) => (
                       <li key={s.slug}>
                         <Link
                           href={`/opportunites/${s.slug}`}
-                          className={`inline-flex rounded-full px-3 py-1.5 text-sm font-medium transition ${featured ? "bg-white/10 text-white ring-1 ring-white/20 hover:bg-teal hover:text-navy" : "bg-canvas text-navy ring-1 ring-slate-200 hover:bg-teal-50 hover:ring-teal"}`}
+                          className="inline-flex rounded-full bg-canvas px-3 py-1.5 text-sm font-medium text-navy ring-1 ring-slate-200 transition hover:bg-teal-50 hover:ring-teal"
                         >
                           {s.label}
                         </Link>
