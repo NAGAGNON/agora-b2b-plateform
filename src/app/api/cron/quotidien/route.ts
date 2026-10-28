@@ -91,7 +91,7 @@ async function run(req: Request) {
   await step("purge-campagnes", async () => {
     let deleted = 0;
     while (elapsed() < 255_000) {
-      const { data, error } = await createAdminClient().rpc("purge_campaign_placeholders", { p_limit: 5000 });
+      const { data, error } = await createAdminClient().rpc("purge_campaign_placeholders", { p_limit: 20000 });
       if (error) throw error;
       deleted += data ?? 0;
       if (!data) break;
