@@ -33,6 +33,7 @@ import { homeRegions } from "@/lib/growth/engine";
 import { groupSectors } from "@/lib/sector-families";
 import { StatsTicker } from "@/components/home/stats-ticker";
 import { SectorVisual } from "@/components/opportunities/sector-visual";
+import { HeroVideo } from "@/components/home/hero-video";
 
 export const metadata = pageMetadata({
   title: "LinkProB2B — Appels d'offres et opportunités B2B en France",
@@ -78,35 +79,84 @@ export default async function HomePage(props: PageProps<"/">) {
       {/* Chiffres réels de la plateforme, en bande défilante */}
       <StatsTicker stats={stats} />
 
-      {/* En-tête : le message apparaît, puis les deux actions */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-navy-900 via-navy to-petrol text-white">
-        <div aria-hidden className="pointer-events-none absolute -top-32 -right-24 size-[28rem] rounded-full bg-teal/25 blur-3xl" />
-        <div aria-hidden className="pointer-events-none absolute -bottom-40 left-1/3 size-80 rounded-full bg-amber/10 blur-3xl" />
+      {/* En-tête : fond animé, message, actions, puis la vidéo d'illustration */}
+      <section className="relative isolate overflow-hidden bg-navy-900 text-white">
+        <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
+          <div className="absolute -top-40 -right-32 size-[34rem] animate-aurora rounded-full bg-teal/30 blur-3xl" />
+          <div className="absolute top-1/3 -left-40 size-[30rem] animate-aurora rounded-full bg-electric/25 blur-3xl [animation-delay:-6s]" />
+          <div className="absolute -bottom-48 left-1/2 size-[28rem] animate-aurora rounded-full bg-violet/20 blur-3xl [animation-delay:-12s]" />
+          <div className="bg-tech-grid absolute inset-0 animate-grid motion-reduce:animate-none" />
+        </div>
         <div className="container-page relative py-14 sm:py-20">
-          <p className="inline-flex animate-rise items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold tracking-wide text-teal-50 uppercase ring-1 ring-white/20">
-            <span className="size-2 animate-pulse rounded-full bg-teal" aria-hidden />{" "}
-            {openCount ? `${openCount.toLocaleString("fr-FR")} opportunité${openCount > 1 ? "s" : ""} disponible${openCount > 1 ? "s" : ""} aujourd'hui partout en France` : "Opportunités B2B partout en France"}
-          </p>
-          <h1 className="mt-5 max-w-3xl animate-rise text-4xl leading-[1.08] font-extrabold text-white [animation-delay:120ms] sm:text-6xl">
-            La plateforme B2B pour trouver des <span className="bg-gradient-to-r from-teal to-emerald-300 bg-clip-text text-transparent">opportunités commerciales</span> et des partenaires.
-          </h1>
-          <p className="mt-5 max-w-2xl animate-rise text-base text-slate-200 [animation-delay:320ms] sm:text-lg">
-            Découvrez chaque jour de nouvelles opportunités, appels d&apos;offres, besoins d&apos;entreprises et partenaires partout en France.
-          </p>
-          <div className="mt-7 flex animate-rise flex-col gap-3 [animation-delay:600ms] sm:flex-row">
-            <ButtonLink href="/opportunites" size="lg">
-              Découvrir les opportunités <ArrowRight className="size-4" aria-hidden />
-            </ButtonLink>
-            <ButtonLink href="/inscription" size="lg" variant="light">
-              Créer mon profil gratuit
-            </ButtonLink>
+          <div className="grid items-center gap-12 lg:grid-cols-[1.05fr_0.95fr]">
+            <div>
+              <p className="inline-flex animate-rise items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold tracking-wide text-teal-50 uppercase ring-1 ring-white/20 backdrop-blur">
+                <span className="relative flex size-2" aria-hidden>
+                  <span className="absolute inline-flex size-full animate-ping rounded-full bg-teal opacity-75" />
+                  <span className="relative inline-flex size-2 rounded-full bg-teal" />
+                </span>{" "}
+                {openCount ? `${openCount.toLocaleString("fr-FR")} opportunité${openCount > 1 ? "s" : ""} disponible${openCount > 1 ? "s" : ""} aujourd'hui partout en France` : "Opportunités B2B partout en France"}
+              </p>
+              <h1 className="mt-5 animate-rise text-4xl leading-[1.06] font-extrabold text-white [animation-delay:120ms] sm:text-6xl">
+                La plateforme B2B pour trouver des <span className="text-gradient">opportunités commerciales</span> et des partenaires.
+              </h1>
+              <p className="mt-5 max-w-xl animate-rise text-base text-slate-200 [animation-delay:320ms] sm:text-lg">
+                Découvrez chaque jour de nouvelles opportunités, appels d&apos;offres, besoins d&apos;entreprises et partenaires partout en France.
+              </p>
+              <div className="mt-7 flex animate-rise flex-col gap-3 [animation-delay:600ms] sm:flex-row">
+                <ButtonLink href="/opportunites" size="lg">
+                  Découvrir les opportunités <ArrowRight className="size-4" aria-hidden />
+                </ButtonLink>
+                <ButtonLink href="/inscription" size="lg" variant="light">
+                  Créer mon profil gratuit
+                </ButtonLink>
+              </div>
+              <ul className="mt-6 flex animate-rise flex-wrap gap-x-5 gap-y-2 text-sm text-slate-200 [animation-delay:760ms]">
+                {["Inscription gratuite", "Sources officielles BOAMP et TED", "Alertes par e-mail"].map((t) => (
+                  <li key={t} className="flex items-center gap-1.5">
+                    <CheckCircle2 className="size-4 text-teal" aria-hidden /> {t}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Vidéo d'illustration (montage de photos libres) et étiquettes flottantes */}
+            <div className="relative animate-pop [animation-delay:400ms]">
+              <div aria-hidden className="absolute -inset-4 rounded-[2rem] bg-gradient-to-tr from-teal/40 via-electric/30 to-violet/30 blur-2xl" />
+              <div className="relative aspect-video overflow-hidden rounded-3xl shadow-2xl ring-1 ring-white/15">
+                <Image src="/media/hero-poster.webp" alt="" fill unoptimized priority sizes="(min-width: 1024px) 45vw, 100vw" className="object-cover" />
+                <HeroVideo className="absolute inset-0 hidden size-full object-cover sm:block" />
+                <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-navy-900/70 via-transparent to-navy-900/10" />
+              </div>
+              <div className="absolute -top-5 -left-3 hidden animate-float items-center gap-3 rounded-2xl bg-white/95 px-4 py-3 text-navy shadow-xl ring-1 ring-slate-200 sm:flex">
+                <span className="flex size-9 items-center justify-center rounded-xl bg-teal-50 text-teal-700">
+                  <Bell className="size-5" aria-hidden />
+                </span>
+                <span className="text-sm leading-tight">
+                  <strong className="block font-semibold">Alerte e-mail</strong>
+                  <span className="text-slate-600">Les annonces de votre secteur</span>
+                </span>
+              </div>
+              <div className="absolute -right-3 -bottom-6 hidden animate-float items-center gap-3 rounded-2xl bg-white/95 px-4 py-3 text-navy shadow-xl ring-1 ring-slate-200 [animation-delay:-3s] sm:flex">
+                <span className="flex size-9 items-center justify-center rounded-xl bg-amber-50 text-amber-800">
+                  <Handshake className="size-5" aria-hidden />
+                </span>
+                <span className="text-sm leading-tight">
+                  <strong className="block font-semibold">
+                    {stats?.new_24h ? `${stats.new_24h.toLocaleString("fr-FR")} nouvelles en 24 h` : "Mises à jour chaque jour"}
+                  </strong>
+                  <span className="text-slate-600">Marchés publics et besoins privés</span>
+                </span>
+              </div>
+            </div>
           </div>
-          <div className="mt-10 max-w-5xl animate-rise [animation-delay:800ms]">
+
+          <div className="mt-14 max-w-5xl animate-rise [animation-delay:800ms]">
             <SearchBar />
           </div>
           <nav aria-label="Opportunités par région" className="mt-4 flex max-w-5xl flex-wrap gap-2 text-sm">
             {[["france", "France entière"] as const, ...featuredRegions.map((slug) => [slug, REGIONS.find((r) => r.slug === slug)?.name ?? slug] as const)].map(([slug, label]) => (
-              <Link key={slug} href={`/opportunites/${slug}`} className="rounded-full bg-white/10 px-3 py-1 font-medium text-white ring-1 ring-white/20 transition hover:bg-white/20">
+              <Link key={slug} href={`/opportunites/${slug}`} className="rounded-full bg-white/10 px-3 py-1 font-medium text-white ring-1 ring-white/20 backdrop-blur transition hover:bg-teal hover:text-navy">
                 {label}
               </Link>
             ))}
@@ -129,23 +179,23 @@ export default async function HomePage(props: PageProps<"/">) {
       </section>
 
       {/* Familles de métiers : chaque famille mène aux secteurs, puis aux opportunités */}
-      <section className="container-page py-14 sm:py-20" aria-labelledby="familles">
-        <p className="text-sm font-semibold tracking-wide text-teal-700 uppercase">Par métier</p>
-        <h2 id="familles" className="mt-2 text-3xl font-extrabold sm:text-4xl">
+      <section className="container-page py-16 sm:py-24" aria-labelledby="familles">
+        <p className="reveal text-sm font-semibold tracking-wide text-teal-700 uppercase">Par métier</p>
+        <h2 id="familles" className="reveal mt-2 text-3xl font-extrabold sm:text-5xl">
           Trouvez les marchés de votre secteur
         </h2>
-        <p className="mt-2 max-w-2xl text-slate-600">Choisissez votre famille de métiers, puis votre secteur : vous voyez aussitôt les opportunités ouvertes qui vous concernent.</p>
-        <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <p className="reveal mt-3 max-w-2xl text-slate-600">Choisissez votre famille de métiers, puis votre secteur : vous voyez aussitôt les opportunités ouvertes qui vous concernent.</p>
+        <ul className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {families.map(({ family, sectors: list }, i) => {
             const Icon = FAMILY_ICONS[family.slug] ?? Building2;
             const featured = i === 0;
             return (
               <li
                 key={family.slug}
-                className={`group overflow-hidden rounded-2xl p-6 transition hover:-translate-y-0.5 hover:shadow-lg ${featured ? "bg-navy text-white sm:col-span-2 lg:col-span-1 lg:row-span-2" : "border border-slate-200 bg-white"}`}
+                className={`group reveal glow-card overflow-hidden rounded-2xl p-6 ${featured ? "border border-navy bg-navy text-white sm:col-span-2 lg:col-span-1 lg:row-span-2" : "border border-slate-200 bg-white"}`}
               >
-                <SectorVisual family={family.slug} className={`-mx-6 -mt-6 mb-5 ${featured ? "h-40 lg:h-56" : "h-28"}`} />
-                <span className={`flex size-12 items-center justify-center rounded-xl ${featured ? "bg-teal text-navy" : "bg-teal-50 text-teal-700"}`}>
+                <SectorVisual family={family.slug} className={`-mx-6 -mt-6 mb-5 ${featured ? "h-40 lg:h-80" : "h-32"}`} />
+                <span className={`-mt-12 relative flex size-12 items-center justify-center rounded-xl shadow-lg ring-4 ${featured ? "bg-teal text-navy ring-navy" : "bg-white text-teal-700 ring-white"}`}>
                   <Icon className="size-6" aria-hidden />
                 </span>
                 <h3 className={`mt-4 text-xl font-bold ${featured ? "text-white" : ""}`}>{family.label}</h3>
@@ -165,43 +215,55 @@ export default async function HomePage(props: PageProps<"/">) {
             );
           })}
         </ul>
-        <div className="mt-8">
+        <div className="mt-10">
           <ButtonLink href="/opportunites" variant="outline">
             Voir toutes les opportunités <ArrowRight className="size-4" aria-hidden />
           </ButtonLink>
         </div>
       </section>
 
-      {/* Ce que LinkProB2B apporte : composition asymétrique */}
-      <section className="bg-white py-14 sm:py-20" aria-labelledby="benefices">
+      {/* Ce que LinkProB2B apporte : grille « bento » sur fond sombre */}
+      <section className="relative isolate overflow-hidden bg-navy-900 py-16 text-white sm:py-24" aria-labelledby="benefices">
+        <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
+          <div className="bg-tech-grid absolute inset-0" />
+          <div className="absolute -top-32 left-1/4 size-96 animate-aurora rounded-full bg-electric/20 blur-3xl" />
+          <div className="absolute -right-24 bottom-0 size-96 animate-aurora rounded-full bg-teal/20 blur-3xl [animation-delay:-9s]" />
+        </div>
         <div className="container-page">
-          <p className="text-sm font-semibold tracking-wide text-teal-700 uppercase">Pourquoi LinkProB2B</p>
-          <h2 id="benefices" className="mt-2 text-3xl font-extrabold sm:text-4xl">
+          <p className="reveal text-sm font-semibold tracking-wide text-teal uppercase">Pourquoi LinkProB2B</p>
+          <h2 id="benefices" className="reveal mt-2 max-w-3xl text-3xl font-extrabold text-white sm:text-5xl">
             Votre veille commerciale, sans y passer vos journées
           </h2>
-          <div className="mt-10 grid gap-4 lg:grid-cols-[1.3fr_1fr]">
-            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-petrol to-navy p-8 text-white">
+          <div className="mt-12 grid gap-5 lg:grid-cols-[1.3fr_1fr]">
+            <div className="reveal relative overflow-hidden rounded-3xl bg-gradient-to-br from-petrol to-navy p-8 ring-1 ring-white/10">
               <div aria-hidden className="absolute -right-16 -bottom-16 size-56 rounded-full bg-teal/25 blur-2xl" />
-              <Bell className="size-8 text-teal" aria-hidden />
-              <h3 className="mt-4 text-2xl font-bold text-white">Les bonnes annonces arrivent dans votre boîte e-mail</h3>
-              <p className="mt-3 max-w-md text-slate-200">
-                Indiquez vos secteurs, votre zone et quelques mots-clés : chaque nouvelle annonce qui correspond vous est envoyée. Vous ne ratez plus une échéance.
-              </p>
-              <ButtonLink href="/inscription" className="mt-6" variant="light">
-                Créer mon alerte gratuite
-              </ButtonLink>
-            </div>
-            <div className="grid gap-4">
-              <div className="rounded-3xl border border-slate-200 bg-canvas p-6">
-                <FileSearch className="size-7 text-teal-700" aria-hidden />
-                <h3 className="mt-3 text-lg font-bold">Toutes les sources officielles réunies</h3>
-                <p className="mt-1 text-sm text-slate-600">Marchés publics (BOAMP, TED) et besoins publiés par les entreprises, au même endroit, avec le lien vers l&apos;annonce officielle.</p>
+              <div className="relative grid items-center gap-8 md:grid-cols-[1fr_0.9fr]">
+                <div>
+                  <Bell className="size-8 text-teal" aria-hidden />
+                  <h3 className="mt-4 text-2xl font-bold text-white">Les bonnes annonces arrivent dans votre boîte e-mail</h3>
+                  <p className="mt-3 text-slate-200">
+                    Indiquez vos secteurs, votre zone et quelques mots-clés : chaque nouvelle annonce qui correspond vous est envoyée. Vous ne ratez plus une échéance.
+                  </p>
+                  <ButtonLink href="/inscription" className="mt-6" variant="light">
+                    Créer mon alerte gratuite
+                  </ButtonLink>
+                </div>
+                <div className="relative aspect-[4/3] overflow-hidden rounded-2xl shadow-2xl ring-1 ring-white/15 transition duration-500 hover:rotate-0 md:rotate-2">
+                  <Image src="/images/illustrations/tableau-de-bord.webp" alt="" fill unoptimized sizes="(min-width: 1024px) 25vw, 90vw" className="object-cover" />
+                </div>
               </div>
-              <div className="rounded-3xl border border-amber/40 bg-amber-50 p-6">
-                <Send className="size-7 text-amber-800" aria-hidden />
-                <h3 className="mt-3 text-lg font-bold">Publiez un besoin, recevez des réponses</h3>
-                <p className="mt-1 text-sm text-slate-700">Décrivez ce que vous cherchez : nous le présentons aux entreprises du bon métier et de la bonne zone.</p>
-                <Link href="/publier" className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-amber-800 hover:underline">
+            </div>
+            <div className="grid gap-5">
+              <div className="reveal glow-card rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur">
+                <FileSearch className="size-7 text-teal" aria-hidden />
+                <h3 className="mt-3 text-lg font-bold text-white">Toutes les sources officielles réunies</h3>
+                <p className="mt-1 text-sm text-slate-200">Marchés publics (BOAMP, TED) et besoins publiés par les entreprises, au même endroit, avec le lien vers l&apos;annonce officielle.</p>
+              </div>
+              <div className="reveal glow-card rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur">
+                <Send className="size-7 text-amber" aria-hidden />
+                <h3 className="mt-3 text-lg font-bold text-white">Publiez un besoin, recevez des réponses</h3>
+                <p className="mt-1 text-sm text-slate-200">Décrivez ce que vous cherchez : nous le présentons aux entreprises du bon métier et de la bonne zone.</p>
+                <Link href="/publier" className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-amber hover:underline">
                   Publier un besoin <ArrowRight className="size-4" aria-hidden />
                 </Link>
               </div>
@@ -210,40 +272,74 @@ export default async function HomePage(props: PageProps<"/">) {
         </div>
       </section>
 
-      {/* Comment ça marche */}
-      <section className="container-page py-14 sm:py-20" aria-labelledby="fonctionnement">
-        <p className="text-sm font-semibold tracking-wide text-teal-700 uppercase">En trois étapes</p>
-        <h2 id="fonctionnement" className="mt-2 text-3xl font-extrabold sm:text-4xl">
-          Comment utiliser LinkProB2B
-        </h2>
-        <ol className="relative mt-10 grid gap-6 md:grid-cols-3">
-          <span aria-hidden className="absolute top-6 right-[16%] left-[16%] hidden h-0.5 bg-gradient-to-r from-teal via-teal/40 to-amber md:block" />
-          {[
-            { icon: UserRoundPlus, title: "Créez votre profil", text: "Présentez votre entreprise, vos secteurs, vos compétences et votre zone d'intervention." },
-            { icon: Search, title: "Recherchez ou publiez un besoin", text: "Trouvez des opportunités et des fournisseurs, ou publiez une demande de devis, une consultation ou un appel d'offres privé." },
-            { icon: Handshake, title: "Échangez et développez l'opportunité", text: "Manifestez votre intérêt, répondez, échangez via la messagerie et suivez votre pipeline." },
-          ].map((step, i) => (
-            <li key={step.title} className="relative">
-              <span className="relative flex size-12 items-center justify-center rounded-full bg-navy font-heading text-lg font-extrabold text-white ring-4 ring-canvas">{i + 1}</span>
-              <h3 className="mt-4 flex items-center gap-2 text-lg font-bold">
-                <step.icon className="size-5 text-teal-600" aria-hidden /> {step.title}
-              </h3>
-              <p className="mt-2 text-sm text-slate-600">{step.text}</p>
-            </li>
-          ))}
-        </ol>
-        <div className="mt-10 grid gap-3 text-sm text-slate-700 sm:grid-cols-2 lg:grid-cols-4">
-          {["Provenance toujours affichée", "Opportunités externes redirigées vers la source", "Publications modérées avant diffusion", "Consultation et recherche gratuites"].map((t) => (
-            <p key={t} className="flex items-center gap-2">
-              <CheckCircle2 className="size-5 shrink-0 text-teal-600" aria-hidden /> {t}
+      {/* Pensé pour les entreprises : photo et garanties de fonctionnement */}
+      <section className="container-page py-16 sm:py-24" aria-labelledby="entreprises">
+        <div className="grid items-center gap-12 lg:grid-cols-2">
+          <div className="reveal relative">
+            <div aria-hidden className="absolute -inset-3 -rotate-2 rounded-[2rem] bg-gradient-to-br from-teal/30 via-glow/20 to-electric/20 blur-xl" />
+            <div className="relative aspect-[4/3] overflow-hidden rounded-3xl shadow-xl">
+              <Image src="/images/illustrations/equipe.webp" alt="" fill unoptimized sizes="(min-width: 1024px) 45vw, 100vw" className="object-cover transition duration-700 hover:scale-105" />
+            </div>
+          </div>
+          <div>
+            <p className="reveal text-sm font-semibold tracking-wide text-teal-700 uppercase">Pour les entreprises</p>
+            <h2 id="entreprises" className="reveal mt-2 text-3xl font-extrabold sm:text-5xl">
+              Un outil sérieux pour gagner de nouveaux marchés
+            </h2>
+            <p className="reveal mt-4 text-slate-600">
+              PME, artisans, bureaux d&apos;études, prestataires de services : LinkProB2B rassemble les opportunités de votre métier et vous met en relation avec les entreprises
+              qui cherchent un partenaire.
             </p>
-          ))}
+            <ul className="mt-6 grid gap-3 sm:grid-cols-2">
+              {["Provenance toujours affichée", "Opportunités externes redirigées vers la source", "Publications modérées avant diffusion", "Consultation et recherche gratuites"].map((t) => (
+                <li key={t} className="reveal flex items-start gap-2 rounded-xl border border-slate-200 bg-white p-3 text-sm font-medium text-navy shadow-sm">
+                  <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-teal-600" aria-hidden /> {t}
+                </li>
+              ))}
+            </ul>
+            <div className="reveal mt-8 flex flex-col gap-3 sm:flex-row">
+              <ButtonLink href="/inscription" size="lg">
+                Créer mon compte gratuit <ArrowRight className="size-4" aria-hidden />
+              </ButtonLink>
+              <ButtonLink href="/a-propos" size="lg" variant="outline">
+                En savoir plus
+              </ButtonLink>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Comment ça marche */}
+      <section className="bg-canvas py-16 sm:py-24" aria-labelledby="fonctionnement">
+        <div className="container-page">
+          <p className="reveal text-sm font-semibold tracking-wide text-teal-700 uppercase">En trois étapes</p>
+          <h2 id="fonctionnement" className="reveal mt-2 text-3xl font-extrabold sm:text-5xl">
+            Comment utiliser LinkProB2B
+          </h2>
+          <ol className="relative mt-12 grid gap-6 md:grid-cols-3">
+            <span aria-hidden className="reveal-line absolute top-12 right-[16%] left-[16%] hidden h-0.5 bg-gradient-to-r from-teal via-glow to-amber md:block" />
+            {[
+              { icon: UserRoundPlus, title: "Créez votre profil", text: "Présentez votre entreprise, vos secteurs, vos compétences et votre zone d'intervention." },
+              { icon: Search, title: "Recherchez ou publiez un besoin", text: "Trouvez des opportunités et des fournisseurs, ou publiez une demande de devis, une consultation ou un appel d'offres privé." },
+              { icon: Handshake, title: "Échangez et développez l'opportunité", text: "Manifestez votre intérêt, répondez, échangez via la messagerie et suivez votre pipeline." },
+            ].map((step, i) => (
+              <li key={step.title} className="reveal glow-card relative rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                <span className="relative flex size-12 items-center justify-center rounded-2xl bg-gradient-to-br from-navy to-petrol font-heading text-lg font-extrabold text-white shadow-lg shadow-navy/20 ring-4 ring-white">
+                  {i + 1}
+                </span>
+                <h3 className="mt-5 flex items-center gap-2 text-lg font-bold">
+                  <step.icon className="size-5 text-teal-600" aria-hidden /> {step.title}
+                </h3>
+                <p className="mt-2 text-sm text-slate-600">{step.text}</p>
+              </li>
+            ))}
+          </ol>
         </div>
       </section>
 
       {/* Dernières analyses de marché */}
       {analyses && analyses.length > 0 && (
-        <section className="container-page pb-14 sm:pb-20" aria-labelledby="analyses">
+        <section className="container-page py-16 sm:py-24" aria-labelledby="analyses">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
               <h2 id="analyses" className="text-3xl font-extrabold">
@@ -260,7 +356,7 @@ export default async function HomePage(props: PageProps<"/">) {
               <Link
                 key={a.slug}
                 href={`/analyses/${a.slug}`}
-                className="group flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:border-teal hover:shadow-md"
+                className="group reveal glow-card flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
               >
                 <Image src={`/visuels/analyses/${a.slug}`} alt="" width={1200} height={630} unoptimized className="h-auto w-full border-b border-slate-100" />
                 <div className="flex flex-1 flex-col p-5">
@@ -276,16 +372,19 @@ export default async function HomePage(props: PageProps<"/">) {
 
       {/* Appel à l'inscription */}
       <section className="container-page pb-20">
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-navy-900 via-navy to-petrol px-6 py-12 text-white sm:px-12 sm:py-16">
-          <div className="absolute -right-24 -bottom-24 size-72 rounded-full bg-teal/30 blur-3xl" aria-hidden />
-          <div className="absolute -top-20 left-1/2 size-52 rounded-full bg-amber/15 blur-3xl" aria-hidden />
+        <div className="reveal relative isolate overflow-hidden rounded-3xl bg-navy-900 px-6 py-14 text-white shadow-2xl sm:px-12 sm:py-20">
+          <Image src="/images/illustrations/gratte-ciel.webp" alt="" fill unoptimized sizes="100vw" className="-z-20 object-cover" />
+          <div aria-hidden className="absolute inset-0 -z-10 bg-gradient-to-r from-navy-900 via-navy-900/90 to-navy-900/50" />
+          <div aria-hidden className="absolute -right-24 -bottom-24 -z-10 size-72 animate-aurora rounded-full bg-teal/30 blur-3xl" />
           <div className="relative max-w-2xl">
-            <h2 className="text-3xl font-extrabold text-white sm:text-4xl">Votre prochaine opportunité commerciale commence ici.</h2>
-            <p className="mt-3 text-slate-200">
+            <h2 className="text-3xl font-extrabold text-white sm:text-5xl">
+              Votre prochaine <span className="text-gradient">opportunité commerciale</span> commence ici.
+            </h2>
+            <p className="mt-4 text-slate-200">
               Créez votre profil gratuitement : secteur, zone et compétences. LinkProB2B vous recommande alors les opportunités correspondantes et vous
               alerte des nouvelles publications. Passez à Pro pour les alertes illimitées, les recommandations complètes et le pipeline commercial.
             </p>
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <ButtonLink href="/inscription" size="lg">
                 Recevoir mes opportunités
               </ButtonLink>
