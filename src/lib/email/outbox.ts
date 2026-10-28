@@ -19,6 +19,7 @@ const CTA_LABELS: Record<string, string> = {
   need_match: "Voir le besoin et envoyer un message",
   need_no_response: "Voir les conseils",
   need_deadline_soon: "Comparer les réponses",
+  pipeline_due: "Ouvrir mon pipeline",
   alert_digest: "Voir les opportunités",
   lead_confirm: "Confirmer mon alerte",
   lead_digest: "Créer mon compte gratuit",

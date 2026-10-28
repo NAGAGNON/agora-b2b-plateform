@@ -85,6 +85,12 @@ async function run(req: Request) {
     if (error) throw error;
     return data;
   });
+  // Pipeline : rappel le jour de la relance prévue
+  await step("rappels-pipeline", async () => {
+    const { data, error } = await createAdminClient().rpc("process_pipeline_reminders", { p_limit: 200 });
+    if (error) throw error;
+    return data;
+  });
   await step("emails", () => processEmailOutbox(elapsed() < 220_000 ? 200 : 40));
   await step("logos", async () => (elapsed() < 200_000 ? processMissingLogos(createAdminClient(), { limit: 20, deadline: started + 230_000 }) : { skipped: "reporté au passage suivant (temps insuffisant)" }));
   // Lignes de campagne inutiles (entreprises sans adresse, déjà contactées) des jours passés : par paquets

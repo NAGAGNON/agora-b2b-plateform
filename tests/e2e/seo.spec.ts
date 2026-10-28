@@ -75,7 +75,9 @@ test("SEO : analyses publiées, données structurées, sitemap et clé IndexNow"
   expect((await jsonLd(page)).map((d) => d["@type"])).toContain("BreadcrumbList");
 
   const sitemap = await (await page.request.get("/sitemap.xml")).text();
-  expect(sitemap).toContain("/analyses</loc>"); // le sitemap est régénéré toutes les heures
+  expect(sitemap).toContain("/analyses</loc>");
+  // Plan du site généré à chaque lecture : contenu de la base inclus (pas seulement les pages fixes)
+  expect(sitemap).toContain(`/analyses/${slug}</loc>`);
   const key = await page.request.get("/indexnow.txt");
   expect(key.status()).toBe(200);
   expect((await key.text()).trim()).toMatch(/^[a-f0-9]{32}$/);

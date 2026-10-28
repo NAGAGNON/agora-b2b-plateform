@@ -588,6 +588,17 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"pipeline_reminders": {
+                  Row: {
+                    "due_on": string,"pipeline_item_id": string,"sent_at": string
+                  }
+                  Insert: {
+                    "due_on": string,"pipeline_item_id": string,"sent_at"?: string
+                  }
+                  Update: {
+                    "due_on"?: string,"pipeline_item_id"?: string,"sent_at"?: string
+                  }
+                  Relationships: []
                 },"need_reminders": {
                   Row: {
                     "kind": string,"opportunity_id": string,"sent_at": string
@@ -1649,6 +1660,9 @@ isOneToOne: false
 { Args: Record<PropertyKey, never>; Returns: Json
                            },
 "purge_campaign_placeholders":
+{ Args: { "p_limit"?: number }; Returns: number
+                           },
+"process_pipeline_reminders":
 { Args: { "p_limit"?: number }; Returns: number
                            },
 "process_need_reminders":
