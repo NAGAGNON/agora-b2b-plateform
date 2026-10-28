@@ -120,13 +120,12 @@ export default async function HomePage(props: PageProps<"/">) {
               </ul>
             </div>
 
-            {/* Vidéo d'illustration (montage de photos libres) et étiquettes flottantes */}
+            {/* Spot de présentation (voix off activable) et étiquettes flottantes */}
             <div className="relative animate-pop [animation-delay:400ms]">
               <div aria-hidden className="absolute -inset-4 rounded-[2rem] bg-gradient-to-tr from-teal/40 via-electric/30 to-violet/30 blur-2xl" />
               <div className="relative aspect-video overflow-hidden rounded-3xl shadow-2xl ring-1 ring-white/15">
-                <Image src="/media/hero-poster.webp" alt="" fill unoptimized priority sizes="(min-width: 1024px) 45vw, 100vw" className="object-cover" />
-                <HeroVideo className="absolute inset-0 hidden size-full object-cover sm:block" />
-                <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-navy-900/70 via-transparent to-navy-900/10" />
+                <Image src="/media/spot-poster.webp" alt="" fill unoptimized priority sizes="(min-width: 1024px) 45vw, 100vw" className="object-cover" />
+                <HeroVideo className="absolute inset-0 size-full object-cover" />
               </div>
               <div className="absolute -top-5 -left-3 hidden animate-float items-center gap-3 rounded-2xl bg-white/95 px-4 py-3 text-navy shadow-xl ring-1 ring-slate-200 sm:flex">
                 <span className="flex size-9 items-center justify-center rounded-xl bg-teal-50 text-teal-700">
@@ -135,17 +134,6 @@ export default async function HomePage(props: PageProps<"/">) {
                 <span className="text-sm leading-tight">
                   <strong className="block font-semibold">Alerte e-mail</strong>
                   <span className="text-slate-600">Les annonces de votre secteur</span>
-                </span>
-              </div>
-              <div className="absolute -right-3 -bottom-6 hidden animate-float items-center gap-3 rounded-2xl bg-white/95 px-4 py-3 text-navy shadow-xl ring-1 ring-slate-200 [animation-delay:-3s] sm:flex">
-                <span className="flex size-9 items-center justify-center rounded-xl bg-amber-50 text-amber-800">
-                  <Handshake className="size-5" aria-hidden />
-                </span>
-                <span className="text-sm leading-tight">
-                  <strong className="block font-semibold">
-                    {stats?.new_24h ? `${stats.new_24h.toLocaleString("fr-FR")} nouvelles en 24 h` : "Mises à jour chaque jour"}
-                  </strong>
-                  <span className="text-slate-600">Marchés publics et besoins privés</span>
                 </span>
               </div>
             </div>
