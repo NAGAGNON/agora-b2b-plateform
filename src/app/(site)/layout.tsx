@@ -4,6 +4,7 @@ import { DemoBanner } from "@/components/demo";
 import { hasDemoData } from "@/lib/queries/platform";
 import { AudienceTracker } from "@/components/audience";
 import { JsonLd, organizationLd } from "@/components/json-ld";
+import { GuidedAssistant } from "@/components/assistant/guided-assistant";
 
 export default async function SiteLayout({ children }: { children: React.ReactNode }) {
   const demo = await hasDemoData();
@@ -16,6 +17,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
       </main>
       <Footer />
       <AudienceTracker />
+      <GuidedAssistant />
       <JsonLd data={organizationLd()} />
     </>
   );
