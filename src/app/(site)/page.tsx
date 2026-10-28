@@ -32,6 +32,7 @@ import { REGIONS } from "@/lib/geo";
 import { homeRegions } from "@/lib/growth/engine";
 import { groupSectors } from "@/lib/sector-families";
 import { StatsTicker } from "@/components/home/stats-ticker";
+import { SectorVisual } from "@/components/opportunities/sector-visual";
 
 export const metadata = pageMetadata({
   title: "LinkProB2B — Appels d'offres et opportunités B2B en France",
@@ -141,8 +142,9 @@ export default async function HomePage(props: PageProps<"/">) {
             return (
               <li
                 key={family.slug}
-                className={`group rounded-2xl p-6 transition hover:-translate-y-0.5 hover:shadow-lg ${featured ? "bg-navy text-white sm:col-span-2 lg:col-span-1 lg:row-span-2" : "border border-slate-200 bg-white"}`}
+                className={`group overflow-hidden rounded-2xl p-6 transition hover:-translate-y-0.5 hover:shadow-lg ${featured ? "bg-navy text-white sm:col-span-2 lg:col-span-1 lg:row-span-2" : "border border-slate-200 bg-white"}`}
               >
+                <SectorVisual family={family.slug} className={`-mx-6 -mt-6 mb-5 ${featured ? "h-40 lg:h-56" : "h-28"}`} />
                 <span className={`flex size-12 items-center justify-center rounded-xl ${featured ? "bg-teal text-navy" : "bg-teal-50 text-teal-700"}`}>
                   <Icon className="size-6" aria-hidden />
                 </span>
