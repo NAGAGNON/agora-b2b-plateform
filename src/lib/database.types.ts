@@ -1635,6 +1635,9 @@ isOneToOne: false
 "public_platform_stats":
 { Args: Record<PropertyKey, never>; Returns: Json
                            },
+"purge_campaign_placeholders":
+{ Args: { "p_limit"?: number }; Returns: number
+                           },
 "purge_page_views":
 { Args: Record<PropertyKey, never>; Returns: number
                            },
