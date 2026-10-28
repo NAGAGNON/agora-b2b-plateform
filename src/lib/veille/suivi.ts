@@ -104,7 +104,8 @@ export function planSuivi(m: SuiviMember, h: SuiviHistory, now: Date): { step: S
   const news = SUIVI_NEWS.find((n) => !h.news.has(n.key) && (!n.when || n.when(m))) ?? null;
   // Accueil : une étape par jour prévu, dans l'ordre, pendant les trois premières semaines
   if (age < 21) {
-    if (age >= 1 && !h.steps.has("PROFIL") && (!m.has_company || !m.profile_complete || !m.has_logo)) return { step: "PROFIL", news: null };
+    // Logo seul manquant : pas d'e-mail (jamais une relance uniquement pour le logo)
+    if (age >= 1 && !h.steps.has("PROFIL") && (!m.has_company || !m.profile_complete)) return { step: "PROFIL", news: null };
     if (age >= 3 && !h.steps.has("ALERTE") && !m.has_alert && m.frequency !== "DAILY") return { step: "ALERTE", news: null };
     if (age >= 6 && !h.steps.has("DECOUVERTE")) return { step: "DECOUVERTE", news };
   }
