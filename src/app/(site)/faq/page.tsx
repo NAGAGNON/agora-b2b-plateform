@@ -28,7 +28,7 @@ const FAQ: [string, string][] = [
 
 export default function FaqPage() {
   return (
-    <ContentPage title="Questions fréquentes" intro="Tout ce qu'il faut savoir sur les opportunités, leurs sources, leur actualisation et les offres LinkProB2B.">
+    <ContentPage eyebrow="Aide" title="Questions fréquentes" intro="Tout ce qu'il faut savoir sur les opportunités, leurs sources, leur actualisation et les offres LinkProB2B.">
       <JsonLd data={faqLd(FAQ.map(([question, answer]) => ({ question, answer })))} />
       <div className="space-y-3">
         {FAQ.map(([q, a]) => (

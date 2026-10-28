@@ -4,7 +4,7 @@ import { COMPARISON, PLANS } from "@/lib/billing/plans";
 export function ComparisonTable() {
   const cell = (v: string | boolean) => (v === true ? "✓" : v === false ? "—" : v);
   return (
-    <div className="relative mt-4 overflow-x-auto">
+    <div className="relative mt-4 overflow-x-auto" tabIndex={0} role="region" aria-label="Tableau comparatif des offres">
       <table className="w-full min-w-[32rem] text-sm">
         <thead>
           <tr className="border-b border-slate-200 text-left">

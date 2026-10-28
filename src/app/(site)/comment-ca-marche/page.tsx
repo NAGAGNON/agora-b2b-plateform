@@ -11,7 +11,7 @@ export const metadata = pageMetadata({
 
 export default function HowItWorksPage() {
   return (
-    <ContentPage title="Comment ça marche" intro="LinkProB2B connecte les entreprises qui ont un besoin avec les entreprises capables d'y répondre.">
+    <ContentPage eyebrow="Mode d'emploi" image="/images/illustrations/ordinateurs.webp" title="Comment ça marche" intro="LinkProB2B connecte les entreprises qui ont un besoin avec les entreprises capables d'y répondre.">
       <h2>1. Créez votre compte et le profil de votre entreprise</h2>
       <p>
         L&apos;inscription est gratuite. Le profil de l&apos;entreprise (secteurs, compétences, zone d&apos;intervention) apparaît dans

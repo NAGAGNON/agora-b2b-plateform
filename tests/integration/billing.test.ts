@@ -65,7 +65,12 @@ let otherCo: string;
 const subId = `sub_${RUN}`;
 const opps: string[] = [];
 
+const setFreeLaunch = (on: boolean) =>
+  admin.from("platform_settings").upsert({ key: "billing.free_launch", value: on, description: "Phase de lancement" }, { onConflict: "key" });
+
 beforeAll(async () => {
+  // Les limites de l'offre Gratuite sont testées hors phase de lancement, puis la phase est rétablie
+  await setFreeLaunch(false);
   owner = await user("abonne");
   other = await user("acheteur-factu");
   coId = await company(owner.client, "Abonnée");
@@ -81,6 +86,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  await setFreeLaunch(true);
   await admin.from("billing_events").delete().like("stripe_event_id", `evt_${RUN}%`);
   await cleanup();
 });
@@ -284,5 +290,19 @@ describe("cycle d'abonnement piloté par les webhooks", () => {
     const { data, error: e2 } = await boss.client.rpc("admin_billing_stats");
     expect(e2).toBeNull();
     expect((data as Record<string, number>).mrr_cents).toBeGreaterThanOrEqual(5900);
+  });
+});
+
+describe("phase de lancement : toutes les fonctionnalités gratuites", () => {
+  it("l'offre Gratuite reçoit les droits complets, et les reperd hors lancement", async () => {
+    await setFreeLaunch(true);
+    expect((await admin.rpc("plan_feature", { p_plan: "FREE", p_key: "pipeline" })).data).toBe(true);
+    expect((await admin.rpc("plan_feature", { p_plan: "FREE", p_key: "favorites" })).data).toBeNull();
+    expect((await admin.rpc("plan_feature", { p_plan: "FREE", p_key: "alerts" })).data).toBeNull();
+    const { data } = await owner.client.rpc("company_usage", { p_company_id: coId });
+    expect(data).toMatchObject({ free_launch: true });
+    await setFreeLaunch(false);
+    expect((await admin.rpc("plan_feature", { p_plan: "FREE", p_key: "pipeline" })).data).toBe(false);
+    await setFreeLaunch(true);
   });
 });

@@ -18,7 +18,8 @@ export type AnalyticsEvent =
   | "view_company"
   | "search_companies"
   | "need_message_click"
-  | "need_share_click";
+  | "need_share_click"
+  | "cta_click";
 
 /**
  * Enregistre un événement produit (sans IP, sans e-mail, sans contenu saisi).

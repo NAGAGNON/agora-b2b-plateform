@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PageHero } from "@/components/layout/page-hero";
 import { BookOpen } from "lucide-react";
 import { GUIDES } from "@/content/guides";
 import { Badge } from "@/components/ui/badge";
@@ -12,13 +13,18 @@ export const metadata = pageMetadata({
 
 export default function ResourcesPage() {
   return (
+    <>
+      <PageHero
+        eyebrow="Guides pratiques"
+        image="/images/illustrations/plans.webp"
+        title="Ressources"
+        intro={<>Guides pratiques pour mieux acheter et mieux répondre en B2B. De nouveaux contenus sont ajoutés régulièrement, à partir de vos questions.</>}
+      />
     <div className="container-page py-10 sm:py-14">
-      <h1 className="text-3xl font-bold sm:text-4xl">Ressources</h1>
-      <p className="mt-3 max-w-2xl text-lg text-slate-600">Guides pratiques pour mieux acheter et mieux répondre en B2B. De nouveaux contenus sont ajoutés régulièrement, à partir de vos questions.</p>
       <ul className="mt-10 grid gap-4 md:grid-cols-2">
         {GUIDES.map((g) => (
           <li key={g.slug}>
-            <Link href={`/ressources/${g.slug}`} className="group flex h-full flex-col rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:border-teal hover:shadow-md">
+            <Link href={`/ressources/${g.slug}`} className="group reveal glow-card flex h-full flex-col rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
               <div className="flex items-center gap-2">
                 <BookOpen className="size-5 text-teal-600" aria-hidden />
                 <Badge tone="sky">{g.audience}</Badge>
@@ -44,5 +50,6 @@ export default function ResourcesPage() {
         ))}
       </div>
     </div>
+    </>
   );
 }

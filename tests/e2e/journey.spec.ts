@@ -103,7 +103,8 @@ test("parcours complet demandeur / modération / fournisseur", async ({ browser 
   // Le fournisseur voit le résultat
   await supplier.goto("/dashboard/opportunites?onglet=reponses");
   await expect(supplier.getByText("Retenue").first()).toBeVisible();
-  // Offre Gratuite : le pipeline n'est pas alimenté automatiquement, un encart propose Pro
+  // Phase de lancement : le pipeline est accessible gratuitement, sans encart d'abonnement
   await supplier.goto("/dashboard/pipeline");
-  await expect(supplier.getByRole("link", { name: "Découvrir LinkProB2B Pro" })).toBeVisible();
+  await expect(supplier.getByRole("heading", { level: 1 })).toBeVisible();
+  await expect(supplier.getByRole("link", { name: "Découvrir LinkProB2B Pro" })).toHaveCount(0);
 });

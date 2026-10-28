@@ -6,7 +6,7 @@ import { EmptyState } from "@/components/ui/states";
 import { ButtonLink } from "@/components/ui/button";
 import { DashboardCard } from "@/components/ui/card";
 import { formatMoney } from "@/lib/format";
-import { companyPlan } from "@/lib/billing/entitlements";
+import { hasFullAccess } from "@/lib/billing/entitlements";
 import { UpgradePrompt } from "@/components/billing/upgrade-prompt";
 
 export const metadata = { title: "Pipeline" };
@@ -24,7 +24,7 @@ export default async function PipelinePage() {
   const won = items.filter((i) => i.stage === "WON");
   const lost = items.filter((i) => i.stage === "LOST");
   const openValue = open.reduce((s, i) => s + (i.estimated_value ?? 0), 0);
-  const free = (await companyPlan(session.activeCompany.company.id)) === "FREE";
+  const free = !(await hasFullAccess(session.activeCompany.company.id));
   return (
     <div>
       <h1 className="text-2xl font-bold">Pipeline commercial</h1>

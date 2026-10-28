@@ -32,8 +32,8 @@ export const PLANS: PlanInfo[] = [
   {
     code: "PRO",
     name: "Pro",
-    priceHT: 59,
-    yearlyPriceHT: 590,
+    priceHT: 29,
+    yearlyPriceHT: 290,
     tagline: "Pour développer votre activité avec des opportunités adaptées.",
     highlights: [
       "Besoins actifs illimités",
@@ -50,8 +50,8 @@ export const PLANS: PlanInfo[] = [
   {
     code: "BUSINESS",
     name: "Business",
-    priceHT: 99,
-    yearlyPriceHT: 990,
+    priceHT: 59,
+    yearlyPriceHT: 590,
     tagline: "Pour les équipes commerciales et achats.",
     highlights: ["Tout Pro, plus :", "Utilisateurs multiples", "300 demandes de contact par mois", "Badge Business sur votre profil", "Statistiques avancées"],
     cta: "Passer à Business",

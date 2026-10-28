@@ -26,7 +26,7 @@ export type CompanyCardData = {
 export async function CompanyCard({ c }: { c: CompanyCardData }) {
   const labels = await getSectorLabels();
   return (
-    <article className="group relative flex h-full flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-teal hover:shadow-md">
+    <article className="group reveal glow-card relative flex h-full flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex items-start gap-4">
         <CompanyLogo name={c.name} path={c.logo_path} />
         <div className="min-w-0">

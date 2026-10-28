@@ -1508,6 +1508,8 @@ isOneToOne: false
                            },
 "company_plan":
 { Args: { "p_company_id": string }; Returns: string
+                           },"free_launch":
+{ Args: never; Returns: boolean
                            },
 "company_usage":
 { Args: { "p_company_id": string }; Returns: Json
