@@ -66,6 +66,9 @@ test("phase de lancement : pipeline accessible en offre Gratuite, sans encart d'
   await expect(page.getByRole("link", { name: "Découvrir LinkProB2B Pro" })).toHaveCount(0);
   await page.goto("/dashboard/abonnement");
   await expect(page.getByText("Phase de lancement : tout est gratuit")).toBeVisible();
+  // Tableau de bord : actions concrètes à mener
+  await page.goto("/dashboard");
+  await expect(page.getByRole("heading", { name: "À faire maintenant" })).toBeVisible();
 });
 
 const LEGAL = [
