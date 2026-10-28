@@ -31,7 +31,6 @@ test("page d'accueil : message et appels à l'action", async ({ browser }) => {
   await expect(page.getByRole("heading", { name: "Ce que vous pouvez faire dès maintenant" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Découvrir les opportunités" }).first()).toHaveAttribute("href", "/opportunites");
   await expect(page.getByRole("link", { name: "Créer mon compte gratuit" }).first()).toHaveAttribute("href", "/inscription");
-  await expect(page.getByRole("link", { name: /Voir les besoins publiés/ }).first()).toHaveAttribute("href", "/opportunites?origine=INTERNAL");
   await expect(page.getByRole("link", { name: /Parcourir l'annuaire/ })).toHaveAttribute("href", "/entreprises");
   await expect(page.getByRole("main").getByRole("link", { name: "Publier un besoin" }).first()).toHaveAttribute("href", "/publier");
   // Le spot de présentation démarre seul, sans le son

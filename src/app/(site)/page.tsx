@@ -74,6 +74,9 @@ export default async function HomePage(props: PageProps<"/">) {
     safe(supabase.from("platform_settings").select("value").eq("key", "growth_public").maybeSingle(), { data: null }),
     safe(getSectorLabels(), {} as Record<string, string>),
   ]);
+  // Besoins d'entreprises visibles par un visiteur : sinon les liens mènent à la publication
+  const { total: needsTotal } = await safe(searchOpportunities(parseOpportunityFilters({ origine: "INTERNAL" }), 1), { rows: [], total: 0, error: true as const });
+  const hasNeeds = Number(needsTotal) > 0;
   const featuredRegions = homeRegions(growth?.value ?? null);
   const openCount = Number(latest.total);
   const preview = latest.rows.filter((o) => !o.is_demo || latest.rows.every((x) => x.is_demo));
@@ -249,9 +252,9 @@ export default async function HomePage(props: PageProps<"/">) {
               icon: ClipboardList,
               title: "Découvrir les besoins des entreprises",
               text: "Consultez les besoins publiés par les entreprises et identifiez les occasions de proposer vos services ou vos solutions.",
-              href: "/opportunites?origine=INTERNAL",
+              href: hasNeeds ? "/opportunites?origine=INTERNAL" : "/publier",
               cta: "home_usage_besoins",
-              link: "Voir les besoins publiés",
+              link: hasNeeds ? "Voir les besoins publiés" : "Publier le premier besoin de votre secteur",
             },
             {
               icon: Users,
@@ -420,9 +423,11 @@ export default async function HomePage(props: PageProps<"/">) {
               <TrackedButtonLink cta="home_besoins_publier" href="/publier" size="lg">
                 Publier un besoin <ArrowRight className="size-4" aria-hidden />
               </TrackedButtonLink>
-              <TrackedButtonLink cta="home_besoins_consulter" href="/opportunites?origine=INTERNAL" size="lg" variant="outline">
-                Voir les besoins publiés
-              </TrackedButtonLink>
+              {hasNeeds && (
+                <TrackedButtonLink cta="home_besoins_consulter" href="/opportunites?origine=INTERNAL" size="lg" variant="outline">
+                  Voir les besoins publiés
+                </TrackedButtonLink>
+              )}
             </div>
           </div>
         </div>
