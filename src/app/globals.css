@@ -47,7 +47,7 @@
     -webkit-text-size-adjust: 100%;
   }
   body {
-    @apply bg-canvas font-sans text-slate antialiased;
+    @apply bg-white font-sans text-slate antialiased;
   }
   h1,
   h2,
