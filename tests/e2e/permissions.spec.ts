@@ -47,7 +47,7 @@ test("une opportunité externe est identifiée et renvoie vers la source", async
   const page = await newPage(browser);
   await page.goto("/opportunites?origine=EXTERNAL&q=fictif");
   await page.getByRole("link", { name: /marché public fictif/ }).first().click();
-  await expect(page.getByText("Opportunité externe", { exact: true })).toBeVisible();
+  await expect(page.getByTestId("origin")).toContainText("Opportunité externe");
   await expect(page.getByText("Cette opportunité est issue d'une source externe", { exact: false })).toBeVisible();
   await expect(page.getByRole("link", { name: /Consulter l'opportunité originale/ })).toBeVisible();
   await expect(page.getByTestId("need-message")).toHaveCount(0);

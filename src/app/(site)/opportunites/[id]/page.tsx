@@ -263,7 +263,7 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
               <SectorVisual sector={o.sector_slug} priority className="size-12 shrink-0 rounded-xl sm:size-14" />
               <div className="min-w-0 flex-1">
                 {/* Provenance toujours indiquée : externe (avec la source) ou besoin publié par un membre */}
-                <p className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs font-semibold tracking-wide text-slate-500 uppercase">
+                <p data-testid="origin" className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs font-semibold tracking-wide text-slate-500 uppercase">
                   {external ? (
                     <>
                       {o.type === "PUBLIC_TENDER" ? <Landmark className="size-3.5" aria-hidden /> : <ExternalLink className="size-3.5" aria-hidden />}
