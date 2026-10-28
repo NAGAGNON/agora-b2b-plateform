@@ -95,6 +95,7 @@ export const OPPORTUNITY_STATUS_LABELS: Record<OpportunityStatus, string> = {
   CHANGES_REQUESTED: "Modifications demandées",
   REJECTED: "Refusée",
   PUBLISHED: "Publiée",
+  PAUSED: "En pause",
   CLOSED: "Clôturée",
   EXPIRED: "Expirée",
   SUSPENDED: "Suspendue",

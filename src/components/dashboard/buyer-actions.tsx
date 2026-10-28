@@ -2,7 +2,7 @@
 
 import { useActionState, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Archive, Check, Edit3, HelpCircle, Lock, MessageSquare, RotateCcw, Send, Star, Trash2, X } from "lucide-react";
+import { Archive, Check, Edit3, HelpCircle, Lock, MessageSquare, Pause, Play, RotateCcw, Send, Star, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { buyerDecision, changeOpportunityStatus, closeOpportunity, deleteDraft, deleteOpportunityDocument, saveEvaluation } from "@/app/actions/opportunities";
 import { startConversation } from "@/app/actions/messages";
@@ -20,7 +20,7 @@ export function LifecycleActions({ id, status, proposals }: { id: string; status
   const [pending, start] = useTransition();
   const toast = useToast();
   const router = useRouter();
-  const run = (to: "PENDING_REVIEW" | "DRAFT" | "ARCHIVED", confirmText?: string) => {
+  const run = (to: "PENDING_REVIEW" | "DRAFT" | "ARCHIVED" | "PAUSED" | "PUBLISHED", confirmText?: string) => {
     if (confirmText && !confirm(confirmText)) return;
     start(async () => {
       const r = await changeOpportunityStatus(id, to);
@@ -28,7 +28,7 @@ export function LifecycleActions({ id, status, proposals }: { id: string; status
       router.refresh();
     });
   };
-  const editable = ["DRAFT", "CHANGES_REQUESTED", "REJECTED", "PUBLISHED"].includes(status);
+  const editable = ["DRAFT", "CHANGES_REQUESTED", "REJECTED", "PUBLISHED", "PAUSED"].includes(status);
   return (
     <div className="flex flex-wrap gap-2">
       {editable && (
@@ -46,8 +46,23 @@ export function LifecycleActions({ id, status, proposals }: { id: string; status
           <RotateCcw className="size-4" aria-hidden /> Repasser en brouillon
         </Button>
       )}
+      {status === "PUBLISHED" && (
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={pending}
+          onClick={() => run("PAUSED", "Mettre ce besoin en pause ? Il n'apparaîtra plus dans les recherches jusqu'à sa reprise. Les réponses déjà reçues sont conservées.")}
+        >
+          <Pause className="size-4" aria-hidden /> Mettre en pause
+        </Button>
+      )}
+      {status === "PAUSED" && (
+        <Button size="sm" disabled={pending} onClick={() => run("PUBLISHED")}>
+          <Play className="size-4" aria-hidden /> Reprendre la publication
+        </Button>
+      )}
       {["PUBLISHED", "EXPIRED"].includes(status) && <CloseButton id={id} proposals={proposals} />}
-      {["DRAFT", "REJECTED", "CHANGES_REQUESTED", "CLOSED", "EXPIRED"].includes(status) && status !== "DRAFT" && (
+      {["REJECTED", "CHANGES_REQUESTED", "CLOSED", "EXPIRED", "PAUSED"].includes(status) && (
         <Button size="sm" variant="ghost" disabled={pending} onClick={() => run("ARCHIVED", "Archiver cette opportunité ? Elle ne sera plus modifiable.")}>
           <Archive className="size-4" aria-hidden /> Archiver
         </Button>
