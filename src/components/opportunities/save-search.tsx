@@ -35,11 +35,12 @@ export function SearchActions({ query, signedIn, alertHref, scope = "OPPORTUNITI
   return (
     <div className="flex flex-wrap gap-2">
       <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
-        <Bookmark className="size-4" aria-hidden /> Sauvegarder la recherche
+        <Bookmark className="size-4" aria-hidden /> Sauvegarder<span className="hidden sm:inline"> la recherche</span>
       </Button>
       {scope === "OPPORTUNITIES" && (
         <Link href={alertHref} className={buttonClasses({ variant: "outline", size: "sm" })}>
-          <BellPlus className="size-4" aria-hidden /> Créer une alerte
+          <BellPlus className="size-4" aria-hidden /> <span className="sm:hidden">Alerte</span>
+          <span className="hidden sm:inline">Créer une alerte</span>
         </Link>
       )}
       <Modal open={open} onClose={() => setOpen(false)} title="Sauvegarder cette recherche">

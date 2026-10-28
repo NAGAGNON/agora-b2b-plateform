@@ -1,11 +1,10 @@
 import Link from "next/link";
-import { CalendarClock, MapPin, Tag, BadgeCheck } from "lucide-react";
-import { OpportunityTypeBadge, OriginBadge } from "@/components/opportunities/opportunity-badge";
+import { BadgeCheck, Building2, CalendarClock, ExternalLink, Landmark, MapPin, Tag } from "lucide-react";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { DemoBadge } from "@/components/demo";
 import { CompanyLogo } from "@/components/companies/company-logo";
 import { SectorVisual } from "@/components/opportunities/sector-visual";
-import { sectorLabel, type OpportunityOrigin, type OpportunityType } from "@/lib/constants";
+import { OPPORTUNITY_TYPE_LABELS, sectorLabel, type OpportunityOrigin, type OpportunityType } from "@/lib/constants";
 import { getLocationLabel, getSectorLabels } from "@/lib/queries/platform";
 import { deadlineLabel, formatBudget, formatDate, isRecent } from "@/lib/format";
 
@@ -41,62 +40,90 @@ export async function OpportunityCard({ o, headingLevel = 3 }: { o: OpportunityC
   const isNew = isRecent(o.published_at) && !closed;
   const sector = o.sector_slug ? sectorLabel(o.sector_slug, await getSectorLabels()) : null;
   const urgent = Boolean(deadline && !closed && (deadline === "Dernier jour" || /^Encore [1-7] jours?$/.test(deadline)));
+  // Résumé des sources externes souvent préfixé par l'acheteur (« OPCO SANTE — Marché de services ») : pas de doublon
+  const summary = o.summary && by && o.summary.startsWith(by) ? o.summary.slice(by.length).replace(/^\s*[—–-]\s*/, "") || null : o.summary;
+  const typeLabel = o.type !== "EXTERNAL_OPPORTUNITY" ? OPPORTUNITY_TYPE_LABELS[o.type] : null;
   return (
-    <article className="group reveal relative flex h-full flex-col overflow-hidden glow-card rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <SectorVisual sector={o.sector_slug} className="-mx-5 -mt-5 mb-4 h-28" />
-      <div className="flex flex-wrap items-center gap-1.5">
-        <OriginBadge origin={o.origin} type={o.type} />
-        {o.type !== "EXTERNAL_OPPORTUNITY" && <OpportunityTypeBadge type={o.type} />}
-        {isNew && <span className="rounded-full bg-teal px-2 py-0.5 text-xs font-bold text-navy">Nouveau</span>}
-        {closed && <StatusBadge kind="opportunity" status={o.effective_status!} />}
-        {o.is_demo && <DemoBadge />}
+    <article className="group reveal relative flex h-full flex-col glow-card rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+      <div className="flex items-start gap-3">
+        <SectorVisual sector={o.sector_slug} className="size-11 shrink-0 rounded-xl sm:size-12" />
+        <div className="min-w-0 flex-1">
+          {/* Provenance toujours indiquée : externe (source) ou besoin publié par un membre */}
+          <p className="flex flex-wrap items-center gap-x-1.5 text-[11px] font-semibold tracking-wide text-slate-500 uppercase">
+            {o.origin === "EXTERNAL" ? (
+              <>
+                {o.type === "PUBLIC_TENDER" ? <Landmark className="size-3.5" aria-hidden /> : <ExternalLink className="size-3.5" aria-hidden />}
+                <span>{typeLabel ?? "Opportunité externe"}</span>
+                <span aria-hidden>·</span>
+                <span className="sr-only">Opportunité externe référencée, source :</span>
+                <span>{o.source_name ?? "Source externe"}</span>
+              </>
+            ) : (
+              <>
+                <Building2 className="size-3.5 text-teal-700" aria-hidden />
+                <span className="text-teal-700">Besoin publié sur LinkProB2B</span>
+                {typeLabel && (
+                  <>
+                    <span aria-hidden>·</span>
+                    <span>{typeLabel}</span>
+                  </>
+                )}
+              </>
+            )}
+            {isNew && <span className="ml-1 rounded-full bg-teal-50 px-1.5 py-px text-[10px] font-bold tracking-normal text-teal-700 normal-case ring-1 ring-teal/30">Nouveau</span>}
+          </p>
+          {(closed || o.is_demo) && (
+            <div className="mt-1 flex flex-wrap gap-1.5">
+              {closed && <StatusBadge kind="opportunity" status={o.effective_status!} />}
+              {o.is_demo && <DemoBadge />}
+            </div>
+          )}
+          <H className="mt-1 line-clamp-3 text-[15px] leading-snug font-semibold text-navy [overflow-wrap:anywhere] sm:text-base">
+            <Link href={`/opportunites/${o.id}`} title={o.title} className="after:absolute after:inset-0 group-hover:text-teal-700 focus:outline-none">
+              {o.title}
+            </Link>
+          </H>
+          {by && (
+            <p className="mt-1 flex items-center gap-1.5 truncate text-sm text-slate-600">
+              {o.origin === "EXTERNAL" && <span className="sr-only">Acheteur : </span>}
+              {o.origin === "INTERNAL" && o.company_logo_path && <CompanyLogo name={by} path={o.company_logo_path} size={20} />}
+              <span className="truncate">{by}</span>
+              {o.origin === "INTERNAL" && o.company_verified && <BadgeCheck className="size-4 shrink-0 text-teal-600" aria-label="Entreprise vérifiée" />}
+            </p>
+          )}
+        </div>
       </div>
-      <H className="mt-3 text-lg leading-snug font-bold [overflow-wrap:anywhere]">
-        <Link href={`/opportunites/${o.id}`} className="after:absolute after:inset-0 group-hover:text-teal-700 focus:outline-none">
-          {o.title}
-        </Link>
-      </H>
-      {by && (
-        <p className="mt-1 flex items-center gap-1.5 text-sm text-slate-600 [overflow-wrap:anywhere]">
-          {o.origin === "EXTERNAL" && <span className="sr-only">Acheteur : </span>}
-          {o.origin === "INTERNAL" && o.company_logo_path && <CompanyLogo name={by} path={o.company_logo_path} size={24} />}
-          {by}
-          {o.origin === "INTERNAL" && o.company_verified && <BadgeCheck className="size-4 text-teal-600" aria-label="Entreprise vérifiée" />}
-        </p>
-      )}
-      {o.summary && <p className="mt-2 line-clamp-3 text-sm text-slate-600 [overflow-wrap:anywhere]">{o.summary}</p>}
-      <dl className="mt-auto grid gap-1.5 pt-4 text-sm text-slate-600">
+      {summary && <p className="mt-3 line-clamp-2 text-sm text-slate-600 [overflow-wrap:anywhere]">{summary}</p>}
+      <dl className="mt-auto flex flex-wrap items-center gap-x-4 gap-y-1.5 pt-4 text-[13px] text-slate-600">
         {(o.city || o.department_code) && (
-          <div className="flex items-center gap-2">
-            <MapPin className="size-4 shrink-0 text-slate-500" aria-hidden />
+          <div className="flex min-w-0 items-center gap-1.5">
+            <MapPin className="size-3.5 shrink-0 text-slate-400" aria-hidden />
             <dt className="sr-only">Localisation</dt>
-            <dd>
+            <dd className="truncate">
               {(await getLocationLabel())(o.city, o.department_code)}
               {o.distance_km != null && <span className="text-slate-500"> · {Math.round(o.distance_km)} km</span>}
             </dd>
           </div>
         )}
-        {o.sector_slug && (
-          <div className="flex items-center gap-2">
-            <Tag className="size-4 shrink-0 text-slate-500" aria-hidden />
+        {sector && (
+          <div className="flex min-w-0 items-center gap-1.5">
+            <Tag className="size-3.5 shrink-0 text-slate-400" aria-hidden />
             <dt className="sr-only">Secteur</dt>
-            <dd>{sector}</dd>
-          </div>
-        )}
-        {deadline && (
-          <div className="flex items-center gap-2">
-            <CalendarClock className="size-4 shrink-0 text-slate-500" aria-hidden />
-            <dt className="sr-only">Échéance</dt>
-            <dd className={urgent ? "rounded-full bg-amber-50 px-2 font-semibold text-amber-800 ring-1 ring-amber/40" : deadline.startsWith("Encore") ? "font-semibold text-navy" : undefined}>{deadline}</dd>
+            <dd className="truncate">{sector}</dd>
           </div>
         )}
       </dl>
       <div className="mt-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-slate-100 pt-3 text-xs text-slate-500">
-        <span>
-          Publiée le {formatDate(o.published_at)}
-          {o.origin === "EXTERNAL" && ` · Source : ${o.source_name ?? "externe"}`}
-        </span>
-        {budget && <span className="font-semibold text-navy">{budget}</span>}
+        {deadline ? (
+          <span className="flex items-center gap-1.5">
+            <CalendarClock className="size-3.5 shrink-0" aria-hidden />
+            <span className="sr-only">Échéance : </span>
+            <span className={urgent ? "font-semibold text-amber-800" : deadline.startsWith("Encore") ? "font-semibold text-navy" : undefined}>{deadline}</span>
+          </span>
+        ) : (
+          <span>Publiée le {formatDate(o.published_at)}</span>
+        )}
+        {budget ? <span className="font-semibold text-navy">{budget}</span> : deadline && <span>Publiée le {formatDate(o.published_at)}</span>}
       </div>
     </article>
   );

@@ -18,8 +18,9 @@ import {
   Wallet,
   Eye,
   ShieldAlert,
+  Building2,
+  Landmark,
 } from "lucide-react";
-import { OpportunityTypeBadge, OriginBadge } from "@/components/opportunities/opportunity-badge";
 import { InterestPanel } from "@/components/opportunities/interest-panel";
 import { FavoriteButton } from "@/components/opportunities/favorite-button";
 import { OpportunityCard } from "@/components/opportunities/opportunity-card";
@@ -52,7 +53,7 @@ import { getSession } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { track } from "@/lib/analytics";
 import { pageMetadata, siteUrl } from "@/lib/seo";
-import { DEMO_NOTICE, OPPORTUNITY_TYPE_HELP, sectorLabel, VERIFICATION_STATUS_LABELS, COMPANY_SIZE_LABELS } from "@/lib/constants";
+import { DEMO_NOTICE, OPPORTUNITY_TYPE_HELP, OPPORTUNITY_TYPE_LABELS, sectorLabel, VERIFICATION_STATUS_LABELS, COMPANY_SIZE_LABELS } from "@/lib/constants";
 import { clip, deadlineLabel, formatBudget, formatBytes, formatDate, formatDateTime, isUuid } from "@/lib/format";
 
 export async function generateMetadata(props: PageProps<"/opportunites/[id]">): Promise<Metadata> {
@@ -258,27 +259,57 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_22rem]">
           <article className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-sm [overflow-wrap:anywhere] sm:p-8">
-            <SectorVisual sector={o.sector_slug} priority className="-mx-5 -mt-5 mb-5 h-36 sm:-mx-8 sm:-mt-8 sm:mb-6 sm:h-48" />
-            <div className="flex flex-wrap items-center gap-2">
-              <OriginBadge origin={o.origin} type={o.type} />
-              {o.type !== "EXTERNAL_OPPORTUNITY" && <OpportunityTypeBadge type={o.type} />}
-              <StatusBadge kind="opportunity" status={effectiveStatus} />
-              {o.visibility === "MEMBERS_ONLY" && (
-                <Badge tone="slate" icon={<Lock className="size-3" aria-hidden />}>
-                  Réservée aux membres
-                </Badge>
-              )}
-              {o.is_demo && <DemoBadge />}
+            <div className="flex items-start gap-4">
+              <SectorVisual sector={o.sector_slug} priority className="size-12 shrink-0 rounded-xl sm:size-14" />
+              <div className="min-w-0 flex-1">
+                {/* Provenance toujours indiquée : externe (avec la source) ou besoin publié par un membre */}
+                <p data-testid="origin" className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs font-semibold tracking-wide text-slate-500 uppercase">
+                  {external ? (
+                    <>
+                      {o.type === "PUBLIC_TENDER" ? <Landmark className="size-3.5" aria-hidden /> : <ExternalLink className="size-3.5" aria-hidden />}
+                      <span>Opportunité externe</span>
+                      {o.type !== "EXTERNAL_OPPORTUNITY" && (
+                        <>
+                          <span aria-hidden>·</span>
+                          <span>{OPPORTUNITY_TYPE_LABELS[o.type]}</span>
+                        </>
+                      )}
+                      <span aria-hidden>·</span>
+                      <span>{source?.external_source?.name ?? "Source externe"}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Building2 className="size-3.5 text-teal-700" aria-hidden />
+                      <span className="text-teal-700">Besoin publié sur LinkProB2B</span>
+                      {o.type !== "EXTERNAL_OPPORTUNITY" && (
+                        <>
+                          <span aria-hidden>·</span>
+                          <span>{OPPORTUNITY_TYPE_LABELS[o.type]}</span>
+                        </>
+                      )}
+                    </>
+                  )}
+                </p>
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                  <StatusBadge kind="opportunity" status={effectiveStatus} />
+                  {o.visibility === "MEMBERS_ONLY" && (
+                    <Badge tone="slate" icon={<Lock className="size-3" aria-hidden />}>
+                      Réservée aux membres
+                    </Badge>
+                  )}
+                  {o.is_demo && <DemoBadge />}
+                </div>
+              </div>
             </div>
-            <h1 className="mt-4 text-2xl leading-tight font-bold [overflow-wrap:anywhere] sm:text-3xl">{o.title}</h1>
+            <h1 className="mt-5 text-xl leading-snug font-semibold tracking-tight text-navy [overflow-wrap:anywhere] sm:text-2xl lg:text-[1.75rem]">{o.title}</h1>
 
             {external ? (
-              <p className="mt-2 text-slate-600">
+              <p className="mt-2 text-sm text-slate-600">
                 {o.external_buyer_name ? (
                   <>
-                    Acheteur indiqué par la source :{" "}
+                    <span className="text-slate-500">Acheteur (selon la source) :</span>{" "}
                     {buyerSlug(o.external_buyer_name) ? (
-                      <Link href={`/acheteurs/${buyerSlug(o.external_buyer_name)}`} className="font-bold text-navy underline">
+                      <Link href={`/acheteurs/${buyerSlug(o.external_buyer_name)}`} className="font-semibold text-navy underline-offset-2 hover:underline">
                         {o.external_buyer_name}
                       </Link>
                     ) : (
@@ -302,7 +333,7 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
               </Link>
             ) : null}
 
-            <dl className="mt-6 grid gap-3 rounded-xl bg-sky/60 p-4 text-sm sm:grid-cols-2">
+            <dl className="mt-6 grid grid-cols-1 gap-px overflow-hidden rounded-xl border border-slate-200 bg-slate-200 text-sm sm:grid-cols-2">
               <Fact icon={MapPin} label="Localisation" value={[(await getLocationLabel())(o.city, o.department_code), o.region && `— ${o.region}`].filter(Boolean).join(" ") || "—"} />
               <Fact icon={Tag} label="Secteur" value={sectorLabel(o.sector_slug, await getSectorLabels())} />
               <Fact icon={CalendarDays} label="Publication" value={formatDate(o.published_at)} />
@@ -607,11 +638,11 @@ async function SimilarOpportunities({
 
 function Fact({ icon: Icon, label, value }: { icon: typeof MapPin; label: string; value: string }) {
   return (
-    <div className="flex items-start gap-2">
-      <Icon className="mt-0.5 size-4 shrink-0 text-teal-700" aria-hidden />
+    <div className="flex items-start gap-3 bg-white px-4 py-3">
+      <Icon className="mt-0.5 size-4 shrink-0 text-slate-400" aria-hidden />
       <div className="min-w-0">
-        <dt className="text-xs font-semibold text-slate-500 uppercase">{label}</dt>
-        <dd className="font-medium text-navy">{value}</dd>
+        <dt className="text-xs text-slate-500">{label}</dt>
+        <dd className="mt-0.5 font-medium text-navy">{value}</dd>
       </div>
     </div>
   );

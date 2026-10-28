@@ -275,11 +275,11 @@ export function GuidedAssistant() {
         type="button"
         onClick={() => (open ? setOpen(false) : openPanel())}
         aria-expanded={open}
-        className="group relative isolate flex items-center gap-2 rounded-full bg-navy px-4 py-3 font-semibold text-white shadow-xl shadow-navy/30 ring-1 ring-white/10 transition hover:-translate-y-0.5 hover:bg-navy-700"
+        className="group relative isolate flex items-center gap-2 rounded-full bg-navy p-3 sm:px-4 font-semibold text-white shadow-xl shadow-navy/30 ring-1 ring-white/10 transition hover:-translate-y-0.5 hover:bg-navy-700"
       >
         {!open && <span aria-hidden className="absolute inset-0 -z-10 animate-ping rounded-full bg-teal/40 [animation-duration:2.5s] motion-reduce:animate-none" />}
         {open ? <X className="size-5" aria-hidden /> : <MessageCircleQuestion className="size-5 text-teal" aria-hidden />}
-        <span className={open ? "sr-only" : "text-sm"}>{open ? "Fermer l'assistant" : "Besoin d'aide ?"}</span>
+        <span className={open ? "sr-only" : "sr-only text-sm sm:not-sr-only"}>{open ? "Fermer l'assistant" : "Besoin d'aide ?"}</span>
       </button>
     </div>
   );
