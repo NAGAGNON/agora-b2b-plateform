@@ -31,8 +31,10 @@ const history = (o: Partial<SuiviHistory> = {}): SuiviHistory => ({ ...emptyHist
 
 describe("calendrier du suivi", () => {
   it("accueil : fiche à J1, alerte à J3, découverte à J6, une étape à la fois", () => {
-    const fresh = member({ created_at: ago(1.2), last_seen_at: ago(1.2), has_logo: false, has_alert: false });
+    const fresh = member({ created_at: ago(1.2), last_seen_at: ago(1.2), profile_complete: false, has_alert: false });
     expect(planSuivi(fresh, history(), NOW)?.step).toBe("PROFIL");
+    // Seul le logo manque : jamais d'e-mail pour ça
+    expect(planSuivi(member({ created_at: ago(1.2), last_seen_at: ago(1.2), has_logo: false }), history(), NOW)).toBeNull();
     expect(planSuivi(member({ created_at: ago(0.5), last_seen_at: null }), history(), NOW)).toBeNull();
     const day3 = member({ created_at: ago(3.1), last_seen_at: ago(3), has_alert: false });
     expect(planSuivi(day3, history({ steps: new Set(["PROFIL"]), lastSuivi: new Date(ago(2)) }), NOW)?.step).toBe("ALERTE");
