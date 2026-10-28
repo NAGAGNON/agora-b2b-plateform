@@ -43,7 +43,7 @@ export async function OpportunityCard({ o, headingLevel = 3 }: { o: OpportunityC
   const urgent = Boolean(deadline && !closed && (deadline === "Dernier jour" || /^Encore [1-7] jours?$/.test(deadline)));
   return (
     <article className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-teal hover:shadow-lg">
-      <SectorVisual sector={o.sector_slug} label={sector} className="-mx-5 -mt-5 mb-4 h-20" />
+      <SectorVisual sector={o.sector_slug} className="-mx-5 -mt-5 mb-4 h-16" />
       <div className="flex flex-wrap items-center gap-1.5">
         <OriginBadge origin={o.origin} type={o.type} />
         {o.type !== "EXTERNAL_OPPORTUNITY" && <OpportunityTypeBadge type={o.type} />}

@@ -18,13 +18,12 @@ export function sectorFamilySlug(sector: string | null | undefined): string | nu
 }
 
 /** Bandeau illustré d'une opportunité, selon la famille de son secteur. */
-export function SectorVisual({ sector, label, className = "" }: { sector: string | null | undefined; label?: string | null; className?: string }) {
+export function SectorVisual({ sector, className = "" }: { sector: string | null | undefined; className?: string }) {
   const v = VISUALS[sectorFamilySlug(sector) ?? ""] ?? FALLBACK;
   return (
     <div aria-hidden className={`relative overflow-hidden bg-gradient-to-br ${v.className} ${className}`}>
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.18)_1px,transparent_0)] [background-size:14px_14px]" />
       <v.Icon className="absolute -right-3 -bottom-4 size-24 text-white/20 transition duration-300 group-hover:scale-110 group-hover:text-white/30" strokeWidth={1.5} />
-      {label && <span className="absolute bottom-2.5 left-4 rounded-full bg-black/25 px-2.5 py-0.5 text-xs font-semibold text-white backdrop-blur-sm">{label}</span>}
     </div>
   );
 }
