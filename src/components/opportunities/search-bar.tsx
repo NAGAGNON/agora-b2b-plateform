@@ -2,6 +2,7 @@ import { Search } from "lucide-react";
 import { getSectors } from "@/lib/queries/platform";
 import { OPPORTUNITY_TYPE_LABELS, type OpportunityType } from "@/lib/constants";
 import { REGIONS } from "@/lib/geo";
+import { groupSectors } from "@/lib/sector-families";
 
 /** Recherche principale (formulaire GET vers /opportunites — fonctionne sans JavaScript). */
 export async function SearchBar({ defaults = {} }: { defaults?: { q?: string; secteur?: string; region?: string; type?: string } }) {
@@ -20,14 +21,18 @@ export async function SearchBar({ defaults = {} }: { defaults?: { q?: string; se
         </div>
         <div>
           <label htmlFor="hero-secteur" className="sr-only">
-            Secteur
+            Secteur d&apos;activité
           </label>
           <select id="hero-secteur" name="secteur" defaultValue={defaults.secteur ?? ""} className={field}>
-            <option value="">Tous les secteurs</option>
-            {(await getSectors()).map((s) => (
-              <option key={s.slug} value={s.slug}>
-                {s.label}
-              </option>
+            <option value="">Secteur d&apos;activité : tous</option>
+            {groupSectors(await getSectors()).map(({ family, sectors }) => (
+              <optgroup key={family.slug} label={family.label}>
+                {sectors.map((s) => (
+                  <option key={s.slug} value={s.slug}>
+                    {s.label}
+                  </option>
+                ))}
+              </optgroup>
             ))}
           </select>
         </div>
@@ -49,7 +54,7 @@ export async function SearchBar({ defaults = {} }: { defaults?: { q?: string; se
             Type d&apos;opportunité
           </label>
           <select id="hero-type" name="type" defaultValue={defaults.type ?? ""} className={field}>
-            <option value="">Tous les types</option>
+            <option value="">Type d&apos;opportunité : tous</option>
             {(Object.keys(OPPORTUNITY_TYPE_LABELS) as OpportunityType[]).map((t) => (
               <option key={t} value={t}>
                 {OPPORTUNITY_TYPE_LABELS[t]}

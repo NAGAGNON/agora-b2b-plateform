@@ -1,17 +1,45 @@
 @import "tailwindcss";
 
 @theme {
-  --color-navy: #0f2d4a;
-  --color-navy-700: #1a3d5f;
-  --color-navy-900: #0a1f33;
+  /* Identité : bleu nuit profond (confiance), turquoise de la marque (opportunités), ambre (échéances) */
+  --color-navy: #0b2540;
+  --color-navy-700: #163a5c;
+  --color-navy-900: #071a2d;
+  --color-petrol: #0d4a5e;
   --color-teal: #14b8a6;
   --color-teal-600: #0d9488;
   --color-teal-700: #0f766e;
   --color-teal-50: #e6f7f5;
-  --color-sky: #e8f4fd;
-  --color-slate: #334155;
+  --color-amber: #f59e0b;
+  --color-amber-50: #fff7e6;
+  --color-amber-800: #92400e;
+  --color-sky: #eaf6f3;
+  --color-canvas: #f5f8f7;
+  --color-slate: #2b3a48;
   --font-sans: "Inter Variable", Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --font-heading: "Montserrat Variable", Montserrat, ui-sans-serif, system-ui, sans-serif;
+  --font-heading: "Manrope Variable", Manrope, ui-sans-serif, system-ui, sans-serif;
+  --animate-rise: rise 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  --animate-ticker: ticker 45s linear infinite;
+
+  /* Apparition par dévoilement (sans transparence : le texte reste lisible à tout instant) */
+  @keyframes rise {
+    from {
+      clip-path: inset(0 0 100% 0);
+      transform: translateY(14px);
+    }
+    to {
+      clip-path: inset(0 0 -20% 0);
+      transform: none;
+    }
+  }
+  @keyframes ticker {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(-50%);
+    }
+  }
 }
 
 @layer base {
@@ -26,7 +54,8 @@
   h3,
   h4 {
     @apply font-heading text-navy;
-    letter-spacing: -0.01em;
+    letter-spacing: -0.02em;
+    text-wrap: balance;
   }
   :focus-visible {
     outline: 3px solid var(--color-teal);
