@@ -195,18 +195,18 @@ export default async function HomePage(props: PageProps<"/">) {
               Voir les {nf(openCount)} opportunités ouvertes <ArrowRight className="size-4" aria-hidden />
             </TrackedLink>
           </div>
-          <ul className="mt-6 grid gap-4 md:grid-cols-3">
+          <ul className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
             {preview.map((o) => {
               const by = o.origin === "EXTERNAL" ? o.external_buyer_name : o.company_name;
               const deadline = deadlineLabel(o.response_deadline);
               const place = o.city ?? (o.department_code ? `Département ${o.department_code}` : null);
               return (
-                <li key={o.id} className="reveal">
-                  <Link href={`/opportunites/${o.id}`} className="group glow-card flex h-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                <li key={o.id} className="reveal min-w-0">
+                  <Link href={`/opportunites/${o.id}`} className="group glow-card flex h-full min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                     <SectorVisual sector={o.sector_slug} className="w-24 shrink-0 sm:w-28" />
                     <span className="flex min-w-0 flex-1 flex-col p-4">
                       {o.sector_slug && <span className="text-xs font-semibold text-teal-700">{sectorLabel(o.sector_slug, labels)}</span>}
-                      <span className="mt-1 line-clamp-2 font-semibold text-navy group-hover:text-teal-700">{o.title}</span>
+                      <span className="mt-1 line-clamp-2 font-semibold [overflow-wrap:anywhere] text-navy group-hover:text-teal-700">{o.title}</span>
                       {by && <span className="mt-1 truncate text-sm text-slate-600">{by}</span>}
                       <span className="mt-auto flex flex-wrap gap-x-3 gap-y-1 pt-3 text-xs text-slate-600">
                         {place && (
@@ -235,7 +235,7 @@ export default async function HomePage(props: PageProps<"/">) {
         <h2 id="usages" className="reveal max-w-3xl text-3xl font-extrabold sm:text-4xl">
           Ce que vous pouvez faire dès maintenant
         </h2>
-        <ul className="mt-8 grid gap-5 md:grid-cols-3">
+        <ul className="mt-8 grid grid-cols-1 gap-5 md:grid-cols-3">
           {[
             {
               icon: Target,

@@ -51,7 +51,7 @@ export default async function PricingPage() {
         </Notice>
       )}
 
-      <div className="mt-10 grid gap-6 lg:grid-cols-3">
+      <div className="mt-10 grid grid-cols-1 gap-6 lg:grid-cols-3">
         {PLANS.map((p) => (
           <div
             key={p.code}
