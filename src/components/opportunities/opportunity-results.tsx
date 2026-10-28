@@ -75,6 +75,29 @@ export async function OpportunityResults({ filters, rawParams, basePath }: { fil
         <div className="mt-6">
           {error ? (
             <ErrorState description="La recherche n'a pas pu aboutir. Veuillez réessayer dans un instant." />
+          ) : rows.length === 0 && filters.origin === "INTERNAL" ? (
+            <EmptyState
+              icon={<SearchX className="size-6" aria-hidden />}
+              title={session ? "Aucun besoin d'entreprise ouvert pour ces critères" : "Aucun besoin d'entreprise visible pour le moment"}
+              description={
+                session
+                  ? "Les besoins publiés par les entreprises apparaissent ici dès leur validation. Créez une alerte pour être prévenu, ou consultez les marchés publics en cours."
+                  : "Certains besoins sont réservés aux membres : connectez-vous ou créez un compte gratuit pour les voir. Vous pouvez aussi publier le vôtre ou consulter les marchés publics en cours."
+              }
+              action={
+                <div className="flex flex-wrap justify-center gap-2">
+                  <ButtonLink href="/publier">Publier un besoin</ButtonLink>
+                  {!session && (
+                    <ButtonLink href="/inscription?suite=/opportunites?origine=INTERNAL" variant="outline">
+                      Créer mon compte gratuit
+                    </ButtonLink>
+                  )}
+                  <ButtonLink href="/opportunites" variant="outline">
+                    Voir toutes les opportunités
+                  </ButtonLink>
+                </div>
+              }
+            />
           ) : rows.length === 0 ? (
             <EmptyState
               icon={<SearchX className="size-6" aria-hidden />}
@@ -83,7 +106,7 @@ export async function OpportunityResults({ filters, rawParams, basePath }: { fil
               action={<ButtonLink href={basePath} variant="outline">Effacer les filtres</ButtonLink>}
             />
           ) : (
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               {rows.map((o) => (
                 <OpportunityCard key={o.id} o={o} headingLevel={2} />
               ))}

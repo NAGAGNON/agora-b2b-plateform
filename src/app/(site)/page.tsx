@@ -74,6 +74,9 @@ export default async function HomePage(props: PageProps<"/">) {
     safe(supabase.from("platform_settings").select("value").eq("key", "growth_public").maybeSingle(), { data: null }),
     safe(getSectorLabels(), {} as Record<string, string>),
   ]);
+  // Besoins d'entreprises visibles par un visiteur : sinon les liens mènent à la publication
+  const { total: needsTotal } = await safe(searchOpportunities(parseOpportunityFilters({ origine: "INTERNAL" }), 1), { rows: [], total: 0, error: true as const });
+  const hasNeeds = Number(needsTotal) > 0;
   const featuredRegions = homeRegions(growth?.value ?? null);
   const openCount = Number(latest.total);
   const preview = latest.rows.filter((o) => !o.is_demo || latest.rows.every((x) => x.is_demo));
@@ -129,7 +132,7 @@ export default async function HomePage(props: PageProps<"/">) {
               </p>
             </div>
 
-            {/* Spot de présentation (lecture automatique, voix off activable) */}
+            {/* Spot de présentation (lecture automatique, musique activable) */}
             <div className="relative animate-pop [animation-delay:350ms]">
               <div aria-hidden className="absolute -inset-4 rounded-[2rem] bg-gradient-to-tr from-teal/30 via-glow/20 to-electric/20 blur-2xl" />
               <div className="relative aspect-video overflow-hidden rounded-3xl bg-navy shadow-2xl ring-1 ring-slate-200">
@@ -195,18 +198,18 @@ export default async function HomePage(props: PageProps<"/">) {
               Voir les {nf(openCount)} opportunités ouvertes <ArrowRight className="size-4" aria-hidden />
             </TrackedLink>
           </div>
-          <ul className="mt-6 grid gap-4 md:grid-cols-3">
+          <ul className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
             {preview.map((o) => {
               const by = o.origin === "EXTERNAL" ? o.external_buyer_name : o.company_name;
               const deadline = deadlineLabel(o.response_deadline);
               const place = o.city ?? (o.department_code ? `Département ${o.department_code}` : null);
               return (
-                <li key={o.id} className="reveal">
-                  <Link href={`/opportunites/${o.id}`} className="group glow-card flex h-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                <li key={o.id} className="reveal min-w-0">
+                  <Link href={`/opportunites/${o.id}`} className="group glow-card flex h-full min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                     <SectorVisual sector={o.sector_slug} className="w-24 shrink-0 sm:w-28" />
                     <span className="flex min-w-0 flex-1 flex-col p-4">
                       {o.sector_slug && <span className="text-xs font-semibold text-teal-700">{sectorLabel(o.sector_slug, labels)}</span>}
-                      <span className="mt-1 line-clamp-2 font-semibold text-navy group-hover:text-teal-700">{o.title}</span>
+                      <span className="mt-1 line-clamp-2 font-semibold [overflow-wrap:anywhere] text-navy group-hover:text-teal-700">{o.title}</span>
                       {by && <span className="mt-1 truncate text-sm text-slate-600">{by}</span>}
                       <span className="mt-auto flex flex-wrap gap-x-3 gap-y-1 pt-3 text-xs text-slate-600">
                         {place && (
@@ -235,7 +238,7 @@ export default async function HomePage(props: PageProps<"/">) {
         <h2 id="usages" className="reveal max-w-3xl text-3xl font-extrabold sm:text-4xl">
           Ce que vous pouvez faire dès maintenant
         </h2>
-        <ul className="mt-8 grid gap-5 md:grid-cols-3">
+        <ul className="mt-8 grid grid-cols-1 gap-5 md:grid-cols-3">
           {[
             {
               icon: Target,
@@ -249,9 +252,9 @@ export default async function HomePage(props: PageProps<"/">) {
               icon: ClipboardList,
               title: "Découvrir les besoins des entreprises",
               text: "Consultez les besoins publiés par les entreprises et identifiez les occasions de proposer vos services ou vos solutions.",
-              href: "/opportunites?origine=INTERNAL",
+              href: hasNeeds ? "/opportunites?origine=INTERNAL" : "/publier",
               cta: "home_usage_besoins",
-              link: "Voir les besoins publiés",
+              link: hasNeeds ? "Voir les besoins publiés" : "Publier le premier besoin de votre secteur",
             },
             {
               icon: Users,
@@ -420,9 +423,11 @@ export default async function HomePage(props: PageProps<"/">) {
               <TrackedButtonLink cta="home_besoins_publier" href="/publier" size="lg">
                 Publier un besoin <ArrowRight className="size-4" aria-hidden />
               </TrackedButtonLink>
-              <TrackedButtonLink cta="home_besoins_consulter" href="/opportunites?origine=INTERNAL" size="lg" variant="outline">
-                Voir les besoins publiés
-              </TrackedButtonLink>
+              {hasNeeds && (
+                <TrackedButtonLink cta="home_besoins_consulter" href="/opportunites?origine=INTERNAL" size="lg" variant="outline">
+                  Voir les besoins publiés
+                </TrackedButtonLink>
+              )}
             </div>
           </div>
         </div>

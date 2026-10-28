@@ -588,6 +588,28 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"pipeline_reminders": {
+                  Row: {
+                    "due_on": string,"pipeline_item_id": string,"sent_at": string
+                  }
+                  Insert: {
+                    "due_on": string,"pipeline_item_id": string,"sent_at"?: string
+                  }
+                  Update: {
+                    "due_on"?: string,"pipeline_item_id"?: string,"sent_at"?: string
+                  }
+                  Relationships: []
+                },"need_reminders": {
+                  Row: {
+                    "kind": string,"opportunity_id": string,"sent_at": string
+                  }
+                  Insert: {
+                    "kind": string,"opportunity_id": string,"sent_at"?: string
+                  }
+                  Update: {
+                    "kind"?: string,"opportunity_id"?: string,"sent_at"?: string
+                  }
+                  Relationships: []
                 },"notifications": {
                   Row: {
                     "body": string | null,"created_at": string,"id": string,"link": string | null,"read_at": string | null,"title": string,"type": string,"user_id": string
@@ -1640,6 +1662,12 @@ isOneToOne: false
 "purge_campaign_placeholders":
 { Args: { "p_limit"?: number }; Returns: number
                            },
+"process_pipeline_reminders":
+{ Args: { "p_limit"?: number }; Returns: number
+                           },
+"process_need_reminders":
+{ Args: { "p_limit"?: number }; Returns: Json
+                           },
 "purge_page_views":
 { Args: Record<PropertyKey, never>; Returns: number
                            },
@@ -1767,7 +1795,7 @@ isOneToOne: false
                            }
           }
           Enums: {
-            "account_status": "ACTIVE"|"SUSPENDED"|"DELETED","alert_frequency": "IMMEDIATE"|"DAILY"|"WEEKLY","company_kind": "SUPPLIER"|"BUYER"|"BOTH","company_role": "COMPANY_MEMBER"|"COMPANY_ADMIN","company_size": "INDEPENDANT"|"TPE"|"PME"|"ETI"|"GE","company_status": "PENDING"|"ACTIVE"|"SUSPENDED","email_status": "PENDING"|"SENT"|"FAILED"|"SKIPPED","interest_status": "PENDING"|"SHORTLISTED"|"INFO_REQUESTED"|"ACCEPTED"|"DECLINED"|"WITHDRAWN","moderation_action_type": "APPROVE"|"REJECT"|"REQUEST_CHANGES"|"SUSPEND"|"ARCHIVE"|"REINSTATE","opportunity_origin": "INTERNAL"|"EXTERNAL","opportunity_outcome": "AWARDED"|"NOT_AWARDED"|"CANCELLED"|"UNKNOWN","opportunity_status": "DRAFT"|"PENDING_REVIEW"|"CHANGES_REQUESTED"|"REJECTED"|"PUBLISHED"|"CLOSED"|"EXPIRED"|"SUSPENDED"|"ARCHIVED","opportunity_type": "NEED"|"QUOTE_REQUEST"|"PRIVATE_CONSULTATION"|"PRIVATE_TENDER"|"EXTERNAL_OPPORTUNITY"|"PUBLIC_TENDER","opportunity_visibility": "PUBLIC"|"MEMBERS_ONLY","pipeline_stage": "DETECTED"|"QUALIFIED"|"INTERESTED"|"RESPONSE_PREPARING"|"RESPONSE_SENT"|"DISCUSSION"|"NEGOTIATION"|"WON"|"LOST","platform_role": "USER"|"MODERATOR"|"ADMIN"|"SUPER_ADMIN","proposal_status": "SUBMITTED"|"SHORTLISTED"|"INFO_REQUESTED"|"SELECTED"|"DECLINED"|"WITHDRAWN","report_status": "OPEN"|"REVIEWING"|"RESOLVED"|"DISMISSED","report_target": "OPPORTUNITY"|"COMPANY"|"MESSAGE"|"USER"|"PROPOSAL","source_status": "DRAFT"|"LEGAL_REVIEW"|"APPROVED"|"SUSPENDED"|"REJECTED"
+            "account_status": "ACTIVE"|"SUSPENDED"|"DELETED","alert_frequency": "IMMEDIATE"|"DAILY"|"WEEKLY","company_kind": "SUPPLIER"|"BUYER"|"BOTH","company_role": "COMPANY_MEMBER"|"COMPANY_ADMIN","company_size": "INDEPENDANT"|"TPE"|"PME"|"ETI"|"GE","company_status": "PENDING"|"ACTIVE"|"SUSPENDED","email_status": "PENDING"|"SENT"|"FAILED"|"SKIPPED","interest_status": "PENDING"|"SHORTLISTED"|"INFO_REQUESTED"|"ACCEPTED"|"DECLINED"|"WITHDRAWN","moderation_action_type": "APPROVE"|"REJECT"|"REQUEST_CHANGES"|"SUSPEND"|"ARCHIVE"|"REINSTATE","opportunity_origin": "INTERNAL"|"EXTERNAL","opportunity_outcome": "AWARDED"|"NOT_AWARDED"|"CANCELLED"|"UNKNOWN","opportunity_status": "DRAFT"|"PENDING_REVIEW"|"CHANGES_REQUESTED"|"REJECTED"|"PUBLISHED"|"PAUSED"|"CLOSED"|"EXPIRED"|"SUSPENDED"|"ARCHIVED","opportunity_type": "NEED"|"QUOTE_REQUEST"|"PRIVATE_CONSULTATION"|"PRIVATE_TENDER"|"EXTERNAL_OPPORTUNITY"|"PUBLIC_TENDER","opportunity_visibility": "PUBLIC"|"MEMBERS_ONLY","pipeline_stage": "DETECTED"|"QUALIFIED"|"INTERESTED"|"RESPONSE_PREPARING"|"RESPONSE_SENT"|"DISCUSSION"|"NEGOTIATION"|"WON"|"LOST","platform_role": "USER"|"MODERATOR"|"ADMIN"|"SUPER_ADMIN","proposal_status": "SUBMITTED"|"SHORTLISTED"|"INFO_REQUESTED"|"SELECTED"|"DECLINED"|"WITHDRAWN","report_status": "OPEN"|"REVIEWING"|"RESOLVED"|"DISMISSED","report_target": "OPPORTUNITY"|"COMPANY"|"MESSAGE"|"USER"|"PROPOSAL","source_status": "DRAFT"|"LEGAL_REVIEW"|"APPROVED"|"SUSPENDED"|"REJECTED"
           }
           CompositeTypes: {
             [_ in never]: never
@@ -1887,7 +1915,7 @@ export const Constants = {
           }
         },"public": {
           Enums: {
-            "account_status": ["ACTIVE", "SUSPENDED", "DELETED"],"alert_frequency": ["IMMEDIATE", "DAILY", "WEEKLY"],"company_kind": ["SUPPLIER", "BUYER", "BOTH"],"company_role": ["COMPANY_MEMBER", "COMPANY_ADMIN"],"company_size": ["INDEPENDANT", "TPE", "PME", "ETI", "GE"],"company_status": ["PENDING", "ACTIVE", "SUSPENDED"],"email_status": ["PENDING", "SENT", "FAILED", "SKIPPED"],"interest_status": ["PENDING", "SHORTLISTED", "INFO_REQUESTED", "ACCEPTED", "DECLINED", "WITHDRAWN"],"moderation_action_type": ["APPROVE", "REJECT", "REQUEST_CHANGES", "SUSPEND", "ARCHIVE", "REINSTATE"],"opportunity_origin": ["INTERNAL", "EXTERNAL"],"opportunity_outcome": ["AWARDED", "NOT_AWARDED", "CANCELLED", "UNKNOWN"],"opportunity_status": ["DRAFT", "PENDING_REVIEW", "CHANGES_REQUESTED", "REJECTED", "PUBLISHED", "CLOSED", "EXPIRED", "SUSPENDED", "ARCHIVED"],"opportunity_type": ["NEED", "QUOTE_REQUEST", "PRIVATE_CONSULTATION", "PRIVATE_TENDER", "EXTERNAL_OPPORTUNITY", "PUBLIC_TENDER"],"opportunity_visibility": ["PUBLIC", "MEMBERS_ONLY"],"pipeline_stage": ["DETECTED", "QUALIFIED", "INTERESTED", "RESPONSE_PREPARING", "RESPONSE_SENT", "DISCUSSION", "NEGOTIATION", "WON", "LOST"],"platform_role": ["USER", "MODERATOR", "ADMIN", "SUPER_ADMIN"],"proposal_status": ["SUBMITTED", "SHORTLISTED", "INFO_REQUESTED", "SELECTED", "DECLINED", "WITHDRAWN"],"report_status": ["OPEN", "REVIEWING", "RESOLVED", "DISMISSED"],"report_target": ["OPPORTUNITY", "COMPANY", "MESSAGE", "USER", "PROPOSAL"],"source_status": ["DRAFT", "LEGAL_REVIEW", "APPROVED", "SUSPENDED", "REJECTED"]
+            "account_status": ["ACTIVE", "SUSPENDED", "DELETED"],"alert_frequency": ["IMMEDIATE", "DAILY", "WEEKLY"],"company_kind": ["SUPPLIER", "BUYER", "BOTH"],"company_role": ["COMPANY_MEMBER", "COMPANY_ADMIN"],"company_size": ["INDEPENDANT", "TPE", "PME", "ETI", "GE"],"company_status": ["PENDING", "ACTIVE", "SUSPENDED"],"email_status": ["PENDING", "SENT", "FAILED", "SKIPPED"],"interest_status": ["PENDING", "SHORTLISTED", "INFO_REQUESTED", "ACCEPTED", "DECLINED", "WITHDRAWN"],"moderation_action_type": ["APPROVE", "REJECT", "REQUEST_CHANGES", "SUSPEND", "ARCHIVE", "REINSTATE"],"opportunity_origin": ["INTERNAL", "EXTERNAL"],"opportunity_outcome": ["AWARDED", "NOT_AWARDED", "CANCELLED", "UNKNOWN"],"opportunity_status": ["DRAFT", "PENDING_REVIEW", "CHANGES_REQUESTED", "REJECTED", "PUBLISHED", "PAUSED", "CLOSED", "EXPIRED", "SUSPENDED", "ARCHIVED"],"opportunity_type": ["NEED", "QUOTE_REQUEST", "PRIVATE_CONSULTATION", "PRIVATE_TENDER", "EXTERNAL_OPPORTUNITY", "PUBLIC_TENDER"],"opportunity_visibility": ["PUBLIC", "MEMBERS_ONLY"],"pipeline_stage": ["DETECTED", "QUALIFIED", "INTERESTED", "RESPONSE_PREPARING", "RESPONSE_SENT", "DISCUSSION", "NEGOTIATION", "WON", "LOST"],"platform_role": ["USER", "MODERATOR", "ADMIN", "SUPER_ADMIN"],"proposal_status": ["SUBMITTED", "SHORTLISTED", "INFO_REQUESTED", "SELECTED", "DECLINED", "WITHDRAWN"],"report_status": ["OPEN", "REVIEWING", "RESOLVED", "DISMISSED"],"report_target": ["OPPORTUNITY", "COMPANY", "MESSAGE", "USER", "PROPOSAL"],"source_status": ["DRAFT", "LEGAL_REVIEW", "APPROVED", "SUSPENDED", "REJECTED"]
           }
         }
 } as const

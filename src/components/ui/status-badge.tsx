@@ -20,6 +20,7 @@ const OPP_TONES: Record<string, BadgeTone> = {
   CHANGES_REQUESTED: "amber",
   REJECTED: "red",
   PUBLISHED: "green",
+  PAUSED: "amber",
   CLOSED: "navy",
   EXPIRED: "slate",
   SUSPENDED: "red",

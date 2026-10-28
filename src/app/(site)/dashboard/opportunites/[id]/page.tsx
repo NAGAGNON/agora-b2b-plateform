@@ -7,6 +7,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { needMetrics } from "@/lib/needs";
 import { siteUrl } from "@/lib/seo";
 import { NeedVisibility } from "@/components/dashboard/need-visibility";
+import { NeedSuggestions, NeedTips } from "@/components/dashboard/need-insights";
 import { Card, CardHeader, DashboardCard } from "@/components/ui/card";
 import { Notice } from "@/components/ui/notice";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -20,6 +21,9 @@ import { OUTCOME_LABELS } from "@/lib/constants";
 import { formatBytes, formatDate, formatDateTime, formatMoney, relativeTime } from "@/lib/format";
 
 export const metadata = { title: "Gérer une consultation" };
+
+/** Heure courante (hors rendu pur). */
+const nowMs = () => Date.now();
 
 export default async function ManageOpportunityPage(props: PageProps<"/dashboard/opportunites/[id]">) {
   const { id } = await props.params;
@@ -114,6 +118,22 @@ export default async function ManageOpportunityPage(props: PageProps<"/dashboard
       </div>
 
       {metrics && <NeedVisibility id={o.id} title={o.title} url={`${siteUrl()}/opportunites/${o.id}`} m={metrics} analyzed={analyzed} />}
+      {o.status === "PAUSED" && (
+        <Notice tone="warning" title="Besoin en pause">
+          Il n&apos;apparaît plus dans les recherches et ne reçoit plus de nouvelles réponses. Les réponses et échanges déjà reçus restent disponibles ci-dessous.
+        </Notice>
+      )}
+      <NeedTips need={o} responses={activeProposals.length + activeInterests.length} documents={o.documents.length} now={nowMs()} />
+      {o.origin === "INTERNAL" && !o.is_demo && ["PUBLISHED", "PAUSED", "EXPIRED"].includes(o.status) && (
+        <NeedSuggestions
+          needId={o.id}
+          excludeCompanyIds={[
+            ...activeProposals.map((p) => one(p.company)?.id).filter((x): x is string => Boolean(x)),
+            ...activeInterests.map((i) => one(i.company)?.id).filter((x): x is string => Boolean(x)),
+            ...(o.company_id ? [o.company_id] : []),
+          ]}
+        />
+      )}
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <DashboardCard label="Fournisseurs intéressés" value={activeInterests.length} icon={<Users className="size-5" aria-hidden />} />

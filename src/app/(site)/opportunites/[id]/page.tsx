@@ -250,7 +250,7 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
             {DEMO_NOTICE}
           </Notice>
         )}
-        {!isOpen && (isOwner || session?.isStaff) && ["DRAFT", "PENDING_REVIEW", "CHANGES_REQUESTED", "REJECTED", "SUSPENDED"].includes(o.status) && (
+        {!isOpen && (isOwner || session?.isStaff) && ["DRAFT", "PENDING_REVIEW", "CHANGES_REQUESTED", "REJECTED", "SUSPENDED", "PAUSED"].includes(o.status) && (
           <Notice tone="info" className="mb-6" title="Aperçu non public">
             Cette opportunité n&apos;est visible que par votre entreprise et la modération (statut : <StatusBadge kind="opportunity" status={o.status} />).
           </Notice>

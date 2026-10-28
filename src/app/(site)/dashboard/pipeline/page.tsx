@@ -11,6 +11,9 @@ import { UpgradePrompt } from "@/components/billing/upgrade-prompt";
 
 export const metadata = { title: "Pipeline" };
 
+/** Date du jour à Paris (AAAA-MM-JJ), comparable à next_action_at. */
+const todayParis = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris" }).format(new Date());
+
 export default async function PipelinePage() {
   const session = await requireCompany("/dashboard/pipeline");
   const supabase = await createClient();
@@ -24,6 +27,10 @@ export default async function PipelinePage() {
   const won = items.filter((i) => i.stage === "WON");
   const lost = items.filter((i) => i.stage === "LOST");
   const openValue = open.reduce((s, i) => s + (i.estimated_value ?? 0), 0);
+  const today = todayParis();
+  const overdue = open.filter((i) => i.next_action_at && i.next_action_at < today).length;
+  const dueToday = open.filter((i) => i.next_action_at === today).length;
+  const decided = won.length + lost.length;
   const free = !(await hasFullAccess(session.activeCompany.company.id));
   return (
     <div>
@@ -51,12 +58,21 @@ export default async function PipelinePage() {
         />
       ) : (
         <>
-          <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
+          <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
             <DashboardCard label="En cours" value={open.length} />
             <DashboardCard label="Valeur estimée en cours" value={formatMoney(openValue)} />
             <DashboardCard label="Gagnées" value={won.length} />
             <DashboardCard label="Perdues" value={lost.length} />
+            <DashboardCard label="Taux de réussite" value={decided ? `${Math.round((won.length / decided) * 100)} %` : "—"} />
+            <DashboardCard label="Relances du jour / en retard" value={`${dueToday} / ${overdue}`} />
           </div>
+          {(dueToday > 0 || overdue > 0) && (
+            <p className="mb-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900 ring-1 ring-amber-200">
+              {dueToday > 0 && `${dueToday} relance${dueToday > 1 ? "s" : ""} prévue${dueToday > 1 ? "s" : ""} aujourd'hui. `}
+              {overdue > 0 && `${overdue} relance${overdue > 1 ? "s" : ""} en retard. `}
+              Un e-mail de rappel est envoyé le jour de chaque relance prévue.
+            </p>
+          )}
           <PipelineBoard items={items} />
         </>
       )}

@@ -7,7 +7,10 @@ import { REGIONS } from "@/lib/geo";
 
 const MIN_INDEXABLE = 3;
 
-export const revalidate = 3600;
+// Généré à chaque lecture (les robots le lisent quelques fois par jour) : la version mise en cache
+// pendant le build ne contenait que les pages fixes et n'était jamais régénérée (24 adresses en ligne
+// le 28/10 au lieu de plusieurs milliers).
+export const dynamic = "force-dynamic";
 
 /**
  * Plan du site : pages publiques, opportunités publiées et publiques, entreprises
@@ -22,9 +25,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const url = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_PUBLISHABLE_KEY ?? process.env.SUPABASE_ANON_KEY;
-  // Préparation du site (build) : pages fixes seulement, sans dépendre de la base ; le plan complet
-  // est régénéré au premier passage d'un robot puis toutes les heures.
-  if (!url || !key || process.env.NEXT_PHASE === "phase-production-build") return entries;
+  if (!url || !key) return entries;
   // Client anonyme : seules les données publiques sont lisibles (RLS).
   // Base lente ou indisponible (préparation du site, incident) : requête abandonnée au bout de 15 s,
   // le plan du site est alors servi avec les pages fixes et régénéré à l'heure suivante.

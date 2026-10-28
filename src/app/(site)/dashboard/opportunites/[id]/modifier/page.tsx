@@ -15,7 +15,7 @@ export default async function EditOpportunityPage(props: PageProps<"/dashboard/o
   const { data: o } = await supabase.from("opportunities").select("*, documents:opportunity_documents(id, file_name)").eq("id", id).maybeSingle();
   if (!o || !session.memberships.some((m) => m.company.id === o.company_id)) notFound();
   const [places, departments] = await Promise.all([getPlaces(), getDepartments()]);
-  const editable = ["DRAFT", "CHANGES_REQUESTED", "REJECTED", "PUBLISHED", "PENDING_REVIEW"].includes(o.status);
+  const editable = ["DRAFT", "CHANGES_REQUESTED", "REJECTED", "PUBLISHED", "PAUSED", "PENDING_REVIEW"].includes(o.status);
   return (
     <div>
       <Link href={`/dashboard/opportunites/${id}`} className="text-sm font-semibold text-teal-700 hover:underline">
@@ -26,6 +26,11 @@ export default async function EditOpportunityPage(props: PageProps<"/dashboard/o
         <Notice tone="warning">Cette opportunité ne peut plus être modifiée (statut : {o.status}).</Notice>
       ) : (
         <>
+          {o.status === "PAUSED" && (
+            <Notice tone="info" className="mb-6">
+              Ce besoin est en pause : une modification du contenu le renverra en validation avant republication.
+            </Notice>
+          )}
           {o.status === "PUBLISHED" && (
             <Notice tone="info" className="mb-6">
               Cette opportunité est publiée : une modification du titre, de la description, du résumé ou du budget la renverra en validation avant

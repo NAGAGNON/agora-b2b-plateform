@@ -257,10 +257,10 @@ export async function updateOpportunity(_prev: ActionResult<{ id: string; intent
   return { ok: true, data: { id, intent: d.intent } };
 }
 
-const statusChange = z.object({ id: z.uuid(), to: z.enum(["PENDING_REVIEW", "DRAFT", "ARCHIVED"]) });
+const statusChange = z.object({ id: z.uuid(), to: z.enum(["PENDING_REVIEW", "DRAFT", "ARCHIVED", "PAUSED", "PUBLISHED"]) });
 
 /** Changements de statut autorisés au demandeur (contrôlés aussi en base). */
-export async function changeOpportunityStatus(id: string, to: "PENDING_REVIEW" | "DRAFT" | "ARCHIVED"): Promise<ActionResult> {
+export async function changeOpportunityStatus(id: string, to: "PENDING_REVIEW" | "DRAFT" | "ARCHIVED" | "PAUSED" | "PUBLISHED"): Promise<ActionResult> {
   const parsed = statusChange.safeParse({ id, to });
   if (!parsed.success) return { ok: false, error: "Requête invalide." };
   const { supabase } = await ctx();
@@ -270,11 +270,23 @@ export async function changeOpportunityStatus(id: string, to: "PENDING_REVIEW" |
       await supabase.from("opportunities").update({ publisher_attested_at: new Date().toISOString() }).eq("id", id);
     }
   }
-  const { error } = await supabase.from("opportunities").update({ status: to }).eq("id", id);
+  // Reprise : seul un besoin en pause peut repasser « Publiée » (contrôlé aussi en base)
+  if (to === "PUBLISHED") {
+    const { data } = await supabase.from("opportunities").select("status").eq("id", id).maybeSingle();
+    if (data?.status !== "PAUSED") return { ok: false, error: "Seul un besoin en pause peut être repris." };
+  }
+  const { data: updated, error } = await supabase.from("opportunities").update({ status: to }).eq("id", id).select("status").maybeSingle();
   if (error) return actionError(error);
   revalidatePath(`/dashboard/opportunites/${id}`);
   revalidatePath("/dashboard/opportunites");
-  const labels = { PENDING_REVIEW: "Envoyée en validation.", DRAFT: "Repassée en brouillon.", ARCHIVED: "Archivée." };
+  revalidatePath(`/opportunites/${id}`);
+  const labels = {
+    PENDING_REVIEW: "Envoyée en validation.",
+    DRAFT: "Repassée en brouillon.",
+    ARCHIVED: "Archivée.",
+    PAUSED: "Besoin mis en pause : il n'apparaît plus dans les recherches.",
+    PUBLISHED: updated?.status === "PENDING_REVIEW" ? "Besoin modifié pendant la pause : il repasse en validation avant republication." : "Publication reprise.",
+  };
   return { ok: true, message: labels[to] };
 }
 

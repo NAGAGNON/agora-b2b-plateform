@@ -9,11 +9,15 @@ import { Notice } from "@/components/ui/notice";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { RecommendationList } from "@/components/dashboard/recommendations";
 import { GettingStarted } from "@/components/dashboard/getting-started";
+import { NextActions } from "@/components/dashboard/next-actions";
 import { getSectorLabels, showDemoData } from "@/lib/queries/platform";
 import { PIPELINE_STAGES, type PipelineStage } from "@/lib/constants";
 import { formatMoney, relativeTime } from "@/lib/format";
 
 export const metadata = { title: "Tableau de bord" };
+
+/** Heure courante (hors rendu pur). */
+const nowMs = () => Date.now();
 
 export default async function DashboardPage(props: PageProps<"/dashboard">) {
   const sectorLabels = await getSectorLabels();
@@ -119,6 +123,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
         </div>
       </div>
 
+      <NextActions companyId={cid} userId={session.userId} buyer={buyer} supplier={supplier} now={nowMs()} />
       <GettingStarted
         steps={[
           { done: missing.length === 0, label: "Compléter le profil de l'entreprise", hint: "Secteurs, zone, compétences : la base de vos recommandations.", href: "/dashboard/entreprise", cta: "Compléter le profil" },
