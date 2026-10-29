@@ -11,7 +11,7 @@ test("publier : décrire son besoin avant de créer son compte, puis le retrouve
   await draft.getByLabel("Décrivez votre besoin").fill("Entretien annuel de trois chaudières gaz dans nos bureaux de Brest.");
   await draft.getByLabel("Ville").fill("Brest");
   await draft.getByRole("button", { name: "Continuer" }).click();
-  await expect(page).toHaveURL(/\/inscription\?suite=%2Fpublier/);
+  await expect(page).toHaveURL(/\/inscription\?suite=(%2F|\/)publier/);
   await signUpWithCompany(page, "brouillon", `E2E Brouillon ${RUN}`, "Entreprise demandeuse");
   await page.goto("/publier");
   await expect(page.getByText("Votre besoin a été repris")).toBeVisible();
