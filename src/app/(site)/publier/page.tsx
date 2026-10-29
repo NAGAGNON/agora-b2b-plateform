@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { CheckCircle2, ShieldCheck, Clock, Users } from "lucide-react";
 import { PublishWizard } from "@/components/opportunities/publish-wizard";
+import { NeedDraftForm } from "@/components/opportunities/need-draft-form";
 import { ButtonLink } from "@/components/ui/button";
 import { Notice } from "@/components/ui/notice";
 import { getSession } from "@/lib/auth";
@@ -48,21 +49,21 @@ export default async function PublishPage() {
           <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-xl shadow-navy/5 sm:p-10">
             {!session ? (
               <>
-                <h2 className="text-xl font-bold">Commencez en 2 minutes</h2>
-                <p className="mt-2 text-slate-600">Un compte et le profil de votre entreprise sont nécessaires pour publier.</p>
-                <div className="mt-6 flex flex-col gap-3">
-                  <ButtonLink href="/inscription?suite=/publier" size="lg" full>
-                    Créer un compte gratuit
-                  </ButtonLink>
-                  <ButtonLink href="/connexion?suite=/publier" size="lg" variant="outline" full>
+                <h2 className="text-xl font-bold">Décrivez votre besoin</h2>
+                <p className="mt-2 mb-6 text-slate-600">30 secondes pour commencer. Votre compte gratuit se crée juste après, avec votre besoin déjà rempli.</p>
+                <NeedDraftForm sectors={await getSectors()} />
+                <p className="mt-4 text-center text-sm">
+                  <Link href="/connexion?suite=/publier" className="font-semibold text-teal-700 hover:underline">
                     J&apos;ai déjà un compte
-                  </ButtonLink>
-                </div>
+                  </Link>
+                </p>
               </>
             ) : (
               <>
                 <h2 className="text-xl font-bold">Dernière étape avant de publier</h2>
-                <p className="mt-2 text-slate-600">Créez le profil de votre entreprise : il apparaîtra sur vos publications.</p>
+                <p className="mt-2 text-slate-600">
+                  Créez le profil de votre entreprise : il apparaîtra sur vos publications. Si vous avez déjà décrit votre besoin, il sera repris automatiquement.
+                </p>
                 <ButtonLink href="/onboarding/entreprise?suite=/publier" size="lg" full className="mt-6">
                   Créer mon entreprise
                 </ButtonLink>

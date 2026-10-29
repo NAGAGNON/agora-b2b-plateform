@@ -1,9 +1,9 @@
 "use client";
 
 import { useActionState, useState, type ComponentProps } from "react";
-import { Eye, EyeOff } from "lucide-react";
+import { Check, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
-import { requestPasswordReset, signIn, signUp, updatePassword } from "@/app/actions/auth";
+import { requestPasswordReset, resendConfirmation, signIn, signUp, updatePassword } from "@/app/actions/auth";
 import { Checkbox, Field, FieldError, Input } from "@/components/ui/form";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { Notice } from "@/components/ui/notice";
@@ -28,6 +28,7 @@ export function SignInForm({ next, referral }: { next?: string; referral?: strin
         </Link>
       </div>
       {state && !state.ok && !fe && <Notice tone="error">{state.error}</Notice>}
+      {state && !state.ok && /pas encore confirmée/.test(state.error) && <ResendConfirmation />}
       <SubmitButton full size="lg" pendingLabel="Connexion…">
         Se connecter
       </SubmitButton>
@@ -55,6 +56,46 @@ function PasswordInput(props: ComponentProps<"input">) {
   );
 }
 
+/** Nouveau lien d'activation (e-mail perdu, lien expiré, courrier indésirable). */
+export function ResendConfirmation({ email = "" }: { email?: string }) {
+  const [state, action] = useActionState(resendConfirmation, null);
+  if (state?.ok) return <Notice tone="success">{state.message}</Notice>;
+  return (
+    <form action={action} className="rounded-xl border border-slate-200 bg-canvas p-4" noValidate>
+      <p className="text-sm font-semibold text-navy">E-mail d&apos;activation non reçu ?</p>
+      <p className="mt-1 text-sm text-slate-600">Vérifiez vos courriers indésirables, ou recevez un nouveau lien.</p>
+      <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+        <Input name="email" type="email" defaultValue={email} aria-label="Adresse e-mail" autoComplete="email" required className="sm:flex-1" />
+        <SubmitButton variant="outline" pendingLabel="Envoi…">
+          Renvoyer le lien
+        </SubmitButton>
+      </div>
+      {state && !state.ok && <p className="mt-2 text-sm text-red-700">{state.error}</p>}
+    </form>
+  );
+}
+
+/** Règles du mot de passe vérifiées pendant la saisie (moins d'échecs à l'envoi). */
+function PasswordRules({ value }: { value: string }) {
+  const rules = [
+    { ok: value.length >= 10, label: "10 caractères" },
+    { ok: /[A-Z]/.test(value), label: "une majuscule" },
+    { ok: /[a-z]/.test(value), label: "une minuscule" },
+    { ok: /[0-9]/.test(value), label: "un chiffre" },
+  ];
+  return (
+    <ul className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs" aria-live="polite">
+      {rules.map((r) => (
+        <li key={r.label} className={`flex items-center gap-1 ${r.ok ? "font-semibold text-teal-700" : "text-slate-500"}`}>
+          <Check className={`size-3.5 ${r.ok ? "" : "opacity-30"}`} aria-hidden />
+          {r.label}
+          <span className="sr-only">{r.ok ? " : respecté" : " : à compléter"}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 type SignUpValues = { fullName: string; email: string; password: string; terms: boolean; marketing: boolean };
 
 export function SignUpForm({ referral, next, defaultEmail }: { referral?: string; next?: string; defaultEmail?: string }) {
@@ -73,7 +114,16 @@ export function SignUpForm({ referral, next, defaultEmail }: { referral?: string
     return result;
   }, null);
   const fe = state && !state.ok ? state.fieldErrors : undefined;
-  if (state?.ok) return <Notice tone="success" title="Vérifiez votre boîte mail">{state.message}</Notice>;
+  const [password, setPassword] = useState(values.password);
+  if (state?.ok)
+    return (
+      <div className="space-y-4">
+        <Notice tone="success" title="Vérifiez votre boîte mail">
+          {state.message}
+        </Notice>
+        <ResendConfirmation email={values.email} />
+      </div>
+    );
   return (
     <form action={action} className="space-y-5" noValidate>
       {referral && <input type="hidden" name="ref" value={referral} />}
@@ -84,9 +134,12 @@ export function SignUpForm({ referral, next, defaultEmail }: { referral?: string
       <Field label="Adresse e-mail professionnelle" name="email" error={fe?.email} required>
         {(p) => <Input {...p} type="email" autoComplete="email" inputMode="email" defaultValue={values.email} />}
       </Field>
-      <Field label="Mot de passe" name="password" error={fe?.password} required hint="10 caractères minimum, avec majuscule, minuscule et chiffre.">
-        {(p) => <PasswordInput {...p} autoComplete="new-password" minLength={10} defaultValue={values.password} />}
-      </Field>
+      <div>
+        <Field label="Mot de passe" name="password" error={fe?.password} required>
+          {(p) => <PasswordInput {...p} autoComplete="new-password" minLength={10} defaultValue={values.password} onChange={(e) => setPassword(e.currentTarget.value)} />}
+        </Field>
+        <PasswordRules value={password} />
+      </div>
       <div>
         <Checkbox
           name="terms"

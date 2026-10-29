@@ -5,6 +5,7 @@ import { timingSafeEqual } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { env } from "@/lib/env";
 import { processAlertDigests, processEmailOutbox } from "@/lib/email/outbox";
+import { appSendsAuthEmails, remindUnconfirmedSignups } from "@/lib/email/auth-emails";
 import { processLeadDigests } from "@/lib/alert-leads";
 import { processMissingLogos } from "@/lib/company-logos";
 import { processNeedCampaigns } from "@/lib/needs";
@@ -91,6 +92,8 @@ async function run(req: Request) {
     if (error) throw error;
     return data;
   });
+  // Inscrits qui n'ont jamais activé leur compte : un seul rappel avec un nouveau lien (1 à 7 jours après)
+  await step("rappel-activation", async () => (appSendsAuthEmails() ? remindUnconfirmedSignups() : { skipped: "aucun fournisseur d'e-mail" }));
   await step("emails", () => processEmailOutbox(elapsed() < 220_000 ? 200 : 40));
   await step("logos", async () => (elapsed() < 200_000 ? processMissingLogos(createAdminClient(), { limit: 20, deadline: started + 230_000 }) : { skipped: "reporté au passage suivant (temps insuffisant)" }));
   // Lignes de campagne inutiles (entreprises sans adresse, déjà contactées) des jours passés : par paquets
