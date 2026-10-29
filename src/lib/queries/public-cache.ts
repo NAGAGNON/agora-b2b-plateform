@@ -24,7 +24,7 @@ export async function isAnonymousVisitor() {
 function anonClient() {
   return createSupabase<Database>(env.supabaseServerUrl, env.supabasePublishableKey, {
     auth: { persistSession: false, autoRefreshToken: false },
-    global: { fetch: (input, init) => fetch(input, { ...init, signal: init?.signal ?? AbortSignal.timeout(8_000) }) },
+    global: { fetch: (input, init) => fetch(input, { ...init, signal: init?.signal ?? AbortSignal.timeout(12_000) }) },
   });
 }
 
@@ -35,9 +35,17 @@ function anonClient() {
  */
 const cachedRpc = unstable_cache(
   async (fn: string, args: Record<string, unknown>) => {
-    const { data, error } = await anonClient().rpc(fn as Rpc, args as never);
-    if (error) throw new Error(error.message);
-    return data as unknown;
+    // Une seconde tentative si la base est momentanément occupée (envois de prospection en cours)
+    for (let attempt = 1; ; attempt++) {
+      try {
+        const { data, error } = await anonClient().rpc(fn as Rpc, args as never);
+        if (error) throw new Error(error.message);
+        return data as unknown;
+      } catch (e) {
+        if (attempt >= 2) throw e;
+        await new Promise((r) => setTimeout(r, 1_500));
+      }
+    }
   },
   ["public-rpc-v1"],
   { revalidate: PUBLIC_TTL_S, tags: [PUBLIC_CACHE_TAG] },

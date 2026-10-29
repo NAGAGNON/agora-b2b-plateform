@@ -112,7 +112,7 @@ export const NEED_RULES: { re: RegExp; profile: string; naf: string[] }[] = [
   { re: /\b(telephonie|fibre optique|telecom\w*|wifi|reseau radio|radiocommunication\w*)\b/, profile: "Intégrateurs télécoms et installateurs de réseaux", naf: ["61.10Z", "61.20Z", "42.22Z"] },
   { re: /\b(menuiser\w*|fenetres?|portes?|huisseries?)\b/, profile: "Menuisiers", naf: ["43.32A", "43.32B", "16.23Z"] },
   { re: /\b(peinture|revetements? (de sols?|muraux)|sols souples|platrerie|cloisons?|faux plafonds?)\b/, profile: "Peintres, plâtriers et entreprises de finitions", naf: ["43.34Z", "43.31Z", "43.33Z"] },
-  { re: /\b(couverture|etancheite|toitures?|charpente\w*|zinguerie)\b/, profile: "Couvreurs, charpentiers et étancheurs", naf: ["43.91A", "43.91B", "43.99A"] },
+  { re: /\b(travaux de couverture|couverture (en |de )?(tuiles?|ardoises?|zinc|bac|toiture)|couvreur\w*|etancheite|toitures?|charpente\w*|zinguerie)\b/, profile: "Couvreurs, charpentiers et étancheurs", naf: ["43.91A", "43.91B", "43.99A"] },
   { re: /\b(maconnerie|gros oeuvre|beton|demolition|desamiantage)\b/, profile: "Maçons et entreprises de gros œuvre", naf: ["43.99C", "41.20A", "41.20B", "43.11Z"] },
   { re: /\b(terrassement|voirie|enrobes?|chaussees?|routes?|signalisation routiere)\b/, profile: "Entreprises de terrassement et de voirie", naf: ["42.11Z", "43.12A", "43.12B"] },
   { re: /\b(assainissement|reseaux humides|canalisations?|eau potable|station d epuration)\b/, profile: "Entreprises de réseaux d'eau et d'assainissement", naf: ["42.21Z", "37.00Z", "36.00Z"] },

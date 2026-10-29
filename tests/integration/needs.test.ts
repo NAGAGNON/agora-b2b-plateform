@@ -152,7 +152,7 @@ describe("Mise en relation d'un besoin publié", () => {
     const mail = buildEmail(bundle, await loadReferentials(admin), { withPixel: false });
     expect(mail.subject).toContain("Maintenance de compresseurs");
     expect(mail.html).toContain("ENVOYER UN MESSAGE");
-    expect(mail.html).toMatch(/Budget indiqué : <strong[^>]*>8\s000 € à 12\s000 €/);
+    expect(mail.html).toMatch(/Budget indiqué<\/td>\s*<td[^>]*>8\s000 € à 12\s000 €/);
     expect(mail.html).toContain(`?o=${needId}&amp;m=1`);
     expect(mail.text).toContain("Ne plus recevoir");
     expect(mail.html).not.toMatch(/\bIA\b|intelligence artificielle/);

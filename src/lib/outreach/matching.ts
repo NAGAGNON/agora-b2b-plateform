@@ -57,13 +57,19 @@ export function analyzeOpportunity(o: OpportunityInput): OpportunityAnalysis {
   const primaryNaf: string[] = [];
   // Le titre prime : les règles déclenchées par le titre passent en premier.
   const title = normalizeText(o.title);
-  const rules = [...NEED_RULES.filter((r) => r.re.test(title)), ...NEED_RULES.filter((r) => !r.re.test(title) && r.re.test(text))].slice(0, 4);
+  const sector = o.sector_slug && SECTOR_PROFILES[o.sector_slug] ? o.sector_slug : null;
+  const sp = sector ? SECTOR_PROFILES[sector] : null;
+  // Secteur connu : seules les règles d'un métier de ce secteur (même division NAF) sont retenues.
+  // Évite les homonymes (« couverture » d'assurance → couvreurs, « maintenance » d'un site web →
+  // mainteneurs industriels, « portes » d'une salle de radiologie → menuisiers…).
+  const divisions = new Set((sp?.naf ?? []).map((n) => n.slice(0, 2)));
+  const compatible = (r: (typeof NEED_RULES)[number]) => !sp || r.naf.some((n) => divisions.has(n.slice(0, 2)));
+  const usable = NEED_RULES.filter(compatible);
+  const rules = [...usable.filter((r) => r.re.test(title)), ...usable.filter((r) => !r.re.test(title) && r.re.test(text))].slice(0, 4);
   for (const r of rules) {
     if (!profiles.includes(r.profile)) profiles.push(r.profile);
     for (const n of r.naf) if (!primaryNaf.includes(n)) primaryNaf.push(n);
   }
-  const sector = o.sector_slug && SECTOR_PROFILES[o.sector_slug] ? o.sector_slug : null;
-  const sp = sector ? SECTOR_PROFILES[sector] : null;
   for (const p of sp?.profiles ?? []) if (!profiles.includes(p)) profiles.push(p);
   const keywords = [...new Set([...o.skills, ...o.keywords].map((k) => normalizeText(k)).filter((k) => k.length >= 3))].slice(0, 10);
   for (const t of significantTerms(o.title)) if (!keywords.includes(t) && keywords.length < 14) keywords.push(t);

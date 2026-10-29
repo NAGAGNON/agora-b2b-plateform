@@ -1,4 +1,5 @@
-import { escapeHtml } from "@/lib/email/templates";
+import { escapeHtml } from "@/lib/email/escape";
+import { button, callout, cards, facts, note, noteLink, paragraph, sectorBannerUrl, sectorThumbUrl, shell, C } from "@/lib/email/design";
 
 /**
  * E-mail de veille commerciale : une entreprise, ses opportunités du jour
@@ -15,6 +16,8 @@ export type EmailOpportunity = {
   summary: string | null;
   source: string | null;
   url: string;
+  /** Secteur (slug) : photo de la carte. */
+  sectorSlug?: string | null;
 };
 
 export type OutreachEmailInput = {
@@ -40,62 +43,49 @@ export function fillTemplate(template: string, vars: Record<string, string>): st
   return template.replace(/\{(\w+)\}/g, (m, k: string) => (k in vars ? vars[k] : m)).replace(/\s+([,.])/g, "$1").trim();
 }
 
-const C = { navy: "#0F2D4A", teal: "#14B8A6", tealDark: "#0F766E", sky: "#E8F4FD", slate: "#334155", muted: "#64748B", border: "#E2E8F0" };
-
-function card(o: EmailOpportunity): string {
-  const meta = [o.sector, o.location].filter(Boolean).map((v) => escapeHtml(v!)).join(" &nbsp;·&nbsp; ");
-  return `<tr><td style="padding:0 0 14px">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid ${C.border};border-radius:12px;background:#ffffff">
-<tr><td style="padding:18px 20px">
-${meta ? `<p style="margin:0 0 6px;font-size:12px;line-height:18px;color:${C.tealDark};font-weight:600;text-transform:uppercase;letter-spacing:.3px">${meta}</p>` : ""}
-<p style="margin:0 0 8px;font-size:16px;line-height:22px;font-weight:700;color:${C.navy}">${escapeHtml(o.title)}</p>
-${o.summary ? `<p style="margin:0 0 10px;font-size:14px;line-height:20px;color:${C.slate}">${escapeHtml(o.summary)}</p>` : ""}
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
-<td style="font-size:13px;line-height:18px;color:${C.muted}">${o.deadline ? `Date limite : <strong style="color:${C.navy}">${escapeHtml(o.deadline)}</strong>` : "Date limite : voir l'annonce"}${o.source ? `<br>Source : ${escapeHtml(o.source)}` : ""}</td>
-<td align="right" style="white-space:nowrap;padding-left:12px"><a href="${escapeHtml(o.url)}" style="display:inline-block;border:1px solid ${C.navy};color:${C.navy};padding:8px 14px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none">Voir l'opportunité</a></td>
-</tr></table>
-</td></tr></table>
-</td></tr>`;
+/** Famille de secteur la plus représentée (photo d'en-tête). */
+function mainSector(items: EmailOpportunity[]): string | null {
+  const count = new Map<string, number>();
+  for (const o of items) if (o.sectorSlug) count.set(o.sectorSlug, (count.get(o.sectorSlug) ?? 0) + 1);
+  return [...count.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
 }
+
+const footerNotes = (i: { reason: string; dataSource: string; sender: string[]; unsubscribeUrl: string }, unsubscribe: string, extra = "") =>
+  note(escapeHtml(i.reason)) + note(`${extra}${escapeHtml(i.dataSource)}`) + note(i.sender.map(escapeHtml).join("<br>")) + note(noteLink(unsubscribe, i.unsubscribeUrl));
 
 export function renderOutreachEmail(i: OutreachEmailInput): { subject: string; html: string; text: string } {
   const n = i.opportunities.length;
-  const preheader = `${n} opportunité${n > 1 ? "s" : ""} sélectionnée${n > 1 ? "s" : ""} pour ${i.companyName}`;
-  const html = `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><title>${escapeHtml(i.subject)}</title></head>
-<body style="margin:0;padding:0;background:${C.sky};font-family:Inter,Segoe UI,Arial,sans-serif;-webkit-text-size-adjust:100%">
-<div style="display:none;max-height:0;overflow:hidden;opacity:0">${escapeHtml(preheader)}</div>
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${C.sky}"><tr><td align="center" style="padding:24px 12px">
-<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px">
-<tr><td style="background:${C.navy};border-radius:14px 14px 0 0;padding:20px 28px">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
-<td><a href="${escapeHtml(i.siteUrl)}" style="text-decoration:none"><img src="${escapeHtml(i.siteUrl)}/brand/logo-white.png" width="150" alt="LinkProB2B" style="display:block;border:0;width:150px;height:auto;color:#ffffff;font-size:20px;font-weight:700"></a></td>
-<td align="right" style="color:#CBD5E1;font-size:12px;line-height:16px">Veille opportunités<br>B2B</td>
-</tr></table>
-</td></tr>
-<tr><td style="background:#ffffff;padding:28px 28px 8px">
-<p style="margin:0 0 6px;font-size:13px;color:${C.tealDark};font-weight:700;text-transform:uppercase;letter-spacing:.4px">Sélection du jour</p>
-<h1 style="margin:0 0 14px;font-size:22px;line-height:28px;color:${C.navy}">${n} opportunité${n > 1 ? "s" : ""} correspondant à votre activité</h1>
-<p style="margin:0 0 12px;font-size:15px;line-height:23px;color:${C.slate}">Bonjour ${escapeHtml(i.companyName)},</p>
-<p style="margin:0 0 20px;font-size:15px;line-height:23px;color:${C.slate}">${escapeHtml(i.intro)}</p>
-<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 24px"><tr><td style="border-radius:10px;background:${C.teal}"><a href="${escapeHtml(i.landingUrl)}" style="display:inline-block;padding:14px 26px;font-size:15px;font-weight:700;color:${C.navy};text-decoration:none;border-radius:10px">Découvrir les opportunités</a></td></tr></table>
-</td></tr>
-<tr><td style="background:#ffffff;padding:0 28px 8px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0">${i.opportunities.map(card).join("")}</table></td></tr>
-<tr><td style="background:#ffffff;padding:8px 28px 28px;border-radius:0 0 14px 14px">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${C.sky};border-radius:12px"><tr><td style="padding:18px 20px">
-<p style="margin:0 0 6px;font-size:15px;line-height:22px;font-weight:700;color:${C.navy}">Recevez automatiquement les prochaines opportunités</p>
-<p style="margin:0 0 12px;font-size:14px;line-height:20px;color:${C.slate}">LinkProB2B rassemble chaque jour les appels d'offres et besoins d'entreprises partout en France. Créez un compte gratuit pour recevoir les opportunités adaptées à votre activité.</p>
-<a href="${escapeHtml(i.signupUrl)}" style="color:${C.tealDark};font-size:14px;font-weight:700">Créer mon compte gratuitement →</a>
-</td></tr></table>
-</td></tr>
-<tr><td style="padding:20px 28px;font-size:12px;line-height:18px;color:${C.muted}">
-<p style="margin:0 0 8px">${escapeHtml(i.reason)}</p>
-<p style="margin:0 0 8px">Les opportunités proviennent de sources publiques (BOAMP, TED…) ou d'entreprises inscrites sur LinkProB2B ; l'annonce officielle fait foi. ${escapeHtml(i.dataSource)}</p>
-<p style="margin:0 0 8px">${i.sender.map(escapeHtml).join("<br>")}</p>
-<p style="margin:0"><a href="${escapeHtml(i.unsubscribeUrl)}" style="color:${C.muted}">Ne plus recevoir ces sélections</a></p>
-</td></tr>
-</table></td></tr></table>
-${i.pixelUrl ? `<img src="${escapeHtml(i.pixelUrl)}" width="1" height="1" alt="" style="display:block;border:0;width:1px;height:1px">` : ""}
-</body></html>`;
+  const html = shell({
+    base: i.siteUrl,
+    subject: i.subject,
+    preheader: `${n} opportunité${n > 1 ? "s" : ""} sélectionnée${n > 1 ? "s" : ""} pour ${i.companyName}`,
+    kicker: "Sélection du jour",
+    title: `${n} opportunité${n > 1 ? "s" : ""} correspondant à votre activité`,
+    heroImage: sectorBannerUrl(i.siteUrl, mainSector(i.opportunities)),
+    body:
+      paragraph(`Bonjour ${i.companyName},`) +
+      paragraph(i.intro) +
+      button("Découvrir les opportunités", i.landingUrl) +
+      cards(
+        i.opportunities.map((o) => ({
+          kicker: o.sector,
+          title: o.title,
+          url: o.url,
+          summary: o.summary,
+          meta: [o.location, o.source ? `Source : ${o.source}` : null].filter((x): x is string => Boolean(x)),
+          deadline: o.deadline,
+          image: sectorThumbUrl(i.siteUrl, o.sectorSlug),
+        })),
+      ) +
+      callout({
+        kicker: "Gratuit",
+        title: "Recevez automatiquement les prochaines opportunités",
+        text: "LinkProB2B rassemble chaque jour les appels d'offres et besoins d'entreprises partout en France. Créez un compte gratuit pour recevoir les opportunités adaptées à votre activité.",
+        cta: { label: "Créer mon compte gratuitement", url: i.signupUrl },
+      }),
+    notes: footerNotes(i, "Ne plus recevoir ces sélections", "Les opportunités proviennent de sources publiques (BOAMP, TED…) ou d'entreprises inscrites sur LinkProB2B ; l'annonce officielle fait foi. "),
+    pixelUrl: i.pixelUrl,
+  });
   const text = [
     `${n} opportunité${n > 1 ? "s" : ""} correspondant à votre activité`,
     "",
@@ -142,44 +132,37 @@ export type NeedEmailInput = {
  */
 export function renderNeedEmail(i: NeedEmailInput): { subject: string; html: string; text: string } {
   const n = i.need;
-  const facts = [
+  const pairs = [
     n.sector ? ["Secteur", n.sector] : null,
     n.location ? ["Lieu", n.location] : null,
     n.budget ? ["Budget indiqué", n.budget] : null,
     n.deadline ? ["Réponse souhaitée avant le", n.deadline] : null,
-  ].filter((x): x is string[] => Boolean(x));
+  ].filter((x): x is [string, string] => Boolean(x));
   const intro = `Une entreprise a publié sur LinkProB2B un besoin qui pourrait correspondre à l'activité de ${i.companyName}.`;
   const why = `Au regard de votre activité (${i.activity})${n.location ? ` et de votre localisation` : ""}, nous pensons que cette demande peut vous intéresser. Vous pouvez consulter le détail et écrire directement à l'entreprise qui l'a publiée.`;
-  const html = `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><title>${escapeHtml(i.subject)}</title></head>
-<body style="margin:0;padding:0;background:${C.sky};font-family:Inter,Segoe UI,Arial,sans-serif;-webkit-text-size-adjust:100%">
-<div style="display:none;max-height:0;overflow:hidden;opacity:0">${escapeHtml(n.title)}</div>
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${C.sky}"><tr><td align="center" style="padding:24px 12px">
-<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px">
-<tr><td style="background:${C.navy};border-radius:14px 14px 0 0;padding:20px 28px"><a href="${escapeHtml(i.siteUrl)}" style="text-decoration:none"><img src="${escapeHtml(i.siteUrl)}/brand/logo-white.png" width="150" alt="LinkProB2B" style="display:block;border:0;width:150px;height:auto;color:#ffffff;font-size:20px;font-weight:700"></a></td></tr>
-<tr><td style="background:#ffffff;padding:28px 28px 8px">
-<p style="margin:0 0 6px;font-size:13px;color:${C.tealDark};font-weight:700;text-transform:uppercase;letter-spacing:.4px">Besoin publié par une entreprise</p>
-<p style="margin:0 0 12px;font-size:15px;line-height:23px;color:${C.slate}">Bonjour,</p>
-<p style="margin:0 0 16px;font-size:15px;line-height:23px;color:${C.slate}">${escapeHtml(intro)}</p>
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid ${C.border};border-radius:12px;background:#ffffff;margin:0 0 16px"><tr><td style="padding:18px 20px">
-<p style="margin:0 0 8px;font-size:17px;line-height:23px;font-weight:700;color:${C.navy}">${escapeHtml(n.title)}</p>
-${n.buyer ? `<p style="margin:0 0 8px;font-size:13px;line-height:19px;color:${C.muted}">Publié par ${escapeHtml(n.buyer)}</p>` : ""}
-${n.summary ? `<p style="margin:0 0 12px;font-size:14px;line-height:21px;color:${C.slate}">${escapeHtml(n.summary)}</p>` : ""}
-${facts.map(([k, v]) => `<p style="margin:0 0 4px;font-size:13px;line-height:19px;color:${C.muted}">${escapeHtml(k)} : <strong style="color:${C.navy}">${escapeHtml(v)}</strong></p>`).join("")}
-</td></tr></table>
-<p style="margin:0 0 20px;font-size:15px;line-height:23px;color:${C.slate}">${escapeHtml(why)}</p>
-<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 12px"><tr><td style="border-radius:10px;background:${C.teal}"><a href="${escapeHtml(i.messageUrl)}" style="display:inline-block;padding:14px 28px;font-size:15px;font-weight:800;color:${C.navy};text-decoration:none;border-radius:10px;letter-spacing:.3px">ENVOYER UN MESSAGE</a></td></tr></table>
-<p style="margin:0 0 24px;font-size:13px;line-height:19px;color:${C.muted}">Création d'un compte gratuite, nécessaire pour échanger avec l'entreprise. <a href="${escapeHtml(n.url)}" style="color:${C.tealDark};font-weight:600">Voir le besoin</a></p>
-<p style="margin:0 0 24px;font-size:15px;line-height:23px;color:${C.slate}">L'équipe LinkProB2B</p>
-</td></tr>
-<tr><td style="padding:20px 28px;font-size:12px;line-height:18px;color:${C.muted}">
-<p style="margin:0 0 8px">${escapeHtml(i.reason)}</p>
-<p style="margin:0 0 8px">${escapeHtml(i.dataSource)}</p>
-<p style="margin:0 0 8px">${i.sender.map(escapeHtml).join("<br>")}</p>
-<p style="margin:0"><a href="${escapeHtml(i.unsubscribeUrl)}" style="color:${C.muted}">Ne plus recevoir de messages de LinkProB2B</a></p>
-</td></tr>
-</table></td></tr></table>
-${i.pixelUrl ? `<img src="${escapeHtml(i.pixelUrl)}" width="1" height="1" alt="" style="display:block;border:0;width:1px;height:1px">` : ""}
-</body></html>`;
+  const needCard = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:4px 0 18px;border:1px solid ${C.border};border-left:4px solid ${C.teal};border-radius:12px;background:${C.soft}"><tr><td style="padding:18px 20px">
+<p style="margin:0 0 6px;font-size:18px;line-height:24px;font-weight:800;color:${C.navy}">${escapeHtml(n.title)}</p>
+${n.buyer ? `<p style="margin:0 0 8px;font-size:13px;line-height:19px;color:${C.muted}">Publié par <strong style="color:${C.slate}">${escapeHtml(n.buyer)}</strong></p>` : ""}
+${n.summary ? `<p style="margin:0;font-size:14px;line-height:22px;color:${C.slate}">${escapeHtml(n.summary)}</p>` : ""}
+${facts(pairs)}
+</td></tr></table>`;
+  const html = shell({
+    base: i.siteUrl,
+    subject: i.subject,
+    preheader: n.title,
+    kicker: "Besoin publié par une entreprise",
+    title: "Une entreprise recherche un prestataire",
+    heroImage: sectorBannerUrl(i.siteUrl, n.sectorSlug),
+    body:
+      paragraph("Bonjour,") +
+      paragraph(intro) +
+      needCard +
+      paragraph(why) +
+      button("ENVOYER UN MESSAGE", i.messageUrl) +
+      `<p style="margin:0 0 18px;clear:both;font-size:13px;line-height:19px;color:${C.muted}">Création d'un compte gratuite, nécessaire pour échanger avec l'entreprise. <a href="${escapeHtml(n.url)}" style="color:${C.tealDark};font-weight:600">Voir le besoin</a></p>`,
+    notes: footerNotes(i, "Ne plus recevoir de messages de LinkProB2B"),
+    pixelUrl: i.pixelUrl,
+  });
   const text = [
     "Bonjour,",
     "",
@@ -188,7 +171,7 @@ ${i.pixelUrl ? `<img src="${escapeHtml(i.pixelUrl)}" width="1" height="1" alt=""
     `• ${n.title}`,
     ...(n.buyer ? [`  Publié par ${n.buyer}`] : []),
     ...(n.summary ? [`  ${n.summary}`] : []),
-    ...facts.map(([k, v]) => `  ${k} : ${v}`),
+    ...pairs.map(([k, v]) => `  ${k} : ${v}`),
     "",
     why,
     "",

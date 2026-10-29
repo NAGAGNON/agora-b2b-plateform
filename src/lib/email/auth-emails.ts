@@ -21,6 +21,8 @@ export const AUTH_SUBJECTS = {
 };
 
 export const signupLayout = (url: string): Layout => ({
+  kicker: "Inscription",
+  hero: "equipe",
   title: "Bienvenue sur LinkProB2B",
   paragraphs: [
     "Merci pour votre inscription. Confirmez votre adresse e-mail pour activer votre compte, puis créez la fiche de votre entreprise.",
@@ -31,6 +33,8 @@ export const signupLayout = (url: string): Layout => ({
 });
 
 export const recoveryLayout = (url: string): Layout => ({
+  kicker: "Sécurité du compte",
+  hero: "ordinateurs",
   title: "Réinitialiser votre mot de passe",
   paragraphs: [
     "Une demande de réinitialisation du mot de passe a été faite pour votre compte LinkProB2B.",
@@ -41,6 +45,8 @@ export const recoveryLayout = (url: string): Layout => ({
 });
 
 export const welcomeLayout = (): Layout => ({
+  kicker: "Compte activé",
+  hero: "equipe",
   title: "Votre compte est activé",
   paragraphs: [
     "Prochaine étape : complétez la fiche de votre entreprise (secteurs, compétences, zone d'intervention). Une fiche complète est mieux recommandée aux demandeurs.",

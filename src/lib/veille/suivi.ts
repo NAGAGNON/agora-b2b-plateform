@@ -11,7 +11,8 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
-import { escapeHtml } from "@/lib/email/templates";
+import { escapeHtml } from "@/lib/email/escape";
+import { button, callout, heroUrl, note, noteLink, paragraph, sectorBannerUrl, shell, steps } from "@/lib/email/design";
 import { parisDayStart, parisToday } from "@/lib/daily-report";
 import { clip, renderCards, veilleLinks } from "@/lib/veille/render";
 import { criteriaFor, selectOpportunities, type AudienceMember, type VeilleOpportunity } from "@/lib/veille/select";
@@ -359,34 +360,24 @@ export function renderSuiviEmail(i: SuiviEmailInput): { subject: string; html: s
   const c = content(i);
   const L = veilleLinks(i.base, i.token);
   const cta = link(i.base, i.token, c.cta.page);
-  const cards = i.items.length ? renderCards(i.items, L.item, i) : "";
-  const news = i.news
-    ? `<tr><td style="padding:8px 0 4px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0F2D4A;border-radius:12px"><tr><td style="padding:20px 22px">
-<p style="margin:0 0 6px;font-size:12px;line-height:18px;color:#5EEAD4;font-weight:700;text-transform:uppercase;letter-spacing:.3px">Nouveau sur LinkProB2B</p>
-<p style="margin:0 0 8px;font-size:17px;line-height:23px;font-weight:700;color:#ffffff">${escapeHtml(i.news.title)}</p>
-<p style="margin:0 0 14px;font-size:14px;line-height:21px;color:#dbeafe">${escapeHtml(i.news.text)}</p>
-<a href="${escapeHtml(link(i.base, i.token, i.news.page))}" style="display:inline-block;background:#14B8A6;color:#ffffff;padding:11px 18px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">${escapeHtml(i.news.cta)}</a>
-</td></tr></table></td></tr>`
-    : "";
+  const sector = i.member.sectors[0] ?? i.member.company_sectors[0] ?? null;
   const reason = "Vous recevez cet e-mail car vous avez un compte LinkProB2B. Nous vous écrivons au plus une fois par jour, et seulement s'il y a du nouveau pour vous.";
-  const html = `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><title>${escapeHtml(c.subject)}</title></head>
-<body style="margin:0;padding:0;background:#EEF4F9;font-family:Inter,Segoe UI,Helvetica,Arial,sans-serif;-webkit-text-size-adjust:100%">
-<div style="display:none;max-height:0;overflow:hidden;opacity:0">${escapeHtml(i.items.length ? clip(i.items[0].title, 90) : c.title)}</div>
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#EEF4F9"><tr><td align="center" style="padding:24px 12px">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px">
-<tr><td style="background:#0F2D4A;border-radius:12px 12px 0 0;padding:18px 24px"><a href="${escapeHtml(i.base)}" style="text-decoration:none"><img src="${escapeHtml(i.base)}/brand/logo-white.png" width="170" height="34" alt="LinkProB2B" style="display:block;border:0;width:170px;height:34px"></a></td></tr>
-<tr><td style="background:#F8FAFC;padding:24px 24px 8px;border-radius:0 0 12px 12px">
-<p style="margin:0 0 4px;font-size:12px;color:#0F766E;font-weight:600;letter-spacing:.3px;text-transform:uppercase">${escapeHtml(c.kicker)}</p>
-<h1 style="margin:0 0 16px;font-size:22px;line-height:28px;color:#0F2D4A">${escapeHtml(c.title)}</h1>
-${c.paragraphs.map((p) => `<p style="margin:0 0 12px;font-size:15px;line-height:23px;color:#334155">${escapeHtml(p)}</p>`).join("")}
-${c.checklist.length ? `<ul style="margin:0 0 16px;padding-left:20px;color:#334155;font-size:15px;line-height:23px">${c.checklist.map((x) => `<li style="margin:0 0 6px">${escapeHtml(x)}</li>`).join("")}</ul>` : ""}
-<p style="margin:4px 0 20px"><a href="${escapeHtml(cta)}" style="display:inline-block;background:#14B8A6;color:#ffffff;padding:13px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px">${escapeHtml(c.cta.label)}</a></p>
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0">${cards}${news}</table>
-<p style="margin:20px 0 6px;font-size:12px;line-height:18px;color:#64748b">${escapeHtml(reason)}</p>
-<p style="margin:0 0 20px;font-size:12px;line-height:18px;color:#64748b"><a href="${escapeHtml(L.prefs)}" style="color:#0F2D4A">Gérer mes préférences</a> · <a href="${escapeHtml(L.unsubscribe)}" style="color:#0F2D4A">Ne plus recevoir ces e-mails</a> · LinkProB2B — <a href="${escapeHtml(i.base)}" style="color:#0F2D4A">www.linkprob2b.com</a></p>
-</td></tr></table></td></tr></table>
-${i.token !== "apercu" ? `<img src="${escapeHtml(L.pixel)}" width="1" height="1" alt="" style="display:block;border:0;width:1px;height:1px">` : ""}
-</body></html>`;
+  const html = shell({
+    base: i.base,
+    subject: c.subject,
+    preheader: i.items.length ? clip(i.items[0].title, 90) : c.title,
+    kicker: c.kicker,
+    title: c.title,
+    heroImage: sector ? sectorBannerUrl(i.base, sector) : heroUrl(i.base, "meridiens"),
+    body:
+      c.paragraphs.map(paragraph).join("") +
+      steps(c.checklist) +
+      button(c.cta.label, cta) +
+      (i.items.length ? renderCards(i.items, L.item, i) : "") +
+      (i.news ? callout({ kicker: "Nouveau sur LinkProB2B", title: i.news.title, text: i.news.text, cta: { label: i.news.cta, url: link(i.base, i.token, i.news.page) } }) : ""),
+    notes: note(escapeHtml(reason)) + note(`${noteLink("Gérer mes préférences", L.prefs)} · ${noteLink("Ne plus recevoir ces e-mails", L.unsubscribe)}`),
+    pixelUrl: i.token !== "apercu" ? L.pixel : null,
+  });
   const text = [
     c.title,
     "",

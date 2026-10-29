@@ -52,6 +52,16 @@ describe("outreach — analyse des opportunités", () => {
     expect(d.primaryNaf).toContain("62.01Z");
   });
 
+  it("homonymes écartés : le métier retenu reste celui du secteur de l'annonce", () => {
+    const assurance = analyzeOpportunity(opp({ title: "Sélection d'un courtier pour le replacement de la couverture des risques", description: "Programme d'assurance et couverture de la responsabilité civile.", sector_slug: "assurances-finance" }));
+    expect(assurance.primaryNaf).not.toContain("43.91A");
+    expect(assurance.primaryNaf).toContain("66.22Z");
+    const radio = analyzeOpportunity(opp({ title: "Réaménagement d'une salle de radiologie", description: "Nettoyage, portes et accès de la salle.", sector_slug: "nettoyage-proprete" }));
+    expect(radio.primaryNaf).not.toContain("43.32A");
+    const toiture = analyzeOpportunity(opp({ title: "Travaux de couverture et d'étanchéité de l'école", description: "Réfection de la toiture.", sector_slug: "travaux-btp" }));
+    expect(toiture.primaryNaf).toContain("43.91A");
+  });
+
   it("ne produit aucun métier quand rien ne correspond (pas d'invention)", () => {
     const a = analyzeOpportunity(opp({ title: "Objet sans rapport", description: "Texte neutre sans métier identifiable ici.", sector_slug: null }));
     expect(a.profiles).toEqual([]);
@@ -147,7 +157,7 @@ describe("outreach — e-mail", () => {
       sender: ["LinkProB2B"],
     });
     expect(e.html).toContain("Découvrir les opportunités");
-    expect(e.html.match(/Voir l'opportunité/g)).toHaveLength(2);
+    expect(e.html.match(/Voir l(?:'|&#39;)opportunité/g)).toHaveLength(2);
     expect(e.html).toContain("https://x/desinscription/t");
     expect(e.html).toContain("ACME &lt;script&gt;");
     expect(e.html).not.toContain("<script>");
