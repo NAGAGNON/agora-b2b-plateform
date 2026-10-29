@@ -23,7 +23,7 @@ import { currentStrategy } from "@/lib/growth/engine";
  *     dans la limite quotidienne — en simulation tant que l'envoi réel n'est pas autorisé.
  */
 
-const ENRICH_COMPANY_TIMEOUT_MS = 30_000;
+const ENRICH_COMPANY_TIMEOUT_MS = 45_000;
 const DAY = 86_400_000;
 const chunk = <T,>(arr: T[], n: number) => Array.from({ length: Math.ceil(arr.length / n) }, (_, i) => arr.slice(i * n, i * n + n));
 /** Jour calendaire de Paris (date de campagne, limites quotidiennes). */
@@ -780,7 +780,12 @@ const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
  */
 export async function enrichProspects(db: Db, { campaignId = null, deadline = Date.now() + 60_000 }: { campaignId?: string | null; deadline?: number } = {}) {
   const settings = await loadSettings(db);
-  const searchers = configuredSearchers();
+  // Forfait gratuit Brave épuisé (402) : service mis de côté jusqu'au mois suivant, les méthodes
+  // gratuites continuent seules au lieu de reporter chaque entreprise de 6 h en 6 h
+  const { data: quota } = await db.from("platform_settings").select("value").eq("key", BRAVE_QUOTA_KEY).maybeSingle();
+  const bravePausedUntil = (quota?.value as { paused_until?: string } | null)?.paused_until;
+  const searchers = configuredSearchers({ brave: !bravePausedUntil || bravePausedUntil < new Date().toISOString() });
+  let braveExhausted = false;
   const result = {
     searched: 0,
     found: 0,
@@ -880,6 +885,7 @@ export async function enrichProspects(db: Db, { campaignId = null, deadline = Da
     // Service saturé : l'entreprise reste à rechercher (non décomptée de la limite du jour), mais
     // n'est reprise qu'après quelques heures : les passages suivants cherchent d'autres entreprises
     if (r.status === "ERROR" && r.note?.startsWith("[report]")) {
+      if (/Brave Search : limite de requêtes atteinte \(402\)/.test(r.note)) braveExhausted = true;
       result.deferred++;
       result.searched--;
       const until = new Date(Date.now() + ENRICH_DEFER_HOURS * 3_600_000).toISOString();
@@ -915,6 +921,14 @@ export async function enrichProspects(db: Db, { campaignId = null, deadline = Da
       while (next < work.length && Date.now() < deadline) await handle(work[next++]);
     }),
   );
+  if (braveExhausted) {
+    const now = new Date();
+    const firstOfNextMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1)).toISOString();
+    await db
+      .from("platform_settings")
+      .upsert({ key: BRAVE_QUOTA_KEY, value: { paused_until: firstOfNextMonth }, description: "Brave Search : forfait mensuel épuisé, reprise le mois suivant" })
+      .then(({ error }) => error && logServerError("brave quota", error));
+  }
   return result;
 }
 
@@ -931,6 +945,8 @@ export function errorReason(note: string | null | undefined): string {
   return "autre";
 }
 
+/** Réglage interne : date de reprise de Brave Search après épuisement du forfait mensuel. */
+const BRAVE_QUOTA_KEY = "private.brave_quota";
 /** Délai avant un nouvel essai après une erreur (site lent, panne passagère). */
 const ENRICH_ERROR_RETRY_HOURS = 12;
 /** Recherche reportée (service de recherche saturé) : reprise après ce délai. */
