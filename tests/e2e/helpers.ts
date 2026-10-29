@@ -49,3 +49,10 @@ export async function expectNotFound(page: Page, res: Response | null) {
   await expect(page.getByRole("heading", { name: "Page introuvable" }).first()).toBeVisible();
   if (res?.status() === 200) await expect(page.locator('meta[name="robots"][content*="noindex"]').first()).toBeAttached();
 }
+
+/** Page d'un membre connecté (fournisseur de démonstration) : recherche et fiches réservées aux inscrits. */
+export async function memberPage(browser: Browser, viewport?: { width: number; height: number }): Promise<Page> {
+  const page = await newPage(browser, viewport);
+  await login(page, "fournisseur@demo.linkprob2b.test");
+  return page;
+}

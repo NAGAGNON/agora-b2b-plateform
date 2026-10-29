@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { expectNotFound, newPage } from "./helpers";
+import { expectNotFound, memberPage, newPage } from "./helpers";
 import { GUIDES } from "../../src/content/guides";
 
 test("formulaire de contact : la saisie est conservée quand l'envoi est refusé", async ({ browser }) => {
@@ -20,13 +20,13 @@ test("formulaire de contact : la saisie est conservée quand l'envoi est refusé
 });
 
 test("page régionale : un autre choix de région n'est plus ignoré", async ({ browser }) => {
-  const page = await newPage(browser);
+  const page = await memberPage(browser);
   await page.goto("/opportunites/bretagne?region=normandie");
   await expect(page).toHaveURL(/\/opportunites\?region=normandie$/);
 });
 
 test("pagination au-delà des résultats : page introuvable (jamais une page vide indexée)", async ({ browser }) => {
-  const page = await newPage(browser);
+  const page = await memberPage(browser);
   await expectNotFound(page, await page.goto("/opportunites?page=999"));
   await expectNotFound(page, await page.goto("/analyses?page=500"));
 });

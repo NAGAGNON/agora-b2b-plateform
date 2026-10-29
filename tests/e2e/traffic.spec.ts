@@ -1,7 +1,7 @@
 import { config } from "dotenv";
 import { expect, test } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
-import { RUN, login, newPage, expectNotFound } from "./helpers";
+import { RUN, login, memberPage, newPage, expectNotFound } from "./helpers";
 import { buyerSlug } from "../../src/lib/buyer-slug";
 
 config({ path: ".env.local" });
@@ -43,7 +43,7 @@ test.afterAll(async () => {
 });
 
 test("acheteur public : lien depuis l'offre, page dédiée, liste des acheteurs", async ({ browser }) => {
-  const page = await newPage(browser);
+  const page = await memberPage(browser);
   await page.goto(`/opportunites/${id}`);
   await page.getByRole("link", { name: BUYER }).first().click();
   await expect(page).toHaveURL(new RegExp(`/acheteurs/${buyerSlug(BUYER)}$`));
@@ -62,7 +62,7 @@ test("acheteur public : lien depuis l'offre, page dédiée, liste des acheteurs"
 });
 
 test("boutons de partage d'une offre ouverte", async ({ browser }) => {
-  const page = await newPage(browser);
+  const page = await memberPage(browser);
   await page.goto(`/opportunites/${id}`);
   const offer = encodeURIComponent(`/opportunites/${id}`);
   await expect(page.getByRole("link", { name: /LinkedIn/ })).toHaveAttribute("href", new RegExp(`linkedin\\.com/sharing/share-offsite/\\?url=.*${offer}`));
@@ -90,7 +90,7 @@ test("tableau de bord : message LinkedIn du jour prêt à copier", async ({ brow
 });
 
 test("navigation : réponse immédiate au clic (squelette de chargement) puis contenu", async ({ browser }) => {
-  const page = await newPage(browser);
+  const page = await memberPage(browser);
   // Le lien visible est préchargé (squelette compris) : on attend ce préchargement avant le clic
   const prefetched = page.waitForResponse((r) => /\/opportunites\?_rsc=/.test(r.url()) && Boolean(r.request().headers()["next-router-prefetch"]));
   await page.goto("/");
@@ -115,9 +115,11 @@ test("ingénieurs d'affaires : bouton d'accueil, page dédiée et échéance dan
   await expect(page.getByRole("heading", { level: 1 })).toContainText("Vous êtes ingénieur d'affaires ?");
   await expect(page.getByTestId("engineer-tools").getByRole("listitem")).toHaveCount(8);
   await page.getByRole("link", { name: "Échéances les plus proches" }).click();
-  await expect(page).toHaveURL(/\/opportunites\?tri=deadline/);
+  // Recherche réservée aux membres : inscription, puis retour sur la liste triée
+  await expect(page).toHaveURL(/\/inscription\?suite=%2Fopportunites%3Ftri%3Ddeadline/);
 
-  // Fiche d'une offre ouverte : l'échéance s'ajoute à l'agenda (.ics avec rappels)
+  // Fiche d'une offre ouverte (membre) : l'échéance s'ajoute à l'agenda (.ics avec rappels)
+  await login(page, "fournisseur@demo.linkprob2b.test");
   await page.goto(`/opportunites/${id}`);
   const link = page.getByTestId("deadline-calendar");
   await expect(link).toHaveAttribute("href", `/api/opportunites/${id}/agenda`);

@@ -1,3 +1,4 @@
+import { requireAccount } from "@/lib/members-only";
 import { Directory } from "@/components/companies/directory";
 import { parseCompanyFilters } from "@/lib/search-params";
 import { listingIndexing, pageMetadata } from "@/lib/seo";
@@ -17,6 +18,8 @@ export async function generateMetadata(props: PageProps<"/entreprises">) {
 
 export default async function DirectoryPage(props: PageProps<"/entreprises">) {
   const sp = await props.searchParams;
+  // Recherche réservée aux membres : sans compte, inscription puis retour ici
+  await requireAccount("/entreprises", sp);
   return (
     <>
       <PageHero

@@ -4,7 +4,7 @@ import { login, newPage } from "./helpers";
 
 /** Audit automatique (axe-core, WCAG 2.1 A/AA) : aucune violation grave ou critique. */
 const PUBLIC = ["/", "/opportunites", "/entreprises", "/publier", "/connexion", "/inscription", "/contact", "/comment-ca-marche", "/tarifs", "/faq", "/analyses", "/mentions-legales", "/cgu", "/confidentialite", "/cookies", "/conditions-abonnement"];
-const PRIVATE = ["/dashboard", "/dashboard/abonnement", "/dashboard/alertes", "/dashboard/recommandations", "/dashboard/messages", "/dashboard/pipeline"];
+const PRIVATE = ["/opportunites", "/entreprises", "/dashboard", "/dashboard/abonnement", "/dashboard/alertes", "/dashboard/recommandations", "/dashboard/messages", "/dashboard/pipeline"];
 
 async function audit(page: import("@playwright/test").Page, path: string) {
   await page.goto(path);

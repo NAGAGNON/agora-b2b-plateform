@@ -1,3 +1,4 @@
+import { requireAccount } from "@/lib/members-only";
 import { notFound } from "next/navigation";
 import { OpportunityResults } from "@/components/opportunities/opportunity-results";
 import { FeaturedNeeds } from "@/components/opportunities/featured-needs";
@@ -25,6 +26,8 @@ export async function generateMetadata(props: PageProps<"/opportunites">) {
 
 export default async function OpportunitiesPage(props: PageProps<"/opportunites">) {
   const sp = await props.searchParams;
+  // Recherche réservée aux membres : sans compte, inscription puis retour ici
+  await requireAccount("/opportunites", sp);
   const filters = parseOpportunityFilters(sp);
   // Page au-delà des résultats (ou au-delà de la limite de 500) : page introuvable, jamais une page vide indexée
   const requested = typeof sp.page === "string" ? Number(sp.page) : 1;

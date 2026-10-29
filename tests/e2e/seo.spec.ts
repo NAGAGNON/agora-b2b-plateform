@@ -68,6 +68,8 @@ test("SEO : analyses publiées, données structurées, sitemap et clé IndexNow"
   await expect(page.getByRole("heading", { name: "Analyses des marchés" })).toBeVisible();
   await page.goto("/faq");
   expect((await jsonLd(page)).map((d) => d["@type"])).toContain("FAQPage");
+  // Recherche et fiches réservées aux membres
+  await login(page, "fournisseur@demo.linkprob2b.test");
   await page.goto("/opportunites");
   await page.locator("article h2 a").first().click();
   await page.waitForURL(/\/opportunites\/[0-9a-f-]{36}$/);

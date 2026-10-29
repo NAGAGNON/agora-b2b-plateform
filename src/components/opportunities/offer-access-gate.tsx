@@ -5,18 +5,20 @@ import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/format";
 
 /**
- * Page d'accès d'une offre pour un visiteur venu d'un e-mail de prospection et non connecté :
- * il retrouve les informations déjà présentes dans l'e-mail, mais le détail complet et la
- * source ne sont servis qu'après inscription ou connexion (contrôle côté serveur).
+ * Page d'accès d'une offre pour un visiteur non connecté : il voit l'essentiel (titre, lieu, date
+ * limite), mais le détail complet, les documents et la source ne sont servis qu'après inscription
+ * ou connexion (contrôle côté serveur). Venu d'un e-mail de prospection (`token`), son parcours est
+ * suivi ; sinon il revient sur la fiche après l'inscription.
  */
 export function OfferAccessGate({
   token,
   offer,
 }: {
-  token: string;
+  token?: string | null;
   offer: { id: string; title: string; buyer: string | null; location: string | null; sector: string | null; deadline: string | null; budget: string | null };
 }) {
-  const go = (a: "inscription" | "connexion") => `/api/outreach/acces/${token}?o=${offer.id}&a=${a}`;
+  const suite = encodeURIComponent(`/opportunites/${offer.id}`);
+  const go = (a: "inscription" | "connexion") => (token ? `/api/outreach/acces/${token}?o=${offer.id}&a=${a}` : `/${a}?suite=${suite}`);
   return (
     <div className="bg-sky/40">
       <div className="container-page py-10 sm:py-16">
@@ -26,7 +28,9 @@ export function OfferAccessGate({
           </span>
           <h1 className="mt-4 text-2xl leading-tight font-bold sm:text-3xl">Créez votre compte pour accéder à cette offre</h1>
           <p className="mt-3 text-slate-700">
-            Cette offre vous a été recommandée personnellement. Créez votre compte gratuitement pour voir les détails et accéder à l&apos;offre.
+            {token
+              ? "Cette offre vous a été recommandée personnellement. Créez votre compte gratuitement pour voir les détails et accéder à l'offre."
+              : "Le détail des opportunités est réservé aux membres. Créez votre compte gratuitement pour voir cette offre et recevoir celles qui correspondent à votre activité."}
           </p>
 
           <section aria-label="Offre recommandée" className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-5">
@@ -71,15 +75,17 @@ export function OfferAccessGate({
               </li>
             ))}
           </ul>
-          <p className="mt-6 text-xs text-slate-500">
-            <Link href={`/opportunites/selection/${token}`} className="underline">
-              Revenir à ma sélection
-            </Link>{" "}
-            ·{" "}
-            <Link href={`/desinscription/${token}`} className="underline">
-              Ne plus recevoir ces sélections
-            </Link>
-          </p>
+          {token && (
+            <p className="mt-6 text-xs text-slate-500">
+              <Link href={`/opportunites/selection/${token}`} className="underline">
+                Revenir à ma sélection
+              </Link>{" "}
+              ·{" "}
+              <Link href={`/desinscription/${token}`} className="underline">
+                Ne plus recevoir ces sélections
+              </Link>
+            </p>
+          )}
         </div>
       </div>
     </div>
