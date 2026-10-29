@@ -192,3 +192,21 @@ export async function resendConfirmation(_prev: ActionResult | null, fd: FormDat
   if (appSendsAuthEmails()) await resendSignupConfirmation(parsed.data.email).catch((e) => logServerError("resend confirmation", e));
   return { ok: true, message: "Si un compte non activé existe pour cette adresse, un nouveau lien d'activation vient d'être envoyé. Pensez à vérifier vos courriers indésirables." };
 }
+
+/**
+ * Inscription / connexion avec Google (Supabase Auth, fournisseur Google). Retour sur
+ * /auth/confirmation, qui ouvre la session puis la page demandée (ou la création de la fiche).
+ */
+export async function signInWithGoogle(formData: FormData) {
+  const next = safeNext(formData.get("suite"), "/onboarding/entreprise");
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: { redirectTo: `${env.siteUrl}/auth/confirmation?${new URLSearchParams({ suite: next, fournisseur: "google" })}` },
+  });
+  if (error || !data.url) {
+    logServerError("google oauth", error);
+    redirect(`/inscription?${new URLSearchParams({ suite: next, erreur: "google" })}`);
+  }
+  redirect(data.url);
+}

@@ -21,7 +21,9 @@ export async function GET(request: NextRequest) {
   const { data } = await supabase.auth.getUser();
   if (data.user?.email) {
     await bootstrapInitialAdmin(data.user.email);
-    if (type === "signup" || type === "email") await sendWelcome(data.user.email, data.user.id);
+    // Premier passage par Google : compte créé à l'instant, e-mail de bienvenue comme pour une inscription classique
+    const firstGoogleLogin = searchParams.get("fournisseur") === "google" && Date.now() - new Date(data.user.created_at).getTime() < 5 * 60_000;
+    if (type === "signup" || type === "email" || firstGoogleLogin) await sendWelcome(data.user.email, data.user.id);
   }
   await supabase.rpc("accept_pending_invitations");
   return NextResponse.redirect(new URL(next, origin));

@@ -3,6 +3,9 @@ import { safeInternalPath } from "@/lib/safe-path";
 import { redirect } from "next/navigation";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { SignUpForm } from "@/components/auth/forms";
+import { GoogleButton } from "@/components/auth/google-button";
+import { SignupValue } from "@/components/auth/signup-value";
+import { Notice } from "@/components/ui/notice";
 import { getSession } from "@/lib/auth";
 import { pageMetadata } from "@/lib/seo";
 import { recipientFromReferral, referralStillTrusted } from "@/lib/outreach/tracking";
@@ -49,6 +52,13 @@ export default async function SignUpPage(props: PageProps<"/inscription">) {
         </>
       }
     >
+      {sp.erreur === "google" && (
+        <Notice tone="warning" title="Connexion Google indisponible" className="mb-6">
+          Réessayez, ou créez votre compte avec votre adresse e-mail.
+        </Notice>
+      )}
+      <SignupValue />
+      <GoogleButton next={next} />
       <SignUpForm referral={referral} next={next} defaultEmail={defaultEmail} />
     </AuthShell>
   );
