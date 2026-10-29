@@ -75,7 +75,8 @@ export async function generateMetadata(props: PageProps<"/opportunites/[id]">): 
     location ? `Lieu : ${location}` : null,
     o.response_deadline ? `Échéance : ${formatDate(o.response_deadline)}` : null,
   ].filter(Boolean);
-  const intro = clip((o.summary ?? o.description ?? "").replace(/\s+/g, " ").trim(), 90);
+  // Détail réservé aux membres : sans compte, la description ne figure pas non plus dans l'en-tête
+  const intro = (await getSession()) ? clip((o.summary ?? o.description ?? "").replace(/\s+/g, " ").trim(), 90) : "Détail réservé aux membres — inscription gratuite";
   // Titre distinctif : beaucoup d'annonces ont des intitulés génériques (« Travaux de voirie »)
   const qualifier = location ?? (o.origin === "EXTERNAL" ? o.external_buyer_name : null);
   return pageMetadata({
