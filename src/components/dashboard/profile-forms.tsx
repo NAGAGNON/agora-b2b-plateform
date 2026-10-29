@@ -11,8 +11,12 @@ import { COMPANY_ROLE_LABELS, type CompanyRole } from "@/lib/constants";
 import { ActionError } from "@/components/billing/upgrade-prompt";
 import { LegalNote } from "@/components/legal-note";
 
-export function UserProfileForm({ v }: { v: { full_name: string; job_title: string | null; phone: string | null; notify_email: boolean; marketing_consent: boolean; email: string } }) {
+type NotifyPrefs = Partial<Record<"need_reminders" | "pipeline" | "matching" | "status", boolean>>;
+
+export function UserProfileForm({ v }: { v: { full_name: string; job_title: string | null; phone: string | null; notify_email: boolean; notify_prefs?: unknown; marketing_consent: boolean; email: string } }) {
   const [state, action] = useActionState(updateUserProfile, null);
+  const prefs = (v.notify_prefs && typeof v.notify_prefs === "object" ? v.notify_prefs : {}) as NotifyPrefs;
+  const on = (k: keyof NotifyPrefs) => prefs[k] !== false;
   const fe = state && !state.ok ? state.fieldErrors : undefined;
   return (
     <form action={action} className="space-y-5">
@@ -30,7 +34,16 @@ export function UserProfileForm({ v }: { v: { full_name: string; job_title: stri
       <Field label="Téléphone" name="phone" error={fe?.phone} hint="Non affiché publiquement.">
         {(p) => <Input {...p} type="tel" defaultValue={v.phone ?? ""} maxLength={30} autoComplete="tel" />}
       </Field>
-      <Checkbox name="notifyEmail" defaultChecked={v.notify_email} label="Recevoir les notifications par e-mail" hint="Nouvelles réponses, messages, décisions, alertes." />
+      <fieldset className="space-y-3 rounded-xl border border-slate-200 p-4">
+        <legend className="px-1 text-sm font-semibold text-navy">Notifications par e-mail</legend>
+        <Checkbox name="notifyEmail" defaultChecked={v.notify_email} label="Recevoir les notifications par e-mail" hint="Interrupteur général. Les messages, marques d'intérêt et réponses reçus sont toujours envoyés." />
+        <div className="space-y-3 border-l-2 border-slate-100 pl-4">
+          <Checkbox name="notifyNeedReminders" defaultChecked={on("need_reminders")} label="Rappels sur mes besoins" hint="Besoin sans réponse après 3 jours, date limite dans moins de 48 h." />
+          <Checkbox name="notifyStatus" defaultChecked={on("status")} label="Décisions et changements de statut" hint="Publication, modification demandée, clôture, réponse retenue ou déclinée." />
+          <Checkbox name="notifyMatching" defaultChecked={on("matching")} label="Opportunités et besoins qui correspondent à mon activité" hint="Alertes immédiates et besoins publiés dans votre métier." />
+          <Checkbox name="notifyPipeline" defaultChecked={on("pipeline")} label="Relances du pipeline commercial" hint="Le jour de chaque « prochaine action » prévue." />
+        </div>
+      </fieldset>
       <Checkbox name="marketingConsent" defaultChecked={v.marketing_consent} label="Recevoir la veille et les actualités de LinkProB2B" hint="Sélections d'opportunités le lundi et le vendredi. Réglages détaillés : Veille par e-mail." />
       {state?.ok && <Notice tone="success">{state.message}</Notice>}
       <ActionError state={state} />

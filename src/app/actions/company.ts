@@ -161,7 +161,10 @@ export async function updateUserProfile(_prev: ActionResult | null, fd: FormData
   const d = parsed.data;
   const { error } = await supabase
     .from("users")
-    .update({ full_name: d.fullName, job_title: d.jobTitle ?? null, phone: d.phone ?? null, notify_email: d.notifyEmail, marketing_consent: d.marketingConsent })
+    .update({ full_name: d.fullName, job_title: d.jobTitle ?? null, phone: d.phone ?? null, notify_email: d.notifyEmail,
+      marketing_consent: d.marketingConsent,
+      notify_prefs: { need_reminders: d.notifyNeedReminders, pipeline: d.notifyPipeline, matching: d.notifyMatching, status: d.notifyStatus },
+    })
     .eq("id", session.userId);
   if (error) return actionError(error);
   revalidatePath("/", "layout");
