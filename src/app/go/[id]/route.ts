@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { isUuid } from "@/lib/format";
+import { getSession } from "@/lib/auth";
 
 /**
  * Redirection vers la source originale d'une opportunité externe.
@@ -10,6 +11,10 @@ import { isUuid } from "@/lib/format";
 export async function GET(_req: Request, ctx: RouteContext<"/go/[id]">) {
   const { id } = await ctx.params;
   if (!isUuid(id)) return new NextResponse("Lien invalide", { status: 404 });
+  // Source officielle réservée aux membres : sans compte, retour à la page d'accès de l'offre
+  if (!(await getSession())) {
+    return NextResponse.redirect(new URL(`/opportunites/${id}`, _req.url), { status: 302, headers: { "X-Robots-Tag": "noindex", "Cache-Control": "no-store" } });
+  }
   const supabase = await createClient();
   const sourceId = new URL(_req.url).searchParams.get("source");
   let query = supabase.from("opportunity_sources").select("original_url, source_id").eq("opportunity_id", id);

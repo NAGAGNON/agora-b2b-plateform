@@ -1,8 +1,8 @@
 import { expect, test } from "@playwright/test";
-import { newPage, expectNotFound } from "./helpers";
+import { newPage, memberPage, expectNotFound } from "./helpers";
 
 test("recherche nationale : France entière par défaut, filtre région, pages SEO régionales", async ({ browser }) => {
-  const page = await newPage(browser);
+  const page = await memberPage(browser);
   await page.goto("/opportunites");
   const region = page.locator("#d-region");
   await expect(region).toHaveValue("");
@@ -38,7 +38,7 @@ test("mobile : pages nationales sans défilement horizontal", async ({ browser }
 });
 
 test("accueil : le nombre d'opportunités disponibles est celui de la page Opportunités", async ({ browser }) => {
-  const page = await newPage(browser);
+  const page = await memberPage(browser);
   await page.goto("/opportunites");
   const listed = (await page.locator('p[aria-live="polite"] strong').first().textContent())!.replace(/\s/g, "");
   await page.goto("/");

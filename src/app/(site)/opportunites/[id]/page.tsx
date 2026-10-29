@@ -43,7 +43,6 @@ import { buyerSlug } from "@/lib/buyer-slug";
 import { ShareLinks } from "@/components/share-links";
 import { cookies, headers } from "next/headers";
 import { OfferAccessGate } from "@/components/opportunities/offer-access-gate";
-import { OutreachWelcome } from "@/components/opportunities/outreach-welcome";
 import { OUTREACH_COOKIE, outreachVisitor, track as trackOutreach } from "@/lib/outreach/tracking";
 import { getSectorLabels, showDemoData, getLocationLabel, getDepartments, getOpenCounts } from "@/lib/queries/platform";
 import { regionByName } from "@/lib/geo";
@@ -76,7 +75,8 @@ export async function generateMetadata(props: PageProps<"/opportunites/[id]">): 
     location ? `Lieu : ${location}` : null,
     o.response_deadline ? `Échéance : ${formatDate(o.response_deadline)}` : null,
   ].filter(Boolean);
-  const intro = clip((o.summary ?? o.description ?? "").replace(/\s+/g, " ").trim(), 90);
+  // Détail réservé aux membres : sans compte, la description ne figure pas non plus dans l'en-tête
+  const intro = (await getSession()) ? clip((o.summary ?? o.description ?? "").replace(/\s+/g, " ").trim(), 90) : "Détail réservé aux membres — inscription gratuite";
   // Titre distinctif : beaucoup d'annonces ont des intitulés génériques (« Travaux de voirie »)
   const qualifier = location ?? (o.origin === "EXTERNAL" ? o.external_buyer_name : null);
   return pageMetadata({
@@ -144,17 +144,30 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
   }
   if (o.is_demo && !(await showDemoData())) notFound();
   const session = await getSession();
-  // Parcours « e-mail de prospection » : l'annonce complète est visible sans compte, avec un
-  // bandeau pour créer son compte (annonces similaires, suivi des réponses).
+  // Détail réservé aux membres : sans compte, page d'accès (aperçu + « Créer mon compte »), quelle
+  // que soit l'arrivée (e-mail de prospection, liste, moteur de recherche). Retour sur la fiche ensuite.
   const visitor = await outreachVisitor((await cookies()).get(OUTREACH_COOKIE)?.value);
-  const welcomeToken = visitor && !session ? visitor.token : null;
-  if (visitor) {
-    const h = await headers();
-    const prefetch = Boolean(h.get("next-router-prefetch")) || h.get("purpose") === "prefetch";
-    if (!session) {
-      if (!prefetch) await trackOutreach(visitor, "GATE_VIEW", { opportunityId: o.id });
-    } else if (!prefetch) await trackOutreach(visitor, "OFFER_ACCESS", { opportunityId: o.id, userId: session.userId });
+  const h = await headers();
+  const prefetch = Boolean(h.get("next-router-prefetch")) || h.get("purpose") === "prefetch";
+  if (!session) {
+    if (visitor && !prefetch) await trackOutreach(visitor, "GATE_VIEW", { opportunityId: o.id });
+    const location = (await getLocationLabel())(o.city, o.department_code);
+    return (
+      <OfferAccessGate
+        token={visitor?.token ?? null}
+        offer={{
+          id: o.id,
+          title: o.title,
+          buyer: o.origin === "EXTERNAL" ? o.external_buyer_name : null,
+          location,
+          sector: o.sector_slug ? sectorLabel(o.sector_slug, await getSectorLabels()) : null,
+          deadline: o.response_deadline,
+          budget: o.budget_visible ? formatBudget(o.budget_min, o.budget_max) : null,
+        }}
+      />
+    );
   }
+  if (visitor && !prefetch) await trackOutreach(visitor, "OFFER_ACCESS", { opportunityId: o.id, userId: session.userId });
   const supabase = await createClient();
   void track("view_opportunity", { opportunity_id: o.id, origin: o.origin, type: o.type });
 
@@ -223,7 +236,6 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
           ))}
         </nav>
 
-        {welcomeToken && <OutreachWelcome token={welcomeToken} offerId={o.id} />}
         {effectiveStatus === "EXPIRED" && (
           <Notice tone="warning" title="EXPIRÉE" className="mb-6">
             La date limite de cette opportunité est dépassée : elle n&apos;est plus active. Elle reste consultable pour information.{" "}

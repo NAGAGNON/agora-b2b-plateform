@@ -60,11 +60,13 @@ test("un besoin validé déclenche la mise en relation, le message et le suivi",
     .poll(async () => (await db.from("need_matches").select("status").eq("opportunity_id", needId).eq("company_id", supplierCo!.id).maybeSingle()).data?.status ?? null, { timeout: 90_000 })
     .toBe("NOTIFIED");
 
-  // Visiteur non connecté : « Envoyer un message » mène à l'inscription, retour sur le formulaire de message
+  // Visiteur non connecté : page d'accès (aperçu seulement), inscription puis retour sur la fiche
   const visitor = await newPage(browser);
   await visitor.goto(`/opportunites/${needId}`);
-  await visitor.getByTestId("need-message").click();
-  await expect(visitor).toHaveURL(/\/inscription\?suite=.*message%3D1/);
+  await expect(visitor.getByRole("heading", { name: "Créez votre compte pour accéder à cette offre" })).toBeVisible();
+  await expect(visitor.getByTestId("need-message")).toHaveCount(0);
+  await visitor.getByRole("link", { name: "Créer mon compte" }).click();
+  await expect(visitor).toHaveURL(new RegExp(`/inscription\\?suite=%2Fopportunites%2F${needId}`));
 
   // Fournisseur prévenu : la notification ouvre la fiche sur le formulaire de message
   await supplier.goto("/dashboard/notifications");
@@ -93,8 +95,8 @@ test("un besoin validé déclenche la mise en relation, le message et le suivi",
   await expect(row.getByRole("button", { name: "Relancer" })).toBeVisible();
 
   // Mise en avant au-dessus des annonces du secteur
-  await visitor.goto("/opportunites?secteur=maintenance-industrielle");
-  await expect(visitor.getByTestId("featured-needs")).toContainText(title);
+  await supplier.goto("/opportunites?secteur=maintenance-industrielle");
+  await expect(supplier.getByTestId("featured-needs")).toContainText(title);
 });
 
 test("administration : un besoin en brouillon ou en attente apparaît avec la raison", async ({ browser }) => {

@@ -35,10 +35,10 @@ test("page d'accueil : message et appels à l'action", async ({ browser }) => {
   await expect(page.getByRole("main").getByRole("link", { name: "Publier un besoin" }).first()).toHaveAttribute("href", "/publier");
   // Le spot de présentation démarre seul, sans le son
   await expect(page.getByRole("button", { name: "Activer le son" })).toBeVisible();
-  // Clic mesuré puis navigation vers les opportunités, sans inscription
+  // Clic mesuré puis inscription obligatoire (retour sur les opportunités ensuite)
   await page.getByRole("link", { name: "Découvrir les opportunités" }).first().click();
-  await expect(page).toHaveURL(/\/opportunites$/);
-  await expect(page.getByRole("heading", { level: 1, name: "Explorer les opportunités" })).toBeVisible();
+  await expect(page).toHaveURL(/\/inscription\?suite=%2Fopportunites$/);
+  await expect(page.getByRole("heading", { level: 1, name: "Créer un compte" })).toBeVisible();
   await page.goto("/");
 });
 

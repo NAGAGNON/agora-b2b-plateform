@@ -20,7 +20,7 @@ export const dynamic = "force-dynamic";
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = siteUrl();
   // Pas de date de modification pour les pages fixes : une date toujours « maintenant » serait ignorée par Google
-  const entries: MetadataRoute.Sitemap = STATIC_PATHS.map((p) => ({ url: `${base}${p}`, changeFrequency: p === "/opportunites" ? "daily" : "monthly", priority: p === "" ? 1 : 0.6 }));
+  const entries: MetadataRoute.Sitemap = STATIC_PATHS.map((p) => ({ url: `${base}${p}`, changeFrequency: p === "" ? "daily" : "monthly", priority: p === "" ? 1 : 0.6 }));
   entries.push(...GUIDES.map((g) => ({ url: `${base}/ressources/${g.slug}`, changeFrequency: "monthly" as const, priority: 0.5 })));
 
   const url = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;

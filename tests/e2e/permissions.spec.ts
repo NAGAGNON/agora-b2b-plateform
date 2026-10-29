@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { login, newPage } from "./helpers";
+import { login, memberPage, newPage } from "./helpers";
 
 test("les espaces privés exigent une connexion", async ({ browser }) => {
   const page = await newPage(browser);
@@ -44,7 +44,7 @@ test("une entreprise ne peut pas gérer la consultation d'une autre", async ({ b
 });
 
 test("une opportunité externe est identifiée et renvoie vers la source", async ({ browser }) => {
-  const page = await newPage(browser);
+  const page = await memberPage(browser);
   await page.goto("/opportunites?origine=EXTERNAL&q=fictif");
   await page.getByRole("link", { name: /marché public fictif/ }).first().click();
   await expect(page.getByTestId("origin")).toContainText("Opportunité externe");
