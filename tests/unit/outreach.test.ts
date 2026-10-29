@@ -147,7 +147,7 @@ describe("outreach — e-mail", () => {
       sender: ["LinkProB2B"],
     });
     expect(e.html).toContain("Découvrir les opportunités");
-    expect(e.html.match(/Voir l'opportunité/g)).toHaveLength(2);
+    expect(e.html.match(/Voir l(?:'|&#39;)opportunité/g)).toHaveLength(2);
     expect(e.html).toContain("https://x/desinscription/t");
     expect(e.html).toContain("ACME &lt;script&gt;");
     expect(e.html).not.toContain("<script>");

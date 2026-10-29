@@ -2,6 +2,7 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { env } from "@/lib/env";
 import { renderEmail } from "@/lib/email/templates";
+import type { Hero } from "@/lib/email/design";
 import { sendEmail } from "@/lib/email/send";
 
 const CTA_LABELS: Record<string, string> = {
@@ -27,11 +28,44 @@ const CTA_LABELS: Record<string, string> = {
   moderation_pending: "Ouvrir la modération",
 };
 
+/** Catégorie et photo d'en-tête de chaque type d'e-mail. */
+const LOOK: Record<string, { kicker: string; hero: Hero }> = {
+  new_message: { kicker: "Messagerie", hero: "reunion" },
+  proposal_received: { kicker: "Réponse reçue", hero: "accord" },
+  proposal_status: { kicker: "Votre réponse", hero: "accord" },
+  interest_received: { kicker: "Intérêt reçu", hero: "accord" },
+  interest_status: { kicker: "Opportunité suivie", hero: "accord" },
+  opportunity_published: { kicker: "Publication", hero: "plans" },
+  opportunity_changes_requested: { kicker: "Publication", hero: "plans" },
+  opportunity_rejected: { kicker: "Publication", hero: "plans" },
+  opportunity_closed: { kicker: "Consultation", hero: "plans" },
+  opportunity_expired: { kicker: "Consultation", hero: "plans" },
+  need_match: { kicker: "Besoin correspondant à votre activité", hero: "equipe" },
+  need_no_response: { kicker: "Votre besoin", hero: "plans" },
+  need_deadline_soon: { kicker: "Votre besoin", hero: "plans" },
+  pipeline_due: { kicker: "Pipeline commercial", hero: "tableau-de-bord" },
+  alert_match: { kicker: "Alerte opportunités", hero: "tableau-de-bord" },
+  alert_digest: { kicker: "Alerte opportunités", hero: "tableau-de-bord" },
+  lead_confirm: { kicker: "Alerte opportunités", hero: "tableau-de-bord" },
+  lead_digest: { kicker: "Vos nouveaux marchés", hero: "tableau-de-bord" },
+  invitation: { kicker: "Invitation", hero: "equipe" },
+  moderation_pending: { kicker: "Modération", hero: "bureau" },
+  subscription_activated: { kicker: "Abonnement", hero: "bureau" },
+  subscription_changed: { kicker: "Abonnement", hero: "bureau" },
+  payment_succeeded: { kicker: "Abonnement", hero: "bureau" },
+  payment_failed: { kicker: "Abonnement", hero: "bureau" },
+  subscription_cancel_scheduled: { kicker: "Abonnement", hero: "bureau" },
+  subscription_ended: { kicker: "Abonnement", hero: "bureau" },
+};
+
 export type NotificationPayload = { type?: string; title?: string; body?: string; link?: string; items?: { label: string; url: string }[]; unsubscribe?: string };
 
 /** Gabarit des e-mails de notification (un par type d'événement, via le titre, le texte et l'action). */
 export function notificationLayout(template: string, payload: NotificationPayload, subject: string): Parameters<typeof renderEmail>[0] {
+  const look = LOOK[payload.type ?? template];
   return {
+    kicker: look?.kicker,
+    hero: look?.hero,
     title: payload.title ?? subject,
     paragraphs: payload.body ? [payload.body] : [],
     list: payload.items?.map((i) => ({ label: i.label, url: env.siteUrl + i.url })),

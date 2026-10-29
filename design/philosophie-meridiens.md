@@ -1,0 +1,13 @@
+# Méridiens tissés
+
+**Une philosophie visuelle de la mise en relation.**
+
+Méridiens tissés part d'une idée simple : une relation se dessine. L'espace est un champ nocturne, profond, calme et presque silencieux, où chaque présence est un point minuscule. L'image ne raconte rien et ne vend rien. Elle montre que des points isolés, reliés avec patience, finissent par former un territoire. Le sens tient dans la densité, l'écart entre les points et le tracé des liaisons, jamais dans les phrases.
+
+L'espace est organisé comme un relevé d'arpenteur. Une trame de points d'une régularité absolue sert de sol et donne la mesure. Sur cette trame repose une constellation organique, plus dense en son cœur et plus clairsemée en ses marges, dont la silhouette affleure sans jamais être dessinée. La forme existe seulement par accumulation. Le vide occupe au moins la moitié de la surface : c'est lui qui donne au réseau sa valeur. Chaque espacement doit sembler pesé au millimètre, le travail d'une main experte qui a recommencé cent fois.
+
+La couleur est rationnée comme une ressource rare. Le fond est un bleu de nuit marine, les liaisons ordinaires sont des filets d'ardoise à peine visibles, et une seule teinte vive, un vert d'eau lumineux, est réservée aux rencontres. Le vert d'eau n'apparaît que là où deux points se trouvent vraiment : quelques arcs tendus, quelques anneaux concentriques autour des nœuds qui se répondent. Cette retenue chromatique est le fruit d'un calibrage minutieux. Une touche de trop, et l'ensemble redevient décoratif.
+
+L'échelle et le rythme naissent de la répétition. Des centaines de marques identiques, filets de même épaisseur et points de même diamètre, construisent une texture que l'œil parcourt longtemps. La hiérarchie est stricte. Au fond se trouvent la trame, puis le maillage, puis les arcs de rencontre. Au premier plan, des repères cliniques tiennent le cadre : graduations en marge, coordonnées en caractères mono très fins, un unique titre discret. Le texte est un instrument de mesure et non un discours. Il se tient au bord de l'image, petit, aligné avec une précision d'horloger.
+
+La composition cherche l'équilibre asymétrique d'une planche scientifique. La masse du réseau pèse d'un côté et le silence répond de l'autre, ancré par une phrase brève qui sert de légende. Rien ne touche les bords, rien ne se chevauche, et chaque élément respire. L'œuvre finale doit sembler issue d'un savoir-faire de maître : des heures d'ajustement pour un résultat qui paraît évident. Ce doit être l'artefact d'une discipline imaginaire, la cartographie des rencontres, documentée avec la même rigueur que les phénomènes observables.
