@@ -3,6 +3,7 @@ import { safeInternalPath } from "@/lib/safe-path";
 import { redirect } from "next/navigation";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { SignInForm } from "@/components/auth/forms";
+import { GoogleButton } from "@/components/auth/google-button";
 import { getSession } from "@/lib/auth";
 import { pageMetadata } from "@/lib/seo";
 import { Notice } from "@/components/ui/notice";
@@ -39,6 +40,7 @@ export default async function LoginPage(props: PageProps<"/connexion">) {
           .
         </Notice>
       )}
+      <GoogleButton next={next} />
       <SignInForm next={next} referral={referral} />
     </AuthShell>
   );
