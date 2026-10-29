@@ -131,9 +131,20 @@ const SCANNER_UA = /bot|crawler|spider|preview|scanner|safelinks|barracuda|proof
 
 export function isAutomatedHit(req: Request, sentAt: string | null | undefined, now = Date.now()): boolean {
   if (req.method === "HEAD") return true;
-  const ua = req.headers.get("user-agent") ?? "";
+  return isAutomatedVisit(req.headers, sentAt, now);
+}
+
+/**
+ * Même règle pour une page affichée (en-têtes de la requête) : robot déclaré, ou passage moins de
+ * 2 minutes après l'envoi. Mesure réelle : 235 des 260 premiers clics arrivaient entre 20 s et
+ * 2 min après l'envoi (vérification des liens par les messageries), presque jamais suivis d'une
+ * visite de la page d'inscription ; les visites humaines arrivent bien plus tard.
+ */
+export function isAutomatedVisit(h: Headers, sentAt: string | null | undefined, now = Date.now()): boolean {
+  const ua = h.get("user-agent") ?? "";
   if (!ua || SCANNER_UA.test(ua)) return true;
-  // Ouvert moins de 20 secondes après l'envoi : vérification automatique du lien
-  if (sentAt && now - new Date(sentAt).getTime() < 20_000) return true;
+  if (sentAt && now - new Date(sentAt).getTime() < AUTOMATED_WINDOW_MS) return true;
   return false;
 }
+
+export const AUTOMATED_WINDOW_MS = 120_000;
