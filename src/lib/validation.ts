@@ -158,6 +158,10 @@ export const userProfileSchema = z.object({
   phone: optionalText(30),
   notifyEmail: checkbox,
   marketingConsent: checkbox,
+  notifyNeedReminders: checkbox,
+  notifyPipeline: checkbox,
+  notifyMatching: checkbox,
+  notifyStatus: checkbox,
 });
 
 const internalType = z.enum(["NEED", "QUOTE_REQUEST", "PRIVATE_CONSULTATION", "PRIVATE_TENDER"], {

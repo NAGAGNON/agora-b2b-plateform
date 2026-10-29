@@ -238,6 +238,89 @@ export function braveSearch(key: string, fetchImpl: typeof fetch = fetch, { spac
   };
 }
 
+/**
+ * Source DIRECTE et GRATUITE : annuaire officiel des entreprises RGE (ADEME, données ouvertes,
+ * Licence Ouverte). Chaque entreprise y publie elle-même ses coordonnées professionnelles (e-mail,
+ * site) pour être contactée ; la recherche se fait par SIREN, sans deviner de site. Couvre surtout
+ * le bâtiment, la rénovation et l'énergie. Seule une adresse générique ou au nom de l'entreprise
+ * est retenue, jamais une adresse nominative.
+ */
+const RGE_DATASET = "https://data.ademe.fr/data-fair/api/v1/datasets/liste-des-entreprises-rge-2/lines";
+export function rgeSearch(fetchImpl: typeof fetch = fetch): WebsiteSearch {
+  return async (c) => {
+    if (!c.siren || !/^\d{9}$/.test(c.siren)) return null;
+    const res = await fetchImpl(`${RGE_DATASET}?size=20&qs=${encodeURIComponent(`siret:${c.siren}*`)}`, {
+      headers: { "User-Agent": USER_AGENT, Accept: "application/json" },
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (res.status === 429) throw new SearchQuotaError("Annuaire RGE : limite de requêtes atteinte, nouvel essai plus tard");
+    if (!res.ok) return null;
+    const body = (await res.json()) as { results?: Record<string, unknown>[] };
+    const pick = (row: Record<string, unknown>, keys: string[]) => keys.map((k) => row[k]).find((v): v is string => typeof v === "string" && v.trim() !== "")?.trim() ?? null;
+    for (const row of body.results ?? []) {
+      const siret = String(row.siret ?? "").replace(/\s/g, "");
+      if (!siret.startsWith(c.siren)) continue;
+      const site = pick(row, ["site_internet", "site_web", "siteweb", "web", "url"]);
+      const url = site ? (/^https?:\/\//i.test(site) ? site : `https://${site}`) : null;
+      let website: string | null = null;
+      try {
+        website = url && !isDirectory(hostOf(url)) ? `https://${new URL(url).hostname}` : null;
+      } catch {
+        website = null;
+      }
+      const mail = (pick(row, ["email", "e_mail", "courriel", "mail", "adresse_mail"]) ?? "").toLowerCase();
+      const domain = mail.split("@")[1] ?? null;
+      const email = mail && isGenericCompanyEmail(mail, website ? hostOf(website) : domain, c.name) ? mail : null;
+      if (email || website) return { website, email, provider: "Annuaire officiel des entreprises RGE (ADEME, données ouvertes)" };
+    }
+    return null;
+  };
+}
+
+/**
+ * Méthode GRATUITE : OpenStreetMap (Nominatim, données ouvertes ODbL). Beaucoup d'entreprises y ont
+ * leur fiche avec site internet et parfois une adresse de contact. Politique d'usage respectée :
+ * agent identifié, au plus une requête par seconde (appels espacés même en parallèle), pas de
+ * recherche en masse (seulement les entreprises à contacter). Un résultat n'est retenu que si son
+ * nom reprend les mots distinctifs de l'entreprise et qu'il est situé dans sa commune.
+ */
+export function osmSearch(fetchImpl: typeof fetch = fetch, { spacingMs = 1100 } = {}): WebsiteSearch {
+  let chain: Promise<unknown> = Promise.resolve();
+  const slot = () => {
+    const mine = chain;
+    chain = chain.then(() => new Promise((r) => setTimeout(r, spacingMs)));
+    return mine;
+  };
+  return async (c) => {
+    const tokens = nameTokens(c.name);
+    if (!tokens.length || !c.city) return null;
+    await slot();
+    const q = `${c.name}, ${c.city}`;
+    const res = await fetchImpl(`https://nominatim.openstreetmap.org/search?format=jsonv2&countrycodes=fr&extratags=1&addressdetails=1&limit=5&q=${encodeURIComponent(q)}`, {
+      headers: { "User-Agent": USER_AGENT, Accept: "application/json", "Accept-Language": "fr" },
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (res.status === 429) throw new SearchQuotaError("OpenStreetMap : limite de requêtes atteinte, nouvel essai plus tard");
+    if (!res.ok) return null;
+    const results = (await res.json()) as { name?: string; extratags?: Record<string, string> | null; address?: Record<string, string> }[];
+    const city = normalizeText(c.city);
+    for (const r of results) {
+      const name = normalizeText(r.name ?? "");
+      if (!name || !tokens.every((t) => name.includes(t))) continue;
+      const place = normalizeText([r.address?.city, r.address?.town, r.address?.village, r.address?.municipality].filter(Boolean).join(" "));
+      if (place && !place.includes(city) && !city.includes(place)) continue;
+      const tags = r.extratags ?? {};
+      const site = tags.website ?? tags["contact:website"] ?? tags.url ?? null;
+      const website = site && /^https?:\/\//i.test(site) && !isDirectory(hostOf(site)) ? `https://${new URL(site).hostname}` : null;
+      if (!website) continue;
+      const mail = (tags.email ?? tags["contact:email"] ?? "").trim().toLowerCase();
+      const email = mail && isGenericCompanyEmail(mail, hostOf(website)) ? mail : null;
+      return { website, email, provider: "OpenStreetMap (données ouvertes)" };
+    }
+    return null;
+  };
+}
+
 /** Site (et éventuelle adresse générique) via Dropcontact — service français conforme au RGPD. */
 export function dropcontactSearch(key: string, fetchImpl: typeof fetch = fetch): WebsiteSearch {
   return async (c) => {
@@ -319,7 +402,8 @@ export function freeWebsiteSearch(fetchImpl: typeof fetch = fetch): WebsiteSearc
     // Raison sociale d'abord, puis sigle, enseignes et nom commercial (souvent le nom du site).
     const candidates = [...new Set([c.name, ...(c.alt_names ?? [])].flatMap((n) => domainCandidates(n, c.city)))].slice(0, 32);
     const exists = await Promise.all(candidates.map((d) => isPublicHost(d).catch(() => false)));
-    for (const domain of candidates.filter((_, i) => exists[i])) {
+    // Trois domaines au plus (les plus probables d'abord) : la recherche reste rapide
+    for (const domain of candidates.filter((_, i) => exists[i]).slice(0, 3)) {
       try {
         const origin = `https://${domain}`;
         const robots = await fetchText(`${origin}/robots.txt`, fetchImpl, 100_000).catch(() => null);
@@ -330,7 +414,7 @@ export function freeWebsiteSearch(fetchImpl: typeof fetch = fetch): WebsiteSearc
         if (!home?.text) continue;
         if (sirenOnPage(home.text, c.siren)) return { website: origin, provider: "domaine vérifié par le SIREN (gratuit)" };
         // Pages liées depuis l'accueil, puis adresses usuelles des mentions légales (souvent non liées)
-        const links = [...new Set([...contactLinks(home.text, origin), ...LEGAL_PATHS.map((p) => origin + p)])].slice(0, 8);
+        const links = [...new Set([...contactLinks(home.text, origin), ...LEGAL_PATHS.map((p) => origin + p)])].slice(0, 5);
         for (const link of links) {
           if (!allowed(new URL(link).pathname)) continue;
           const page = await fetchText(link, fetchImpl).catch(() => null);
@@ -358,7 +442,7 @@ export async function enrichCompany(
   for (const search of website ? [] : searchers) {
     try {
       const r = await search(c);
-      if (r?.email && r.website) return { status: "FOUND", website: r.website, email: r.email, source: `${r.provider} (adresse générique de l'entreprise)`, note: "" };
+      if (r?.email) return { status: "FOUND", website: r.website, email: r.email, source: `${r.provider} (adresse générique de l'entreprise)`, note: "" };
       if (r?.website) {
         website = r.website;
         provider = r.provider;
@@ -405,11 +489,13 @@ export async function enrichCompany(
 }
 
 /** Services de recherche configurés (clés en variables d'environnement, jamais exposées). */
-export function configuredSearchers(): WebsiteSearch[] {
+export function configuredSearchers({ brave = true }: { brave?: boolean } = {}): WebsiteSearch[] {
   const out: WebsiteSearch[] = [];
-  // Méthode gratuite d'abord (économise le forfait des services payants) ; désactivable (tests).
-  if (process.env.OUTREACH_FREE_WEBSITE_SEARCH !== "false") out.push(freeWebsiteSearch());
-  if (process.env.BRAVE_SEARCH_API_KEY) out.push(braveSearch(process.env.BRAVE_SEARCH_API_KEY));
+  // Méthodes gratuites d'abord (économisent le forfait des services payants) ; désactivables (tests).
+  // Source directe d'abord (e-mail publié par l'entreprise, recherche par SIREN), puis sites devinés et OpenStreetMap
+  if (process.env.OUTREACH_FREE_WEBSITE_SEARCH !== "false") out.push(rgeSearch(), freeWebsiteSearch(), osmSearch());
+  // Brave : forfait mensuel gratuit ; mis de côté jusqu'au mois suivant une fois épuisé (voir enrichProspects)
+  if (brave && process.env.BRAVE_SEARCH_API_KEY) out.push(braveSearch(process.env.BRAVE_SEARCH_API_KEY));
   if (process.env.DROPCONTACT_API_KEY) out.push(dropcontactSearch(process.env.DROPCONTACT_API_KEY));
   return out;
 }

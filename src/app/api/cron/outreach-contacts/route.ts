@@ -9,6 +9,7 @@ import { enrichNeedCampaigns } from "@/lib/needs";
 import { runManualCampaign, runOutreachFollowUp, runSendPass } from "@/lib/outreach/pipeline";
 import { cronCpuBudgetReached } from "@/lib/cron-usage";
 import { parisToday } from "@/lib/daily-report";
+import { importRgeContacts } from "@/lib/outreach/rge-import";
 
 export const maxDuration = 300;
 
@@ -46,10 +47,12 @@ async function run(req: Request) {
       return NextResponse.json({ ok: true, mode: "envoi seul", reason: "Plafond quotidien de temps de calcul atteint", send: await runSendPass(db, { budgetMs: 240_000 }) });
     }
     const complement = new URL(req.url).searchParams.get("complement") === "1";
+    // Annuaire officiel RGE (ADEME) : e-mails publiés par les entreprises, importés en masse (une fois par semaine, reprise si interrompu)
+    const rge = await importRgeContacts(db, { deadline: Date.now() + 60_000 }).catch((e) => (logServerError("rge import", e), { error: e instanceof Error ? e.message : String(e) }));
     // Besoins publiés d'abord : recherche d'adresses et envoi (quota séparé), puis la prospection habituelle
     const needs = await enrichNeedCampaigns(db, { deadline: Date.now() + 90_000 }).catch((e) => ({ error: e instanceof Error ? e.message : String(e) }));
     const report = complement ? { mode: "complement" as const, ...(await runManualCampaign(db, { userId: null, budgetMs: 180_000 })) } : await runOutreachFollowUp(db, { budgetMs: 180_000 });
-    return NextResponse.json({ ok: true, needs, ...report });
+    return NextResponse.json({ ok: true, rge, needs, ...report });
   } catch (e) {
     logServerError("cron outreach-contacts", e);
     return NextResponse.json({ ok: false, error: e instanceof Error ? e.message : String(e) }, { status: 500 });

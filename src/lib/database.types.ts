@@ -1258,13 +1258,13 @@ isOneToOne: false
                   ]
                 },"users": {
                   Row: {
-                    "created_at": string,"email": string,"full_name": string,"id": string,"is_demo": boolean,"job_title": string | null,"last_seen_at": string | null,"marketing_consent": boolean,"notify_email": boolean,"phone": string | null,"platform_role": Database["public"]['Enums']["platform_role"],"status": Database["public"]['Enums']["account_status"],"terms_accepted_at": string | null,"updated_at": string
+                    "created_at": string,"email": string,"full_name": string,"id": string,"is_demo": boolean,"job_title": string | null,"last_seen_at": string | null,"marketing_consent": boolean,"notify_email": boolean,"notify_prefs": Json,"phone": string | null,"platform_role": Database["public"]['Enums']["platform_role"],"status": Database["public"]['Enums']["account_status"],"terms_accepted_at": string | null,"updated_at": string
                   }
                   Insert: {
-                    "created_at"?: string,"email": string,"full_name"?: string,"id": string,"is_demo"?: boolean,"job_title"?: string | null,"last_seen_at"?: string | null,"marketing_consent"?: boolean,"notify_email"?: boolean,"phone"?: string | null,"platform_role"?: Database["public"]['Enums']["platform_role"],"status"?: Database["public"]['Enums']["account_status"],"terms_accepted_at"?: string | null,"updated_at"?: string
+                    "created_at"?: string,"email": string,"full_name"?: string,"id": string,"is_demo"?: boolean,"job_title"?: string | null,"last_seen_at"?: string | null,"marketing_consent"?: boolean,"notify_email"?: boolean,"notify_prefs"?: Json,"phone"?: string | null,"platform_role"?: Database["public"]['Enums']["platform_role"],"status"?: Database["public"]['Enums']["account_status"],"terms_accepted_at"?: string | null,"updated_at"?: string
                   }
                   Update: {
-                    "created_at"?: string,"email"?: string,"full_name"?: string,"id"?: string,"is_demo"?: boolean,"job_title"?: string | null,"last_seen_at"?: string | null,"marketing_consent"?: boolean,"notify_email"?: boolean,"phone"?: string | null,"platform_role"?: Database["public"]['Enums']["platform_role"],"status"?: Database["public"]['Enums']["account_status"],"terms_accepted_at"?: string | null,"updated_at"?: string
+                    "created_at"?: string,"email"?: string,"full_name"?: string,"id"?: string,"is_demo"?: boolean,"job_title"?: string | null,"last_seen_at"?: string | null,"marketing_consent"?: boolean,"notify_email"?: boolean,"notify_prefs"?: Json,"phone"?: string | null,"platform_role"?: Database["public"]['Enums']["platform_role"],"status"?: Database["public"]['Enums']["account_status"],"terms_accepted_at"?: string | null,"updated_at"?: string
                   }
                   Relationships: [
                     
