@@ -21,7 +21,7 @@ export default async function DirectoryPage(props: PageProps<"/entreprises">) {
     <>
       <PageHero
         eyebrow="Fournisseurs et prestataires"
-        image="/images/illustrations/equipe.webp"
+        image="/images/illustrations/poignee-de-main.webp"
         title="Annuaire des entreprises"
         intro="Trouvez des entreprises, fournisseurs et prestataires correspondant à vos besoins : secteur, localisation, compétences et services."
       >
