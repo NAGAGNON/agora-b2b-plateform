@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useRef, useState, useTransition, type FormEvent, type ReactNode } from "react";
+import { useActionState, useEffect, useRef, useState, useTransition, type FormEvent, type ReactNode } from "react";
+import { clearNeedDraft, readNeedDraft } from "@/lib/need-draft";
 import { ArrowLeft, ArrowRight, Check, FileText, Save, Send } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createOpportunity, updateOpportunity } from "@/app/actions/opportunities";
@@ -131,6 +132,28 @@ export function PublishWizard({
   const formRef = useRef<HTMLFormElement>(null);
   const stepRefs = useRef<(HTMLFieldSetElement | null)[]>([]);
   const fe = state && !state.ok ? state.fieldErrors : undefined;
+  const [draftResumed, setDraftResumed] = useState(false);
+
+  // Besoin rédigé avant la création du compte (page Publier) : repris une seule fois, puis effacé
+  useEffect(() => {
+    if (edit || !formRef.current) return;
+    const d = readNeedDraft();
+    if (!d) return;
+    const form = formRef.current;
+    const put = (name: string, value: string) => {
+      const el = form.elements.namedItem(name);
+      if (value && (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement)) el.value = value;
+    };
+    put("title", d.title);
+    put("description", d.description);
+    put("sector", d.sector);
+    put("city", d.city);
+    clearNeedDraft();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reprise ponctuelle d'un brouillon local
+    setType("NEED");
+    setStep(1);
+    setDraftResumed(true);
+  }, [edit]);
 
   function takeSnapshot() {
     if (!formRef.current) return;
@@ -198,6 +221,11 @@ export function PublishWizard({
         Étape {step + 1} / 6 — {STEPS[step]}
       </p>
 
+      {draftResumed && (
+        <p className="mb-4 rounded-xl bg-teal-50 px-4 py-3 text-sm text-teal-900 ring-1 ring-teal/30" role="status">
+          Votre besoin a été repris. Complétez les informations puis publiez-le.
+        </p>
+      )}
       <form ref={formRef} onSubmit={onSubmit} noValidate className="space-y-6">
         {values.id && <input type="hidden" name="id" value={values.id} />}
 

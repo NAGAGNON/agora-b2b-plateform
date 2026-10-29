@@ -6,7 +6,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { env } from "@/lib/env";
 import { logServerError } from "@/lib/errors";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { appSendsAuthEmails, bootstrapInitialAdmin, sendPasswordReset, sendWelcome, signUpWithEmail } from "@/lib/email/auth-emails";
+import { appSendsAuthEmails, bootstrapInitialAdmin, resendSignupConfirmation, sendPasswordReset, sendWelcome, signUpWithEmail } from "@/lib/email/auth-emails";
 import { safeInternalPath } from "@/lib/safe-path";
 import { recipientFromReferral, referralStillTrusted, trackReferral, trackSignupReferral } from "@/lib/outreach/tracking";
 import { newPasswordSchema, parseForm, resetRequestSchema, signInSchema, signUpSchema, type ActionResult } from "@/lib/validation";
@@ -182,4 +182,13 @@ export async function updatePassword(_prev: ActionResult | null, formData: FormD
   const { error } = await supabase.auth.updateUser({ password: parsed.data.password });
   if (error) return { ok: false, error: "Le mot de passe n'a pas pu être modifié. Le lien a peut-être expiré." };
   return { ok: true, message: "Votre mot de passe a été modifié." };
+}
+
+/** Nouvel e-mail d'activation (compte créé mais jamais confirmé). Réponse identique dans tous les cas. */
+export async function resendConfirmation(_prev: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  const parsed = parseForm(resetRequestSchema, fd);
+  if (!parsed.success) return parsed.result;
+  if (!(await rateLimit("resend-confirmation", 3, 3600))) return { ok: false, error: "Trop de demandes. Réessayez dans une heure." };
+  if (appSendsAuthEmails()) await resendSignupConfirmation(parsed.data.email).catch((e) => logServerError("resend confirmation", e));
+  return { ok: true, message: "Si un compte non activé existe pour cette adresse, un nouveau lien d'activation vient d'être envoyé. Pensez à vérifier vos courriers indésirables." };
 }

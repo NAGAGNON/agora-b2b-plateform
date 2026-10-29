@@ -138,3 +138,35 @@ export async function bootstrapInitialAdmin(email: string | undefined | null): P
   if (error) logServerError("bootstrapInitialAdmin", error);
   return data === true;
 }
+
+/**
+ * Nouveau lien d'activation pour un compte créé mais jamais confirmé (lien expiré, e-mail perdu).
+ * Silencieux si le compte n'existe pas ou est déjà activé (pas de divulgation des comptes).
+ */
+export async function resendSignupConfirmation(email: string, next = "/onboarding/entreprise"): Promise<boolean> {
+  const admin = createAdminClient();
+  const { data, error } = await admin.auth.admin.generateLink({ type: "magiclink", email, options: { redirectTo: `${env.siteUrl}/auth/confirmation` } });
+  if (error || !data.properties?.hashed_token || !data.user || data.user.email_confirmed_at) return false;
+  const url = confirmationUrl(data.properties.hashed_token, "magiclink", next);
+  const r = await deliver(email, data.user.id, "auth_confirm_reminder", AUTH_SUBJECTS.signup, signupLayout(url));
+  return r.status === "SENT";
+}
+
+/**
+ * Rappel automatique, une seule fois, aux comptes créés il y a 1 à 7 jours et jamais confirmés
+ * (tâche planifiée quotidienne). La date du rappel est notée dans le compte.
+ */
+export async function remindUnconfirmedSignups(): Promise<{ reminded: number }> {
+  const admin = createAdminClient();
+  const { data } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+  const now = Date.now();
+  let reminded = 0;
+  for (const u of data?.users ?? []) {
+    const age = now - new Date(u.created_at).getTime();
+    if (u.email_confirmed_at || !u.email || age < 86_400_000 || age > 7 * 86_400_000) continue;
+    if ((u.app_metadata as { confirm_reminded_at?: string } | undefined)?.confirm_reminded_at) continue;
+    await admin.auth.admin.updateUserById(u.id, { app_metadata: { ...u.app_metadata, confirm_reminded_at: new Date().toISOString() } });
+    if (await resendSignupConfirmation(u.email).catch(() => false)) reminded++;
+  }
+  return { reminded };
+}
