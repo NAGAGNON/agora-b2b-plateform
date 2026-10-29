@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { clip, deadlineLabel, formatDate } from "@/lib/format";
 import { isStillOpen, loadRecipientBundles, loadReferentials, outreachUrls } from "@/lib/outreach/data";
-import { recipientFromToken, track } from "@/lib/outreach/tracking";
+import { isAutomatedVisit, recipientFromToken, track } from "@/lib/outreach/tracking";
 import { PRIVATE_METADATA } from "@/lib/seo";
 import { getSession } from "@/lib/auth";
 
@@ -30,7 +30,7 @@ export default async function SelectionPage(props: PageProps<"/opportunites/sele
   // Aperçu depuis le tableau de bord (administrateur) : pas de statistique faussée.
   const session = await getSession();
   const preview = (await props.searchParams).apercu === "1" && Boolean(session?.isStaff);
-  if (!preview && !h.get("next-router-prefetch") && h.get("purpose") !== "prefetch") await track(r, "LANDING_VIEW");
+  if (!preview && !h.get("next-router-prefetch") && h.get("purpose") !== "prefetch" && !isAutomatedVisit(h, r.sent_at)) await track(r, "LANDING_VIEW");
 
   const ref = await loadReferentials(db);
   const urls = outreachUrls(r.id);
