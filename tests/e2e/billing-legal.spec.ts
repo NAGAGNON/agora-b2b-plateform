@@ -108,5 +108,5 @@ test("inscription : consentement explicite non pré-coché", async ({ browser })
   await expect(terms).not.toBeChecked();
   await expect(page.getByRole("link", { name: "Conditions Générales d'Utilisation" }).first()).toHaveAttribute("href", "/cgu");
   await expect(page.getByRole("link", { name: "Politique de confidentialité" }).first()).toHaveAttribute("href", "/confidentialite");
-  await expect(page.getByRole("checkbox", { name: /actualités/ })).not.toBeChecked();
+  await expect(page.getByRole("checkbox", { name: /recevoir la veille LinkProB2B/ })).not.toBeChecked();
 });
