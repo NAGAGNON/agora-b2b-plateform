@@ -18,8 +18,9 @@ export default async function LoginPage(props: PageProps<"/connexion">) {
   if (await getSession()) redirect(safeInternalPath(next));
   return (
     <AuthShell
+      aside={false}
       title="Connexion"
-      subtitle={
+      footer={
         <>
           Pas encore de compte ?{" "}
           <Link
@@ -40,8 +41,8 @@ export default async function LoginPage(props: PageProps<"/connexion">) {
           .
         </Notice>
       )}
-      <GoogleButton next={next} />
       <SignInForm next={next} referral={referral} />
+      <GoogleButton next={next} />
     </AuthShell>
   );
 }

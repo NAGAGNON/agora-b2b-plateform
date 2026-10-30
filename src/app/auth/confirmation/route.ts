@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import type { EmailOtpType } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { bootstrapInitialAdmin, sendWelcome } from "@/lib/email/auth-emails";
 import { safeInternalPath } from "@/lib/safe-path";
 
@@ -23,6 +24,8 @@ export async function GET(request: NextRequest) {
     await bootstrapInitialAdmin(data.user.email);
     // Premier passage par Google : compte créé à l'instant, e-mail de bienvenue comme pour une inscription classique
     const firstGoogleLogin = searchParams.get("fournisseur") === "google" && Date.now() - new Date(data.user.created_at).getTime() < 5 * 60_000;
+    // Bouton Google : l'acceptation des CGU est affichée sous le bouton, elle est enregistrée à la création du compte
+    if (firstGoogleLogin) await createAdminClient().from("users").update({ terms_accepted_at: new Date().toISOString() }).eq("id", data.user.id).is("terms_accepted_at", null);
     if (type === "signup" || type === "email" || firstGoogleLogin) await sendWelcome(data.user.email, data.user.id);
   }
   await supabase.rpc("accept_pending_invitations");

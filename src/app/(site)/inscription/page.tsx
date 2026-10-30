@@ -4,7 +4,6 @@ import { redirect } from "next/navigation";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { SignUpForm } from "@/components/auth/forms";
 import { GoogleButton } from "@/components/auth/google-button";
-import { SignupValue } from "@/components/auth/signup-value";
 import { Notice } from "@/components/ui/notice";
 import { getSession } from "@/lib/auth";
 import { pageMetadata } from "@/lib/seo";
@@ -34,8 +33,14 @@ export default async function SignUpPage(props: PageProps<"/inscription">) {
   const defaultEmail = recipient?.email && referralStillTrusted(recipient) ? recipient.email : fromLink;
   return (
     <AuthShell
+      aside={false}
       title={forOffer ? "Créez votre compte pour accéder à cette offre" : "Créer un compte"}
       subtitle={
+        forOffer
+          ? "Gratuit. Utilisez l'adresse qui a reçu notre e-mail : votre compte est activé immédiatement et l'offre s'ouvre directement."
+          : "Gratuit et sans carte bancaire. Accédez aux opportunités B2B de toute la France."
+      }
+      footer={
         <>
           Déjà inscrit ?{" "}
           <Link
@@ -44,11 +49,6 @@ export default async function SignUpPage(props: PageProps<"/inscription">) {
           >
             Se connecter
           </Link>
-          <span className="mt-2 block text-sm">
-            {forOffer
-              ? "Gratuit. Utilisez l'adresse qui a reçu notre e-mail : votre compte est activé immédiatement et l'offre s'ouvre directement."
-              : "Étape suivante : la création du profil de votre entreprise."}
-          </span>
         </>
       }
     >
@@ -57,9 +57,8 @@ export default async function SignUpPage(props: PageProps<"/inscription">) {
           Réessayez, ou créez votre compte avec votre adresse e-mail.
         </Notice>
       )}
-      <SignupValue />
-      <GoogleButton next={next} />
       <SignUpForm referral={referral} next={next} defaultEmail={defaultEmail} />
+      <GoogleButton next={next} />
     </AuthShell>
   );
 }
