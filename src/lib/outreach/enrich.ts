@@ -11,7 +11,8 @@ import { normalizeText } from "@/lib/collect/normalize";
  *  2. page d'accueil, page Contact et mentions légales de CE site uniquement,
  *     en respectant robots.txt, avec un agent identifié ;
  *  3. seule une adresse GÉNÉRIQUE de l'entreprise est retenue (contact@, info@…),
- *     jamais une adresse nominative (prenom.nom@…).
+ *     jamais une adresse nominative (prenom.nom@…) trouvée sur un site — seul l'annuaire RGE, où
+ *     l'entreprise publie elle-même son adresse de contact, fait exception.
  * Aucun moteur de recherche n'est interrogé sans API autorisée, aucune protection
  * (CAPTCHA, authentification, anti-robot) n'est contournée : une page refusée est abandonnée.
  */
@@ -101,6 +102,16 @@ export function isCompanyNamedLocalPart(local: string, companyName: string): boo
   if (!parts.length || parts.some((w) => !/^[a-z0-9]+$/.test(w))) return false;
   const known = new Set(tokens);
   return parts.some((w) => known.has(w) && w.length >= 4) && parts.every((w) => known.has(w) || LEGAL_FORMS.has(w) || GENERIC.has(w));
+}
+
+/**
+ * Adresse publiée par l'entreprise elle-même dans un annuaire officiel pour être contactée (annuaire
+ * RGE) : toute adresse valide est retenue, nominative comprise, sauf les boîtes techniques (no-reply,
+ * webmaster…) et les adresses de recrutement ou de protection des données.
+ */
+export function isPublishedContactEmail(email: string): boolean {
+  const m = /^([a-z0-9._+-]+)@([a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,})$/i.exec(email.trim().toLowerCase());
+  return Boolean(m && !REJECT.test(m[1].replace(/[0-9]+$/, "")));
 }
 
 /** Adresse générique d'entreprise (jamais nominative) rattachée au site, ou null. */
@@ -242,8 +253,8 @@ export function braveSearch(key: string, fetchImpl: typeof fetch = fetch, { spac
  * Source DIRECTE et GRATUITE : annuaire officiel des entreprises RGE (ADEME, données ouvertes,
  * Licence Ouverte). Chaque entreprise y publie elle-même ses coordonnées professionnelles (e-mail,
  * site) pour être contactée ; la recherche se fait par SIREN, sans deviner de site. Couvre surtout
- * le bâtiment, la rénovation et l'énergie. Seule une adresse générique ou au nom de l'entreprise
- * est retenue, jamais une adresse nominative.
+ * le bâtiment, la rénovation et l'énergie. L'adresse publiée par l'entreprise pour être contactée est
+ * retenue, nominative comprise (hors boîtes techniques).
  */
 const RGE_DATASET = "https://data.ademe.fr/data-fair/api/v1/datasets/liste-des-entreprises-rge-2/lines";
 export function rgeSearch(fetchImpl: typeof fetch = fetch): WebsiteSearch {
@@ -269,8 +280,7 @@ export function rgeSearch(fetchImpl: typeof fetch = fetch): WebsiteSearch {
         website = null;
       }
       const mail = (pick(row, ["email", "e_mail", "courriel", "mail", "adresse_mail"]) ?? "").toLowerCase();
-      const domain = mail.split("@")[1] ?? null;
-      const email = mail && isGenericCompanyEmail(mail, website ? hostOf(website) : domain, c.name) ? mail : null;
+      const email = mail && isPublishedContactEmail(mail) ? mail : null;
       if (email || website) return { website, email, provider: "Annuaire officiel des entreprises RGE (ADEME, données ouvertes)" };
     }
     return null;

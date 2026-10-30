@@ -1,21 +1,22 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
-import { USER_AGENT, hostOf, isGenericCompanyEmail } from "@/lib/outreach/enrich";
+import { USER_AGENT, isPublishedContactEmail } from "@/lib/outreach/enrich";
 import { logServerError } from "@/lib/errors";
 import { departmentFromPostal } from "@/lib/outreach/csv";
 
 type Db = SupabaseClient<Database>;
 
 const DATASET = "https://data.ademe.fr/data-fair/api/v1/datasets/liste-des-entreprises-rge-2/lines";
-const STATE_KEY = "private.rge_import";
+// v2 : adresses nominatives publiées dans l'annuaire désormais retenues → relecture complète
+const STATE_KEY = "private.rge_import_v2";
 /** Annuaire relu au plus une fois par semaine (mises à jour de l'ADEME). */
 const REFRESH_DAYS = 7;
 
 type Row = Record<string, unknown>;
 const text = (row: Row, keys: string[]) => keys.map((k) => row[k]).find((v): v is string => typeof v === "string" && v.trim() !== "")?.trim() ?? null;
 
-/** Coordonnées d'une ligne de l'annuaire RGE (adresse générique ou au nom de l'entreprise uniquement). */
+/** Coordonnées d'une ligne de l'annuaire RGE : adresse publiée par l'entreprise pour être contactée. */
 export function rgeContact(row: Row): { siren: string; email: string | null; website: string | null } | null {
   const siren = String(row.siret ?? "").replace(/\s/g, "").slice(0, 9);
   if (!/^\d{9}$/.test(siren)) return null;
@@ -27,8 +28,7 @@ export function rgeContact(row: Row): { siren: string; email: string | null; web
     website = null;
   }
   const mail = (text(row, ["email", "e_mail", "courriel", "mail", "adresse_mail"]) ?? "").toLowerCase();
-  const name = text(row, ["nom_entreprise", "raison_sociale", "nom"]) ?? "";
-  const email = mail && isGenericCompanyEmail(mail, website ? hostOf(website) : (mail.split("@")[1] ?? null), name) ? mail : null;
+  const email = mail && isPublishedContactEmail(mail) ? mail : null;
   return email || website ? { siren, email, website } : null;
 }
 
@@ -140,7 +140,7 @@ export function rgeDomainProfile(domaine: string): { sector: string; keywords: s
 /**
  * Nouvelle entreprise à prospecter tirée des lignes RGE d'un même SIREN (une ligne par qualification) :
  * coordonnées publiées par l'entreprise, secteurs et mots de ses métiers. Rien n'est inventé : sans
- * adresse générique, sans nom ou sans qualification reconnue, aucune entreprise n'est créée.
+ * adresse publiée, sans nom ou sans qualification reconnue, aucune entreprise n'est créée.
  */
 export function rgeProspect(input: Row | Row[], regionOf: (dep: string) => string | null) {
   const rows = Array.isArray(input) ? input : [input];
@@ -177,7 +177,7 @@ export function rgeProspect(input: Row | Row[], regionOf: (dep: string) => strin
 
 /**
  * Entreprises RGE (bâtiment, chauffage, énergies renouvelables, études) qui publient une adresse
- * générique dans l'annuaire officiel : ajoutées comme entreprises à prospecter, une seule fois par
+ * de contact dans l'annuaire officiel : ajoutées comme entreprises à prospecter, une seule fois par
  * SIREN (les entreprises déjà connues ne sont pas modifiées ici, voir importRgeContacts). Leurs
  * adresses sont introuvables autrement (la recherche sur les sites ne trouve presque rien).
  * Lecture triée par SIRET : les qualifications d'une même entreprise arrivent ensemble. Relu chaque semaine.
