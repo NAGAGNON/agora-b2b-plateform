@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { bootstrapInitialAdmin, sendWelcome } from "@/lib/email/auth-emails";
 import { safeInternalPath } from "@/lib/safe-path";
+import { trackReferral } from "@/lib/outreach/tracking";
 
 /** Retour des liens envoyés par e-mail (confirmation d'inscription, réinitialisation). */
 export async function GET(request: NextRequest) {
@@ -27,6 +28,7 @@ export async function GET(request: NextRequest) {
     // Bouton Google : l'acceptation des CGU est affichée sous le bouton, elle est enregistrée à la création du compte
     if (firstGoogleLogin) await createAdminClient().from("users").update({ terms_accepted_at: new Date().toISOString() }).eq("id", data.user.id).is("terms_accepted_at", null);
     if (type === "signup" || type === "email" || firstGoogleLogin) await sendWelcome(data.user.email, data.user.id);
+    if (searchParams.get("fournisseur") === "google" && searchParams.get("ref")) await trackReferral(searchParams.get("ref"), firstGoogleLogin ? "SIGNUP" : "LOGIN", data.user.id);
   }
   await supabase.rpc("accept_pending_invitations");
   return NextResponse.redirect(new URL(next, origin));

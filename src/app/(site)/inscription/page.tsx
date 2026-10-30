@@ -58,7 +58,7 @@ export default async function SignUpPage(props: PageProps<"/inscription">) {
         </Notice>
       )}
       <SignUpForm referral={referral} next={next} defaultEmail={defaultEmail} />
-      <GoogleButton next={next} />
+      <GoogleButton next={next} referral={referral} />
     </AuthShell>
   );
 }

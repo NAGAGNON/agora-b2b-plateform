@@ -3,6 +3,7 @@ import { CalendarClock, CheckCircle2, Lock, MapPin, Tag, Wallet } from "lucide-r
 import { buttonClasses } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/format";
+import { GoogleButton } from "@/components/auth/google-button";
 
 /**
  * Page d'accès d'une offre pour un visiteur non connecté : il voit l'essentiel (titre, lieu, date
@@ -15,9 +16,10 @@ export function OfferAccessGate({
   offer,
 }: {
   token?: string | null;
-  offer: { id: string; title: string; buyer: string | null; location: string | null; sector: string | null; deadline: string | null; budget: string | null };
+  offer: { id: string; title: string; buyer: string | null; location: string | null; sector: string | null; deadline: string | null; budget: string | null; excerpt?: string | null };
 }) {
-  const suite = encodeURIComponent(`/opportunites/${offer.id}`);
+  const path = `/opportunites/${offer.id}`;
+  const suite = encodeURIComponent(path);
   const go = (a: "inscription" | "connexion") => (token ? `/api/outreach/acces/${token}?o=${offer.id}&a=${a}` : `/${a}?suite=${suite}`);
   return (
     <div className="bg-sky/40">
@@ -58,18 +60,29 @@ export function OfferAccessGate({
                 </li>
               )}
             </ul>
+            {offer.excerpt && (
+              <div className="relative mt-4 border-t border-slate-200 pt-4">
+                <p className="text-sm leading-relaxed text-slate-700">{offer.excerpt}</p>
+                <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-slate-50 to-transparent" />
+              </div>
+            )}
+            <p className="mt-3 flex items-center gap-2 text-xs font-semibold text-slate-600">
+              <Lock className="size-3.5 text-teal-700" aria-hidden /> Descriptif complet, documents et lien officiel réservés aux membres
+            </p>
           </section>
 
-          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-            <a href={go("inscription")} className={buttonClasses({ size: "lg", className: "sm:flex-1" })}>
-              Créer mon compte
-            </a>
-            <a href={go("connexion")} className={buttonClasses({ size: "lg", variant: "outline", className: "sm:flex-1" })}>
+          <a href={go("inscription")} className={buttonClasses({ size: "lg", className: "mt-6 w-full" })}>
+            Créer mon compte gratuitement
+          </a>
+          <GoogleButton next={path} referral={token} />
+          <p className="mt-6 text-center text-sm text-slate-600">
+            Déjà inscrit ?{" "}
+            <a href={go("connexion")} className="font-semibold text-teal-700 hover:underline">
               Se connecter
             </a>
-          </div>
-          <ul className="mt-6 space-y-2 text-sm text-slate-600">
-            {["Gratuit, en moins d'une minute", "Vous arrivez directement sur cette offre après l'inscription", "Détail complet, documents et lien vers l'avis officiel"].map((t) => (
+          </p>
+          <ul className="mt-6 space-y-2 border-t border-slate-200 pt-6 text-sm text-slate-600">
+            {["Gratuit, sans carte bancaire, en moins d'une minute", "Vous arrivez directement sur cette offre après l'inscription", "Les nouvelles offres de votre métier par e-mail, si vous le souhaitez"].map((t) => (
               <li key={t} className="flex gap-2">
                 <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-teal-700" aria-hidden /> {t}
               </li>

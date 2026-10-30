@@ -42,7 +42,7 @@ export default async function LoginPage(props: PageProps<"/connexion">) {
         </Notice>
       )}
       <SignInForm next={next} referral={referral} />
-      <GoogleButton next={next} />
+      <GoogleButton next={next} referral={referral} />
     </AuthShell>
   );
 }

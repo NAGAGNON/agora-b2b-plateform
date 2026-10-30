@@ -2,15 +2,18 @@ import Link from "next/link";
 import { signInWithGoogle } from "@/app/actions/auth";
 
 /** « Continuer avec Google » : affiché seulement quand le fournisseur Google est configuré (AUTH_GOOGLE_ENABLED). */
-export function GoogleButton({ next }: { next?: string }) {
+export function GoogleButton({ next, referral, divider = true }: { next?: string; referral?: string | null; divider?: boolean }) {
   if (process.env.AUTH_GOOGLE_ENABLED !== "1") return null;
   return (
     <div className="mt-6">
-      <div className="mb-6 flex items-center gap-3 text-xs text-slate-500" aria-hidden>
-        <span className="h-px flex-1 bg-slate-200" /> ou <span className="h-px flex-1 bg-slate-200" />
-      </div>
+      {divider && (
+        <div className="mb-6 flex items-center gap-3 text-xs text-slate-500" aria-hidden>
+          <span className="h-px flex-1 bg-slate-200" /> ou <span className="h-px flex-1 bg-slate-200" />
+        </div>
+      )}
       <form action={signInWithGoogle}>
         {next && <input type="hidden" name="suite" value={next} />}
+        {referral && <input type="hidden" name="ref" value={referral} />}
         <button type="submit" className="flex w-full items-center justify-center gap-3 rounded-lg border border-slate-300 bg-white px-4 py-3 font-semibold text-slate-800 shadow-sm hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-teal-600">
           <svg aria-hidden viewBox="0 0 48 48" className="size-5">
             <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z" />

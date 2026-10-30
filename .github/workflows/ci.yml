@@ -12,7 +12,7 @@ concurrency:
 jobs:
   qualite:
     name: Lint, typage, tests unitaires, build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       SUPABASE_URL: http://127.0.0.1:54321
       SUPABASE_PUBLISHABLE_KEY: ci-placeholder
@@ -31,7 +31,7 @@ jobs:
 
   integration-e2e:
     name: Intégration (RLS) et E2E sur Supabase local
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
