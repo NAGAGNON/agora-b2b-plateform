@@ -8,6 +8,7 @@ import { LaunchManualButton, LaunchNeedsButton, RunNowButton } from "@/component
 import { campaignLabel } from "@/lib/outreach/matching";
 import { Notice } from "@/components/ui/notice";
 import { EmptyState } from "@/components/ui/states";
+import { parisDayStart, parisToday } from "@/lib/daily-report";
 
 // « Lancer la prospection habituelle » : chaîne complète (jusqu'à 5 minutes)
 export const maxDuration = 300;
@@ -19,7 +20,7 @@ type Stats = Record<string, number>;
 
 export default async function OutreachOverview() {
   const supabase = await createClient();
-  const today = new Date().toISOString().slice(0, 10);
+  const today = parisToday();
   const since = windowStart(30);
   const [{ data: settings }, { data: campaigns }, { data: sent }, { data: events }, prospects, withEmail, dnc, { data: cron }] = await Promise.all([
     supabase.from("outreach_settings").select("*").eq("id", true).maybeSingle(),
@@ -43,6 +44,9 @@ export default async function OutreachOverview() {
     .filter(([n]) => Number(n) > 0)
     .map(([n, w]) => `${n} campagne${Number(n) > 1 ? "s" : ""} ${w}${Number(n) > 1 ? "s" : ""}`)
     .join(" et ");
+  // E-mails réellement partis aujourd'hui, quelle que soit leur campagne : la file d'envoi étale sur
+  // plusieurs jours les e-mails préparés la veille, ils ne figurent pas dans les campagnes du jour
+  const { count: sentToday } = await supabase.from("outreach_recipients").select("id", { count: "exact", head: true }).eq("status", "SENT").gte("sent_at", parisDayStart(today).toISOString());
   const lives = await Promise.all((todayCampaigns ?? []).map(async (c) => ((await supabase.rpc("outreach_campaign_stats", { p_campaign_id: c.id })).data ?? {}) as Stats));
   const live: Stats = {};
   for (const l of lives) for (const [k, v] of Object.entries(l)) live[k] = (live[k] ?? 0) + (Number(v) || 0);
@@ -143,7 +147,7 @@ export default async function OutreachOverview() {
           <Stat label="Correspondances" value={st.matches ?? 0} hint={settings ? `score ≥ ${settings.min_score}/100` : undefined} />
           <Stat label="Entreprises sélectionnées" value={live.selected ?? 0} hint={live.no_email ? `dont ${fmtN(live.no_email)} sans e-mail` : undefined} />
           <Stat label="E-mails préparés" value={live.prepared ?? 0} />
-          <Stat label="Envoyés" value={live.sent ?? 0} hint={live.simulated ? `+ ${fmtN(live.simulated)} simulé(s)` : undefined} tone="accent" />
+          <Stat label="Envoyés aujourd'hui" value={sentToday ?? 0} hint={`dont ${fmtN(live.sent ?? 0)} des campagnes du jour${live.simulated ? ` · + ${fmtN(live.simulated)} simulé(s)` : ""}`} tone="accent" />
           <Stat label="Clics" value={live.clicked ?? 0} />
           <Stat label="Inscriptions" value={live.signups ?? 0} />
           <Stat label="Conversions" value={live.conversions ?? 0} />

@@ -126,6 +126,7 @@ export function relevanceLabel(score: number): string {
 export function scoreMatch(a: OpportunityAnalysis, p: ProspectInput, sectorLabel: (slug: string) => string = (s) => s): Match {
   const reasons: string[] = [];
   let activity = 0;
+  let bySectorOnly = false;
   const naf = p.naf_code;
   if (naf && a.primaryNaf.includes(naf)) {
     activity = 45;
@@ -135,6 +136,7 @@ export function scoreMatch(a: OpportunityAnalysis, p: ProspectInput, sectorLabel
     reasons.push(`Activité du secteur ${a.sector ? sectorLabel(a.sector) : ""} (NAF ${naf})`.replace(/\s+\(/, " ("));
   } else if (a.sector && p.sectors.includes(a.sector)) {
     activity = 40;
+    bySectorOnly = true;
     reasons.push(`Secteur déclaré : ${sectorLabel(a.sector)}`);
   }
   if (activity === 0) return { score: 0, reasons: [] };
@@ -166,6 +168,9 @@ export function scoreMatch(a: OpportunityAnalysis, p: ProspectInput, sectorLabel
 
   const text = ` ${normalizeText([p.activity, p.naf_label, p.services.join(" "), p.keywords.join(" ")].join(" "))} `;
   const matched = a.keywords.filter((k) => text.includes(` ${k} `) || (k.length >= 6 && text.includes(k.slice(0, -1))));
+  // Secteur déclaré sans code d'activité (entreprises de l'annuaire RGE) : le secteur est large (un
+  // poseur de fenêtres et un terrassier sont tous deux « travaux ») — un mot de son métier est exigé.
+  if (bySectorOnly && !matched.length) return { score: 0, reasons: [] };
   const skills = Math.min(18, matched.length * 6);
   if (matched.length) reasons.push(`Compétences correspondantes : ${matched.slice(0, 3).join(", ")}`);
 

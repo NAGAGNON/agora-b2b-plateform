@@ -94,6 +94,14 @@ describe("outreach — score de pertinence", () => {
     expect(scoreMatch(a, prospect({ last_clicked_at: "2026-10-01T00:00:00Z" })).score).toBeGreaterThan(base);
   });
 
+  it("entreprise RGE (secteur déclaré, sans NAF) : retenue seulement si l'offre parle de son métier", () => {
+    const rge = prospect({ naf_code: null, naf_label: null, sectors: ["travaux-btp"], activity: "Qualification RGE : Isolation des combles perdus", keywords: ["isolation", "isolation thermique"] });
+    const voirie = analyzeOpportunity(opp({ title: "Réfection de la voirie communale", description: "Travaux de chaussée et de trottoirs.", sector_slug: "travaux-btp" }));
+    const isolation = analyzeOpportunity(opp({ title: "Isolation des combles de la mairie", description: "Travaux d'isolation thermique des combles.", sector_slug: "travaux-btp" }));
+    expect(scoreMatch(voirie, rge).score).toBe(0);
+    expect(scoreMatch(isolation, rge).score).toBeGreaterThanOrEqual(70);
+  });
+
   it("libellés de pertinence", () => {
     expect(relevanceLabel(92)).toBe("Très pertinent");
     expect(relevanceLabel(72)).toBe("Pertinent");
