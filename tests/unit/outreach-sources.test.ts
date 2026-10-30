@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { enrichCompany, osmSearch, rgeSearch } from "@/lib/outreach/enrich";
-import { rgeContact, rgeStudyProspect } from "@/lib/outreach/rge-import";
+import { rgeContact, rgeDomainProfile, rgeProspect } from "@/lib/outreach/rge-import";
 
 const json = (body: unknown, status = 200) => (() => Promise.resolve(new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } }))) as unknown as typeof fetch;
 
@@ -51,15 +51,31 @@ describe("OpenStreetMap : site et adresse publiés sur la fiche de l'entreprise"
 
 describe("annuaire RGE : métiers d'études", () => {
   it("bureau d'études avec adresse générique : nouvelle entreprise à prospecter, données de l'annuaire uniquement", () => {
-    const p = rgeStudyProspect({ siret: "81080074800016", nom_entreprise: "THERMI ETUDES", email: "contact@thermi-etudes.fr", site_internet: "www.thermi-etudes.fr", code_postal: "29200", commune: "BREST", domaine: "Etude thermique reglementaire" }, () => "Bretagne");
+    const p = rgeProspect({ siret: "81080074800016", nom_entreprise: "THERMI ETUDES", email: "contact@thermi-etudes.fr", site_internet: "www.thermi-etudes.fr", code_postal: "29200", commune: "BREST", domaine: "Etude thermique reglementaire" }, () => "Bretagne");
     expect(p).toMatchObject({ name: "THERMI ETUDES", siren: "810800748", siret: "81080074800016", sectors: ["ingenierie-etudes"], department_code: "29", region: "Bretagne", email: "contact@thermi-etudes.fr", website: "https://www.thermi-etudes.fr", activity: "Qualification RGE : Etude thermique reglementaire" });
   });
 
   it("sans adresse générique, sans nom ou sans domaine : ignorée (rien n'est inventé)", () => {
-    expect(rgeStudyProspect({ siret: "81080074800016", nom_entreprise: "X", email: "paul.durand@gmail.com", domaine: "Architecte" }, () => null)).toBeNull();
-    expect(rgeStudyProspect({ siret: "81080074800016", email: "contact@x.fr", domaine: "Architecte" }, () => null)).toBeNull();
+    expect(rgeProspect({ siret: "81080074800016", nom_entreprise: "X", email: "paul.durand@gmail.com", domaine: "Architecte" }, () => null)).toBeNull();
+    expect(rgeProspect({ siret: "81080074800016", email: "contact@x.fr", domaine: "Architecte" }, () => null)).toBeNull();
     // Corse : département ambigu à partir du seul code postal → non renseigné
-    expect(rgeStudyProspect({ siret: "81080074800016", nom_entreprise: "ARCHI", email: "contact@archi.fr", code_postal: "20000", domaine: "Architecte" }, () => "Corse")?.department_code).toBeNull();
+    expect(rgeProspect({ siret: "81080074800016", nom_entreprise: "ARCHI", email: "contact@archi.fr", code_postal: "20000", domaine: "Architecte" }, () => "Corse")?.department_code).toBeNull();
+    // Qualification inconnue : aucun secteur sûr → ignorée
+    expect(rgeProspect({ siret: "81080074800016", nom_entreprise: "X", email: "contact@x.fr", domaine: "Inconnu" }, () => null)).toBeNull();
+  });
+
+  it("artisan RGE : toutes ses qualifications donnent ses secteurs et les mots de ses métiers", () => {
+    const rows = [
+      { siret: "81080074800016", nom_entreprise: "THERMO PLUS", email: "devis@thermoplus.fr", code_postal: "35000", commune: "RENNES", domaine: "Pompe à chaleur : chauffage" },
+      { siret: "81080074800016", nom_entreprise: "THERMO PLUS", email: "devis@thermoplus.fr", code_postal: "35000", commune: "RENNES", domaine: "Isolation des combles perdus" },
+    ];
+    const p = rgeProspect(rows, () => "Bretagne");
+    expect(p?.sectors).toEqual(["batiment-technique", "travaux-btp"]);
+    expect(p?.keywords).toEqual(expect.arrayContaining(["chauffage", "pompe a chaleur", "isolation"]));
+    expect(p?.activity).toBe("Qualification RGE : Pompe à chaleur : chauffage ; Isolation des combles perdus");
+    expect(rgeDomainProfile("Panneaux solaires photovoltaïques")?.sector).toBe("energie");
+    expect(rgeDomainProfile("Chaudière bois")?.keywords).toContain("bois energie");
+    expect(rgeDomainProfile("Fenêtres de toit")?.sector).toBe("travaux-btp");
   });
 });
 
