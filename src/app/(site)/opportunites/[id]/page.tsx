@@ -92,6 +92,16 @@ export async function generateMetadata(props: PageProps<"/opportunites/[id]">): 
  * e-mail de prospection qui lui proposait ce besoin, il voit la page d'accès « Créez votre compte » ;
  * sinon, il est invité à s'inscrire et revient ensuite sur la fiche.
  */
+/**
+ * Aperçu d'un avis pour un visiteur sans compte : au plus la moitié du descriptif (220 caractères au
+ * maximum), rien si le descriptif est trop court — le détail complet reste réservé aux membres.
+ */
+function gateExcerpt(description: string | null): string | null {
+  const text = (description ?? "").replace(/\s+/g, " ").trim();
+  const max = Math.min(220, Math.floor(text.length / 2));
+  return max >= 60 ? clip(text, max) : null;
+}
+
 async function membersOnlyGate(id: string) {
   if (await getSession()) return null;
   const db = createAdminClient();
@@ -164,7 +174,7 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
           deadline: o.response_deadline,
           budget: o.budget_visible ? formatBudget(o.budget_min, o.budget_max) : null,
           // Avis public collecté (BOAMP, TED…) : début du descriptif en aperçu ; un besoin d'entreprise n'en montre rien
-          excerpt: o.origin === "EXTERNAL" ? clip(o.summary || o.description || "", 260) : null,
+          excerpt: o.origin === "EXTERNAL" ? gateExcerpt(o.description) : null,
         }}
       />
     );
