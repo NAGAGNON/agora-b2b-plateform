@@ -5,7 +5,10 @@ import { signInWithGoogle } from "@/app/actions/auth";
 export function GoogleButton({ next }: { next?: string }) {
   if (process.env.AUTH_GOOGLE_ENABLED !== "1") return null;
   return (
-    <div className="mb-6">
+    <div className="mt-6">
+      <div className="mb-6 flex items-center gap-3 text-xs text-slate-500" aria-hidden>
+        <span className="h-px flex-1 bg-slate-200" /> ou <span className="h-px flex-1 bg-slate-200" />
+      </div>
       <form action={signInWithGoogle}>
         {next && <input type="hidden" name="suite" value={next} />}
         <button type="submit" className="flex w-full items-center justify-center gap-3 rounded-lg border border-slate-300 bg-white px-4 py-3 font-semibold text-slate-800 shadow-sm hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-teal-600">
@@ -22,9 +25,6 @@ export function GoogleButton({ next }: { next?: string }) {
         En continuant avec Google, vous acceptez les <Link href="/cgu" className="underline">conditions d&apos;utilisation</Link> et la{" "}
         <Link href="/confidentialite" className="underline">politique de confidentialité</Link>.
       </p>
-      <div className="mt-6 flex items-center gap-3 text-xs text-slate-500" aria-hidden>
-        <span className="h-px flex-1 bg-slate-200" /> ou avec votre adresse e-mail <span className="h-px flex-1 bg-slate-200" />
-      </div>
     </div>
   );
 }

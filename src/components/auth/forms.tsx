@@ -164,7 +164,7 @@ export function SignUpForm({ referral, next, defaultEmail }: { referral?: string
       <Checkbox
         name="marketing"
         defaultChecked={values.marketing}
-        label="J'accepte de recevoir la veille LinkProB2B par e-mail : deux sélections d'opportunités par semaine et les actualités du site (facultatif, désinscription en un clic)."
+        label="J'accepte de recevoir la veille LinkProB2B par e-mail, deux fois par semaine (facultatif)."
       />
       {state && !state.ok && !fe && <Notice tone="error">{state.error}</Notice>}
       <SubmitButton full size="lg" pendingLabel="Création du compte…">

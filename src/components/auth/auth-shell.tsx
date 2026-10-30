@@ -3,13 +3,14 @@ import Image from "next/image";
 import { CheckCircle2 } from "lucide-react";
 
 /** Mise en page des écrans d'authentification (formulaire + argumentaire). */
-export function AuthShell({ title, subtitle, children, aside = true }: { title: string; subtitle?: ReactNode; children: ReactNode; aside?: boolean }) {
+export function AuthShell({ title, subtitle, children, footer, aside = true }: { title: string; subtitle?: ReactNode; children: ReactNode; footer?: ReactNode; aside?: boolean }) {
   return (
-    <div className="container-page grid gap-10 py-10 sm:py-16 lg:grid-cols-2 lg:items-start">
+    <div className={`container-page grid gap-10 py-10 sm:py-16 ${aside ? "lg:grid-cols-2 lg:items-start" : ""}`}>
       <div className="mx-auto w-full max-w-md">
         <h1 className="text-2xl font-bold sm:text-3xl">{title}</h1>
         {subtitle && <div className="mt-2 text-slate-600">{subtitle}</div>}
         <div className="mt-8">{children}</div>
+        {footer && <div className="mt-8 border-t border-slate-200 pt-6 text-center text-sm text-slate-600">{footer}</div>}
       </div>
       {aside && (
         <div className="relative isolate hidden overflow-hidden rounded-3xl bg-navy-900 p-10 text-white shadow-2xl lg:block">
