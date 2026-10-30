@@ -199,10 +199,13 @@ export async function resendConfirmation(_prev: ActionResult | null, fd: FormDat
  */
 export async function signInWithGoogle(formData: FormData) {
   const next = safeNext(formData.get("suite"), "/onboarding/entreprise");
+  // Provenance (e-mail de prospection) : jeton signé, vérifié au retour (inscription comptée pour la campagne)
+  const rawRef = formData.get("ref");
+  const ref = typeof rawRef === "string" && /^o\.[A-Za-z0-9_.-]{20,60}$/.test(rawRef) ? rawRef : null;
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
-    options: { redirectTo: `${env.siteUrl}/auth/confirmation?${new URLSearchParams({ suite: next, fournisseur: "google" })}` },
+    options: { redirectTo: `${env.siteUrl}/auth/confirmation?${new URLSearchParams({ suite: next, fournisseur: "google", ...(ref ? { ref } : {}) })}` },
   });
   if (error || !data.url) {
     logServerError("google oauth", error);

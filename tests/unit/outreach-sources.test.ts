@@ -78,6 +78,8 @@ describe("annuaire RGE : métiers d'études", () => {
     expect(rgeDomainProfile("Panneaux solaires photovoltaïques")?.sector).toBe("energie");
     expect(rgeDomainProfile("Chaudière bois")?.keywords).toContain("bois energie");
     expect(rgeDomainProfile("Fenêtres de toit")?.sector).toBe("travaux-btp");
+    // Caractères de contrôle de l'annuaire (refusés par la base) : retirés
+    expect(rgeProspect({ siret: "81080074800016", nom_entreprise: "ISO\u0000 CONFORT\u0007", email: "contact@iso.fr", domaine: "Isolation des combles perdus" }, () => null)?.name).toBe("ISO CONFORT");
   });
 });
 

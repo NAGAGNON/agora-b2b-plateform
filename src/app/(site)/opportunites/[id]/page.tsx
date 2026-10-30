@@ -163,6 +163,8 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
           sector: o.sector_slug ? sectorLabel(o.sector_slug, await getSectorLabels()) : null,
           deadline: o.response_deadline,
           budget: o.budget_visible ? formatBudget(o.budget_min, o.budget_max) : null,
+          // Avis public collecté (BOAMP, TED…) : début du descriptif en aperçu ; un besoin d'entreprise n'en montre rien
+          excerpt: o.origin === "EXTERNAL" ? clip(o.summary || o.description || "", 260) : null,
         }}
       />
     );

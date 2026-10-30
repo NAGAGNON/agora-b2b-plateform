@@ -14,7 +14,9 @@ const STATE_KEY = "private.rge_import_v2";
 const REFRESH_DAYS = 7;
 
 type Row = Record<string, unknown>;
-const text = (row: Row, keys: string[]) => keys.map((k) => row[k]).find((v): v is string => typeof v === "string" && v.trim() !== "")?.trim() ?? null;
+// Caractères de contrôle (dont \u0000) présents dans quelques lignes de l'annuaire : refusés par la base, retirés
+const clean = (v: string) => v.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "").replace(/[\uD800-\uDFFF]/g, "").trim();
+const text = (row: Row, keys: string[]) => keys.map((k) => (typeof row[k] === "string" ? clean(row[k] as string) : null)).find((v): v is string => Boolean(v)) ?? null;
 
 /** Coordonnées d'une ligne de l'annuaire RGE : adresse publiée par l'entreprise pour être contactée. */
 export function rgeContact(row: Row): { siren: string; email: string | null; website: string | null } | null {
@@ -103,7 +105,8 @@ export async function importRgeContacts(db: Db, { deadline = Date.now() + 120_00
   return result;
 }
 
-const COMPANIES_KEY = "private.rge_companies_import";
+// v2 : lots refusés (caractères de contrôle) lors du premier passage → relecture complète
+const COMPANIES_KEY = "private.rge_companies_import_v2";
 /** Qualifications RGE des métiers d'études : bureaux d'études thermiques, auditeurs énergétiques, architectes. */
 export const RGE_STUDY_DOMAINS = ["Architecte", "Etude thermique reglementaire", "Audit énergétique Maison individuelle", "Audit énergétique Logement collectif"];
 
