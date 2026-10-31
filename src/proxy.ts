@@ -107,6 +107,9 @@ export const config = {
     "/admin/:path*",
     "/onboarding/:path*",
     "/outreach/:path*",
+    // Listes réservées aux membres : redirection des visiteurs sans session vers l'inscription
+    "/opportunites",
+    "/entreprises",
     {
       source: "/((?!_next/static|_next/image|brand/|icon.png|apple-icon.png|robots.txt|sitemap.xml|.*\\.(?:png|jpg|jpeg|svg|webp|ico)$).*)",
       has: [{ type: "cookie", key: "sb-linkprob2b-auth-token" }],
