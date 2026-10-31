@@ -23,3 +23,19 @@ describe("clics automatiques des messageries", () => {
     expect(isAutomatedHit(req("Mozilla/5.0 (Windows NT 5.1; rv:11.0) Gecko Firefox/11.0 (via ggpht.com GoogleImageProxy)"), null, now)).toBe(false);
   });
 });
+
+describe("pause du week-end", () => {
+  it("aucun envoi de prospection le samedi ni le dimanche (heure de Paris)", async () => {
+    const { isSendPauseDay } = await import("@/lib/outreach/pipeline");
+    const prev = process.env.OUTREACH_WEEKEND_SENDS;
+    delete process.env.OUTREACH_WEEKEND_SENDS;
+    expect(isSendPauseDay(new Date("2026-10-31T10:00:00Z"))).toBe(true); // samedi
+    expect(isSendPauseDay(new Date("2026-11-01T22:30:00Z"))).toBe(true); // dimanche 23 h 30 à Paris
+    expect(isSendPauseDay(new Date("2026-11-01T23:30:00Z"))).toBe(false); // lundi 0 h 30 à Paris
+    expect(isSendPauseDay(new Date("2026-11-04T09:00:00Z"))).toBe(false); // mercredi
+    process.env.OUTREACH_WEEKEND_SENDS = "1";
+    expect(isSendPauseDay(new Date("2026-10-31T10:00:00Z"))).toBe(false);
+    if (prev === undefined) delete process.env.OUTREACH_WEEKEND_SENDS;
+    else process.env.OUTREACH_WEEKEND_SENDS = prev;
+  });
+});
