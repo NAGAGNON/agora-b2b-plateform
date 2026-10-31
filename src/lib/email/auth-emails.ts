@@ -44,15 +44,22 @@ export const recoveryLayout = (url: string): Layout => ({
   footer: "Vous n'êtes pas à l'origine de cette demande ? Ignorez cet e-mail : votre mot de passe reste inchangé.",
 });
 
-export const welcomeLayout = (): Layout => ({
+export type WelcomeExtras = { offers?: { label: string; url: string }[]; alertName?: string | null };
+
+export const welcomeLayout = ({ offers = [], alertName = null }: WelcomeExtras = {}): Layout => ({
   kicker: "Compte activé",
   hero: "equipe",
   title: "Votre compte est activé",
   paragraphs: [
-    "Prochaine étape : complétez la fiche de votre entreprise (secteurs, compétences, zone d'intervention). Une fiche complète est mieux recommandée aux demandeurs.",
-    "Créez ensuite une alerte pour recevoir les opportunités qui correspondent à votre activité.",
+    offers.length ? "Voici les dernières opportunités ouvertes dans votre domaine : ouvrez-les dès maintenant, le détail complet et les documents sont accessibles avec votre compte." : "Les opportunités B2B et marchés publics de toute la France sont maintenant accessibles avec votre compte.",
+    alertName
+      ? `Nous avons créé pour vous l'alerte « ${alertName} » : vous recevrez les nouvelles offres de votre domaine chaque matin, uniquement les jours où il y en a. Vous pouvez la modifier ou l'arrêter en un clic depuis votre espace, rubrique Alertes.`
+      : "Créez une alerte pour recevoir chaque matin les opportunités qui correspondent à votre activité.",
+    "Vous représentez une entreprise ? Complétez sa fiche pour être recommandé aux entreprises qui publient des besoins.",
   ],
-  cta: { label: "Compléter ma fiche entreprise", url: `${env.siteUrl}/onboarding/entreprise` },
+  list: offers.length ? offers : undefined,
+  cta: offers.length ? { label: "Voir toutes les opportunités", url: `${env.siteUrl}/opportunites` } : alertName ? { label: "Voir les opportunités", url: `${env.siteUrl}/opportunites` } : { label: "Créer mon alerte", url: `${env.siteUrl}/dashboard/alertes` },
+  footer: "Vous n'êtes pas à l'origine de cette inscription ? Répondez à cet e-mail : le compte sera supprimé.",
 });
 
 export const appSendsAuthEmails = () => env.emailTransport !== null;
@@ -124,10 +131,10 @@ export async function sendPasswordReset(email: string): Promise<void> {
   await deliver(email, data.user?.id ?? null, "auth_recovery", AUTH_SUBJECTS.recovery, recoveryLayout(url));
 }
 
-/** E-mail de bienvenue, après confirmation de l'adresse. */
-export async function sendWelcome(email: string, userId: string): Promise<void> {
+/** E-mail de bienvenue : offres du domaine de la personne et alerte créée pour elle, quand on les connaît. */
+export async function sendWelcome(email: string, userId: string, extras: WelcomeExtras = {}): Promise<void> {
   if (!appSendsAuthEmails()) return;
-  await deliver(email, userId, "welcome", AUTH_SUBJECTS.welcome, welcomeLayout());
+  await deliver(email, userId, "welcome", AUTH_SUBJECTS.welcome, welcomeLayout(extras));
 }
 
 /**

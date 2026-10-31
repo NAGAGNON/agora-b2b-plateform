@@ -51,6 +51,7 @@ jobs:
             echo "SUPABASE_SECRET_KEY=$SECRET_KEY"
             echo "CRON_SECRET=ci-cron-secret"
             echo "RATE_LIMIT_SALT=ci-salt"
+            echo "OUTREACH_WEEKEND_SENDS=1"
           } > .env.local
       - name: Script de migration (journal compatible CLI)
         run: node scripts/migrate.mjs --status
