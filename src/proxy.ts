@@ -5,6 +5,8 @@ import { siteUrl } from "@/lib/seo";
 
 const PROXY_TIMEOUT_MS = 3000;
 const PROTECTED_PREFIXES = ["/dashboard", "/admin", "/onboarding", "/outreach"];
+/** Listes d'opportunités et annuaire : réservés aux membres (les fiches et pages par zone restent publiques). */
+const MEMBERS_ONLY_LISTS = ["/opportunites", "/entreprises"];
 
 /**
  * LinkProB2B Outreach est servi sur son propre sous-domaine (outreach.linkprob2b.com).
@@ -39,6 +41,13 @@ export async function proxy(request: NextRequest) {
   // Visiteur sans session (la grande majorité, robots compris) : rien à rafraîchir, aucun appel —
   // économise le temps de calcul facturé par Vercel à chaque page vue.
   const hasSession = request.cookies.getAll().some((c) => c.name.startsWith(SESSION_COOKIE));
+  // Listes réservées aux membres (voir requireAccount) : redirection immédiate vers l'inscription, avant
+  // le rendu — sinon la page répond 200 puis redirige dans le navigateur (plus lent, mal compris par Google)
+  if (!hasSession && MEMBERS_ONLY_LISTS.includes(path)) {
+    const signup = new URL("/inscription", request.url);
+    signup.searchParams.set("suite", path + request.nextUrl.search);
+    return NextResponse.redirect(signup, 307);
+  }
   if (!hasSession && !isProtected) return NextResponse.next({ request });
   let response = NextResponse.next({ request });
   const url = process.env.SUPABASE_INTERNAL_URL ?? process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
