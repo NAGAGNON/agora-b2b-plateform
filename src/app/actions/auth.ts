@@ -6,7 +6,8 @@ import { rateLimit } from "@/lib/rate-limit";
 import { env } from "@/lib/env";
 import { logServerError } from "@/lib/errors";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { appSendsAuthEmails, bootstrapInitialAdmin, resendSignupConfirmation, sendPasswordReset, sendWelcome, signUpWithEmail } from "@/lib/email/auth-emails";
+import { appSendsAuthEmails, bootstrapInitialAdmin, resendSignupConfirmation, sendPasswordReset } from "@/lib/email/auth-emails";
+import { welcomeNewMember } from "@/lib/starter-alert";
 import { safeInternalPath } from "@/lib/safe-path";
 import { recipientFromReferral, referralStillTrusted, trackReferral, trackSignupReferral } from "@/lib/outreach/tracking";
 import { newPasswordSchema, parseForm, resetRequestSchema, signInSchema, signUpSchema, type ActionResult } from "@/lib/validation";
@@ -85,27 +86,33 @@ export async function signUp(_prev: ActionResult | null, formData: FormData): Pr
     await bootstrapInitialAdmin(parsed.data.email);
     await supabase.rpc("track_event", { p_event_name: "create_account" });
     await trackSignupReferral(formData.get("ref"), created.user?.id ?? null);
-    if (created.user) await sendWelcome(parsed.data.email, created.user.id);
+    if (created.user) await welcomeNewMember({ id: created.user.id, email: parsed.data.email }, next, formData.get("ref"));
     redirect(next);
   }
 
-  const offerNext = next.startsWith("/opportunites/");
-  const confirmMessage = offerNext
-    ? "Compte créé. Cliquez sur le lien reçu par e-mail pour l'activer : vous serez connecté et l'offre s'ouvrira directement."
-    : "Compte créé. Un e-mail de confirmation vient de vous être envoyé : cliquez sur le lien pour activer votre compte.";
-
-  // 1. Fournisseur e-mail configuré : confirmation par e-mail envoyée par l'application.
+  // 1. Fournisseur e-mail configuré : compte activé tout de suite, sans attendre la confirmation de
+  //    l'adresse (une partie des inscrits s'arrêtait là). Connexion immédiate, alerte de départ et
+  //    e-mail de bienvenue (avec « ce n'est pas vous ? » pour une adresse utilisée par erreur).
   if (appSendsAuthEmails()) {
-    const r = await signUpWithEmail({ email: parsed.data.email, password: parsed.data.password, data: meta, next });
-    if (!r.ok) {
-      if (r.reason === "exists") return exists;
-      if (r.reason === "weak_password") return weak;
-      if (r.reason === "send_failed") return { ok: false, error: "L'e-mail de confirmation n'a pas pu être envoyé. Vérifiez l'adresse et réessayez." };
+    const { data: created, error } = await createAdminClient().auth.admin.createUser({
+      email: parsed.data.email,
+      password: parsed.data.password,
+      email_confirm: true,
+      user_metadata: meta,
+    });
+    if (error) {
+      if (/already|registered|exists/i.test(error.message)) return exists;
+      if (/password/i.test(error.message)) return weak;
+      logServerError("signUp", error);
       return failed;
     }
+    const { error: signInError } = await supabase.auth.signInWithPassword({ email: parsed.data.email, password: parsed.data.password });
+    if (signInError) return { ok: true, message: "Compte créé. Vous pouvez vous connecter." };
+    await bootstrapInitialAdmin(parsed.data.email);
     await supabase.rpc("track_event", { p_event_name: "create_account" });
-    await trackSignupReferral(formData.get("ref"), null);
-    return { ok: true, message: confirmMessage };
+    await trackSignupReferral(formData.get("ref"), created.user?.id ?? null);
+    if (created.user) await welcomeNewMember({ id: created.user.id, email: parsed.data.email }, next, formData.get("ref"));
+    redirect(next);
   }
 
   // 2. Prévisualisation / développement sans fournisseur e-mail : activation immédiate.
@@ -127,6 +134,7 @@ export async function signUp(_prev: ActionResult | null, formData: FormData): Pr
     await bootstrapInitialAdmin(parsed.data.email);
     await supabase.rpc("track_event", { p_event_name: "create_account" });
     await trackSignupReferral(formData.get("ref"), created.user?.id ?? null);
+    if (created.user) await welcomeNewMember({ id: created.user.id, email: parsed.data.email }, next, formData.get("ref"));
     redirect(next);
   }
 
@@ -145,7 +153,10 @@ export async function signUp(_prev: ActionResult | null, formData: FormData): Pr
   await supabase.rpc("track_event", { p_event_name: "create_account" });
   await trackSignupReferral(formData.get("ref"), data.user?.id ?? null);
   if (!data.session) {
-    return { ok: true, message: confirmMessage };
+    const message = next.startsWith("/opportunites/")
+      ? "Compte créé. Cliquez sur le lien reçu par e-mail pour l'activer : vous serez connecté et l'offre s'ouvrira directement."
+      : "Compte créé. Un e-mail de confirmation vient de vous être envoyé : cliquez sur le lien pour activer votre compte.";
+    return { ok: true, message };
   }
   await bootstrapInitialAdmin(parsed.data.email);
   redirect(next);
