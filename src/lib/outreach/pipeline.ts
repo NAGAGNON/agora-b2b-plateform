@@ -1,4 +1,5 @@
 import "server-only";
+import { isWeekendPause } from "@/lib/weekend";
 import { logServerError } from "@/lib/errors";
 import { formatDate } from "@/lib/format";
 import { analyzeOpportunity, contentFingerprint, groupByProspect, scoreMatch, type OpportunityAnalysis, type ProspectInput } from "@/lib/outreach/matching";
@@ -556,16 +557,8 @@ async function insertRecipients(
  * par jour (toutes campagnes), par heure, intervalle entre deux envois, et limite propre à la
  * campagne automatique. Notre base enregistre chaque tentative (date, réponse SMTP, erreur).
  */
-/**
- * Samedi et dimanche (heure de Paris) : aucun e-mail de prospection ne part — les professionnels lisent
- * peu leurs e-mails le week-end et un message reçu samedi est noyé lundi matin. Les campagnes et la
- * recherche d'adresses continuent ; la file part dans la semaine. OUTREACH_WEEKEND_SENDS=1 lève la pause (tests).
- */
-export function isSendPauseDay(now = new Date()): boolean {
-  if (process.env.OUTREACH_WEEKEND_SENDS === "1") return false;
-  const day = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Paris", weekday: "short" }).format(now);
-  return day === "Sat" || day === "Sun";
-}
+/** Samedi et dimanche (heure de Paris) : aucun e-mail de prospection ne part (voir isWeekendPause). */
+export const isSendPauseDay = isWeekendPause;
 
 export async function processSendQueue(db: Db, { deadline = Date.now() + 60_000, sleep = wait }: { deadline?: number; sleep?: (ms: number) => Promise<void> } = {}) {
   if (isSendPauseDay()) return { sent: 0, simulated: 0, failed: 0, skipped: 0, remaining_cap: 0, stopped: "pause du week-end : les e-mails partent à partir de lundi" as string | null };
