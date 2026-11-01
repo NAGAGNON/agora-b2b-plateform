@@ -1,3 +1,4 @@
+import { isWeekendPause } from "@/lib/weekend";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
 import { siteUrl } from "@/lib/seo";
@@ -322,6 +323,8 @@ export async function refreshCampaign(db: DB, id: string) {
 
 /** Tâche planifiée : prépare les éditions du jour puis envoie. Ne fait rien tant que l'administrateur n'a pas activé la veille. */
 export async function runVeille(db: DB, opts: QueueOptions) {
+  // Week-end : ni veille, ni suivi, ni invitation (reprise le lundi ; les alertes réglées par les membres ne sont pas concernées)
+  if (isWeekendPause(opts.now?.() ?? new Date())) return { stopped: "pause du week-end : reprise lundi", invitations: null, editions: [], suivi: null, send: null };
   const settings = await loadVeilleSettings(db);
   // Invitation unique des inscrits sans accord (indépendante de l'activation des éditions)
   const invitations = settings.invitations_enabled === false ? null : await sendVeilleInvitations(db, { send: opts.send, deadline: opts.deadline - 60_000, sleep: opts.sleep, intervalMs: opts.intervalMs, now: opts.now?.() });
