@@ -27,7 +27,9 @@ const solid = (c: string) => `background-color:${c};background-image:linear-grad
 /** Photos d'en-tête disponibles (public/email/hero-*.jpg). */
 export type Hero = "meridiens" | "accord" | "bureau" | "equipe" | "gratte-ciel" | "ordinateurs" | "plans" | "reunion" | "tableau-de-bord";
 
-export const heroUrl = (base: string, hero: Hero) => `${base}/email/hero-${hero}.jpg`;
+// Version des photos : à augmenter quand une photo change (les messageries gardent l'ancienne en cache)
+const HERO_VERSION = 2;
+export const heroUrl = (base: string, hero: Hero) => `${base}/email/hero-${hero}.jpg?v=${HERO_VERSION}`;
 
 /** Famille de métiers d'un secteur (slug), pour choisir la photo du secteur. */
 export function familyOf(sectorSlug: string | null | undefined): string {
