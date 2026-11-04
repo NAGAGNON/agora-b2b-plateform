@@ -99,7 +99,6 @@ export default async function SignUpPage(props: PageProps<"/inscription">) {
           Réessayez, ou créez votre compte avec votre adresse e-mail.
         </Notice>
       )}
-      <span hidden data-apercu={`${forOffer ? 1 : 0}-${total}-${latest?.length ?? "n"}`} />
       {!forOffer && total > 0 && latest && latest.length > 0 && (
         <section aria-label="Aperçu des opportunités" className="mb-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
           <p className="text-sm font-semibold text-navy">

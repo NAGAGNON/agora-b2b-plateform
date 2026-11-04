@@ -3,7 +3,7 @@ import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { SECTORS, SECTOR_LABELS, type SectorOption } from "@/lib/constants";
 import { env } from "@/lib/env";
-import { visitorRpc } from "@/lib/queries/public-cache";
+import { cachedRpcAll, visitorRpc } from "@/lib/queries/public-cache";
 
 export const getSettings = cache(async () => {
   const supabase = await createClient();
@@ -99,8 +99,9 @@ export const getPlatformStats = cache(async (): Promise<PlatformStats | null> =>
 
 /** Opportunités ouvertes par dimension (région, département, secteur, couples) : pages d'atterrissage et liens internes. */
 export const getOpenCounts = cache(async () => {
-  const { data } = await visitorRpc("open_opportunity_counts", undefined as never, { always: true });
+  // Plus de 2 000 lignes (couples département × métier) : lecture complète par tranches de 1 000
+  const data = (await cachedRpcAll("open_opportunity_counts").catch(() => [])) as { dimension: string; key: string | null; n: number }[];
   const map = new Map<string, number>();
-  for (const r of data ?? []) map.set(`${r.dimension}:${r.key ?? ""}`, Number(r.n));
+  for (const r of data) map.set(`${r.dimension}:${r.key ?? ""}`, Number(r.n));
   return (dimension: string, key: string) => map.get(`${dimension}:${key}`) ?? 0;
 });
