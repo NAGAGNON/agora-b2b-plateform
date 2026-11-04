@@ -12,7 +12,9 @@ export function AccountMenu({
   company,
   isStaff,
   links,
+  avatar = null,
 }: {
+  avatar?: string | null;
   name: string;
   email: string;
   company: string | null;
@@ -43,7 +45,12 @@ export function AccountMenu({
         aria-haspopup="menu"
         className="flex items-center gap-2 rounded-lg py-1.5 pr-2 pl-1.5 hover:bg-sky"
       >
-        <span className="flex size-8 items-center justify-center rounded-full bg-navy text-xs font-bold text-white">{initials(name)}</span>
+        {avatar ? (
+          // eslint-disable-next-line @next/next/no-img-element -- photo servie par /api/photos
+          <img src={avatar} alt="" width={32} height={32} className="size-8 rounded-full object-cover" />
+        ) : (
+          <span className="flex size-8 items-center justify-center rounded-full bg-navy text-xs font-bold text-white">{initials(name)}</span>
+        )}
         <span className="max-w-36 truncate text-sm font-semibold text-navy">{name}</span>
         <ChevronDown className="size-4 text-slate-500" aria-hidden />
       </button>

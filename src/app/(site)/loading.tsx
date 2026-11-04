@@ -6,7 +6,8 @@ import { PageSkeleton } from "@/components/ui/page-skeleton";
  */
 export default function Loading() {
   return (
-    <div className="container-page py-8 sm:py-10">
+    // Hauteur d'un écran : le pied de page reste hors de vue pendant le chargement (pas de « saut » de la page)
+    <div className="container-page min-h-dvh py-8 sm:py-10">
       <PageSkeleton />
     </div>
   );
