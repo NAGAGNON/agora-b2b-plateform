@@ -132,6 +132,15 @@ describe("Google, articles et inscriptions", () => {
     expect(art).toMatchObject({ published: "today", views_today: 2, visitors_total: 2, visitors_from_google: 1 });
     expect(after.signups.today).toBe(before.signups.today + 1);
     expect(after.signups.list.some((x) => x.name === "IT gai-signup")).toBe(true);
+    // Provenance de l'inscrit : visite pendant laquelle le compte a été créé (première page et étiquette des liens)
+    expect(after.signups.list.find((x) => x.name === "IT gai-signup")?.origin).toBe("Inconnue (visite non mesurée)");
+    await admin.from("users").update({ signup_visit: G1 }).eq("id", u.id);
+    expect((await snap()).signups.list.find((x) => x.name === "IT gai-signup")?.origin).toBe("Google (recherche)");
+    await admin.from("page_views").insert({ session_id: G2, path: "/opportunites/ile-de-france", referrer_host: null, source: "veille", created_at: new Date(Date.now() - 3_600_000).toISOString() });
+    await admin.from("users").update({ signup_visit: G2 }).eq("id", u.id);
+    const withOrigin = await snap();
+    expect(withOrigin.signups.list.find((x) => x.name === "IT gai-signup")?.origin).toBe("E-mail de veille");
+    expect(withOrigin.signups.by_origin?.some((x) => x.origin === "E-mail de veille" && x.count >= 1)).toBe(true);
 
     // Rapport : chiffres présents ; les noms restent dans l'e-mail, jamais envoyés à la rédaction
     const f = await buildDailyFacts();

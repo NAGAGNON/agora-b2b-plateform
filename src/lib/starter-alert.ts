@@ -85,7 +85,11 @@ export async function welcomeOffers(criteria: Criteria | null, limit = 4): Promi
 }
 
 /** Accueil d'un nouvel inscrit : alerte de départ (si possible) puis e-mail de bienvenue avec les offres de son domaine. */
-export async function welcomeNewMember(user: { id: string; email: string }, next: string | null | undefined, ref?: FormDataEntryValue | string | null) {
+export async function welcomeNewMember(user: { id: string; email: string }, next: string | null | undefined, ref?: FormDataEntryValue | string | null, visit?: FormDataEntryValue | string | null) {
+  // Visite pendant laquelle le compte a été créé : provenance de l'inscrit (bilan, tableau de bord)
+  if (typeof visit === "string" && /^[0-9a-f-]{36}$/i.test(visit)) {
+    await createAdminClient().from("users").update({ signup_visit: visit }).eq("id", user.id).then(({ error }) => error && logServerError("signup visit", error));
+  }
   const criteria = await signupCriteria(next, ref ?? null).catch(() => null);
   const created = await createStarterAlert(user.id, criteria);
   let alertName: string | null = null;

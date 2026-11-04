@@ -21,6 +21,15 @@ function sessionId(): string | null {
   }
 }
 
+function sourceTag(): string | undefined {
+  try {
+    const v = new URLSearchParams(window.location.search).get("utm_source");
+    return v && /^[a-z0-9._-]{1,60}$/i.test(v) ? v.toLowerCase() : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export function AudienceTracker() {
   const pathname = usePathname();
   const current = useRef<{ id: number; sid: string; visibleMs: number; since: number | null } | null>(null);
@@ -56,13 +65,15 @@ export function AudienceTracker() {
     };
 
     let cancelled = false;
-    const referrer = sessionStorage.getItem("lp-visite-ref") === null ? document.referrer : "";
+    const firstView = sessionStorage.getItem("lp-visite-ref") === null;
+    const referrer = firstView ? document.referrer : "";
     try {
       sessionStorage.setItem("lp-visite-ref", "1");
     } catch {}
     void fetch("/api/audience", {
       method: "POST",
-      body: JSON.stringify({ t: "view", sid, path: pathname, ref: referrer || undefined, w: window.innerWidth }),
+      // Étiquette de provenance des liens du site (e-mails de prospection, veille, suivi) : première page de la visite
+      body: JSON.stringify({ t: "view", sid, path: pathname, ref: referrer || undefined, src: firstView ? sourceTag() : undefined, w: window.innerWidth }),
     })
       .then((r) => (r.ok ? r.json() : null))
       .then((d: { id?: number } | null) => {

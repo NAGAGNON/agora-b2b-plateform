@@ -86,7 +86,7 @@ export async function signUp(_prev: ActionResult | null, formData: FormData): Pr
     await bootstrapInitialAdmin(parsed.data.email);
     await supabase.rpc("track_event", { p_event_name: "create_account" });
     await trackSignupReferral(formData.get("ref"), created.user?.id ?? null);
-    if (created.user) await welcomeNewMember({ id: created.user.id, email: parsed.data.email }, next, formData.get("ref"));
+    if (created.user) await welcomeNewMember({ id: created.user.id, email: parsed.data.email }, next, formData.get("ref"), formData.get("visite"));
     redirect(next);
   }
 
@@ -111,7 +111,7 @@ export async function signUp(_prev: ActionResult | null, formData: FormData): Pr
     await bootstrapInitialAdmin(parsed.data.email);
     await supabase.rpc("track_event", { p_event_name: "create_account" });
     await trackSignupReferral(formData.get("ref"), created.user?.id ?? null);
-    if (created.user) await welcomeNewMember({ id: created.user.id, email: parsed.data.email }, next, formData.get("ref"));
+    if (created.user) await welcomeNewMember({ id: created.user.id, email: parsed.data.email }, next, formData.get("ref"), formData.get("visite"));
     redirect(next);
   }
 
@@ -134,7 +134,7 @@ export async function signUp(_prev: ActionResult | null, formData: FormData): Pr
     await bootstrapInitialAdmin(parsed.data.email);
     await supabase.rpc("track_event", { p_event_name: "create_account" });
     await trackSignupReferral(formData.get("ref"), created.user?.id ?? null);
-    if (created.user) await welcomeNewMember({ id: created.user.id, email: parsed.data.email }, next, formData.get("ref"));
+    if (created.user) await welcomeNewMember({ id: created.user.id, email: parsed.data.email }, next, formData.get("ref"), formData.get("visite"));
     redirect(next);
   }
 
@@ -213,10 +213,12 @@ export async function signInWithGoogle(formData: FormData) {
   // Provenance (e-mail de prospection) : jeton signé, vérifié au retour (inscription comptée pour la campagne)
   const rawRef = formData.get("ref");
   const ref = typeof rawRef === "string" && /^o\.[A-Za-z0-9_.-]{20,60}$/.test(rawRef) ? rawRef : null;
+  const rawVisit = formData.get("visite");
+  const visit = typeof rawVisit === "string" && /^[0-9a-f-]{36}$/i.test(rawVisit) ? rawVisit : null;
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
-    options: { redirectTo: `${env.siteUrl}/auth/confirmation?${new URLSearchParams({ suite: next, fournisseur: "google", ...(ref ? { ref } : {}) })}` },
+    options: { redirectTo: `${env.siteUrl}/auth/confirmation?${new URLSearchParams({ suite: next, fournisseur: "google", ...(ref ? { ref } : {}), ...(visit ? { v: visit } : {}) })}` },
   });
   if (error || !data.url) {
     logServerError("google oauth", error);

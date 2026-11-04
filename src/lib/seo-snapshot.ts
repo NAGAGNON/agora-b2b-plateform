@@ -12,11 +12,11 @@ export type SeoSnapshot = {
     visitors_total: number;
     visitors_from_google: number;
   }[];
-  signups: { today: number; from_outreach: number; list: { name: string | null; company: string | null; at: string; from_outreach: boolean }[] };
+  signups: { today: number; from_outreach: number; by_origin?: { origin: string; count: number }[]; list: { name: string | null; company: string | null; at: string; from_outreach: boolean; origin?: string | null }[] };
 };
 
 export const emptySeoSnapshot = (): SeoSnapshot => ({
   google: { today: 0, yesterday: 0, last_7_days: 0, landing_today: [] },
   articles: [],
-  signups: { today: 0, from_outreach: 0, list: [] },
+  signups: { today: 0, from_outreach: 0, by_origin: [], list: [] },
 });

@@ -212,7 +212,8 @@ export async function buildDailyFacts(now = new Date()) {
         nombre: seo.signups.today,
         venues_de_la_prospection: seo.signups.from_outreach,
         // Noms : affichés dans l'e-mail uniquement, jamais transmis à la rédaction automatique
-        liste: seo.signups.list.map((u) => ({ nom: u.name, entreprise: u.company, heure: hm(new Date(u.at)), via_prospection: u.from_outreach })),
+        par_provenance: (seo.signups.by_origin ?? []).map((x) => ({ provenance: x.origin, inscriptions: x.count })),
+        liste: seo.signups.list.map((u) => ({ nom: u.name, entreprise: u.company, heure: hm(new Date(u.at)), via_prospection: u.from_outreach, provenance: u.origin ?? null })),
       },
     },
     taches_automatiques: {
@@ -263,8 +264,8 @@ Le résumé peut faire jusqu'à 6 phrases. Les recommandations portent sur demai
 
 /** Faits transmis à la rédaction : sans nom de personne ni d'entreprise inscrite (données personnelles). */
 export function factsForModel(facts: DailyFacts) {
-  const { nombre, venues_de_la_prospection } = facts.google_articles_inscriptions.inscriptions_du_jour;
-  return { ...facts, google_articles_inscriptions: { ...facts.google_articles_inscriptions, inscriptions_du_jour: { nombre, venues_de_la_prospection } } };
+  const { nombre, venues_de_la_prospection, par_provenance } = facts.google_articles_inscriptions.inscriptions_du_jour;
+  return { ...facts, google_articles_inscriptions: { ...facts.google_articles_inscriptions, inscriptions_du_jour: { nombre, venues_de_la_prospection, par_provenance } } };
 }
 
 async function writeSummary(facts: DailyFacts, correction?: string, final = false, timeout = 110_000) {
