@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarClock, CheckCircle2, Lock, MapPin, Tag, Wallet } from "lucide-react";
+import { CalendarClock, CalendarDays, CheckCircle2, Landmark, Lock, MapPin, Tag, Wallet } from "lucide-react";
 import { buttonClasses } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/format";
@@ -14,9 +14,26 @@ import { GoogleButton } from "@/components/auth/google-button";
 export function OfferAccessGate({
   token,
   offer,
+  crumbs,
+  children,
 }: {
   token?: string | null;
-  offer: { id: string; title: string; buyer: string | null; location: string | null; sector: string | null; deadline: string | null; budget: string | null; excerpt?: string | null };
+  offer: {
+    id: string;
+    title: string;
+    buyer: string | null;
+    buyerPath?: string | null;
+    location: string | null;
+    sector: string | null;
+    deadline: string | null;
+    publishedAt?: string | null;
+    budget: string | null;
+    excerpt?: string | null;
+  };
+  /** Fil d'Ariane (région, département, métier) : liens vers les pages de la zone et du métier */
+  crumbs?: { name: string; path: string }[];
+  /** Contenu public sous la carte (offres similaires) */
+  children?: React.ReactNode;
 }) {
   const path = `/opportunites/${offer.id}`;
   const suite = encodeURIComponent(path);
@@ -24,11 +41,25 @@ export function OfferAccessGate({
   return (
     <div className="bg-sky/40">
       <div className="container-page py-10 sm:py-16">
+        {crumbs?.length ? (
+          <nav aria-label="Fil d'Ariane" className="mx-auto mb-4 max-w-2xl text-sm text-slate-500">
+            {crumbs.map((c, i) => (
+              <span key={c.path}>
+                {i > 0 && " / "}
+                <Link href={c.path} className="hover:underline">
+                  {c.name}
+                </Link>
+              </span>
+            ))}
+          </nav>
+        ) : null}
         <div className="mx-auto max-w-2xl rounded-2xl border border-slate-200 bg-white p-6 shadow-sm [overflow-wrap:anywhere] sm:p-10">
           <span className="inline-flex size-12 items-center justify-center rounded-full bg-teal-50 text-teal-700">
             <Lock className="size-6" aria-hidden />
           </span>
-          <h1 className="mt-4 text-2xl leading-tight font-bold sm:text-3xl">Créez votre compte pour accéder à cette offre</h1>
+          <p className="mt-4 text-2xl leading-tight font-bold sm:text-3xl">
+            Créez votre compte pour accéder à cette offre
+          </p>
           <p className="mt-3 text-slate-700">
             {token
               ? "Cette offre vous a été recommandée personnellement. Créez votre compte gratuitement pour voir les détails et accéder à l'offre."
@@ -41,8 +72,19 @@ export function OfferAccessGate({
                 {offer.sector}
               </Badge>
             )}
-            <p className="mt-2 text-lg leading-snug font-bold text-navy">{offer.title}</p>
-            {offer.buyer && <p className="mt-1 text-sm text-slate-600">{offer.buyer}</p>}
+            <h1 className="mt-2 text-lg leading-snug font-bold text-navy">{offer.title}</h1>
+            {offer.buyer && (
+              <p className="mt-1 flex items-center gap-2 text-sm text-slate-600">
+                <Landmark className="size-4 shrink-0 text-teal-700" aria-hidden />
+                {offer.buyerPath ? (
+                  <Link href={offer.buyerPath} className="underline-offset-2 hover:underline">
+                    {offer.buyer}
+                  </Link>
+                ) : (
+                  offer.buyer
+                )}
+              </p>
+            )}
             <ul className="mt-3 grid gap-2 text-sm text-slate-600 sm:grid-cols-2">
               {offer.location && (
                 <li className="flex items-center gap-2">
@@ -52,6 +94,11 @@ export function OfferAccessGate({
               {offer.deadline && (
                 <li className="flex items-center gap-2">
                   <CalendarClock className="size-4 shrink-0 text-teal-700" aria-hidden /> Date limite : {formatDate(offer.deadline)}
+                </li>
+              )}
+              {offer.publishedAt && (
+                <li className="flex items-center gap-2">
+                  <CalendarDays className="size-4 shrink-0 text-teal-700" aria-hidden /> Publiée le {formatDate(offer.publishedAt)}
                 </li>
               )}
               {offer.budget && (
@@ -100,6 +147,7 @@ export function OfferAccessGate({
             </p>
           )}
         </div>
+        {children ? <div className="mx-auto max-w-5xl">{children}</div> : null}
       </div>
     </div>
   );
