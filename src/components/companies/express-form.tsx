@@ -30,8 +30,8 @@ export function ExpressCompanyForm({ sectors, places, next, defaultName }: { sec
           </Select>
         )}
       </Field>
-      <Field label="Votre spécialité" name="speciality" error={fe?.speciality} hint="Facultatif, en quelques mots : ex. couverture zinguerie, maintenance CVC, nettoyage de bureaux.">
-        {(p) => <Input {...p} maxLength={120} />}
+      <Field label="Vos compétences" name="speciality" error={fe?.speciality} hint="Facultatif mais conseillé, séparées par des virgules : ex. couverture, zinguerie, étanchéité. Chacune affine les offres proposées.">
+        {(p) => <Input {...p} maxLength={300} />}
       </Field>
       <div className="grid gap-5 sm:grid-cols-3">
         <Field label="Ville" name="city" error={fe?.city} className="sm:col-span-2" required hint="Pour les offres proches de chez vous.">

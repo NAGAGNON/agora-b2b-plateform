@@ -51,7 +51,7 @@ const expressSchema = z.object({
   city: z.string().trim().max(120).optional(),
   postalCode: z.string().trim().regex(/^\d{5}$/, "Code postal à 5 chiffres").optional().or(z.literal("")),
   size: z.enum(["INDEPENDANT", "TPE", "PME", "ETI", "GE"]).optional().or(z.literal("")),
-  speciality: z.string().trim().max(120).optional(),
+  speciality: z.string().trim().max(300).optional(),
 });
 
 /**
@@ -78,7 +78,8 @@ export async function createCompanyExpress(_prev: ActionResult | null, fd: FormD
     p_city: d.city || undefined,
     p_postal_code: d.postalCode || undefined,
     p_sectors: [d.sector],
-    p_skills: d.speciality ? [d.speciality] : [],
+    // Plusieurs compétences séparées par des virgules : chacune compte dans le score de pertinence
+    p_skills: [...new Set((d.speciality ?? "").split(/[,;\n]/).map((x) => x.trim()).filter((x) => x.length >= 2))].slice(0, 10),
   });
   if (error || !companyId) return actionError(error);
   fetchLogoAfterResponse(companyId);

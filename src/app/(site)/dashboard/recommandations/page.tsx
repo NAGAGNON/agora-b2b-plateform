@@ -31,6 +31,9 @@ export default async function RecommendationsPage(props: PageProps<"/dashboard/r
   }
   const supabase = await createClient();
   const free = !(await hasFullAccess(company.id));
+  // Fiche sans compétences : le critère le plus fin du score (30 points) ne peut pas jouer
+  const { data: prof } = await supabase.from("company_profiles").select("skills").eq("company_id", company.id).maybeSingle();
+  const noSkills = !prof?.skills?.length;
   const [{ data, error }, sectorLabels] = await Promise.all([
     // Offre Gratuite : aperçu des premières recommandations seulement (contrôlé côté serveur)
     supabase.rpc("recommended_opportunities", { p_company_id: company.id, p_limit: free ? FREE_PREVIEW : 30, p_include_demo: await showDemoData() }),
@@ -50,6 +53,14 @@ export default async function RecommendationsPage(props: PageProps<"/dashboard/r
           Voici les offres ouvertes qui correspondent à votre entreprise, avec la raison de chaque recommandation. Une alerte e-mail est activée pour les
           nouvelles offres de votre métier : vous pouvez la modifier dans « Alertes ». Ajoutez vos compétences dans « Entreprise » pour des recommandations
           encore plus précises.
+        </Notice>
+      )}
+      {noSkills && (
+        <Notice tone="info" title="Des recommandations plus précises">
+          Ajoutez vos compétences (ex. : couverture, zinguerie, étanchéité) : chaque compétence citée dans une offre la fait remonter.{" "}
+          <Link href="/dashboard/entreprise" className="font-semibold text-teal-700 underline">
+            Ajouter mes compétences
+          </Link>
         </Notice>
       )}
       {free && (

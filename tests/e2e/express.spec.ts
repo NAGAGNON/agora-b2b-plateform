@@ -29,7 +29,7 @@ test("profil express après l'inscription : 4 informations, entreprise et alerte
   await expect(page.getByText("Choisissez votre métier").last()).toBeVisible();
 
   await page.getByLabel("Votre métier").selectOption({ label: "Maintenance industrielle" });
-  await page.getByLabel("Votre spécialité").fill("hydraulique");
+  await page.getByLabel("Vos compétences").fill("hydraulique, compresseurs");
   await page.getByLabel("Ville").fill("Brest");
   await page.getByRole("button", { name: "Voir les offres pour mon entreprise" }).click();
   await expect(page).toHaveURL(/\/dashboard\/recommandations/);
@@ -39,7 +39,7 @@ test("profil express après l'inscription : 4 informations, entreprise et alerte
   expect(co?.department_code).toBe("29");
   const profile = (Array.isArray(co?.profile) ? co?.profile[0] : co?.profile) as { sectors: string[]; skills: string[] };
   expect(profile.sectors).toEqual(["maintenance-industrielle"]);
-  expect(profile.skills).toEqual(["hydraulique"]);
+  expect(profile.skills).toEqual(["hydraulique", "compresseurs"]);
   const { data: u } = await db.from("users").select("id").eq("email", email).single();
   const { data: alerts } = await db.from("alerts").select("sector_slug, department_code").eq("user_id", u!.id);
   expect(alerts).toEqual([{ sector_slug: "maintenance-industrielle", department_code: "29" }]);
