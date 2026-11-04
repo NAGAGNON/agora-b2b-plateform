@@ -57,7 +57,7 @@ export default async function RecommendationsPage(props: PageProps<"/dashboard/r
       )}
       {noSkills && (
         <Notice tone="info" title="Des recommandations plus précises">
-          Ajoutez vos compétences (ex. : couverture, zinguerie, étanchéité) : chaque compétence citée dans une offre la fait remonter.{" "}
+          Ajoutez vos compétences (ex. : plomberie, électricité, nettoyage de bureaux) : chaque compétence citée dans une offre la fait remonter.{" "}
           <Link href="/dashboard/entreprise" className="font-semibold text-teal-700 underline">
             Ajouter mes compétences
           </Link>
