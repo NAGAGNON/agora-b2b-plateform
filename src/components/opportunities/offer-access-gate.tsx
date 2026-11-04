@@ -117,7 +117,7 @@ export function OfferAccessGate({
               </div>
             )}
             <p className="mt-3 flex items-center gap-2 text-xs font-semibold text-slate-600">
-              <Lock className="size-3.5 text-teal-700" aria-hidden /> Descriptif complet, documents et lien officiel réservés aux membres
+              <Lock className="size-3.5 text-teal-700" aria-hidden /> Descriptif complet, documents, lien officiel et fiche de l&apos;acheteur réservés aux membres
             </p>
           </section>
 
@@ -129,7 +129,7 @@ export function OfferAccessGate({
               <li className="flex gap-2.5">
                 <FileText className="mt-0.5 size-4 shrink-0 text-teal-700" aria-hidden />
                 <span>
-                  <strong>Le lien officiel et le dossier de consultation</strong> pour répondre, avec le descriptif complet et les conditions de participation
+                  <strong>Le lien officiel, le dossier de consultation et la fiche de l&apos;acheteur</strong> pour répondre, avec le descriptif complet et les conditions de participation
                 </span>
               </li>
               {gains?.alertLabel && (

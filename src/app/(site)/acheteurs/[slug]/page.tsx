@@ -16,6 +16,7 @@ import { pageMetadata } from "@/lib/seo";
 import { daysUntil, deadlineLabel, formatDate } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
 import { SectorVisual } from "@/components/opportunities/sector-visual";
+import { BuyerOfficial } from "@/components/buyers/buyer-official";
 import { JsonLd, breadcrumbLd } from "@/components/json-ld";
 import { buttonClasses } from "@/components/ui/button";
 import { getLocationLabel, getSectorLabels } from "@/lib/queries/platform";
@@ -405,6 +406,7 @@ export default async function BuyerPage(props: PageProps<"/acheteurs/[slug]">) {
           )}
         </div>
         <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
+          <BuyerOfficial name={b.name} signedIn={Boolean(session)} signupHref={signup} />
           {followBox}
           {mainSectors[0] && (
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">

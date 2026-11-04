@@ -42,6 +42,7 @@ import { getOpportunityDetail } from "@/lib/queries/opportunities";
 import { visitorRpc } from "@/lib/queries/public-cache";
 import { buyerSlug } from "@/lib/buyer-slug";
 import { fitReasons, getFitProfile } from "@/lib/fit";
+import { BuyerOfficial } from "@/components/buyers/buyer-official";
 import { ShareLinks } from "@/components/share-links";
 import { cookies, headers } from "next/headers";
 import { OfferAccessGate } from "@/components/opportunities/offer-access-gate";
@@ -598,6 +599,14 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
               <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                 <ShareLinks url={`${siteUrl()}/opportunites/${o.id}`} title={o.title} needId={external ? undefined : o.id} label={external ? undefined : "Faire connaître ce besoin"} />
               </div>
+            )}
+            {external && o.external_buyer_name && (
+              <BuyerOfficial
+                name={o.external_buyer_name}
+                signedIn
+                signupHref="/inscription"
+                buyerPath={buyerSlug(o.external_buyer_name) ? `/acheteurs/${buyerSlug(o.external_buyer_name)}` : null}
+              />
             )}
           </aside>
         </div>
