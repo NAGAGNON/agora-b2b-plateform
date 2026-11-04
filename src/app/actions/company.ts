@@ -13,6 +13,7 @@ import { safeInternalPath } from "@/lib/safe-path";
 import { storagePath, validateUpload } from "@/lib/files";
 import { autoLogoFor } from "@/lib/company-logos";
 import { createStarterAlert } from "@/lib/starter-alert";
+import { notifyAdminsOfCompany } from "@/lib/signup-notify";
 import { ALLOWED_LOGO_TYPES, MAX_LOGO_BYTES } from "@/lib/constants";
 import { companyProfileSchema, companySchema, emailSchema, parseForm, userProfileSchema, type ActionResult } from "@/lib/validation";
 
@@ -40,6 +41,7 @@ export async function createCompany(_prev: ActionResult | null, fd: FormData): P
   });
   if (error || !companyId) return actionError(error);
   fetchLogoAfterResponse(companyId);
+  after(() => notifyAdminsOfCompany(session.userId, companyId));
   (await cookies()).set(ACTIVE_COMPANY_COOKIE, companyId, { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/" });
   revalidatePath("/", "layout");
   redirect(safeNext(fd.get("suite"), "/dashboard?bienvenue=1"));
@@ -83,6 +85,7 @@ export async function createCompanyExpress(_prev: ActionResult | null, fd: FormD
   });
   if (error || !companyId) return actionError(error);
   fetchLogoAfterResponse(companyId);
+  after(() => notifyAdminsOfCompany(session.userId, companyId));
   (await cookies()).set(ACTIVE_COMPANY_COOKIE, companyId, { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/" });
   // Alerte de départ sur ce métier et ce département, si la personne n'en a pas encore
   const { data: co } = await createAdminClient().from("companies").select("department_code").eq("id", companyId).maybeSingle();

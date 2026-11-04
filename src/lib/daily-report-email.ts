@@ -1,4 +1,5 @@
 import "server-only";
+import { signupLookupLinks } from "@/lib/signup-lookup";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendEmail } from "@/lib/email/send";
 import { escapeHtml } from "@/lib/email/templates";
@@ -122,6 +123,14 @@ export function renderDailyReportEmail(row: ReportRow, { socialPost = null, grow
       "Aucune inscription aujourd'hui.",
     ),
   );
+  // Liens de recherche pour chaque inscrit (LinkedIn, annuaire de l'État) : à ouvrir et vérifier soi-même
+  const lookups = ins.liste.filter((u) => u.nom || u.entreprise).slice(0, 30);
+  if (lookups.length)
+    parts.push(
+      `<p style="margin:0 0 6px;color:${NAVY};font-size:13px;font-weight:700">Qui sont-ils ? (liens de recherche, vérifiez qu'il s'agit de la bonne personne)</p><ul style="margin:0 0 12px;padding-left:18px;font-size:13px;line-height:22px;color:#334155">${lookups
+        .map((u) => `<li>${e(u.nom ?? u.entreprise ?? "")} : ${signupLookupLinks({ name: u.nom, email: "", company: u.entreprise }).map((l) => `<a href="${e(l.url)}" style="color:#0d9488">${e(l.label.replace("LinkedIn : chercher ", "LinkedIn "))}</a>`).join(" · ")}</li>`)
+        .join("")}</ul>`,
+    );
   if (ins.par_provenance?.length) parts.push(table(["D'où viennent les inscrits du jour", "Inscriptions"], ins.par_provenance.map((x) => [x.provenance, n(x.inscriptions)])));
   lines.push(
     `Google : ${n(g.aujourdhui)} visiteurs aujourd'hui, ${n(g.hier)} hier, ${n(g.sept_derniers_jours)} sur 7 jours.`,
