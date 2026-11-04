@@ -7,6 +7,8 @@ import { Card, CardHeader } from "@/components/ui/card";
 import { Notice } from "@/components/ui/notice";
 import { CompanyForm } from "@/components/companies/company-form";
 import { LogoForm } from "@/components/dashboard/logo-form";
+import { CompanyPhotosForm } from "@/components/dashboard/photo-forms";
+import { companyPhotoUrl } from "@/lib/storage-urls";
 import { InviteMemberForm, MemberControls } from "@/components/dashboard/profile-forms";
 import { COMPANY_ROLE_LABELS } from "@/lib/constants";
 import { formatDate } from "@/lib/format";
@@ -18,12 +20,13 @@ export default async function CompanySettingsPage() {
   const cid = session.activeCompany.company.id;
   const isAdmin = session.activeCompany.role === "COMPANY_ADMIN";
   const supabase = await createClient();
-  const [{ data: company }, { data: members }, { data: invitations }, places, departments] = await Promise.all([
+  const [{ data: company }, { data: members }, { data: invitations }, places, departments, { data: photos }] = await Promise.all([
     supabase.from("companies").select("*, profile:company_profiles(*)").eq("id", cid).single(),
     supabase.from("company_members").select("id, role, created_at, user_id, user:users(full_name, email)").eq("company_id", cid).order("created_at"),
     isAdmin ? supabase.from("company_invitations").select("*").eq("company_id", cid).is("accepted_at", null) : { data: [] },
     getPlaces(),
     getDepartments(),
+    supabase.from("company_photos").select("id, storage_path, caption").eq("company_id", cid).order("position").order("created_at"),
   ]);
   if (!company) return null;
   const profile = Array.isArray(company.profile) ? company.profile[0] : company.profile;
@@ -54,6 +57,17 @@ export default async function CompanySettingsPage() {
           <CardHeader title="Logo de l'entreprise" description={company.logo_path ? "Votre logo est en ligne." : "Ajoutez votre logo pour être reconnu au premier coup d'œil."} />
           <div className="p-5">
             <LogoForm name={company.name} path={company.logo_path} auto={company.logo_source === "AUTO"} />
+          </div>
+        </Card>
+      )}
+      {isAdmin && (
+        <Card id="photos">
+          <CardHeader
+            title="Photos de vos prestations"
+            description={photos?.length ? `${photos.length} photo${photos.length > 1 ? "s" : ""} sur votre fiche publique.` : "Ajoutez des photos de vos réalisations pour convaincre les acheteurs."}
+          />
+          <div className="p-5">
+            <CompanyPhotosForm max={8} photos={(photos ?? []).map((p) => ({ id: p.id, caption: p.caption, url: companyPhotoUrl(p.storage_path)! }))} />
           </div>
         </Card>
       )}

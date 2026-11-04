@@ -7,6 +7,7 @@ import { ButtonLink } from "@/components/ui/button";
 import { MobileMenu } from "@/components/layout/mobile-menu";
 import { NotificationCenter, type NotificationItem } from "@/components/layout/notification-center";
 import { AccountMenu } from "@/components/layout/account-menu";
+import { avatarUrl } from "@/lib/storage-urls";
 import { NavLink } from "@/components/layout/nav-link";
 import { RealtimeRefresh } from "@/components/realtime";
 import { env } from "@/lib/env";
@@ -96,6 +97,7 @@ export async function Header() {
               <NotificationCenter items={notifications} unread={unreadNotifications} />
               <div className="hidden lg:block">
                 <AccountMenu
+                  avatar={avatarUrl(session.profile.avatar_path)}
                   name={session.profile.full_name || session.email}
                   email={session.email}
                   company={session.activeCompany?.company.name ?? null}

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { companyPhotoUrl } from "@/lib/storage-urls";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { BadgeCheck, Globe, Mail, MapPin, Phone, Award, Lock, Users, CalendarDays } from "lucide-react";
@@ -82,7 +83,7 @@ export default async function CompanyPage(props: PageProps<"/entreprises/[slug]"
   void track("view_company", { company_id: c.id });
 
   const supabase = await createClient();
-  const [{ data: opps }, fav] = await Promise.all([
+  const [{ data: opps }, fav, { data: photos }] = await Promise.all([
     supabase
       .from("opportunities")
       .select("id, title, summary, type, origin, status, sector_slug, city, department_code, budget_min, budget_max, budget_visible, response_deadline, published_at, is_demo")
@@ -91,6 +92,7 @@ export default async function CompanyPage(props: PageProps<"/entreprises/[slug]"
       .order("published_at", { ascending: false })
       .limit(6),
     session ? supabase.from("favorites").select("id").eq("user_id", session.userId).eq("company_id", c.id).maybeSingle() : null,
+    supabase.from("company_photos").select("id, storage_path, caption").eq("company_id", c.id).order("position").order("created_at").limit(8),
   ]);
 
   return (
@@ -156,6 +158,29 @@ export default async function CompanyPage(props: PageProps<"/entreprises/[slug]"
               <section className="mt-8">
                 <h2 className="mb-2 text-lg font-bold">Présentation</h2>
                 <p className="leading-7 whitespace-pre-line text-slate-700">{profile.description}</p>
+              </section>
+            )}
+            {photos && photos.length > 0 && (
+              <section className="mt-8" aria-labelledby="realisations">
+                <h2 id="realisations" className="mb-3 text-lg font-bold">
+                  Réalisations et prestations en images
+                </h2>
+                <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  {photos.map((p, i) => (
+                    <li key={p.id} className={`overflow-hidden rounded-xl border border-slate-200 bg-white ${i === 0 && photos.length > 2 ? "col-span-2 row-span-2" : ""}`}>
+                      <a href={companyPhotoUrl(p.storage_path)!} target="_blank" rel="noopener" className="group block h-full">
+                        {/* eslint-disable-next-line @next/next/no-img-element -- photo servie par /api/photos */}
+                        <img
+                          src={companyPhotoUrl(p.storage_path)!}
+                          alt={p.caption ?? `Réalisation de ${c.name}`}
+                          loading="lazy"
+                          className="aspect-[4/3] h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                        />
+                      </a>
+                      {p.caption && <p className="px-3 py-2 text-xs text-slate-600">{p.caption}</p>}
+                    </li>
+                  ))}
+                </ul>
               </section>
             )}
             {profile && profile.sectors.length > 0 && (

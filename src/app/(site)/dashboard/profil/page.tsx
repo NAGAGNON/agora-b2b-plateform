@@ -1,6 +1,8 @@
 import { requireSession } from "@/lib/auth";
 import { Card, CardHeader } from "@/components/ui/card";
 import { UserProfileForm } from "@/components/dashboard/profile-forms";
+import { AvatarForm } from "@/components/dashboard/photo-forms";
+import { avatarUrl } from "@/lib/storage-urls";
 import { PLATFORM_ROLE_LABELS, COMPANY_ROLE_LABELS } from "@/lib/constants";
 import { formatDate } from "@/lib/format";
 import Link from "next/link";
@@ -12,6 +14,12 @@ export default async function ProfilePage() {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">Mon profil</h1>
+      <Card id="photo">
+        <CardHeader title="Photo de profil" description={s.profile.avatar_path ? "Votre photo est en ligne." : "Ajoutez une photo pour personnaliser votre compte."} />
+        <div className="p-5">
+          <AvatarForm name={s.profile.full_name || s.email} url={avatarUrl(s.profile.avatar_path)} />
+        </div>
+      </Card>
       <Card>
         <CardHeader title="Informations personnelles" description={`Compte créé le ${formatDate(s.profile.created_at)}`} />
         <div className="p-5">
