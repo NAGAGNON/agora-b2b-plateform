@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 
 /**
  * Mesure d'audience interne, sans cookie ni donnée personnelle : chemin de la page,
- * domaine d'origine, type d'appareil, durée de lecture. L'IP n'est ni stockée ni
+ * domaine d'origine, étiquette de provenance des liens du site (utm_source), type d'appareil, durée de lecture. L'IP n'est ni stockée ni
  * transmise (limitation de débit sur un hachage salé, comme le reste du site).
  * Les visites internes (équipe, propriétaire du site) ne sont pas comptées.
  */
@@ -23,6 +23,7 @@ const view = z.object({
   sid: z.uuid(),
   path: z.string().min(1).max(300).startsWith("/"),
   ref: z.string().max(500).optional(),
+  src: z.string().regex(/^[a-z0-9._-]{1,60}$/).optional(),
   w: z.number().int().min(0).max(10000).optional(),
 });
 const time = z.object({ t: z.literal("time"), sid: z.uuid(), id: z.number().int().positive(), ms: z.number().int().min(0) });
@@ -68,7 +69,7 @@ export async function POST(req: Request) {
     }
     const { data, error } = await db
       .from("page_views")
-      .insert({ session_id: v.data.sid, path, referrer_host: referrerHost(v.data.ref), device: device(v.data.w) })
+      .insert({ session_id: v.data.sid, path, referrer_host: referrerHost(v.data.ref), source: v.data.src ?? null, device: device(v.data.w) })
       .select("id")
       .single();
     return error ? new NextResponse(null, { status: 500 }) : NextResponse.json({ id: data.id });

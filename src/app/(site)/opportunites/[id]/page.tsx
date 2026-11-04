@@ -76,7 +76,12 @@ export async function generateMetadata(props: PageProps<"/opportunites/[id]">): 
     o.response_deadline ? `Échéance : ${formatDate(o.response_deadline)}` : null,
   ].filter(Boolean);
   // Détail réservé aux membres : sans compte, la description ne figure pas non plus dans l'en-tête
-  const intro = (await getSession()) ? clip((o.summary ?? o.description ?? "").replace(/\s+/g, " ").trim(), 90) : "Détail réservé aux membres — inscription gratuite";
+  // Sans compte : seul l'aperçu public de l'avis (le même que sur la page d'accès) figure dans l'en-tête
+  const intro = (await getSession())
+    ? clip((o.summary ?? o.description ?? "").replace(/\s+/g, " ").trim(), 90)
+    : o.origin === "EXTERNAL" && gateExcerpt(o.description)
+      ? clip(gateExcerpt(o.description)!, 90)
+      : "Détail réservé aux membres — inscription gratuite";
   // Titre distinctif : beaucoup d'annonces ont des intitulés génériques (« Travaux de voirie »)
   const qualifier = location ?? (o.origin === "EXTERNAL" ? o.external_buyer_name : null);
   return pageMetadata({
@@ -93,12 +98,12 @@ export async function generateMetadata(props: PageProps<"/opportunites/[id]">): 
  * sinon, il est invité à s'inscrire et revient ensuite sur la fiche.
  */
 /**
- * Aperçu d'un avis pour un visiteur sans compte : au plus la moitié du descriptif (220 caractères au
+ * Aperçu d'un avis pour un visiteur sans compte : au plus un tiers du descriptif (160 caractères au
  * maximum), rien si le descriptif est trop court — le détail complet reste réservé aux membres.
  */
 function gateExcerpt(description: string | null): string | null {
   const text = (description ?? "").replace(/\s+/g, " ").trim();
-  const max = Math.min(220, Math.floor(text.length / 2));
+  const max = Math.min(160, Math.floor(text.length / 3));
   return max >= 60 ? clip(text, max) : null;
 }
 
@@ -136,6 +141,30 @@ async function membersOnlyGate(id: string) {
   );
 }
 
+/** Fil d'Ariane géographique et métier : région › département › métier dans le département (pages d'atterrissage). */
+async function offerCrumbs(o: { sector_slug: string | null; department_code: string | null; region: string | null }) {
+  const crumbSector = o.sector_slug ? sectorLabel(o.sector_slug, await getSectorLabels()) : null;
+  // Fil d'Ariane géographique et métier : région › département › métier dans le département (pages d'atterrissage)
+  const [departments, count] = await Promise.all([getDepartments(), getOpenCounts()]);
+  const dep = departments.find((d) => d.code === o.department_code) ?? null;
+  const depRegion = dep ? regionByName(dep.region) : null;
+  const depPath = dep && depRegion ? `/opportunites/${depRegion.slug}/${dep.slug}` : null;
+  const crumbs = [
+    { name: "Opportunités", path: "/opportunites" },
+    ...(depRegion ? [{ name: depRegion.name, path: `/opportunites/${depRegion.slug}` }] : []),
+    ...(dep && depPath ? [{ name: dep.name, path: depPath }] : []),
+    ...(o.sector_slug && crumbSector
+      ? [
+          dep && depPath && count("department_sector", `${dep.code}|${o.sector_slug}`) >= MIN_INDEXABLE
+            ? { name: crumbSector, path: `${depPath}/${o.sector_slug}` }
+            : { name: crumbSector, path: `/opportunites/${o.sector_slug}` },
+        ]
+      : []),
+  ];
+  const leadLabel: string = [crumbSector, dep ? `${dep.name} (${dep.code})` : o.region].filter(Boolean).join(" — ") || "similaires";
+  return { crumbs, leadLabel };
+}
+
 export default async function OpportunityPage(props: PageProps<"/opportunites/[id]">) {
   const { id } = await props.params;
   const sp = await props.searchParams;
@@ -162,21 +191,57 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
   if (!session) {
     if (visitor && !prefetch) await trackOutreach(visitor, "GATE_VIEW", { opportunityId: o.id });
     const location = (await getLocationLabel())(o.city, o.department_code);
+    // Même page pour tous les visiteurs sans compte (moteurs de recherche compris) : informations
+    // publiques de l'avis, fil d'Ariane et offres similaires (liens internes) ; le détail reste réservé.
+    const { crumbs, leadLabel } = await offerCrumbs(o);
+    const buyerName = o.origin === "EXTERNAL" ? o.external_buyer_name : null;
+    const buyerPath = buyerName ? buyerSlug(buyerName) : null;
+    // Ce que l'inscription apporte : offres ouvertes réelles du même métier, près de l'offre puis en France
+    const sector = o.sector_slug ? sectorLabel(o.sector_slug, await getSectorLabels()) : null;
+    const [count, departments] = await Promise.all([getOpenCounts(), getDepartments()]);
+    const dep = departments.find((d) => d.code === o.department_code) ?? null;
+    const gains = o.sector_slug
+      ? {
+          sector,
+          nearby: dep ? count("department_sector", `${dep.code}|${o.sector_slug}`) : 0,
+          nearbyLabel: dep ? `dans le département ${dep.name} (${dep.code})` : null,
+          sectorTotal: count("sector", o.sector_slug),
+          alertLabel: [sector, dep?.name].filter(Boolean).join(" — ") || null,
+        }
+      : null;
     return (
-      <OfferAccessGate
-        token={visitor?.token ?? null}
-        offer={{
-          id: o.id,
-          title: o.title,
-          buyer: o.origin === "EXTERNAL" ? o.external_buyer_name : null,
-          location,
-          sector: o.sector_slug ? sectorLabel(o.sector_slug, await getSectorLabels()) : null,
-          deadline: o.response_deadline,
-          budget: o.budget_visible ? formatBudget(o.budget_min, o.budget_max) : null,
-          // Avis public collecté (BOAMP, TED…) : début du descriptif en aperçu ; un besoin d'entreprise n'en montre rien
-          excerpt: o.origin === "EXTERNAL" ? gateExcerpt(o.description) : null,
-        }}
-      />
+      <>
+        <JsonLd data={breadcrumbLd([...crumbs, { name: o.title, path: `/opportunites/${o.id}` }])} />
+        <OfferAccessGate
+          token={visitor?.token ?? null}
+          crumbs={crumbs}
+          gains={gains}
+          offer={{
+            id: o.id,
+            title: o.title,
+            buyer: buyerName,
+            buyerPath: buyerPath ? `/acheteurs/${buyerPath}` : null,
+            location,
+            sector,
+            deadline: o.response_deadline,
+            publishedAt: o.published_at,
+            budget: o.budget_visible ? formatBudget(o.budget_min, o.budget_max) : null,
+            // Avis public collecté (BOAMP, TED…) : début du descriptif en aperçu ; un besoin d'entreprise n'en montre rien
+            excerpt: o.origin === "EXTERNAL" ? gateExcerpt(o.description) : null,
+          }}
+        >
+          <SimilarOpportunities
+            id={o.id}
+            sector={o.sector_slug}
+            department={o.department_code}
+            region={o.region}
+            signedIn={false}
+            compact
+            morePath={crumbs.at(-1)?.path ?? "/opportunites"}
+            moreLabel={leadLabel}
+          />
+        </OfferAccessGate>
+      </>
     );
   }
   if (visitor && !prefetch) await trackOutreach(visitor, "OFFER_ACCESS", { opportunityId: o.id, userId: session.userId });
@@ -210,25 +275,7 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
           : null;
   const budget = o.budget_visible ? formatBudget(o.budget_min, o.budget_max) : null;
   const deadline = deadlineLabel(o.response_deadline);
-  const crumbSector = o.sector_slug ? sectorLabel(o.sector_slug, await getSectorLabels()) : null;
-  // Fil d'Ariane géographique et métier : région › département › métier dans le département (pages d'atterrissage)
-  const [departments, count] = await Promise.all([getDepartments(), getOpenCounts()]);
-  const dep = departments.find((d) => d.code === o.department_code) ?? null;
-  const depRegion = dep ? regionByName(dep.region) : null;
-  const depPath = dep && depRegion ? `/opportunites/${depRegion.slug}/${dep.slug}` : null;
-  const crumbs = [
-    { name: "Opportunités", path: "/opportunites" },
-    ...(depRegion ? [{ name: depRegion.name, path: `/opportunites/${depRegion.slug}` }] : []),
-    ...(dep && depPath ? [{ name: dep.name, path: depPath }] : []),
-    ...(o.sector_slug && crumbSector
-      ? [
-          dep && depPath && count("department_sector", `${dep.code}|${o.sector_slug}`) >= MIN_INDEXABLE
-            ? { name: crumbSector, path: `${depPath}/${o.sector_slug}` }
-            : { name: crumbSector, path: `/opportunites/${o.sector_slug}` },
-        ]
-      : []),
-  ];
-  const leadLabel = [crumbSector, dep ? `${dep.name} (${dep.code})` : o.region].filter(Boolean).join(" — ") || "similaires";
+  const { crumbs, leadLabel } = await offerCrumbs(o);
   const showLeadForm = !session && !o.is_demo && o.visibility === "PUBLIC";
 
   return (
@@ -609,6 +656,7 @@ async function SimilarOpportunities({
   signedIn,
   morePath,
   moreLabel,
+  compact = false,
 }: {
   id: string;
   sector: string | null;
@@ -617,6 +665,8 @@ async function SimilarOpportunities({
   signedIn: boolean;
   morePath: string;
   moreLabel: string;
+  /** Page d'accès (sans compte) : simple liste de liens (titre, lieu, date limite), sans résumé */
+  compact?: boolean;
 }) {
   if (!sector) return null;
   const base = { p_sector: sector, p_status: "OPEN", p_sort: "recent", p_limit: 7, p_include_demo: await showDemoData() };
@@ -633,6 +683,31 @@ async function SimilarOpportunities({
     }
   }
   if (rows.length === 0) return null;
+  if (compact)
+    return (
+      <section className="mt-10 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm" aria-labelledby="similaires">
+        <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+          <h2 id="similaires" className="text-lg font-bold">
+            Autres opportunités {moreLabel}
+          </h2>
+          <Link href={morePath} className="text-sm font-semibold text-teal-700 underline">
+            Voir toutes les offres
+          </Link>
+        </div>
+        <ul className="divide-y divide-slate-100">
+          {rows.map((r) => (
+            <li key={r.id} className="py-3">
+              <Link href={`/opportunites/${r.id}`} className="font-semibold text-navy [overflow-wrap:anywhere] hover:underline">
+                {r.title}
+              </Link>
+              <p className="mt-0.5 text-sm text-slate-500">
+                {[r.city, r.response_deadline ? `date limite ${formatDate(r.response_deadline)}` : null].filter(Boolean).join(" · ")}
+              </p>
+            </li>
+          ))}
+        </ul>
+      </section>
+    );
   return (
     <section className="mt-12" aria-labelledby="similaires">
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">

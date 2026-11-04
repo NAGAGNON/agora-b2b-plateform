@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState, type ComponentProps } from "react";
+import { VisitField } from "@/components/auth/visit-field";
 import { Check, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 import { requestPasswordReset, resendConfirmation, signIn, signUp, updatePassword } from "@/app/actions/auth";
@@ -128,6 +129,7 @@ export function SignUpForm({ referral, next, defaultEmail }: { referral?: string
     <form action={action} className="space-y-5" noValidate>
       {referral && <input type="hidden" name="ref" value={referral} />}
       {next && <input type="hidden" name="suite" value={next} />}
+      <VisitField />
       <Field label="Nom et prénom" name="fullName" error={fe?.fullName} required>
         {(p) => <Input {...p} autoComplete="name" maxLength={120} defaultValue={values.fullName} />}
       </Field>

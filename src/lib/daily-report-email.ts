@@ -118,10 +118,11 @@ export function renderDailyReportEmail(row: ReportRow, { socialPost = null, grow
   parts.push(
     table(
       [`Inscriptions du jour (${n(ins.nombre)}, dont ${n(ins.venues_de_la_prospection)} via la prospection)`, "Heure"],
-      ins.liste.map((u) => [`${u.nom ?? "Nom non renseigné"}${u.entreprise ? ` — ${u.entreprise}` : ""}${u.via_prospection ? " (via la prospection)" : ""}`, u.heure]),
+      ins.liste.map((u) => [`${u.nom ?? "Nom non renseigné"}${u.entreprise ? ` — ${u.entreprise}` : ""}${u.provenance ? ` — ${u.provenance}` : u.via_prospection ? " (via la prospection)" : ""}`, u.heure]),
       "Aucune inscription aujourd'hui.",
     ),
   );
+  if (ins.par_provenance?.length) parts.push(table(["D'où viennent les inscrits du jour", "Inscriptions"], ins.par_provenance.map((x) => [x.provenance, n(x.inscriptions)])));
   lines.push(
     `Google : ${n(g.aujourdhui)} visiteurs aujourd'hui, ${n(g.hier)} hier, ${n(g.sept_derniers_jours)} sur 7 jours.`,
     ...gai.articles_publies_hier_et_aujourdhui.map((x) => `- Article « ${x.titre} » (${x.publie}) : ${n(x.vues_aujourdhui)} vues aujourd'hui, ${n(x.visiteurs_depuis_google)} depuis Google`),

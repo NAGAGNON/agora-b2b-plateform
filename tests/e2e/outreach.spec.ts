@@ -94,7 +94,9 @@ test("offre depuis l'e-mail : compte obligatoire (serveur), inscription puis acc
   // Clic depuis l'e-mail → page d'accès, sans le détail de l'offre
   await page.goto(`/api/outreach/c/${token}?o=${oppId}`);
   await expect(page).toHaveURL(new RegExp(`/opportunites/${oppId}`));
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Créez votre compte pour accéder à cette offre");
+  await expect(page.getByText("Créez votre compte pour accéder à cette offre")).toBeVisible();
+  // Titre principal : l'intitulé de l'offre (propre à chaque page, pour les moteurs de recherche)
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(`${T} Travaux d'installation électrique`);
   await expect(page.getByText("Cette offre vous a été recommandée personnellement. Créez votre compte gratuitement pour voir les détails et accéder à l'offre.")).toBeVisible();
   await expect(page.getByText(`${T} Travaux d'installation électrique`, { exact: true })).toBeVisible();
   await expect(page.getByText("Remplacement des tableaux électriques")).toHaveCount(0);
@@ -102,7 +104,9 @@ test("offre depuis l'e-mail : compte obligatoire (serveur), inscription puis acc
   const html = await (await page.request.get(`/opportunites/${oppId}`)).text();
   expect(html).not.toContain("Remplacement des tableaux électriques");
   await page.goto(`/go/${oppId}`);
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Créez votre compte pour accéder à cette offre");
+  await expect(page.getByText("Créez votre compte pour accéder à cette offre")).toBeVisible();
+  // Titre principal : l'intitulé de l'offre (propre à chaque page, pour les moteurs de recherche)
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(`${T} Travaux d'installation électrique`);
 
   // « Créer mon compte » → inscription rapide avec l'adresse qui a reçu l'e-mail → offre ouverte directement
   await page.getByRole("link", { name: "Créer mon compte" }).click();
@@ -129,7 +133,9 @@ test("offre depuis l'e-mail : compte obligatoire (serveur), inscription puis acc
   // Déconnecté, même navigateur : l'URL directe reste protégée ; « Se connecter » ramène à l'offre
   await page.context().clearCookies({ name: /^sb-/ });
   await page.goto(`/opportunites/${oppId}`);
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Créez votre compte pour accéder à cette offre");
+  await expect(page.getByText("Créez votre compte pour accéder à cette offre")).toBeVisible();
+  // Titre principal : l'intitulé de l'offre (propre à chaque page, pour les moteurs de recherche)
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(`${T} Travaux d'installation électrique`);
   await page.getByRole("link", { name: "Se connecter" }).click();
   await page.getByLabel("Adresse e-mail professionnelle").fill(`e2e-${RUN}@example.test`);
   await page.getByLabel("Mot de passe").fill("Prospect-E2E-2026");
@@ -141,7 +147,9 @@ test("offre depuis l'e-mail : compte obligatoire (serveur), inscription puis acc
   // Visiteur venu d'ailleurs (sans le parcours e-mail) : même page d'accès, puis retour sur la fiche après inscription
   const other = await newPage(browser);
   await other.goto(`/opportunites/${oppId}`);
-  await expect(other.getByRole("heading", { level: 1 })).toHaveText("Créez votre compte pour accéder à cette offre");
+  await expect(other.getByText("Créez votre compte pour accéder à cette offre")).toBeVisible();
+  // Titre principal : l'intitulé de l'offre (propre à chaque page, pour les moteurs de recherche)
+  await expect(other.getByRole("heading", { level: 1 })).toHaveText(`${T} Travaux d'installation électrique`);
   await expect(other.getByText("Remplacement des tableaux électriques")).toHaveCount(0);
   await expect(other.getByRole("link", { name: "Créer mon compte" })).toHaveAttribute("href", `/inscription?suite=${encodeURIComponent(`/opportunites/${oppId}`)}`);
 });

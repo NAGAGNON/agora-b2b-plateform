@@ -4,10 +4,12 @@ import { logServerError } from "@/lib/errors";
 import { recipientFromReferral } from "@/lib/outreach/tracking";
 import { siteUrl } from "@/lib/seo";
 import { sendWelcome } from "@/lib/email/auth-emails";
+import { notifyAdminsOfSignup } from "@/lib/signup-notify";
 
 type Criteria = { sector: string | null; department: string | null };
 
 const OFFER_PATH = /^\/opportunites\/([0-9a-f-]{36})(?:[/?#]|$)/i;
+const BUYER_PATH = /^\/acheteurs\/([a-z0-9-]{1,80})(?:[/?#]|$)/;
 
 /**
  * Ce que l'on sait de la personne au moment de l'inscription, sans rien inventer : l'offre qu'elle
@@ -20,6 +22,13 @@ export async function signupCriteria(next: string | null | undefined, ref: FormD
   if (offerId) {
     const { data: o } = await db.from("opportunities").select("sector_slug, department_code").eq("id", offerId).maybeSingle();
     if (o?.sector_slug) return { sector: o.sector_slug, department: o.department_code };
+  }
+  // Venu d'une page acheteur : métier et département de ses annonces les plus récentes
+  const buyer = next ? BUYER_PATH.exec(next)?.[1] : undefined;
+  if (buyer) {
+    const { data: rows } = await db.rpc("buyer_opportunities", { p_slug: buyer, p_limit: 20 });
+    const latest = (rows ?? []).filter((o) => o.sector_slug).sort((a, b) => Number(b.is_open) - Number(a.is_open) || (b.published_at ?? "").localeCompare(a.published_at ?? ""))[0];
+    if (latest) return { sector: latest.sector_slug, department: latest.department_code ?? null };
   }
   const r = typeof ref === "string" ? await recipientFromReferral(ref) : null;
   if (r) {
@@ -85,7 +94,11 @@ export async function welcomeOffers(criteria: Criteria | null, limit = 4): Promi
 }
 
 /** Accueil d'un nouvel inscrit : alerte de départ (si possible) puis e-mail de bienvenue avec les offres de son domaine. */
-export async function welcomeNewMember(user: { id: string; email: string }, next: string | null | undefined, ref?: FormDataEntryValue | string | null) {
+export async function welcomeNewMember(user: { id: string; email: string }, next: string | null | undefined, ref?: FormDataEntryValue | string | null, visit?: FormDataEntryValue | string | null) {
+  // Visite pendant laquelle le compte a été créé : provenance de l'inscrit (bilan, tableau de bord)
+  if (typeof visit === "string" && /^[0-9a-f-]{36}$/i.test(visit)) {
+    await createAdminClient().from("users").update({ signup_visit: visit }).eq("id", user.id).then(({ error }) => error && logServerError("signup visit", error));
+  }
   const criteria = await signupCriteria(next, ref ?? null).catch(() => null);
   const created = await createStarterAlert(user.id, criteria);
   let alertName: string | null = null;
@@ -94,4 +107,6 @@ export async function welcomeNewMember(user: { id: string; email: string }, next
     alertName = data?.name ?? null;
   }
   await sendWelcome(user.email, user.id, { offers: await welcomeOffers(criteria), alertName });
+  // Notification aux administrateurs (adresse du rapport du soir) : qui vient de s'inscrire et d'où
+  await notifyAdminsOfSignup(user.id, alertName);
 }
