@@ -8,7 +8,9 @@ import { Notice } from "@/components/ui/notice";
 import { getSession } from "@/lib/auth";
 import { pageMetadata } from "@/lib/seo";
 import { recipientFromReferral, referralStillTrusted } from "@/lib/outreach/tracking";
-import { visitorRpc } from "@/lib/queries/public-cache";
+import { unstable_cache } from "next/cache";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { logServerError } from "@/lib/errors";
 import { getOpenCounts } from "@/lib/queries/platform";
 import { formatDate } from "@/lib/format";
 import { CalendarClock, Lock, MapPin } from "lucide-react";
@@ -20,6 +22,26 @@ export const metadata = pageMetadata({
 });
 
 const internalPath = (v: unknown) => safeInternalPath(v, "") || undefined;
+
+/** Trois offres publiques ouvertes les plus récentes (aperçu de la page d'inscription), en cache 10 minutes. */
+const latestOpenOffers = unstable_cache(
+  async () => {
+    const { data, error } = await createAdminClient()
+      .from("opportunities")
+      .select("id, title, city, department_code, response_deadline")
+      .eq("status", "PUBLISHED")
+      .eq("visibility", "PUBLIC")
+      .eq("is_demo", false)
+      .gt("response_deadline", new Date().toISOString())
+      .order("published_at", { ascending: false })
+      .limit(3);
+    // Erreur : rien n'est mis en cache, nouvel essai à la visite suivante
+    if (error) throw error;
+    return data ?? [];
+  },
+  ["signup-latest-offers-v1"],
+  { revalidate: 600 },
+);
 
 export default async function SignUpPage(props: PageProps<"/inscription">) {
   const sp = await props.searchParams;
@@ -40,8 +62,14 @@ export default async function SignUpPage(props: PageProps<"/inscription">) {
   const [count, latest] = forOffer
     ? [null, null]
     : await Promise.all([
-        getOpenCounts().catch(() => null),
-        visitorRpc("search_opportunities", { p_status: "OPEN", p_sort: "recent", p_limit: 3, p_include_demo: false }, { always: true }).then((r) => r.data ?? []).catch(() => []),
+        getOpenCounts().catch((e) => {
+          logServerError("signup preview counts", e);
+          return null;
+        }),
+        latestOpenOffers().catch((e) => {
+          logServerError("signup preview", e);
+          return [];
+        }),
       ]);
   const total = count ? count("total", "") : 0;
   const fromList = next === "/opportunites" || next?.startsWith("/opportunites?") || next === "/entreprises";
