@@ -97,6 +97,17 @@ describe("e-mail de suivi", () => {
     expect(e.html).not.toMatch(/intelligence artificielle|\bIA\b/);
   });
 
+  it("relance précise : nombre d'offres du métier dans le département de l'entreprise", () => {
+    const e = renderSuiviEmail({ ...base, step: "RETOUR", member: member({ company_department: "69", company_department_name: "Rhône" }), items: [opp], news: null, newSince: 9, newSinceDept: 4 });
+    expect(e.subject).toBe("4 nouvelles offres électricité dans votre département (Rhône) depuis votre dernière visite");
+    expect(e.html).toContain("4 nouvelles offres dans votre département");
+    expect(e.text).toContain("et 9 en tout pour vous");
+    // Une seule offre locale : objet sur l'ensemble des nouveautés, sans citer le département
+    const few = renderSuiviEmail({ ...base, step: "RETOUR", member: member({ company_department: "69", company_department_name: "Rhône" }), items: [opp], news: null, newSince: 9, newSinceDept: 1 });
+    expect(few.subject).not.toContain("Rhône");
+    expect(few.subject).toMatch(/^9 nouvelles offres/);
+  });
+
   it("accueil : ce qui manque à la fiche, bouton vers la fiche ou le logo", () => {
     const e = renderSuiviEmail({ ...base, step: "PROFIL", member: member({ has_logo: false, profile_complete: false }), items: [], news: null, newSince: 0 });
     expect(e.subject).toBe("Marie, votre fiche Durand Électricité est presque prête");

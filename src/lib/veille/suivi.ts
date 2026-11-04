@@ -30,7 +30,19 @@ export type SuiviMember = AudienceMember & {
   veille_on: boolean;
   /** L'entreprise a déjà publié au moins un besoin */
   has_need: boolean;
+  /** Département de l'entreprise (code et nom), pour des relances précises */
+  company_department?: string | null;
+  company_department_name?: string | null;
 };
+
+/** Nouvelles offres pour la personne depuis sa dernière visite : au total, et dans son département. */
+export function freshForMember(pool: VeilleOpportunity[], m: SuiviMember) {
+  const { criteria, basis } = criteriaFor(m);
+  const lastSeen = new Date(m.last_seen_at ?? m.created_at).getTime();
+  const fresh = selectOpportunities(pool.filter((o) => o.published_at && new Date(o.published_at).getTime() > lastSeen), criteria, basis, new Set(), 1000);
+  const dept = m.company_department ? fresh.filter((o) => o.department_code === m.company_department) : [];
+  return { newSince: fresh.length, newSinceDept: dept.length };
+}
 
 export type SuiviStep = "PROFIL" | "ALERTE" | "DECOUVERTE" | "BESOIN" | "RETOUR";
 
@@ -206,7 +218,10 @@ export async function buildSuivi(
     const { criteria, basis } = criteriaFor(m);
     const lastSeen = new Date(m.last_seen_at ?? m.created_at).getTime();
     const fresh = plan.step === "RETOUR" ? pool.filter((o) => o.published_at && new Date(o.published_at).getTime() > lastSeen) : pool;
-    let items = selectOpportunities(fresh, criteria, basis, sent.get(m.user_id) ?? new Set(), ITEMS[plan.step]);
+    const seen = sent.get(m.user_id) ?? new Set<string>();
+    // Offres du département de l'entreprise d'abord, complétées par le reste de la sélection
+    const local = m.company_department ? selectOpportunities(fresh.filter((o) => o.department_code === m.company_department), criteria, basis, seen, ITEMS[plan.step]) : [];
+    let items = [...local, ...selectOpportunities(fresh, criteria, basis, new Set([...seen, ...local.map((o) => o.id)]), ITEMS[plan.step])].slice(0, ITEMS[plan.step]);
     if (!items.length) items = selectOpportunities(pool, criteria, basis, sent.get(m.user_id) ?? new Set(), ITEMS[plan.step]);
     // Rien à montrer (ni annonce, ni nouveauté) : pas d'e-mail vide
     if (plan.step === "RETOUR" && !items.length && !plan.news) continue;
@@ -242,6 +257,8 @@ export type SuiviEmailInput = {
   news: SuiviNews | null;
   /** Nouvelles opportunités correspondant à la personne depuis sa dernière visite */
   newSince: number;
+  /** Dont dans le département de son entreprise */
+  newSinceDept?: number;
   now: Date;
   sectorLabel: (slug: string) => string;
   typeLabel: (type: string) => string;
@@ -340,17 +357,23 @@ function content(i: SuiviEmailInput): { subject: string; kicker: string; title: 
   ].filter((x): x is string => Boolean(x));
   // Des nouveautés réelles pour la personne : l'objet le dit précisément (nombre, métier, région).
   // Sinon, objet différent d'une relance à l'autre (selon le jour).
+  const nd = i.newSinceDept ?? 0;
+  const dept = i.member.company_department_name;
   const subject =
-    n > 1
+    nd > 1 && dept
+      ? `${nd} nouvelles offres${sector ? ` ${sector}` : ""} dans votre département (${dept}) depuis votre dernière visite`
+      : n > 1
       ? `${n} nouvelles offres${sector ? ` ${sector}` : ""}${where ? ` en ${where}` : ""} depuis votre dernière visite`
       : variants[Math.floor(i.now.getTime() / DAY) % variants.length];
   return {
     subject,
     kicker: "Depuis votre dernière visite",
-    title: n > 1 ? `${n} nouvelles opportunités pour vous` : "De nouvelles opportunités pour vous",
+    title: nd > 1 && dept ? `${nd} nouvelles offres dans votre département` : n > 1 ? `${n} nouvelles opportunités pour vous` : "De nouvelles opportunités pour vous",
     paragraphs: [
       hello,
-      n > 1
+      nd > 1 && dept
+        ? `Depuis votre dernière visite, ${nd} offres${sector ? ` de votre métier (${sector})` : ""} ont été publiées dans votre département (${dept})${n > nd ? `, et ${n} en tout pour vous` : ""}. Voici les plus proches de votre activité, avec leur date limite (toujours ouvertes, vérifiées ce matin).`
+        : n > 1
         ? `Depuis votre dernière visite, ${n} offres${sector ? ` dans votre métier (${sector})` : ""}${where ? ` en ${where}` : ""} ont été publiées sur LinkProB2B. Voici les plus proches de votre activité, avec leur date limite (toujours ouvertes, vérifiées ce matin).`
         : "Voici une sélection d'opportunités ouvertes qui pourraient vous intéresser, vérifiées ce matin.",
     ],
