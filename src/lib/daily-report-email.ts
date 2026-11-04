@@ -131,6 +131,24 @@ export function renderDailyReportEmail(row: ReportRow, { socialPost = null, grow
         .map((u) => `<li>${e(u.nom ?? u.entreprise ?? "")} : ${signupLookupLinks({ name: u.nom, email: "", company: u.entreprise }).map((l) => `<a href="${e(l.url)}" style="color:#0d9488">${e(l.label.replace("LinkedIn : chercher ", "LinkedIn "))}</a>`).join(" · ")}</li>`)
         .join("")}</ul>`,
     );
+  // Fidélité : les inscrits reviennent-ils ? (bilans antérieurs : absent)
+  const fid = (f as { fidelite?: { inscrits_revenus_sous_7_jours: number; inscrits_d_au_moins_7_jours: number; taux_de_retour_7_jours_pct: number | null; inscrits_revenus_sous_30_jours: number; inscrits_d_au_moins_30_jours: number; taux_de_retour_30_jours_pct: number | null; inscrits_actifs_7_derniers_jours: number; inscrits_venus_aujourdhui: number } | null }).fidelite;
+  if (fid) {
+    const rate = (r: number | null, a: number, b: number) => (r === null ? "pas encore de recul" : `${r} % (${n(a)} sur ${n(b)})`);
+    parts.push(
+      table(
+        ["Les inscrits reviennent-ils ?", "Chiffre"],
+        [
+          ["Revenus dans les 7 jours après leur inscription", rate(fid.taux_de_retour_7_jours_pct, fid.inscrits_revenus_sous_7_jours, fid.inscrits_d_au_moins_7_jours)],
+          ["Revenus dans les 30 jours après leur inscription", rate(fid.taux_de_retour_30_jours_pct, fid.inscrits_revenus_sous_30_jours, fid.inscrits_d_au_moins_30_jours)],
+          ["Inscrits venus sur leur espace ces 7 derniers jours", n(fid.inscrits_actifs_7_derniers_jours)],
+          ["Inscrits venus aujourd'hui", n(fid.inscrits_venus_aujourdhui)],
+        ],
+      ),
+    );
+    parts.push(muted("Mesuré depuis le 4 novembre jour par jour ; avant cette date, seule la dernière visite de chacun était connue."));
+    lines.push(`Retour des inscrits : ${fid.taux_de_retour_7_jours_pct ?? "—"} % à 7 jours, ${fid.taux_de_retour_30_jours_pct ?? "—"} % à 30 jours, ${n(fid.inscrits_actifs_7_derniers_jours)} actifs sur 7 jours.`);
+  }
   if (ins.par_provenance?.length) parts.push(table(["D'où viennent les inscrits du jour", "Inscriptions"], ins.par_provenance.map((x) => [x.provenance, n(x.inscriptions)])));
   lines.push(
     `Google : ${n(g.aujourdhui)} visiteurs aujourd'hui, ${n(g.hier)} hier, ${n(g.sept_derniers_jours)} sur 7 jours.`,

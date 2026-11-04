@@ -338,8 +338,12 @@ function content(i: SuiviEmailInput): { subject: string; kicker: string; title: 
     where ? `Nouvelles opportunités en ${where}${sector ? ` : ${sector}` : ""}` : null,
     "Ça fait un moment ! Voici ce que vous avez manqué",
   ].filter((x): x is string => Boolean(x));
-  // Objet différent d'une relance à l'autre (selon le jour)
-  const subject = variants[Math.floor(i.now.getTime() / DAY) % variants.length];
+  // Des nouveautés réelles pour la personne : l'objet le dit précisément (nombre, métier, région).
+  // Sinon, objet différent d'une relance à l'autre (selon le jour).
+  const subject =
+    n > 1
+      ? `${n} nouvelles offres${sector ? ` ${sector}` : ""}${where ? ` en ${where}` : ""} depuis votre dernière visite`
+      : variants[Math.floor(i.now.getTime() / DAY) % variants.length];
   return {
     subject,
     kicker: "Depuis votre dernière visite",
@@ -347,7 +351,7 @@ function content(i: SuiviEmailInput): { subject: string; kicker: string; title: 
     paragraphs: [
       hello,
       n > 1
-        ? `Depuis votre dernière visite, ${n} opportunités${sector ? ` dans votre secteur (${sector})` : ""} ont été publiées sur LinkProB2B. Voici notre sélection, vérifiée ce matin (toujours ouvertes).`
+        ? `Depuis votre dernière visite, ${n} offres${sector ? ` dans votre métier (${sector})` : ""}${where ? ` en ${where}` : ""} ont été publiées sur LinkProB2B. Voici les plus proches de votre activité, avec leur date limite (toujours ouvertes, vérifiées ce matin).`
         : "Voici une sélection d'opportunités ouvertes qui pourraient vous intéresser, vérifiées ce matin.",
     ],
     checklist: [],

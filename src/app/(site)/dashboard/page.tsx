@@ -10,6 +10,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { RecommendationList } from "@/components/dashboard/recommendations";
 import { GettingStarted } from "@/components/dashboard/getting-started";
 import { NextActions } from "@/components/dashboard/next-actions";
+import { SinceLastVisit } from "@/components/dashboard/since-last-visit";
 import { getSectorLabels, showDemoData } from "@/lib/queries/platform";
 import { PIPELINE_STAGES, type PipelineStage } from "@/lib/constants";
 import { formatMoney, relativeTime } from "@/lib/format";
@@ -18,6 +19,12 @@ export const metadata = { title: "Tableau de bord" };
 
 /** Heure courante (hors rendu pur). */
 const nowMs = () => Date.now();
+
+/** Début de la visite précédente : la dernière activité si elle date de plus de 30 min, sinon celle d'avant. */
+function previousVisit(p: { last_seen_at: string | null; previous_visit_at: string | null }, now: number) {
+  if (p.last_seen_at && now - new Date(p.last_seen_at).getTime() > 30 * 60_000) return p.last_seen_at;
+  return p.previous_visit_at;
+}
 
 export default async function DashboardPage(props: PageProps<"/dashboard">) {
   const sectorLabels = await getSectorLabels();
@@ -123,6 +130,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
         </div>
       </div>
 
+      <SinceLastVisit userId={session.userId} companyId={cid} supplier={supplier} since={previousVisit(session.profile, nowMs())} now={nowMs()} includeDemo={await showDemoData()} />
       <NextActions companyId={cid} userId={session.userId} buyer={buyer} supplier={supplier} now={nowMs()} />
       <GettingStarted
         steps={[

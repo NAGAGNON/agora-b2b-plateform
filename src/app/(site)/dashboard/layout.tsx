@@ -14,8 +14,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const { count } = ids.length
     ? await supabase.from("messages").select("id", { count: "exact", head: true }).is("read_at", null).not("sender_company_id", "in", `(${ids.join(",")})`)
     : { count: 0 };
-  // Dernière activité (sert au KPI « utilisateurs actifs », sans autre donnée).
-  void supabase.from("users").update({ last_seen_at: new Date().toISOString() }).eq("id", session.userId).then(() => {});
+  // Dernière activité et jour de visite (« depuis votre dernière visite », taux de retour), sans autre donnée.
+  void supabase.rpc("touch_visit").then(() => {});
   return (
     <div className="container-page py-6 sm:py-8">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
