@@ -15,6 +15,7 @@ import { createClient } from "@/lib/supabase/server";
 import { pageMetadata } from "@/lib/seo";
 import { daysUntil, deadlineLabel, formatDate } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
+import { SectorVisual } from "@/components/opportunities/sector-visual";
 import { JsonLd, breadcrumbLd } from "@/components/json-ld";
 import { buttonClasses } from "@/components/ui/button";
 import { getLocationLabel, getSectorLabels } from "@/lib/queries/platform";
@@ -132,52 +133,65 @@ export default async function BuyerPage(props: PageProps<"/acheteurs/[slug]">) {
       <li>
         <Link
           href={`/opportunites/${o.id}`}
-          className={`group block rounded-2xl border bg-white p-5 shadow-sm transition hover:-translate-y-px hover:border-teal hover:shadow-md ${open ? "border-slate-200" : "border-slate-200/70 opacity-80"}`}
+          className={`group flex overflow-hidden rounded-2xl border bg-white shadow-sm transition hover:-translate-y-px hover:border-teal hover:shadow-md ${open ? "border-slate-200" : "border-slate-200/70 opacity-80"}`}
         >
-          <div className="flex flex-wrap items-center gap-2">
-            {o.sector_slug && sectors[o.sector_slug] && (
-              <Badge tone="teal" icon={<Tag className="size-3" aria-hidden />}>
-                {sectors[o.sector_slug]}
-              </Badge>
-            )}
-            {open ? (
-              o.response_deadline && (
-                <Badge tone={urgent ? "amber" : "sky"}>
-                  {deadlineLabel(o.response_deadline)}
+          <SectorVisual
+            sector={o.sector_slug}
+            className="hidden w-36 shrink-0 sm:block lg:w-44"
+          />
+          <div className="min-w-0 flex-1 p-5">
+            <div className="flex flex-wrap items-center gap-2">
+              {o.sector_slug && sectors[o.sector_slug] && (
+                <Badge
+                  tone="teal"
+                  icon={<Tag className="size-3" aria-hidden />}
+                >
+                  {sectors[o.sector_slug]}
                 </Badge>
-              )
-            ) : (
-              <Badge tone="slate">Clôturé</Badge>
-            )}
+              )}
+              {open ? (
+                o.response_deadline && (
+                  <Badge tone={urgent ? "amber" : "sky"}>
+                    {deadlineLabel(o.response_deadline)}
+                  </Badge>
+                )
+              ) : (
+                <Badge tone="slate">Clôturé</Badge>
+              )}
+            </div>
+            <h3 className="mt-3 leading-snug font-semibold text-navy [overflow-wrap:anywhere] group-hover:underline">
+              {o.title}
+            </h3>
+            <p className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-sm text-slate-600">
+              {where && (
+                <span className="inline-flex items-center gap-1.5">
+                  <MapPin className="size-4 text-slate-400" aria-hidden />{" "}
+                  {where}
+                </span>
+              )}
+              {o.response_deadline && (
+                <span className="inline-flex items-center gap-1.5">
+                  <CalendarClock
+                    className="size-4 text-slate-400"
+                    aria-hidden
+                  />{" "}
+                  Date limite : {formatDate(o.response_deadline)}
+                </span>
+              )}
+              {o.published_at && (
+                <span className="text-slate-500">
+                  Publié le {formatDate(o.published_at)}
+                </span>
+              )}
+            </p>
+            <span className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-teal-700">
+              Voir l&apos;offre{" "}
+              <ArrowRight
+                className="size-4 transition group-hover:translate-x-0.5"
+                aria-hidden
+              />
+            </span>
           </div>
-          <h3 className="mt-3 leading-snug font-semibold text-navy [overflow-wrap:anywhere] group-hover:underline">
-            {o.title}
-          </h3>
-          <p className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-sm text-slate-600">
-            {where && (
-              <span className="inline-flex items-center gap-1.5">
-                <MapPin className="size-4 text-slate-400" aria-hidden /> {where}
-              </span>
-            )}
-            {o.response_deadline && (
-              <span className="inline-flex items-center gap-1.5">
-                <CalendarClock className="size-4 text-slate-400" aria-hidden />{" "}
-                Date limite : {formatDate(o.response_deadline)}
-              </span>
-            )}
-            {o.published_at && (
-              <span className="text-slate-500">
-                Publié le {formatDate(o.published_at)}
-              </span>
-            )}
-          </p>
-          <span className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-teal-700">
-            Voir l&apos;offre{" "}
-            <ArrowRight
-              className="size-4 transition group-hover:translate-x-0.5"
-              aria-hidden
-            />
-          </span>
         </Link>
       </li>
     );
@@ -273,36 +287,59 @@ export default async function BuyerPage(props: PageProps<"/acheteurs/[slug]">) {
             </Link>{" "}
             / <span className="text-navy">{b.name}</span>
           </nav>
-          <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
-            <span
-              aria-hidden
-              className="inline-flex size-16 shrink-0 items-center justify-center rounded-2xl bg-navy text-xl font-bold text-white shadow-md"
-            >
-              {initials}
-            </span>
-            <div className="min-w-0">
-              <p className="inline-flex items-center gap-1.5 text-sm font-semibold text-teal-700">
-                <Landmark className="size-4" aria-hidden /> Acheteur public
-              </p>
-              <h1 className="mt-1 text-2xl leading-tight font-bold text-navy [overflow-wrap:anywhere] sm:text-4xl">
-                Appels d&apos;offres : {b.name}
-              </h1>
-              <p className="mt-3 max-w-3xl text-slate-600">
-                {b.open.length
-                  ? `${nf.format(b.open.length)} appel${b.open.length > 1 ? "s" : ""} d'offres ouvert${b.open.length > 1 ? "s" : ""} actuellement`
-                  : "Aucun appel d'offres ouvert actuellement"}
-                , d&apos;après les annonces officielles (BOAMP, TED). {b.name} a
-                publié {nf.format(b.all.length)} annonce
-                {b.all.length > 1 ? "s" : ""} recensée
-                {b.all.length > 1 ? "s" : ""} sur LinkProB2B
-                {firstSeen ? ` depuis le ${formatDate(firstSeen)}` : ""}
-                {mainSectors.length
-                  ? `, principalement en ${mainSectors.map((k) => sectors[k].toLowerCase()).join(", ")}`
-                  : ""}
-                {mainPlaces.length ? ` (${mainPlaces.join(", ")})` : ""}.
-              </p>
+          <div className="grid items-center gap-8 lg:grid-cols-[minmax(0,1fr)_24rem]">
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
+              <span
+                aria-hidden
+                className="inline-flex size-16 shrink-0 items-center justify-center rounded-2xl bg-navy text-xl font-bold text-white shadow-md"
+              >
+                {initials}
+              </span>
+              <div className="min-w-0">
+                <p className="inline-flex items-center gap-1.5 text-sm font-semibold text-teal-700">
+                  <Landmark className="size-4" aria-hidden /> Acheteur public
+                </p>
+                <h1 className="mt-1 text-2xl leading-tight font-bold text-navy [overflow-wrap:anywhere] sm:text-4xl">
+                  Appels d&apos;offres : {b.name}
+                </h1>
+                <p className="mt-3 max-w-3xl text-slate-600">
+                  {b.open.length
+                    ? `${nf.format(b.open.length)} appel${b.open.length > 1 ? "s" : ""} d'offres ouvert${b.open.length > 1 ? "s" : ""} actuellement`
+                    : "Aucun appel d'offres ouvert actuellement"}
+                  , d&apos;après les annonces officielles (BOAMP, TED). {b.name}{" "}
+                  a publié {nf.format(b.all.length)} annonce
+                  {b.all.length > 1 ? "s" : ""} recensée
+                  {b.all.length > 1 ? "s" : ""} sur LinkProB2B
+                  {firstSeen ? ` depuis le ${formatDate(firstSeen)}` : ""}
+                  {mainSectors.length
+                    ? `, principalement en ${mainSectors.map((k) => sectors[k].toLowerCase()).join(", ")}`
+                    : ""}
+                  {mainPlaces.length ? ` (${mainPlaces.join(", ")})` : ""}.
+                </p>
+              </div>
+            </div>
+            {/* Photo du métier principal de l'acheteur */}
+            <div className="relative hidden lg:block">
+              <SectorVisual
+                sector={mainSectors[0] ?? null}
+                priority
+                className="aspect-[4/3] rounded-3xl shadow-xl ring-1 ring-slate-200"
+              />
+              <div className="absolute -bottom-4 -left-4 rounded-2xl bg-white px-4 py-3 shadow-lg ring-1 ring-slate-200">
+                <p className="text-xs font-semibold text-slate-500">
+                  Offres ouvertes
+                </p>
+                <p className="text-2xl font-bold text-navy">
+                  {nf.format(b.open.length)}
+                </p>
+              </div>
             </div>
           </div>
+          {/* Téléphone : bandeau photo */}
+          <SectorVisual
+            sector={mainSectors[0] ?? null}
+            className="mt-6 h-36 rounded-2xl lg:hidden"
+          />
           <dl className="mt-8 grid grid-cols-2 gap-3 lg:grid-cols-4">
             {stats.map(({ label, value, icon: Icon }) => (
               <div
