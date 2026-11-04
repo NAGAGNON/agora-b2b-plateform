@@ -7,7 +7,7 @@ import { OPPORTUNITY_TYPE_LABELS, SECTOR_LABELS, sectorLabel } from "@/lib/const
 import { renderVeilleEmail, renderVeilleInvitation, type VeilleKind } from "@/lib/veille/render";
 import { cleanPool, criteriaFor, MIN_DAILY_ITEMS, MIN_NEWSLETTER_ITEMS, selectOpportunities, type AudienceMember, type VeilleOpportunity } from "@/lib/veille/select";
 import type { VeilleMessage, VeilleSendResult } from "@/lib/veille/send";
-import { buildSuivi, loadSuiviAudience, loadSuiviSettings, renderSuiviEmail, SUIVI_NEWS, type SuiviMember, type SuiviStep } from "@/lib/veille/suivi";
+import { buildSuivi, freshForMember, loadSuiviAudience, loadSuiviSettings, renderSuiviEmail, SUIVI_NEWS, type SuiviMember, type SuiviStep } from "@/lib/veille/suivi";
 
 type DB = SupabaseClient<Database>;
 
@@ -298,10 +298,8 @@ export async function renderSuiviForSend(db: DB, send: { token: string; opportun
   const news = SUIVI_NEWS.find((n) => n.key === send.news_key) ?? null;
   const step = (send.step ?? "RETOUR") as SuiviStep;
   if (step === "RETOUR" && !items.length && !news) return null;
-  const { criteria, basis } = criteriaFor(m);
-  const lastSeen = new Date(m.last_seen_at ?? m.created_at).getTime();
-  const newSince = selectOpportunities(pool.filter((o) => o.published_at && new Date(o.published_at).getTime() > lastSeen), criteria, basis, new Set(), 1000).length;
-  const email = renderSuiviEmail({ step, base: siteUrl(), token: send.token, member: m, items, news, newSince, now, ...(await loadLabels(db)) });
+  const { newSince, newSinceDept } = freshForMember(pool, m);
+  const email = renderSuiviEmail({ step, base: siteUrl(), token: send.token, member: m, items, news, newSince, newSinceDept, now, ...(await loadLabels(db)) });
   return { ...email, itemIds: items.map((o) => o.id) };
 }
 
@@ -518,9 +516,8 @@ export async function suiviPreviewFor(db: DB, step: SuiviStep, userId: string | 
   const { criteria, basis } = criteriaFor(m);
   const items = selectOpportunities(pool, criteria, basis, new Set(), step === "RETOUR" ? 6 : 3);
   const news = SUIVI_NEWS.find((n) => !n.when || n.when(m)) ?? null;
-  const lastSeen = new Date(m.last_seen_at!).getTime();
-  const newSince = selectOpportunities(pool.filter((o) => o.published_at && new Date(o.published_at).getTime() > lastSeen), criteria, basis, new Set(), 1000).length;
-  return { member: m, items, email: renderSuiviEmail({ step, base: siteUrl(), token: "apercu", member: m, items, news: step === "PROFIL" || step === "ALERTE" ? null : news, newSince, now, ...(await loadLabels(db)) }) };
+  const { newSince, newSinceDept } = freshForMember(pool, m);
+  return { member: m, items, email: renderSuiviEmail({ step, base: siteUrl(), token: "apercu", member: m, items, news: step === "PROFIL" || step === "ALERTE" ? null : news, newSince, newSinceDept, now, ...(await loadLabels(db)) }) };
 }
 
 /** Chiffres du suivi sur 30 jours, par étape (envois, ouvertures, clics réellement enregistrés). */

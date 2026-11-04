@@ -16,6 +16,9 @@ import { pageMetadata } from "@/lib/seo";
 import { daysUntil, deadlineLabel, formatDate } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
 import { SectorVisual } from "@/components/opportunities/sector-visual";
+import { BuyerOfficial } from "@/components/buyers/buyer-official";
+import { FollowBuyerButton } from "@/components/buyers/follow-button";
+import { buyerAlertKeywords } from "@/lib/buyer-follow";
 import { JsonLd, breadcrumbLd } from "@/components/json-ld";
 import { buttonClasses } from "@/components/ui/button";
 import { getLocationLabel, getSectorLabels } from "@/lib/queries/platform";
@@ -71,6 +74,32 @@ export async function generateMetadata(props: PageProps<"/acheteurs/[slug]">) {
   });
 }
 
+/** Repères tirés des annonces enregistrées : prochaine date limite et temps moyen laissé pour répondre. */
+function buyerInsights(
+  all: { published_at: string | null; response_deadline: string | null }[],
+  open: { response_deadline: string | null }[],
+) {
+  const now = Date.now();
+  const nextDeadline =
+    open
+      .map((o) => o.response_deadline)
+      .filter((d): d is string => Boolean(d) && new Date(d!).getTime() > now)
+      .sort()[0] ?? null;
+  const windows = all
+    .filter((o) => o.published_at && o.response_deadline)
+    .map(
+      (o) =>
+        (new Date(o.response_deadline!).getTime() -
+          new Date(o.published_at!).getTime()) /
+        86_400_000,
+    )
+    .filter((d) => d > 0 && d < 365);
+  const avgWindow = windows.length
+    ? Math.round(windows.reduce((x, d) => x + d, 0) / windows.length)
+    : null;
+  return { nextDeadline, avgWindow };
+}
+
 /** Page d'un acheteur public : ses appels d'offres ouverts puis ses annonces passées (données réelles). */
 export default async function BuyerPage(props: PageProps<"/acheteurs/[slug]">) {
   const { slug } = await props.params;
@@ -106,6 +135,7 @@ export default async function BuyerPage(props: PageProps<"/acheteurs/[slug]">) {
       .map((w) => w[0]!.toUpperCase())
       .join("") || "A";
 
+  const { nextDeadline, avgWindow } = buyerInsights(b.all, b.open);
   const stats = [
     {
       label: "Appels d'offres ouverts",
@@ -113,8 +143,13 @@ export default async function BuyerPage(props: PageProps<"/acheteurs/[slug]">) {
       icon: FileText,
     },
     {
-      label: "Annonces recensées",
-      value: nf.format(b.all.length),
+      label: "Prochaine date limite",
+      value: nextDeadline ? formatDate(nextDeadline) : "—",
+      icon: CalendarClock,
+    },
+    {
+      label: "Délai moyen pour répondre",
+      value: avgWindow ? `${avgWindow} jours` : "—",
       icon: History,
     },
     {
@@ -122,8 +157,21 @@ export default async function BuyerPage(props: PageProps<"/acheteurs/[slug]">) {
       value: mainSectors[0] ? sectors[mainSectors[0]] : "—",
       icon: Tag,
     },
-    { label: "Zone", value: mainPlaces[0] ?? "—", icon: MapPin },
   ];
+  // Déjà suivi par le membre connecté (alerte sur le nom exact de l'acheteur)
+  const following = session
+    ? Boolean(
+        (
+          await (await createClient())
+            .from("alerts")
+            .select("id")
+            .eq("user_id", session.userId)
+            .eq("keywords", buyerAlertKeywords(b.name))
+            .eq("is_active", true)
+            .maybeSingle()
+        ).data,
+      )
+    : false;
 
   const Item = ({ o, open }: { o: (typeof b.open)[number]; open: boolean }) => {
     const where = location(o.city, o.department_code);
@@ -198,18 +246,21 @@ export default async function BuyerPage(props: PageProps<"/acheteurs/[slug]">) {
   };
 
   const followBox = session ? (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+    <div className="rounded-2xl border border-slate-200 border-t-4 border-t-teal bg-white p-6 shadow-sm">
       <h2 className="flex items-center gap-2 text-lg font-bold text-navy">
         <BellRing className="size-5 text-teal-700" aria-hidden /> Ne manquez pas
         ses prochains marchés
       </h2>
       <p className="mt-2 text-sm text-slate-600">
-        Créez une alerte sur son métier et sa zone : vous recevez les nouvelles
-        offres dès leur publication.
+        Recevez par e-mail chaque nouvel appel d&apos;offres de {b.name}, dès sa
+        publication.
       </p>
+      <div className="mt-4">
+        <FollowBuyerButton slug={slug} following={following} />
+      </div>
       <Link
         href="/dashboard/alertes"
-        className={buttonClasses({ full: true, className: "mt-4" })}
+        className="mt-3 inline-block text-sm font-semibold text-teal-700 underline"
       >
         Gérer mes alertes
       </Link>
@@ -231,8 +282,8 @@ export default async function BuyerPage(props: PageProps<"/acheteurs/[slug]">) {
       </p>
       <ul className="mt-4 space-y-2.5 text-sm text-slate-700">
         {[
-          "Ses nouveaux appels d'offres dès leur publication",
-          "Le lien officiel et le dossier de consultation",
+          "Chacun de ses nouveaux appels d'offres par e-mail, dès sa publication",
+          "Le lien officiel, le dossier de consultation et sa fiche officielle",
           mainSectors.length
             ? `Les offres « ${sectors[mainSectors[0]]} » partout en France`
             : "Les offres de votre métier partout en France",
@@ -254,7 +305,7 @@ export default async function BuyerPage(props: PageProps<"/acheteurs/[slug]">) {
           className: "mt-5 whitespace-normal text-center",
         })}
       >
-        Créer mon compte gratuitement
+        Suivre cet acheteur gratuitement
       </Link>
       <GoogleButton next={path} />
       <p className="mt-3 text-xs text-slate-500">
@@ -316,6 +367,30 @@ export default async function BuyerPage(props: PageProps<"/acheteurs/[slug]">) {
                     : ""}
                   {mainPlaces.length ? ` (${mainPlaces.join(", ")})` : ""}.
                 </p>
+                <div className="mt-5 flex flex-wrap items-center gap-3">
+                  {session ? (
+                    <FollowBuyerButton slug={slug} following={following} />
+                  ) : (
+                    <>
+                      <Link
+                        href={signup}
+                        className={buttonClasses({
+                          size: "lg",
+                          className: "whitespace-normal text-center",
+                        })}
+                      >
+                        <BellRing className="size-4" aria-hidden /> Suivre cet
+                        acheteur gratuitement
+                      </Link>
+                      <Link
+                        href={`/connexion?suite=${encodeURIComponent(path)}`}
+                        className="text-sm font-semibold text-teal-700 hover:underline"
+                      >
+                        Déjà inscrit ? Se connecter
+                      </Link>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
             {/* Photo du métier principal de l'acheteur */}
@@ -405,6 +480,11 @@ export default async function BuyerPage(props: PageProps<"/acheteurs/[slug]">) {
           )}
         </div>
         <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
+          <BuyerOfficial
+            name={b.name}
+            signedIn={Boolean(session)}
+            signupHref={signup}
+          />
           {followBox}
           {mainSectors[0] && (
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">

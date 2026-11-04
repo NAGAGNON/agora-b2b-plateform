@@ -119,10 +119,26 @@ export async function buildDailyFacts(now = new Date()) {
   };
   const os = outreachSettings.data;
   const seo = (seoRaw as unknown as SeoSnapshot | null) ?? emptySeoSnapshot();
+  // Retour des inscrits (jours de visite enregistrés) : à 7 et 30 jours après l'inscription
+  const { data: rrRaw } = await db.rpc("return_rates");
+  const rr = rrRaw as { eligible7: number; returned7: number; eligible30: number; returned30: number; active7: number; visits_today: number } | null;
+  const pct = (a: number, b: number) => (b ? Math.round((a / b) * 100) : null);
 
   return {
     date: day,
     heure_du_bilan: hm(now),
+    fidelite: rr
+      ? {
+          inscrits_revenus_sous_7_jours: rr.returned7,
+          inscrits_d_au_moins_7_jours: rr.eligible7,
+          taux_de_retour_7_jours_pct: pct(rr.returned7, rr.eligible7),
+          inscrits_revenus_sous_30_jours: rr.returned30,
+          inscrits_d_au_moins_30_jours: rr.eligible30,
+          taux_de_retour_30_jours_pct: pct(rr.returned30, rr.eligible30),
+          inscrits_actifs_7_derniers_jours: rr.active7,
+          inscrits_venus_aujourdhui: rr.visits_today,
+        }
+      : null,
     audience: {
       aujourdhui: {
         visites: t.visits,

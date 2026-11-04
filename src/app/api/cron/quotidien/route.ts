@@ -93,6 +93,11 @@ async function run(req: Request) {
     return data;
   });
   // Inscrits qui n'ont jamais activé leur compte : un seul rappel avec un nouveau lien (1 à 7 jours après)
+  await step("rappels-dates-limites", async () => {
+    const { data, error } = await createAdminClient().rpc("process_deadline_reminders", { p_limit: 300 });
+    if (error) throw error;
+    return { rappels: data ?? 0 };
+  });
   await step("rappel-activation", async () => (appSendsAuthEmails() ? remindUnconfirmedSignups() : { skipped: "aucun fournisseur d'e-mail" }));
   await step("emails", () => processEmailOutbox(elapsed() < 220_000 ? 200 : 40));
   await step("logos", async () => (elapsed() < 200_000 ? processMissingLogos(createAdminClient(), { limit: 20, deadline: started + 230_000 }) : { skipped: "reporté au passage suivant (temps insuffisant)" }));

@@ -618,6 +618,28 @@ isOneToOne: false
                     "due_on"?: string,"pipeline_item_id"?: string,"sent_at"?: string
                   }
                   Relationships: []
+                },"user_visits": {
+                  Row: {
+                    "day": string,"user_id": string
+                  }
+                  Insert: {
+                    "day": string,"user_id": string
+                  }
+                  Update: {
+                    "day"?: string,"user_id"?: string
+                  }
+                  Relationships: []
+                },"deadline_reminders": {
+                  Row: {
+                    "days_before": number,"opportunity_id": string,"sent_at": string,"user_id": string
+                  }
+                  Insert: {
+                    "days_before": number,"opportunity_id": string,"sent_at"?: string,"user_id": string
+                  }
+                  Update: {
+                    "days_before"?: number,"opportunity_id"?: string,"sent_at"?: string,"user_id"?: string
+                  }
+                  Relationships: []
                 },"need_reminders": {
                   Row: {
                     "kind": string,"opportunity_id": string,"sent_at": string
@@ -1277,13 +1299,13 @@ isOneToOne: false
                   ]
                 },"users": {
                   Row: {
-                    "created_at": string,"email": string,"full_name": string,"id": string,"is_demo": boolean,"job_title": string | null,"last_seen_at": string | null,"marketing_consent": boolean,"notify_email": boolean,"notify_prefs": Json,"phone": string | null,"signup_visit": string | null,"avatar_path": string | null,"platform_role": Database["public"]['Enums']["platform_role"],"status": Database["public"]['Enums']["account_status"],"terms_accepted_at": string | null,"updated_at": string
+                    "created_at": string,"email": string,"full_name": string,"id": string,"is_demo": boolean,"job_title": string | null,"last_seen_at": string | null,"marketing_consent": boolean,"notify_email": boolean,"notify_prefs": Json,"phone": string | null,"signup_visit": string | null,"previous_visit_at": string | null,"avatar_path": string | null,"platform_role": Database["public"]['Enums']["platform_role"],"status": Database["public"]['Enums']["account_status"],"terms_accepted_at": string | null,"updated_at": string
                   }
                   Insert: {
-                    "created_at"?: string,"email": string,"full_name"?: string,"id": string,"is_demo"?: boolean,"job_title"?: string | null,"last_seen_at"?: string | null,"marketing_consent"?: boolean,"notify_email"?: boolean,"notify_prefs"?: Json,"phone"?: string | null,"signup_visit"?: string | null,"avatar_path"?: string | null,"platform_role"?: Database["public"]['Enums']["platform_role"],"status"?: Database["public"]['Enums']["account_status"],"terms_accepted_at"?: string | null,"updated_at"?: string
+                    "created_at"?: string,"email": string,"full_name"?: string,"id": string,"is_demo"?: boolean,"job_title"?: string | null,"last_seen_at"?: string | null,"marketing_consent"?: boolean,"notify_email"?: boolean,"notify_prefs"?: Json,"phone"?: string | null,"signup_visit"?: string | null,"previous_visit_at"?: string | null,"avatar_path"?: string | null,"platform_role"?: Database["public"]['Enums']["platform_role"],"status"?: Database["public"]['Enums']["account_status"],"terms_accepted_at"?: string | null,"updated_at"?: string
                   }
                   Update: {
-                    "created_at"?: string,"email"?: string,"full_name"?: string,"id"?: string,"is_demo"?: boolean,"job_title"?: string | null,"last_seen_at"?: string | null,"marketing_consent"?: boolean,"notify_email"?: boolean,"notify_prefs"?: Json,"phone"?: string | null,"signup_visit"?: string | null,"avatar_path"?: string | null,"platform_role"?: Database["public"]['Enums']["platform_role"],"status"?: Database["public"]['Enums']["account_status"],"terms_accepted_at"?: string | null,"updated_at"?: string
+                    "created_at"?: string,"email"?: string,"full_name"?: string,"id"?: string,"is_demo"?: boolean,"job_title"?: string | null,"last_seen_at"?: string | null,"marketing_consent"?: boolean,"notify_email"?: boolean,"notify_prefs"?: Json,"phone"?: string | null,"signup_visit"?: string | null,"previous_visit_at"?: string | null,"avatar_path"?: string | null,"platform_role"?: Database["public"]['Enums']["platform_role"],"status"?: Database["public"]['Enums']["account_status"],"terms_accepted_at"?: string | null,"updated_at"?: string
                   }
                   Relationships: [
                     
@@ -1684,6 +1706,15 @@ isOneToOne: false
 "process_pipeline_reminders":
 { Args: { "p_limit"?: number }; Returns: number
                            },
+"process_deadline_reminders":
+{ Args: { "p_limit"?: number }; Returns: number
+                           },
+"touch_visit":
+{ Args: Record<PropertyKey, never>; Returns: undefined
+                           },
+"return_rates":
+{ Args: Record<PropertyKey, never>; Returns: Json
+                           },
 "process_need_reminders":
 { Args: { "p_limit"?: number }; Returns: Json
                            },
@@ -1781,7 +1812,7 @@ isOneToOne: false
                            },
 "suivi_audience":
 { Args: Record<PropertyKey, never>; Returns: {
-              "company_name": string,"company_region": string,"company_sectors": (string)[],"created_at": string,"email": string,"frequency": string,"full_name": string,"has_alert": boolean,"has_company": boolean,"has_logo": boolean,"has_need": boolean,"keywords": (string)[],"last_seen_at": string,"profile_complete": boolean,"regions": (string)[],"sectors": (string)[],"types": (Database["public"]['Enums']["opportunity_type"])[],"user_id": string,"veille_on": boolean
+              "company_name": string,"company_region": string,"company_sectors": (string)[],"company_department": string | null,"company_department_name": string | null,"created_at": string,"email": string,"frequency": string,"full_name": string,"has_alert": boolean,"has_company": boolean,"has_logo": boolean,"has_need": boolean,"keywords": (string)[],"last_seen_at": string,"profile_complete": boolean,"regions": (string)[],"sectors": (string)[],"types": (Database["public"]['Enums']["opportunity_type"])[],"user_id": string,"veille_on": boolean
             }[]
                            },
 "track_event":

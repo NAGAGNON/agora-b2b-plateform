@@ -7,6 +7,8 @@ import { SectorVisual } from "@/components/opportunities/sector-visual";
 import { OPPORTUNITY_TYPE_LABELS, sectorLabel, type OpportunityOrigin, type OpportunityType } from "@/lib/constants";
 import { getLocationLabel, getSectorLabels } from "@/lib/queries/platform";
 import { deadlineLabel, formatBudget, formatDate, isRecent } from "@/lib/format";
+import { fitReasons, getFitProfile } from "@/lib/fit";
+import { Sparkles } from "lucide-react";
 
 export type OpportunityCardData = {
   id: string;
@@ -18,6 +20,7 @@ export type OpportunityCardData = {
   sector_slug: string | null;
   city: string | null;
   department_code?: string | null;
+  region?: string | null;
   budget_min?: number | null;
   budget_max?: number | null;
   response_deadline: string | null;
@@ -43,6 +46,9 @@ export async function OpportunityCard({ o, headingLevel = 3 }: { o: OpportunityC
   // Résumé des sources externes souvent préfixé par l'acheteur (« OPCO SANTE — Marché de services ») : pas de doublon
   const summary = o.summary && by && o.summary.startsWith(by) ? o.summary.slice(by.length).replace(/^\s*[—–-]\s*/, "") || null : o.summary;
   const typeLabel = o.type !== "EXTERNAL_OPPORTUNITY" ? OPPORTUNITY_TYPE_LABELS[o.type] : null;
+  // « Pourquoi cette offre vous concerne » : membre connecté avec une entreprise, offre ouverte
+  const fitProfile = closed ? null : await getFitProfile();
+  const fit = fitProfile ? fitReasons(o, fitProfile) : [];
   return (
     <article className="group reveal relative flex h-full flex-col glow-card rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
       <div className="flex items-start gap-3">
@@ -94,6 +100,17 @@ export async function OpportunityCard({ o, headingLevel = 3 }: { o: OpportunityC
         </div>
       </div>
       {summary && <p className="mt-3 line-clamp-2 text-sm text-slate-600 [overflow-wrap:anywhere]">{summary}</p>}
+      {fit.length > 0 && (
+        <p className="mt-3 flex flex-wrap items-center gap-1.5 text-xs font-semibold text-teal-800" data-testid="fit-reasons">
+          <Sparkles className="size-3.5 text-teal-600" aria-hidden />
+          <span className="sr-only">Pourquoi cette offre vous concerne :</span>
+          {fit.map((r) => (
+            <span key={r} className="rounded-full bg-teal-50 px-2 py-0.5 ring-1 ring-teal/30">
+              {r}
+            </span>
+          ))}
+        </p>
+      )}
       <dl className="mt-auto flex flex-wrap items-center gap-x-4 gap-y-1.5 pt-4 text-[13px] text-slate-600">
         {(o.city || o.department_code) && (
           <div className="flex min-w-0 items-center gap-1.5">

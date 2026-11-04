@@ -20,6 +20,7 @@ import {
   ShieldAlert,
   Building2,
   Landmark,
+  Sparkles,
 } from "lucide-react";
 import { InterestPanel } from "@/components/opportunities/interest-panel";
 import { FavoriteButton } from "@/components/opportunities/favorite-button";
@@ -40,6 +41,8 @@ import { buttonClasses } from "@/components/ui/button";
 import { getOpportunityDetail } from "@/lib/queries/opportunities";
 import { visitorRpc } from "@/lib/queries/public-cache";
 import { buyerSlug } from "@/lib/buyer-slug";
+import { fitReasons, getFitProfile } from "@/lib/fit";
+import { BuyerOfficial } from "@/components/buyers/buyer-official";
 import { ShareLinks } from "@/components/share-links";
 import { cookies, headers } from "next/headers";
 import { OfferAccessGate } from "@/components/opportunities/offer-access-gate";
@@ -276,6 +279,8 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
   const budget = o.budget_visible ? formatBudget(o.budget_min, o.budget_max) : null;
   const deadline = deadlineLabel(o.response_deadline);
   const { crumbs, leadLabel } = await offerCrumbs(o);
+  const fitProfile = isOpen ? await getFitProfile() : null;
+  const fit = fitProfile ? fitReasons({ ...o, summary: o.summary ?? o.description }, fitProfile) : [];
   const showLeadForm = !session && !o.is_demo && o.visibility === "PUBLIC";
 
   return (
@@ -373,6 +378,16 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
               </div>
             </div>
             <h1 className="mt-5 text-xl leading-snug font-semibold tracking-tight text-navy [overflow-wrap:anywhere] sm:text-2xl lg:text-[1.75rem]">{o.title}</h1>
+            {fit.length > 0 && (
+              <p className="mt-3 flex flex-wrap items-center gap-1.5 text-sm font-semibold text-teal-800" data-testid="fit-reasons">
+                <Sparkles className="size-4 text-teal-600" aria-hidden /> Pourquoi cette offre vous concerne :
+                {fit.map((r) => (
+                  <span key={r} className="rounded-full bg-teal-50 px-2.5 py-0.5 text-xs ring-1 ring-teal/30">
+                    {r}
+                  </span>
+                ))}
+              </p>
+            )}
 
             {external ? (
               <p className="mt-2 text-sm text-slate-600">
@@ -584,6 +599,14 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
               <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                 <ShareLinks url={`${siteUrl()}/opportunites/${o.id}`} title={o.title} needId={external ? undefined : o.id} label={external ? undefined : "Faire connaître ce besoin"} />
               </div>
+            )}
+            {external && o.external_buyer_name && (
+              <BuyerOfficial
+                name={o.external_buyer_name}
+                signedIn
+                signupHref="/inscription"
+                buyerPath={buyerSlug(o.external_buyer_name) ? `/acheteurs/${buyerSlug(o.external_buyer_name)}` : null}
+              />
             )}
           </aside>
         </div>

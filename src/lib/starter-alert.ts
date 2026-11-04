@@ -5,8 +5,9 @@ import { recipientFromReferral } from "@/lib/outreach/tracking";
 import { siteUrl } from "@/lib/seo";
 import { sendWelcome } from "@/lib/email/auth-emails";
 import { notifyAdminsOfSignup } from "@/lib/signup-notify";
+import { buyerAlertName, followBuyer } from "@/lib/buyer-follow";
 
-type Criteria = { sector: string | null; department: string | null };
+type Criteria = { sector: string | null; department: string | null; buyerName?: string | null };
 
 const OFFER_PATH = /^\/opportunites\/([0-9a-f-]{36})(?:[/?#]|$)/i;
 const BUYER_PATH = /^\/acheteurs\/([a-z0-9-]{1,80})(?:[/?#]|$)/;
@@ -28,7 +29,8 @@ export async function signupCriteria(next: string | null | undefined, ref: FormD
   if (buyer) {
     const { data: rows } = await db.rpc("buyer_opportunities", { p_slug: buyer, p_limit: 20 });
     const latest = (rows ?? []).filter((o) => o.sector_slug).sort((a, b) => Number(b.is_open) - Number(a.is_open) || (b.published_at ?? "").localeCompare(a.published_at ?? ""))[0];
-    if (latest) return { sector: latest.sector_slug, department: latest.department_code ?? null };
+    // Inscription depuis « Suivez cet acheteur » : l'alerte suit cet acheteur précisément
+    if (latest || rows?.[0]) return { sector: latest?.sector_slug ?? null, department: latest?.department_code ?? null, buyerName: rows?.[0]?.buyer_name ?? null };
   }
   const r = typeof ref === "string" ? await recipientFromReferral(ref) : null;
   if (r) {
@@ -100,8 +102,15 @@ export async function welcomeNewMember(user: { id: string; email: string }, next
     await createAdminClient().from("users").update({ signup_visit: visit }).eq("id", user.id).then(({ error }) => error && logServerError("signup visit", error));
   }
   const criteria = await signupCriteria(next, ref ?? null).catch(() => null);
-  const created = await createStarterAlert(user.id, criteria);
   let alertName: string | null = null;
+  // Venu d'une page acheteur : alerte qui suit cet acheteur (ses nouveaux appels d'offres)
+  if (criteria?.buyerName && (await followBuyer(createAdminClient(), user.id, criteria.buyerName).catch(() => false))) {
+    alertName = buyerAlertName(criteria.buyerName);
+    await sendWelcome(user.email, user.id, { offers: await welcomeOffers(criteria), alertName });
+    await notifyAdminsOfSignup(user.id, alertName);
+    return;
+  }
+  const created = await createStarterAlert(user.id, criteria);
   if (created) {
     const { data } = await createAdminClient().from("alerts").select("name").eq("user_id", user.id).order("created_at").limit(1).maybeSingle();
     alertName = data?.name ?? null;
