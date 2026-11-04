@@ -223,10 +223,10 @@ export default async function BuyerPage(props: PageProps<"/acheteurs/[slug]">) {
         id="suivre"
         className="flex items-center gap-2 text-lg font-bold text-navy"
       >
-        <BellRing className="size-5 text-teal" aria-hidden /> Suivez cet
+        <BellRing className="size-5 text-teal-700" aria-hidden /> Suivez cet
         acheteur
       </h2>
-      <p className="mt-2 text-sm text-slate-300">
+      <p className="mt-2 text-sm text-slate-600">
         Recevez ses prochains appels d&apos;offres par e-mail, gratuitement.
       </p>
       <ul className="mt-4 space-y-2.5 text-sm text-slate-700">
@@ -239,7 +239,7 @@ export default async function BuyerPage(props: PageProps<"/acheteurs/[slug]">) {
         ].map((t) => (
           <li key={t} className="flex gap-2">
             <CheckCircle2
-              className="mt-0.5 size-4 shrink-0 text-teal"
+              className="mt-0.5 size-4 shrink-0 text-teal-700"
               aria-hidden
             />{" "}
             {t}
@@ -257,7 +257,7 @@ export default async function BuyerPage(props: PageProps<"/acheteurs/[slug]">) {
         Créer mon compte gratuitement
       </Link>
       <GoogleButton next={path} />
-      <p className="mt-3 text-xs text-slate-400">
+      <p className="mt-3 text-xs text-slate-500">
         Sans carte bancaire. Alerte modifiable ou arrêtable en un clic.
       </p>
     </section>
