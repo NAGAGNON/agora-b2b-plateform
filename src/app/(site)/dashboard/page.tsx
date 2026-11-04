@@ -29,9 +29,9 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
     return (
       <EmptyState
         icon={<Users className="size-6" aria-hidden />}
-        title="Créez le profil de votre entreprise"
-        description="Il est nécessaire pour publier un besoin, manifester votre intérêt, répondre à une consultation et gérer votre pipeline."
-        action={<ButtonLink href="/onboarding/entreprise">Créer mon entreprise</ButtonLink>}
+        title="Voyez les offres faites pour votre entreprise"
+        description="Indiquez votre métier et votre ville (30 secondes) : les offres sont triées pour vous, avec la raison de chaque recommandation, et les nouvelles arrivent par e-mail."
+        action={<ButtonLink href="/onboarding/entreprise">Compléter mon profil en 30 secondes</ButtonLink>}
       />
     );
   }

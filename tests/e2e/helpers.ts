@@ -28,6 +28,9 @@ export async function signUpWithCompany(page: Page, label: string, companyName: 
   await page.getByText("J'ai lu et j'accepte les Conditions Générales d'Utilisation", { exact: false }).click();
   await page.getByRole("button", { name: "Créer mon compte" }).click();
   await expect(page).toHaveURL(/onboarding\/entreprise/);
+  // Profil express par défaut : ces parcours utilisent le formulaire complet (type d'entreprise)
+  await page.getByRole("link", { name: "Remplir le formulaire complet" }).click();
+  await expect(page).toHaveURL(/complet=1/);
   await page.getByLabel("Nom de l'entreprise").fill(companyName);
   await page.getByLabel("Profil sur la plateforme").selectOption({ label: kind });
   await page.getByLabel("Ville").fill("Brest");

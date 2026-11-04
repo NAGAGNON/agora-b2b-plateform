@@ -12,6 +12,7 @@ import { logServerError, actionError } from "@/lib/errors";
 import { safeInternalPath } from "@/lib/safe-path";
 import { storagePath, validateUpload } from "@/lib/files";
 import { autoLogoFor } from "@/lib/company-logos";
+import { createStarterAlert } from "@/lib/starter-alert";
 import { ALLOWED_LOGO_TYPES, MAX_LOGO_BYTES } from "@/lib/constants";
 import { companyProfileSchema, companySchema, emailSchema, parseForm, userProfileSchema, type ActionResult } from "@/lib/validation";
 
@@ -42,6 +43,51 @@ export async function createCompany(_prev: ActionResult | null, fd: FormData): P
   (await cookies()).set(ACTIVE_COMPANY_COOKIE, companyId, { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/" });
   revalidatePath("/", "layout");
   redirect(safeNext(fd.get("suite"), "/dashboard?bienvenue=1"));
+}
+
+const expressSchema = z.object({
+  name: z.string().trim().min(2, "Indiquez le nom de votre entreprise (2 caractères au moins)").max(160),
+  sector: z.string().trim().regex(/^[a-z0-9-]{2,60}$/, "Choisissez votre métier"),
+  city: z.string().trim().max(120).optional(),
+  postalCode: z.string().trim().regex(/^\d{5}$/, "Code postal à 5 chiffres").optional().or(z.literal("")),
+  size: z.enum(["INDEPENDANT", "TPE", "PME", "ETI", "GE"]).optional().or(z.literal("")),
+  speciality: z.string().trim().max(120).optional(),
+});
+
+/**
+ * Profil express (30 secondes) : nom, métier, ville et taille suffisent pour recevoir des offres
+ * qui correspondent. Le reste (SIREN, présentation, références) se complète plus tard.
+ */
+export async function createCompanyExpress(_prev: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  const raw = Object.fromEntries(["name", "sector", "city", "postalCode", "size", "speciality"].map((k) => [k, String(fd.get(k) ?? "")]));
+  const parsed = expressSchema.safeParse(raw);
+  if (!parsed.success) {
+    const fieldErrors: Record<string, string> = {};
+    for (const i of parsed.error.issues) fieldErrors[String(i.path[0])] ??= i.message;
+    return { ok: false, error: "Vérifiez les champs signalés.", fieldErrors };
+  }
+  const session = await getSession();
+  if (!session) return { ok: false, error: "Session expirée, reconnectez-vous." };
+  const d = parsed.data;
+  if (!d.city && !d.postalCode) return { ok: false, error: "Indiquez votre ville ou votre code postal.", fieldErrors: { city: "Ville ou code postal" } };
+  const supabase = await createClient();
+  const { data: companyId, error } = await supabase.rpc("create_company", {
+    p_name: d.name,
+    p_kind: "BOTH",
+    p_size: d.size || undefined,
+    p_city: d.city || undefined,
+    p_postal_code: d.postalCode || undefined,
+    p_sectors: [d.sector],
+    p_skills: d.speciality ? [d.speciality] : [],
+  });
+  if (error || !companyId) return actionError(error);
+  fetchLogoAfterResponse(companyId);
+  (await cookies()).set(ACTIVE_COMPANY_COOKIE, companyId, { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/" });
+  // Alerte de départ sur ce métier et ce département, si la personne n'en a pas encore
+  const { data: co } = await createAdminClient().from("companies").select("department_code").eq("id", companyId).maybeSingle();
+  await createStarterAlert(session.userId, { sector: d.sector, department: co?.department_code ?? null });
+  revalidatePath("/", "layout");
+  redirect(safeNext(fd.get("suite"), "/dashboard/recommandations?bienvenue=1"));
 }
 
 export async function switchCompany(companyId: string) {
