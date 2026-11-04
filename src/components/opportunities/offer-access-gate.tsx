@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarClock, CalendarDays, CheckCircle2, Landmark, Lock, MapPin, Tag, Wallet } from "lucide-react";
+import { BellRing, CalendarClock, CalendarDays, CheckCircle2, FileText, Landmark, LayoutList, Lock, MapPin, Tag, Wallet } from "lucide-react";
 import { buttonClasses } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/format";
@@ -15,6 +15,7 @@ export function OfferAccessGate({
   token,
   offer,
   crumbs,
+  gains,
   children,
 }: {
   token?: string | null;
@@ -32,6 +33,8 @@ export function OfferAccessGate({
   };
   /** Fil d'Ariane (région, département, métier) : liens vers les pages de la zone et du métier */
   crumbs?: { name: string; path: string }[];
+  /** Ce que l'inscription apporte, chiffres réels : offres ouvertes du même métier près de l'offre et en France */
+  gains?: { nearby: number; nearbyLabel: string | null; sectorTotal: number; sector: string | null; alertLabel: string | null } | null;
   /** Contenu public sous la carte (offres similaires) */
   children?: React.ReactNode;
 }) {
@@ -63,7 +66,7 @@ export function OfferAccessGate({
           <p className="mt-3 text-slate-700">
             {token
               ? "Cette offre vous a été recommandée personnellement. Créez votre compte gratuitement pour voir les détails et accéder à l'offre."
-              : "Le détail des opportunités est réservé aux membres. Créez votre compte gratuitement pour voir cette offre et recevoir celles qui correspondent à votre activité."}
+              : "Inscription gratuite en moins d'une minute : vous accédez à l'offre complète et recevez les nouvelles offres de votre métier."}
           </p>
 
           <section aria-label="Offre recommandée" className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-5">
@@ -116,6 +119,48 @@ export function OfferAccessGate({
             <p className="mt-3 flex items-center gap-2 text-xs font-semibold text-slate-600">
               <Lock className="size-3.5 text-teal-700" aria-hidden /> Descriptif complet, documents et lien officiel réservés aux membres
             </p>
+          </section>
+
+          <section aria-labelledby="gains" className="mt-6">
+            <h2 id="gains" className="text-base font-bold text-navy">
+              Ce que vous débloquez gratuitement
+            </h2>
+            <ul className="mt-3 space-y-2.5 text-sm text-slate-700">
+              <li className="flex gap-2.5">
+                <FileText className="mt-0.5 size-4 shrink-0 text-teal-700" aria-hidden />
+                <span>
+                  <strong>Le lien officiel et le dossier de consultation</strong> pour répondre, avec le descriptif complet et les conditions de participation
+                </span>
+              </li>
+              {gains?.alertLabel && (
+                <li className="flex gap-2.5">
+                  <BellRing className="mt-0.5 size-4 shrink-0 text-teal-700" aria-hidden />
+                  <span>
+                    <strong>Une alerte e-mail « {gains.alertLabel} »</strong> créée pour vous : les nouvelles offres dès leur publication (modifiable ou arrêtable en un clic)
+                  </span>
+                </li>
+              )}
+              {gains && gains.sector && (gains.nearby > 1 || gains.sectorTotal > 1) && (
+                <li className="flex gap-2.5">
+                  <LayoutList className="mt-0.5 size-4 shrink-0 text-teal-700" aria-hidden />
+                  <span>
+                    {gains.nearby > 1 && gains.nearbyLabel ? (
+                      <>
+                        <strong>
+                          {gains.nearby.toLocaleString("fr-FR")} offres « {gains.sector} » ouvertes {gains.nearbyLabel}
+                        </strong>
+                        {gains.sectorTotal > gains.nearby ? `, ${gains.sectorTotal.toLocaleString("fr-FR")} dans toute la France` : ""}
+                      </>
+                    ) : (
+                      <strong>
+                        {gains.sectorTotal.toLocaleString("fr-FR")} offres « {gains.sector} » ouvertes en France
+                      </strong>
+                    )}
+                    , réunies au même endroit
+                  </span>
+                </li>
+              )}
+            </ul>
           </section>
 
           <a href={go("inscription")} className={buttonClasses({ size: "lg", className: "mt-6 w-full" })}>

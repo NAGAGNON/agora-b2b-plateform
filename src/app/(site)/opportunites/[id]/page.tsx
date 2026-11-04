@@ -98,12 +98,12 @@ export async function generateMetadata(props: PageProps<"/opportunites/[id]">): 
  * sinon, il est invité à s'inscrire et revient ensuite sur la fiche.
  */
 /**
- * Aperçu d'un avis pour un visiteur sans compte : au plus la moitié du descriptif (220 caractères au
+ * Aperçu d'un avis pour un visiteur sans compte : au plus un tiers du descriptif (160 caractères au
  * maximum), rien si le descriptif est trop court — le détail complet reste réservé aux membres.
  */
 function gateExcerpt(description: string | null): string | null {
   const text = (description ?? "").replace(/\s+/g, " ").trim();
-  const max = Math.min(220, Math.floor(text.length / 2));
+  const max = Math.min(160, Math.floor(text.length / 3));
   return max >= 60 ? clip(text, max) : null;
 }
 
@@ -196,19 +196,33 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
     const { crumbs, leadLabel } = await offerCrumbs(o);
     const buyerName = o.origin === "EXTERNAL" ? o.external_buyer_name : null;
     const buyerPath = buyerName ? buyerSlug(buyerName) : null;
+    // Ce que l'inscription apporte : offres ouvertes réelles du même métier, près de l'offre puis en France
+    const sector = o.sector_slug ? sectorLabel(o.sector_slug, await getSectorLabels()) : null;
+    const [count, departments] = await Promise.all([getOpenCounts(), getDepartments()]);
+    const dep = departments.find((d) => d.code === o.department_code) ?? null;
+    const gains = o.sector_slug
+      ? {
+          sector,
+          nearby: dep ? count("department_sector", `${dep.code}|${o.sector_slug}`) : 0,
+          nearbyLabel: dep ? `dans le département ${dep.name} (${dep.code})` : null,
+          sectorTotal: count("sector", o.sector_slug),
+          alertLabel: [sector, dep?.name].filter(Boolean).join(" — ") || null,
+        }
+      : null;
     return (
       <>
         <JsonLd data={breadcrumbLd([...crumbs, { name: o.title, path: `/opportunites/${o.id}` }])} />
         <OfferAccessGate
           token={visitor?.token ?? null}
           crumbs={crumbs}
+          gains={gains}
           offer={{
             id: o.id,
             title: o.title,
             buyer: buyerName,
             buyerPath: buyerPath ? `/acheteurs/${buyerPath}` : null,
             location,
-            sector: o.sector_slug ? sectorLabel(o.sector_slug, await getSectorLabels()) : null,
+            sector,
             deadline: o.response_deadline,
             publishedAt: o.published_at,
             budget: o.budget_visible ? formatBudget(o.budget_min, o.budget_max) : null,

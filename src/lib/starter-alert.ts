@@ -9,6 +9,7 @@ import { notifyAdminsOfSignup } from "@/lib/signup-notify";
 type Criteria = { sector: string | null; department: string | null };
 
 const OFFER_PATH = /^\/opportunites\/([0-9a-f-]{36})(?:[/?#]|$)/i;
+const BUYER_PATH = /^\/acheteurs\/([a-z0-9-]{1,80})(?:[/?#]|$)/;
 
 /**
  * Ce que l'on sait de la personne au moment de l'inscription, sans rien inventer : l'offre qu'elle
@@ -21,6 +22,13 @@ export async function signupCriteria(next: string | null | undefined, ref: FormD
   if (offerId) {
     const { data: o } = await db.from("opportunities").select("sector_slug, department_code").eq("id", offerId).maybeSingle();
     if (o?.sector_slug) return { sector: o.sector_slug, department: o.department_code };
+  }
+  // Venu d'une page acheteur : métier et département de ses annonces les plus récentes
+  const buyer = next ? BUYER_PATH.exec(next)?.[1] : undefined;
+  if (buyer) {
+    const { data: rows } = await db.rpc("buyer_opportunities", { p_slug: buyer, p_limit: 20 });
+    const latest = (rows ?? []).filter((o) => o.sector_slug).sort((a, b) => Number(b.is_open) - Number(a.is_open) || (b.published_at ?? "").localeCompare(a.published_at ?? ""))[0];
+    if (latest) return { sector: latest.sector_slug, department: latest.department_code ?? null };
   }
   const r = typeof ref === "string" ? await recipientFromReferral(ref) : null;
   if (r) {
