@@ -64,7 +64,7 @@ export default async function HomePage(props: PageProps<"/">) {
   const supabase = await createClient();
   // Base lente ou indisponible : chaque bloc a sa valeur de repli, la page s'affiche toujours
   const safe = <T, F = T>(p: PromiseLike<T>, fallback: F): Promise<T | F> => Promise.resolve(p).catch(() => fallback);
-  const [sectors, { data: analyses }, latest, stats, { data: growth }, labels] = await Promise.all([
+  const [sectors, { data: analyses }, latest, stats, { data: growth }, labels, { total: needsTotal }] = await Promise.all([
     safe(getSectors(), []),
     safe(supabase.from("articles").select("slug, title, description, published_at").eq("status", "PUBLISHED").order("published_at", { ascending: false }).limit(3), { data: null }),
     // Même calcul que la page « Explorer les opportunités » (opportunités ouvertes), trois plus récentes en aperçu
@@ -73,9 +73,9 @@ export default async function HomePage(props: PageProps<"/">) {
     // Régions mises en avant : choisies chaque soir par la stratégie automatique (pages les plus consultées)
     safe(supabase.from("platform_settings").select("value").eq("key", "growth_public").maybeSingle(), { data: null }),
     safe(getSectorLabels(), {} as Record<string, string>),
+    // Besoins d'entreprises visibles par un visiteur : sinon les liens mènent à la publication
+    safe(searchOpportunities(parseOpportunityFilters({ origine: "INTERNAL" }), 1), { rows: [], total: 0, error: true as const }),
   ]);
-  // Besoins d'entreprises visibles par un visiteur : sinon les liens mènent à la publication
-  const { total: needsTotal } = await safe(searchOpportunities(parseOpportunityFilters({ origine: "INTERNAL" }), 1), { rows: [], total: 0, error: true as const });
   const hasNeeds = Number(needsTotal) > 0;
   const featuredRegions = homeRegions(growth?.value ?? null);
   const openCount = Number(latest.total);
