@@ -62,7 +62,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     db.from("sectors").select("slug").eq("is_active", true),
     db.from("departments").select("code, slug, region"),
     paged((from, to) => db.from("articles").select("slug, updated_at").eq("status", "PUBLISHED").order("published_at", { ascending: false }).range(from, to), 5),
-    db.rpc("open_opportunity_counts"),
+    // Plus de 1 000 lignes : lecture complète par tranches (la base en renvoie 1 000 au plus)
+    (async () => {
+      const rows: { dimension: string; key: string | null; n: number }[] = [];
+      for (let page = 0; page < 20; page++) {
+        const { data } = await db.rpc("open_opportunity_counts").range(page * 1000, page * 1000 + 999);
+        rows.push(...(data ?? []));
+        if ((data ?? []).length < 1000) break;
+      }
+      return { data: rows };
+    })(),
   ]);
   // Acheteurs publics avec au moins un appel d'offres ouvert
   // Par pages de 1000 (limite de réponse de la base)

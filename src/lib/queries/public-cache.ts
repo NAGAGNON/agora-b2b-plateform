@@ -52,6 +52,28 @@ const cachedRpc = unstable_cache(
 );
 
 /**
+ * Fonction renvoyant plus de 1 000 lignes : la base n'en renvoie que 1 000 par réponse, on lit
+ * donc par tranches successives (sinon la fin du résultat est perdue sans erreur).
+ */
+export const cachedRpcAll = unstable_cache(
+  async (fn: string) => {
+    const rows: unknown[] = [];
+    for (let page = 0; page < 20; page++) {
+      const { data, error } = await anonClient()
+        .rpc(fn as "open_opportunity_counts")
+        .range(page * 1000, page * 1000 + 999);
+      if (error) throw new Error(error.message);
+      const batch = (data ?? []) as unknown as unknown[];
+      rows.push(...batch);
+      if (batch.length < 1000) break;
+    }
+    return rows;
+  },
+  ["public-rpc-all-v1"],
+  { revalidate: PUBLIC_TTL_S, tags: [PUBLIC_CACHE_TAG] },
+);
+
+/**
  * Fonction de la base appelée pour le visiteur courant : résultat public en cache pour un
  * visiteur anonyme, lecture directe (droits de la session) pour un visiteur connecté.
  */
