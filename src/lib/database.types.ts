@@ -1739,6 +1739,9 @@ isOneToOne: false
 "seo_snapshot":
 { Args: { "p_now"?: string }; Returns: Json
                            },
+"visit_origin":
+{ Args: { "p_session": string }; Returns: string
+                           },
 "set_company_member_role":
 { Args: { "p_member_id": string,"p_role": Database["public"]['Enums']["company_role"] }; Returns: undefined
                            },

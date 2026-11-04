@@ -4,6 +4,7 @@ import { logServerError } from "@/lib/errors";
 import { recipientFromReferral } from "@/lib/outreach/tracking";
 import { siteUrl } from "@/lib/seo";
 import { sendWelcome } from "@/lib/email/auth-emails";
+import { notifyAdminsOfSignup } from "@/lib/signup-notify";
 
 type Criteria = { sector: string | null; department: string | null };
 
@@ -98,4 +99,6 @@ export async function welcomeNewMember(user: { id: string; email: string }, next
     alertName = data?.name ?? null;
   }
   await sendWelcome(user.email, user.id, { offers: await welcomeOffers(criteria), alertName });
+  // Notification aux administrateurs (adresse du rapport du soir) : qui vient de s'inscrire et d'où
+  await notifyAdminsOfSignup(user.id, alertName);
 }
