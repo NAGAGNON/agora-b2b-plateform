@@ -15,9 +15,13 @@ describe("Suivre un acheteur", () => {
   it("alerte précise sur l'acheteur, sans doublon", async () => {
     const u = await user("follow-buyer");
     const mk = (title: string, buyer: string) =>
-      admin.from("opportunities").insert({ type: "PUBLIC_TENDER", origin: "EXTERNAL", status: "PUBLISHED", visibility: "PUBLIC", title: `IT ${RUN} ${title}`, description: "Avis de test.", external_buyer_name: buyer, response_deadline: new Date(Date.now() + 20 * 86_400_000).toISOString(), published_at: new Date().toISOString() }).select("id").single();
-    const mine = (await mk("Travaux de voirie", BUYER)).data!;
-    const other = (await mk("Travaux de voirie bis", `Département IT ${RUN}`)).data!;
+      admin.from("opportunities").insert({ type: "PUBLIC_TENDER", origin: "EXTERNAL", status: "PUBLISHED", visibility: "PUBLIC", title: `IT ${RUN} ${title}`, description: "Avis de test pour le suivi d'un acheteur public.", sector_slug: "travaux-btp", department_code: "29", region: "Bretagne", external_buyer_name: buyer, response_deadline: new Date(Date.now() + 20 * 86_400_000).toISOString(), published_at: new Date().toISOString() }).select("id").single();
+    const a = await mk("Travaux de voirie", BUYER);
+    const b = await mk("Travaux de voirie bis", `Département IT ${RUN}`);
+    expect(a.error).toBeNull();
+    expect(b.error).toBeNull();
+    const mine = a.data!;
+    const other = b.data!;
     expect(await followBuyer(u.client, u.id, BUYER)).toBe(true);
     expect(await followBuyer(u.client, u.id, BUYER)).toBe(true);
     const { data: alerts } = await admin.from("alerts").select("id, name, keywords").eq("user_id", u.id);
