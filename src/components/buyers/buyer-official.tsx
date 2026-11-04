@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { ArrowRight, Landmark } from "lucide-react";
+import { ArrowRight, Landmark, Lock } from "lucide-react";
+import { buttonClasses } from "@/components/ui/button";
 
 /** Recherche de l'acheteur dans l'Annuaire des entreprises de l'État (SIREN, adresse, dirigeants, site internet). */
 export function buyerRegistryUrl(name: string) {
@@ -33,12 +34,13 @@ export function BuyerOfficial({ name, signedIn, signupHref, buyerPath, compact =
           )}
         </ul>
       ) : (
-        <p className="mt-2 text-sm text-slate-600">
-          <Link href={signupHref} className="font-semibold text-teal-700 underline">
-            Créez votre compte
-          </Link>{" "}
-          pour accéder à sa fiche officielle (SIREN, adresse, site internet).
-        </p>
+        <>
+          <p className="mt-2 text-sm text-slate-600">SIREN, adresse, dirigeants et site internet de l&apos;acheteur, depuis l&apos;annuaire officiel de l&apos;État.</p>
+          <Link href={signupHref} className={buttonClasses({ full: true, className: "mt-3" })}>
+            <Lock className="size-4" aria-hidden /> Accéder à la fiche officielle
+          </Link>
+          <p className="mt-2 text-center text-xs text-slate-500">Compte gratuit, en moins d&apos;une minute</p>
+        </>
       )}
     </div>
   );
