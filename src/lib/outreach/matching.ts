@@ -34,6 +34,25 @@ export type OpportunityAnalysis = {
   keywords: string[];
   department: string | null;
   region: string | null;
+  /** Régions voisines acceptées (besoins d'entreprises : partenaires proches, pas seulement dans la région). */
+  nearbyRegions?: string[];
+};
+
+/** Régions métropolitaines voisines (frontière commune). */
+export const NEIGHBOR_REGIONS: Record<string, string[]> = {
+  "Auvergne-Rhône-Alpes": ["Bourgogne-Franche-Comté", "Centre-Val de Loire", "Nouvelle-Aquitaine", "Occitanie", "Provence-Alpes-Côte d'Azur"],
+  "Bourgogne-Franche-Comté": ["Auvergne-Rhône-Alpes", "Centre-Val de Loire", "Grand Est", "Île-de-France"],
+  Bretagne: ["Normandie", "Pays de la Loire"],
+  "Centre-Val de Loire": ["Auvergne-Rhône-Alpes", "Bourgogne-Franche-Comté", "Île-de-France", "Normandie", "Nouvelle-Aquitaine", "Pays de la Loire"],
+  Corse: ["Provence-Alpes-Côte d'Azur"],
+  "Grand Est": ["Bourgogne-Franche-Comté", "Hauts-de-France", "Île-de-France"],
+  "Hauts-de-France": ["Grand Est", "Île-de-France", "Normandie"],
+  "Île-de-France": ["Bourgogne-Franche-Comté", "Centre-Val de Loire", "Grand Est", "Hauts-de-France", "Normandie"],
+  Normandie: ["Bretagne", "Centre-Val de Loire", "Hauts-de-France", "Île-de-France", "Pays de la Loire"],
+  "Nouvelle-Aquitaine": ["Auvergne-Rhône-Alpes", "Centre-Val de Loire", "Occitanie", "Pays de la Loire"],
+  Occitanie: ["Auvergne-Rhône-Alpes", "Nouvelle-Aquitaine", "Provence-Alpes-Côte d'Azur"],
+  "Pays de la Loire": ["Bretagne", "Centre-Val de Loire", "Normandie", "Nouvelle-Aquitaine"],
+  "Provence-Alpes-Côte d'Azur": ["Auvergne-Rhône-Alpes", "Corse", "Occitanie"],
 };
 
 const STOP = new Set(
@@ -51,7 +70,11 @@ export function significantTerms(text: string, max = 8): string[] {
   return out;
 }
 
-export function analyzeOpportunity(o: OpportunityInput): OpportunityAnalysis {
+/**
+ * `trustTitle` (besoins publiés par une entreprise inscrite) : les métiers nommés dans le titre sont
+ * retenus même s'ils ne relèvent pas du secteur choisi (secteur parfois mal renseigné à la publication).
+ */
+export function analyzeOpportunity(o: OpportunityInput, { trustTitle = false }: { trustTitle?: boolean } = {}): OpportunityAnalysis {
   const text = normalizeText([o.title, o.summary, o.description.slice(0, 3000), o.skills.join(" "), o.keywords.join(" ")].join(" "));
   const profiles: string[] = [];
   const primaryNaf: string[] = [];
@@ -65,7 +88,8 @@ export function analyzeOpportunity(o: OpportunityInput): OpportunityAnalysis {
   const divisions = new Set((sp?.naf ?? []).map((n) => n.slice(0, 2)));
   const compatible = (r: (typeof NEED_RULES)[number]) => !sp || r.naf.some((n) => divisions.has(n.slice(0, 2)));
   const usable = NEED_RULES.filter(compatible);
-  const rules = [...usable.filter((r) => r.re.test(title)), ...usable.filter((r) => !r.re.test(title) && r.re.test(text))].slice(0, 4);
+  const fromTitle = (trustTitle ? NEED_RULES : usable).filter((r) => r.re.test(title));
+  const rules = [...fromTitle, ...usable.filter((r) => !fromTitle.includes(r) && !r.re.test(title) && r.re.test(text))].slice(0, 4);
   for (const r of rules) {
     if (!profiles.includes(r.profile)) profiles.push(r.profile);
     for (const n of r.naf) if (!primaryNaf.includes(n)) primaryNaf.push(n);
@@ -152,6 +176,9 @@ export function scoreMatch(a: OpportunityAnalysis, p: ProspectInput, sectorLabel
     } else if (p.intervention_zone === "NATIONAL") {
       location = 12;
       reasons.push("Intervient sur toute la France");
+    } else if (p.region && a.nearbyRegions?.includes(p.region)) {
+      location = 10;
+      reasons.push(`Située dans une région voisine (${p.region})`);
     }
   } else if (a.region) {
     if (p.region === a.region) {
