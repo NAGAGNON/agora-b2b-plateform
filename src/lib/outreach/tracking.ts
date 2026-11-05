@@ -39,6 +39,11 @@ const FIRST_AT = {
  * derrière la page d'accès « Créez votre compte » (contrôle côté serveur).
  */
 export const OUTREACH_COOKIE = "lp_prospection";
+/**
+ * Navigateur de vérification des messageries (lien ouvert automatiquement) : ses pages vues ne sont
+ * pas comptées dans l'audience (sinon : centaines de « visites » d'une page sans suite).
+ */
+export const AUTOMATED_VISIT_COOKIE = "lp_verif";
 export const OUTREACH_COOKIE_MAX_AGE = 60 * 60 * 24 * 30;
 
 /** Destinataire du parcours en cours (cookie signé), ou null. */

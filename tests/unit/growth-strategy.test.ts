@@ -47,11 +47,20 @@ describe("stratégie automatique", () => {
     expect(changes.some((c) => c.decision.includes("analyses par région"))).toBe(true);
   });
 
-  it("rythme des articles : relevé quand ils amènent des visiteurs depuis les moteurs, jamais au-delà de 3", () => {
-    const m: GrowthMetrics = { ...empty, articles: [{ slug: "a", topic_key: "secteur:informatique:x", published_at: "", views: 9, search_visits: 6 }] };
+  it("rythme des articles : relevé seulement s'ils amènent vraiment des visiteurs depuis les moteurs, jamais au-delà de 3", () => {
+    const m: GrowthMetrics = { ...empty, articles: [{ slug: "a", topic_key: "secteur:informatique:x", published_at: "", views: 40, search_visits: 30 }] };
     expect(decideStrategy(m, null, ctx).strategy.articles.per_day).toBe(2);
     const at3 = { ...DEFAULT_STRATEGY("x"), articles: { ...DEFAULT_STRATEGY("x").articles, per_day: 3 } };
     expect(decideStrategy(m, at3, ctx).strategy.articles.per_day).toBe(3);
+  });
+
+  it("rythme des articles : quelques visiteurs ne suffisent pas, et le rythme redescend s'ils n'en amènent presque pas", () => {
+    const few: GrowthMetrics = { ...empty, articles: [{ slug: "a", topic_key: "secteur:informatique:x", published_at: "", views: 9, search_visits: 6 }] };
+    expect(decideStrategy(few, null, ctx).strategy.articles.per_day).toBe(1);
+    const at2 = { ...DEFAULT_STRATEGY("x"), articles: { ...DEFAULT_STRATEGY("x").articles, per_day: 2 } };
+    const r = decideStrategy(few, at2, ctx);
+    expect(r.strategy.articles.per_day).toBe(1);
+    expect(r.changes.find((c) => c.domaine === "Articles" && c.decision.includes("ramené"))?.raison).toContain("6 visiteur(s)");
   });
 
   it("prospection : priorité aux secteurs qui répondent le mieux, rien sous 50 envois", () => {
@@ -69,10 +78,19 @@ describe("stratégie automatique", () => {
   });
 
   it("points à surveiller : pages qui font fuir et inscriptions inachevées", () => {
-    const m: GrowthMetrics = { ...empty, signups: 1, entry_groups: [{ grp: "accueil", visits: 20, bounces: 18, intent: 6, signups: 1, from_search: 3 }] };
+    const m: GrowthMetrics = {
+      ...empty,
+      signups: 1,
+      entry_groups: [
+        { grp: "accueil", visits: 20, bounces: 18, intent: 6, signups: 1, from_search: 3 },
+        // La page d'inscription mène hors du site (e-mail de confirmation, Google) : pas un « départ »
+        { grp: "inscription", visits: 20, bounces: 20, intent: 20, signups: 0, from_search: 0 },
+      ],
+    };
     const { strategy } = decideStrategy(m, null, ctx);
     expect(strategy.watch.join(" ")).toContain("accueil : 90 %");
-    expect(strategy.watch.join(" ")).toContain("6 visiteurs ont ouvert la page d'inscription, 1 sont allés au bout");
+    expect(strategy.watch.join(" ")).not.toContain("inscription : 100 %");
+    expect(strategy.watch.join(" ")).toContain("26 visites de la page d'inscription pour 1 comptes créés");
   });
 
   it("même stratégie que la veille : aucun changement annoncé", () => {

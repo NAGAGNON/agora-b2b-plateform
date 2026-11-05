@@ -56,6 +56,10 @@ export const DEFAULT_STRATEGY = (day: string): GrowthStrategy => ({
   watch: [],
 });
 
+/** Visiteurs venus des moteurs par les articles (14 jours) : au-delà, plus d'articles ; en deçà, moins. */
+export const ARTICLES_RAISE_AT = 28;
+export const ARTICLES_LOWER_BELOW = 10;
+
 const round1 = (x: number) => Math.round(x * 10) / 10;
 const pct = (a: number, b: number) => (b ? Math.round((100 * a) / b) : 0);
 
@@ -125,15 +129,16 @@ export function decideStrategy(
     });
   }
 
-  // ---- 3. Rythme : plus d'articles quand ils amènent des visiteurs depuis les moteurs de recherche
+  // ---- 3. Rythme : plus d'articles seulement s'ils amènent réellement des visiteurs depuis les
+  //         moteurs de recherche (au moins 2 par jour en moyenne), moins s'ils n'en amènent presque pas
   const searchFromArticles = m.articles.reduce((t, a) => t + a.search_visits, 0);
   s.articles.per_day = prev.articles.per_day;
-  if (searchFromArticles >= 5 && prev.articles.per_day < 3) {
+  if (searchFromArticles >= ARTICLES_RAISE_AT && prev.articles.per_day < 3) {
     s.articles.per_day = prev.articles.per_day + 1;
     changes.push({ domaine: "Articles", decision: `Rythme relevé à ${s.articles.per_day} article(s) par jour`, raison: `Les articles ont amené ${searchFromArticles} visiteur(s) depuis les moteurs de recherche en 14 jours.` });
-  } else if (totalArticles >= 10 && m.articles.every((a) => a.views === 0) && prev.articles.per_day > 1) {
+  } else if (searchFromArticles < ARTICLES_LOWER_BELOW && prev.articles.per_day > 1) {
     s.articles.per_day = prev.articles.per_day - 1;
-    changes.push({ domaine: "Articles", decision: `Rythme ramené à ${s.articles.per_day} article(s) par jour`, raison: `Aucune lecture sur les ${totalArticles} derniers articles : mieux vaut moins d'articles, mieux ciblés.` });
+    changes.push({ domaine: "Articles", decision: `Rythme ramené à ${s.articles.per_day} article(s) par jour`, raison: `Les articles n'ont amené que ${searchFromArticles} visiteur(s) depuis les moteurs de recherche en 14 jours : mieux vaut moins d'articles, mieux ciblés.` });
   }
 
   // ---- 4. Accueil : régions les plus consultées en premier, complétées par la liste habituelle
@@ -168,10 +173,12 @@ export function decideStrategy(
 
   // ---- 6. Points à surveiller (pages d'entrée qui font fuir, inscriptions commencées mais pas finies)
   for (const g of m.entry_groups) {
+    // Page d'inscription : la suite (confirmation par e-mail, connexion Google) se passe hors du site
+    if (g.grp === "inscription") continue;
     if (g.visits >= 10 && pct(g.bounces, g.visits) >= 80) s.watch.push(`${g.grp} : ${pct(g.bounces, g.visits)} % des ${g.visits} visiteurs arrivés par ces pages repartent sans rien voir d'autre.`);
   }
   const intent = m.entry_groups.reduce((t, g) => t + g.intent, 0);
-  if (intent >= 5 && m.signups / intent < 0.3) s.watch.push(`Inscription : ${intent} visiteurs ont ouvert la page d'inscription, ${m.signups} sont allés au bout.`);
+  if (intent >= 5 && m.signups / intent < 0.3) s.watch.push(`Inscription : ${intent} visites de la page d'inscription pour ${m.signups} comptes créés.`);
 
   return { strategy: s, changes };
 }

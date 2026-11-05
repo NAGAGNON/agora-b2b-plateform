@@ -86,7 +86,8 @@ async function needImpact(db: ReturnType<typeof createAdminClient>, sinceIso: st
       inscrits_venus_des_emails: m.emailsSignups,
       vues_du_besoin: m.views,
       clics_envoyer_un_message: m.messageClicks,
-      messages_et_reponses_recus: m.conversations + m.interests + m.proposals,
+      messages_et_reponses_recus: m.conversations + m.interests + m.proposals + m.contacts,
+      dont_messages_sans_compte: m.contacts,
     });
   }
   return out;
@@ -121,7 +122,7 @@ export async function buildDailyFacts(now = new Date()) {
     count(db.from("companies").select("id", { count: "exact", head: true }).gte("created_at", iso)),
     db.from("subscriptions").select("plan_code, status").gte("created_at", iso),
     db.from("platform_settings").select("value").eq("key", "private.cron").maybeSingle(),
-    db.from("outreach_settings").select("dry_run, require_validation, daily_send_cap, total_daily_send_cap, hourly_send_cap, send_ramp_enabled, send_ramp_target").eq("id", true).maybeSingle(),
+    db.from("outreach_settings").select("dry_run, require_validation, daily_send_cap, total_daily_send_cap, need_daily_send_cap, hourly_send_cap, send_ramp_enabled, send_ramp_target").eq("id", true).maybeSingle(),
     count(db.from("outreach_campaigns").select("id", { count: "exact", head: true }).eq("campaign_date", day).eq("kind", "MANUAL")),
     db.from("outreach_campaigns").select("id, kind, launched_by, status, created_at").eq("campaign_date", day).order("created_at"),
     selectAll((from, to) => db.from("outreach_recipients").select("campaign_id").eq("status", "SENT").gte("sent_at", iso).order("id").range(from, to)).then((data) => ({ data })),
@@ -139,6 +140,10 @@ export async function buildDailyFacts(now = new Date()) {
   const cronValue = (cron.data?.value ?? {}) as { last_run_at?: string; failed_steps?: string[]; history?: { at: string; passe?: string; failed_steps?: string[] }[] };
   const sentByCampaign: Record<string, number> = {};
   for (const r of sentRows.data ?? []) if (r.campaign_id) sentByCampaign[r.campaign_id] = (sentByCampaign[r.campaign_id] ?? 0) + 1;
+  // Campagnes créées un autre jour qui ont envoyé aujourd'hui (e-mails dédiés aux besoins des clients)
+  const todayIds = new Set((campaignsToday.data ?? []).map((c) => c.id));
+  const olderIds = Object.keys(sentByCampaign).filter((id) => !todayIds.has(id));
+  const { data: olderCampaigns } = olderIds.length ? await db.from("outreach_campaigns").select("id, kind, launched_by, status, created_at").in("id", olderIds) : { data: [] };
   const top = (values: (string | null)[], n = 6) => {
     const m = new Map<string, number>();
     for (const v of values) if (v) m.set(v, (m.get(v) ?? 0) + 1);
@@ -193,13 +198,17 @@ export async function buildDailyFacts(now = new Date()) {
     plateforme: { nouveaux_comptes: users, nouvelles_entreprises: companies, nouveaux_abonnements: (subs.data ?? []).map((s) => ({ formule: s.plan_code, statut: s.status })) },
     outreach: {
       mode: outreachSettings.data ? (outreachSettings.data.dry_run ? "simulation" : outreachSettings.data.require_validation ? "réel avec validation manuelle" : "réel et automatique") : "inconnu",
+      // Prospection générale (sélections d'opportunités) : arrêtée volontairement quand le plafond est à 0.
+      // Seuls les e-mails dédiés aux besoins publiés par les clients partent alors.
+      prospection_generale: os ? (os.total_daily_send_cap === 0 || os.daily_send_cap === 0 ? "en pause volontaire (décision du propriétaire) : les campagnes générales restent sans envoi, c'est normal et il ne faut pas les lancer" : "active") : null,
+      emails_besoins_clients_par_besoin_et_par_jour: os?.need_daily_send_cap ?? null,
       limite_envois_par_jour: os?.total_daily_send_cap ?? null,
       limite_envois_par_heure: os?.hourly_send_cap ?? null,
       montee_en_charge: os ? (os.send_ramp_enabled ? `automatique, objectif ${os.send_ramp_target} par jour` : "désactivée") : null,
       campagnes_lancees_manuellement_aujourdhui: manualCampaigns,
-      campagnes_du_jour: (campaignsToday.data ?? []).map((c) => ({
-        type: c.kind === "AUTO" ? "automatique" : c.launched_by ? "manuelle" : "complémentaire",
-        heure: hm(new Date(c.created_at)),
+      campagnes_du_jour: [...(campaignsToday.data ?? []), ...(olderCampaigns ?? [])].map((c) => ({
+        type: c.kind === "NEED" ? "besoin client" : c.kind === "AUTO" ? "automatique" : c.launched_by ? "manuelle" : "complémentaire",
+        heure: todayIds.has(c.id) ? hm(new Date(c.created_at)) : "créée un jour précédent, envoie chaque jour",
         statut: c.status,
         emails_envoyes: sentByCampaign[c.id] ?? 0,
       })),
@@ -305,7 +314,8 @@ Règles absolues :
 - Dis clairement ce qui a bien marché et ce qui a moins marché : audience, Outreach (prospection par e-mail), référencement naturel (visites venant des moteurs de recherche, articles), collecte des opportunités, inscriptions.
 - Dans « automatique », fais le bilan de ce que les tâches automatiques ont réellement fait aujourd'hui, une ligne par domaine.
 - Recommandations : concrètes, réalistes, liées aux faits ; pas de promesse de résultat.
-- Ton sobre, phrases courtes, pas de jargon (explique « taux de rebond » si tu l'emploies).`;
+- Ton sobre, phrases courtes, pas de jargon (explique « taux de rebond » si tu l'emploies).
+- Si outreach.prospection_generale indique une pause volontaire : les campagnes générales sans envoi sont normales ; ne les présente pas comme un problème et ne recommande jamais de les lancer ou de les vérifier. Les e-mails envoyés viennent alors des campagnes « besoin client ».`;
 
 const FINAL = `C'est le bilan de FIN DE JOURNÉE, envoyé par e-mail au propriétaire : il doit être complet et détaillé.
 Couvre chaque domaine (audience et pages, visiteurs venus de Google, vues des articles publiés hier et aujourd'hui, inscriptions du jour, Outreach de bout en bout : campagnes, envois, ouvertures, clics, parcours vers les offres, inscriptions ; collecte des opportunités par source, secteur et région ; référencement naturel et articles ; inscriptions et abonnements ; tâches automatiques passage par passage).
