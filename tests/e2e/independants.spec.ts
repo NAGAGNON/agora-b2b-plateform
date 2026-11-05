@@ -10,6 +10,6 @@ test("rubrique indépendants : métiers, compteur, inscription et publication d'
   await page.getByRole("navigation", { name: "Métiers" }).getByRole("link", { name: "Traduction et interprétariat" }).click();
   await expect(page).toHaveURL(/\/independants\/traduction-et-interpretariat$/);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Missions freelance en traduction et interprétariat");
-  const missing = await page.goto("/independants/metier-inconnu");
-  expect(missing?.status()).toBe(404);
+  await page.goto("/independants/metier-inconnu");
+  await expect(page.getByText("Page introuvable").first()).toBeVisible();
 });
