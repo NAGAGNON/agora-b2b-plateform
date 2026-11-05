@@ -60,10 +60,11 @@ test("un besoin validé déclenche la mise en relation, le message et le suivi",
     .poll(async () => (await db.from("need_matches").select("status").eq("opportunity_id", needId).eq("company_id", supplierCo!.id).maybeSingle()).data?.status ?? null, { timeout: 90_000 })
     .toBe("NOTIFIED");
 
-  // Visiteur non connecté : page d'accès (aperçu seulement), inscription puis retour sur la fiche
+  // Visiteur non connecté : page d'accès avec réponse sans compte, ou inscription puis retour sur la fiche
   const visitor = await newPage(browser);
   await visitor.goto(`/opportunites/${needId}`);
-  await expect(visitor.getByText("Créez votre compte pour accéder à cette offre")).toBeVisible();
+  await expect(visitor.getByText("Une entreprise recherche un prestataire")).toBeVisible();
+  await expect(visitor.getByTestId("need-contact")).toBeVisible();
   await expect(visitor.getByTestId("need-message")).toHaveCount(0);
   await visitor.getByRole("link", { name: "Créer mon compte" }).click();
   await expect(visitor).toHaveURL(new RegExp(`/inscription\\?suite=%2Fopportunites%2F${needId}`));
