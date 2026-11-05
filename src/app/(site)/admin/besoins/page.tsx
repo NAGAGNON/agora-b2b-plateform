@@ -138,6 +138,7 @@ export default async function AdminNeeds() {
                       ["Prospects retenus", `${m.prospectsRelevant} / ${m.prospectsIdentified}`],
                       ["E-mails", `${m.emailsSent} envoyé(s)${m.emailsPrepared ? `, ${m.emailsPrepared} préparé(s)` : ""}${m.emailsWaitingAddress ? `, ${m.emailsWaitingAddress} sans adresse` : ""}${m.emailsSimulated ? `, ${m.emailsSimulated} simulé(s)` : ""}`],
                       ["Ouverts / clics e-mail", `${m.emailsOpened} / ${m.emailsClicked}`],
+                      ["Inscrits venus des e-mails", `${m.emailsSignups}`],
                       ["Vues · « Envoyer un message »", `${m.views} · ${m.messageClicks}`],
                       ["Intérêts · réponses", `${m.interests} · ${m.proposals}`],
                       ["Échanges · retenue", `${m.conversations} · ${m.selected}${m.outcome === "AWARDED" ? " (attribué)" : ""}`],

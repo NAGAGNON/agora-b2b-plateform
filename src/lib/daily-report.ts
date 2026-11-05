@@ -65,6 +65,33 @@ type Window = {
 
 const channelVisits = (w: Window, prefix: string) => w.channels.filter((c) => c.channel.startsWith(prefix)).reduce((s, c) => s + c.visits, 0);
 
+/** Impact des envois ciblés pour chaque besoin ouvert publié par un client. */
+async function needImpact(db: ReturnType<typeof createAdminClient>, sinceIso: string) {
+  const { needMetrics } = await import("@/lib/needs");
+  const { data: needs } = await db.from("opportunities").select("id, title, company:companies(name)").eq("origin", "INTERNAL").eq("status", "PUBLISHED").eq("is_demo", false).order("published_at", { ascending: false }).limit(10);
+  const out = [];
+  for (const o of needs ?? []) {
+    const m = await needMetrics(db, o.id);
+    const { data: nc } = await db.from("need_campaigns").select("outreach_campaign_id").eq("opportunity_id", o.id).maybeSingle();
+    const { count: today } = nc?.outreach_campaign_id
+      ? await db.from("outreach_recipients").select("id", { count: "exact", head: true }).eq("campaign_id", nc.outreach_campaign_id).eq("status", "SENT").gte("sent_at", sinceIso)
+      : { count: 0 };
+    const company = Array.isArray(o.company) ? o.company[0]?.name : (o.company as { name: string } | null)?.name;
+    out.push({
+      titre: o.title,
+      entreprise: company ?? null,
+      emails_envoyes_aujourdhui: today ?? 0,
+      emails_envoyes_au_total: m.emailsSent,
+      clics_dans_les_emails: m.emailsClicked,
+      inscrits_venus_des_emails: m.emailsSignups,
+      vues_du_besoin: m.views,
+      clics_envoyer_un_message: m.messageClicks,
+      messages_et_reponses_recus: m.conversations + m.interests + m.proposals,
+    });
+  }
+  return out;
+}
+
 /** Faits de la journée (heure de Paris), jusqu'à l'instant présent. */
 export async function buildDailyFacts(now = new Date()) {
   const db = createAdminClient();
@@ -123,10 +150,16 @@ export async function buildDailyFacts(now = new Date()) {
   const { data: rrRaw } = await db.rpc("return_rates");
   const rr = rrRaw as { eligible7: number; returned7: number; eligible30: number; returned30: number; active7: number; visits_today: number } | null;
   const pct = (a: number, b: number) => (b ? Math.round((a / b) * 100) : null);
+  // Besoins publiés par les clients : impact de l'envoi ciblé (chiffres enregistrés uniquement)
+  const besoins = await needImpact(db, iso).catch((e) => {
+    logServerError("daily report needs", e);
+    return [];
+  });
 
   return {
     date: day,
     heure_du_bilan: hm(now),
+    besoins_publies: besoins,
     fidelite: rr
       ? {
           inscrits_revenus_sous_7_jours: rr.returned7,
@@ -281,7 +314,7 @@ Le résumé peut faire jusqu'à 6 phrases. Les recommandations portent sur demai
 /** Faits transmis à la rédaction : sans nom de personne ni d'entreprise inscrite (données personnelles). */
 export function factsForModel(facts: DailyFacts) {
   const { nombre, venues_de_la_prospection, par_provenance } = facts.google_articles_inscriptions.inscriptions_du_jour;
-  return { ...facts, google_articles_inscriptions: { ...facts.google_articles_inscriptions, inscriptions_du_jour: { nombre, venues_de_la_prospection, par_provenance } } };
+  return { ...facts, besoins_publies: (facts.besoins_publies ?? []).map(({ entreprise: _e, ...b }) => b), google_articles_inscriptions: { ...facts.google_articles_inscriptions, inscriptions_du_jour: { nombre, venues_de_la_prospection, par_provenance } } };
 }
 
 async function writeSummary(facts: DailyFacts, correction?: string, final = false, timeout = 110_000) {

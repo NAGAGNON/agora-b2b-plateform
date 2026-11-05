@@ -131,6 +131,20 @@ export function renderDailyReportEmail(row: ReportRow, { socialPost = null, grow
         .map((u) => `<li>${e(u.nom ?? u.entreprise ?? "")} : ${signupLookupLinks({ name: u.nom, email: "", company: u.entreprise }).map((l) => `<a href="${e(l.url)}" style="color:#0d9488">${e(l.label.replace("LinkedIn : chercher ", "LinkedIn "))}</a>`).join(" · ")}</li>`)
         .join("")}</ul>`,
     );
+  // Besoins publiés par les clients : impact des envois ciblés (bilans antérieurs : absent)
+  type NeedRow = { titre: string; entreprise: string | null; emails_envoyes_aujourdhui: number; emails_envoyes_au_total: number; clics_dans_les_emails: number; inscrits_venus_des_emails: number; vues_du_besoin: number; clics_envoyer_un_message: number; messages_et_reponses_recus: number };
+  const besoins = (f as { besoins_publies?: NeedRow[] }).besoins_publies ?? [];
+  if (besoins.length) {
+    parts.push(h2("Besoins publiés par vos clients"));
+    parts.push(
+      table(
+        ["Besoin", "E-mails aujourd'hui / total", "Clics", "Inscrits", "Messages et réponses reçus"],
+        besoins.map((b) => [`${b.titre}${b.entreprise ? ` — ${b.entreprise}` : ""}`, `${n(b.emails_envoyes_aujourdhui)} / ${n(b.emails_envoyes_au_total)}`, n(b.clics_dans_les_emails), n(b.inscrits_venus_des_emails), n(b.messages_et_reponses_recus)]),
+      ),
+    );
+    parts.push(muted("Le chiffre qui compte : « Messages et réponses reçus » par votre client. Les clics peuvent être gonflés par les antivirus des entreprises, qui ouvrent les liens."));
+    lines.push(...besoins.map((b) => `Besoin « ${b.titre} » : ${n(b.emails_envoyes_aujourdhui)} e-mails aujourd'hui (${n(b.emails_envoyes_au_total)} au total), ${n(b.inscrits_venus_des_emails)} inscrits, ${n(b.messages_et_reponses_recus)} messages et réponses reçus.`));
+  }
   // Fidélité : les inscrits reviennent-ils ? (bilans antérieurs : absent)
   const fid = (f as { fidelite?: { inscrits_revenus_sous_7_jours: number; inscrits_d_au_moins_7_jours: number; taux_de_retour_7_jours_pct: number | null; inscrits_revenus_sous_30_jours: number; inscrits_d_au_moins_30_jours: number; taux_de_retour_30_jours_pct: number | null; inscrits_actifs_7_derniers_jours: number; inscrits_venus_aujourdhui: number } | null }).fidelite;
   if (fid) {
