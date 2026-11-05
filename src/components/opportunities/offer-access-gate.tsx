@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BellRing, CalendarClock, CalendarDays, CheckCircle2, FileText, Landmark, LayoutList, Lock, MapPin, Tag, Wallet } from "lucide-react";
+import { BellRing, CalendarClock, CalendarDays, CheckCircle2, FileText, Landmark, LayoutList, Lock, MapPin, MessageSquare, Tag, Wallet } from "lucide-react";
 import { buttonClasses } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/format";
@@ -17,6 +17,7 @@ export function OfferAccessGate({
   crumbs,
   gains,
   children,
+  contact,
 }: {
   token?: string | null;
   offer: {
@@ -37,6 +38,11 @@ export function OfferAccessGate({
   gains?: { nearby: number; nearbyLabel: string | null; sectorTotal: number; sector: string | null; alertLabel: string | null } | null;
   /** Contenu public sous la carte (offres similaires) */
   children?: React.ReactNode;
+  /**
+   * Besoin publié par une entreprise inscrite (ouvert) : le visiteur peut lui écrire tout de suite,
+   * sans compte (formulaire fourni ici) ; l'inscription reste proposée ensuite.
+   */
+  contact?: React.ReactNode;
 }) {
   const path = `/opportunites/${offer.id}`;
   const suite = encodeURIComponent(path);
@@ -58,13 +64,15 @@ export function OfferAccessGate({
         ) : null}
         <div className="mx-auto max-w-2xl rounded-2xl border border-slate-200 bg-white p-6 shadow-sm [overflow-wrap:anywhere] sm:p-10">
           <span className="inline-flex size-12 items-center justify-center rounded-full bg-teal-50 text-teal-700">
-            <Lock className="size-6" aria-hidden />
+            {contact ? <MessageSquare className="size-6" aria-hidden /> : <Lock className="size-6" aria-hidden />}
           </span>
           <p className="mt-4 text-2xl leading-tight font-bold sm:text-3xl">
-            Créez votre compte pour accéder à cette offre
+            {contact ? "Une entreprise recherche un prestataire" : "Créez votre compte pour accéder à cette offre"}
           </p>
           <p className="mt-3 text-slate-700">
-            {token
+            {contact
+              ? "Vous pouvez répondre à ce besoin ? Écrivez directement à l'entreprise qui l'a publié, sans créer de compte : elle reçoit votre message par e-mail et vous répond."
+              : token
               ? "Cette offre vous a été recommandée personnellement. Créez votre compte gratuitement pour voir les détails et accéder à l'offre."
               : "Inscription gratuite en moins d'une minute : vous accédez à l'offre complète et recevez les nouvelles offres de votre métier."}
           </p>
@@ -116,10 +124,24 @@ export function OfferAccessGate({
                 <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-slate-50 to-transparent" />
               </div>
             )}
-            <p className="mt-3 flex items-center gap-2 text-xs font-semibold text-slate-600">
-              <Lock className="size-3.5 text-teal-700" aria-hidden /> Descriptif complet, documents, lien officiel et fiche de l&apos;acheteur réservés aux membres
-            </p>
+            {!contact && (
+              <p className="mt-3 flex items-center gap-2 text-xs font-semibold text-slate-600">
+                <Lock className="size-3.5 text-teal-700" aria-hidden /> Descriptif complet, documents, lien officiel et fiche de l&apos;acheteur réservés aux membres
+              </p>
+            )}
           </section>
+
+          {contact && (
+            <section aria-labelledby="need-contact" className="mt-6" data-testid="need-contact">
+              <h2 id="need-contact" className="mb-3 text-lg font-bold text-navy">
+                Répondre à ce besoin
+              </h2>
+              {contact}
+              <p className="mt-8 border-t border-slate-200 pt-6 text-sm font-semibold text-navy">
+                Vous voulez aussi recevoir les besoins et appels d&apos;offres de votre métier ? Créez votre compte gratuit :
+              </p>
+            </section>
+          )}
 
           <section aria-labelledby="gains" className="mt-6">
             <h2 id="gains" className="text-base font-bold text-navy">

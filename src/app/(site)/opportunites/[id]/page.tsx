@@ -46,6 +46,7 @@ import { BuyerOfficial } from "@/components/buyers/buyer-official";
 import { ShareLinks } from "@/components/share-links";
 import { cookies, headers } from "next/headers";
 import { OfferAccessGate } from "@/components/opportunities/offer-access-gate";
+import { NeedContactForm } from "@/components/opportunities/need-contact-form";
 import { OUTREACH_COOKIE, outreachVisitor, track as trackOutreach } from "@/lib/outreach/tracking";
 import { getSectorLabels, showDemoData, getLocationLabel, getDepartments, getOpenCounts } from "@/lib/queries/platform";
 import { regionByName } from "@/lib/geo";
@@ -192,6 +193,8 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
   const h = await headers();
   const prefetch = Boolean(h.get("next-router-prefetch")) || h.get("purpose") === "prefetch";
   if (!session) {
+    // Besoin publié par une entreprise inscrite, encore ouvert : réponse possible sans compte
+    const needOpen = o.origin === "INTERNAL" && o.status === "PUBLISHED" && !(o.response_deadline && new Date(o.response_deadline) < new Date());
     if (visitor && !prefetch) await trackOutreach(visitor, "GATE_VIEW", { opportunityId: o.id });
     const location = (await getLocationLabel())(o.city, o.department_code);
     // Même page pour tous les visiteurs sans compte (moteurs de recherche compris) : informations
@@ -229,9 +232,10 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
             deadline: o.response_deadline,
             publishedAt: o.published_at,
             budget: o.budget_visible ? formatBudget(o.budget_min, o.budget_max) : null,
-            // Avis public collecté (BOAMP, TED…) : début du descriptif en aperçu ; un besoin d'entreprise n'en montre rien
-            excerpt: o.origin === "EXTERNAL" ? gateExcerpt(o.description) : null,
+            // Avis public collecté (BOAMP, TED…) : début du descriptif en aperçu ; besoin d'entreprise : son résumé
+            excerpt: o.origin === "EXTERNAL" ? gateExcerpt(o.description) : needOpen ? o.summary : null,
           }}
+          contact={needOpen ? <NeedContactForm opportunityId={o.id} /> : undefined}
         >
           <SimilarOpportunities
             id={o.id}
