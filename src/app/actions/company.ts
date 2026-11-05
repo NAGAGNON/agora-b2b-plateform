@@ -14,6 +14,7 @@ import { storagePath, validateUpload } from "@/lib/files";
 import { autoLogoFor } from "@/lib/company-logos";
 import { createStarterAlert } from "@/lib/starter-alert";
 import { notifyAdminsOfCompany } from "@/lib/signup-notify";
+import { autoVerifyCompany } from "@/lib/company-verify";
 import { ALLOWED_LOGO_TYPES, MAX_LOGO_BYTES } from "@/lib/constants";
 import { companyProfileSchema, companySchema, emailSchema, parseForm, userProfileSchema, type ActionResult } from "@/lib/validation";
 
@@ -42,6 +43,7 @@ export async function createCompany(_prev: ActionResult | null, fd: FormData): P
   if (error || !companyId) return actionError(error);
   fetchLogoAfterResponse(companyId);
   after(() => notifyAdminsOfCompany(session.userId, companyId));
+  if (d.siren) after(() => autoVerifyCompany(createAdminClient(), companyId));
   (await cookies()).set(ACTIVE_COMPANY_COOKIE, companyId, { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/" });
   revalidatePath("/", "layout");
   redirect(safeNext(fd.get("suite"), "/dashboard?bienvenue=1"));
@@ -157,6 +159,11 @@ export async function updateCompanyProfile(_prev: ActionResult | null, fd: FormD
     await supabase.rpc("track_event", { p_event_name: "profile_completed" });
   }
   revalidatePath("/", "layout");
+  // SIREN renseigné : contrôle automatique dans l'annuaire officiel (badge « vérifiée »)
+  if (d.siren) {
+    const cid = company.company.id;
+    after(() => autoVerifyCompany(createAdminClient(), cid));
+  }
   return { ok: true, message: "Profil de l'entreprise enregistré." };
 }
 

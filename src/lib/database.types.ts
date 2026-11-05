@@ -1709,6 +1709,12 @@ isOneToOne: false
 "process_deadline_reminders":
 { Args: { "p_limit"?: number }; Returns: number
                            },
+"auto_moderate_opportunity":
+{ Args: { "p_opportunity_id": string,"p_action": Database["public"]['Enums']["moderation_action_type"],"p_reason"?: string }; Returns: boolean
+                           },
+"auto_verify_company":
+{ Args: { "p_company_id": string,"p_note": string }; Returns: boolean
+                           },
 "touch_visit":
 { Args: Record<PropertyKey, never>; Returns: undefined
                            },

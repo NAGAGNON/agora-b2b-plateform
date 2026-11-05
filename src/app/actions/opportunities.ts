@@ -1,6 +1,9 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
+import { after } from "next/server";
+import { autoModerateNeed } from "@/lib/auto-moderation";
+import { PUBLIC_CACHE_TAG } from "@/lib/queries/public-cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
@@ -228,6 +231,7 @@ export async function createOpportunity(_prev: ActionResult<{ id: string; intent
     return actionError(error);
   }
   revalidatePath("/dashboard/opportunites");
+  if (d.intent === "submit") queueAutoModeration(data.id);
   // Les documents sont ensuite envoyés directement au stockage par le navigateur.
   return { ok: true, data: { id: data.id, intent: d.intent } };
 }
@@ -252,9 +256,21 @@ export async function updateOpportunity(_prev: ActionResult<{ id: string; intent
   if (d.intent === "submit" && ["DRAFT", "CHANGES_REQUESTED"].includes(status)) status = "PENDING_REVIEW";
   const { error } = await supabase.from("opportunities").update({ ...toRow(d), status }).eq("id", id);
   if (error) return actionError(error);
+  if (status === "PENDING_REVIEW") queueAutoModeration(id);
   revalidatePath(`/dashboard/opportunites/${id}`);
   revalidatePath(`/opportunites/${id}`);
   return { ok: true, data: { id, intent: d.intent } };
+}
+
+/** Besoin envoyé en validation : relecture automatique juste après la réponse (sinon, l'équipe valide). */
+function queueAutoModeration(id: string) {
+  after(async () => {
+    const r = await autoModerateNeed(createAdminClient(), id);
+    if (r.decision === "APPROVE") {
+      revalidatePath(`/opportunites/${id}`);
+      revalidateTag(PUBLIC_CACHE_TAG, { expire: 0 });
+    }
+  });
 }
 
 const statusChange = z.object({ id: z.uuid(), to: z.enum(["PENDING_REVIEW", "DRAFT", "ARCHIVED", "PAUSED", "PUBLISHED"]) });
@@ -277,6 +293,7 @@ export async function changeOpportunityStatus(id: string, to: "PENDING_REVIEW" |
   }
   const { data: updated, error } = await supabase.from("opportunities").update({ status: to }).eq("id", id).select("status").maybeSingle();
   if (error) return actionError(error);
+  if (updated?.status === "PENDING_REVIEW") queueAutoModeration(id);
   revalidatePath(`/dashboard/opportunites/${id}`);
   revalidatePath("/dashboard/opportunites");
   revalidatePath(`/opportunites/${id}`);
