@@ -2,7 +2,7 @@ import "server-only";
 import { isWeekendPause } from "@/lib/weekend";
 import { logServerError } from "@/lib/errors";
 import { formatDate } from "@/lib/format";
-import { analyzeOpportunity, contentFingerprint, groupByProspect, scoreMatch, type OpportunityAnalysis, type ProspectInput } from "@/lib/outreach/matching";
+import { analyzeOpportunity, contentFingerprint, groupByProspect, NEIGHBOR_REGIONS, scoreMatch, type OpportunityAnalysis, type ProspectInput } from "@/lib/outreach/matching";
 import { DISCOVERY_SOURCE, companyAltNames, discoverCompanies } from "@/lib/outreach/discovery";
 import { buildEmail, loadRecipientBundles, loadReferentials, loadSettings, loadSuppressions, realSendBlockers, selectAll, type Db, type OutreachSettings } from "@/lib/outreach/data";
 import { sendOutreachEmail } from "@/lib/outreach/send";
@@ -175,7 +175,7 @@ async function candidates(db: Db, a: OpportunityAnalysis, settings: OutreachSett
   if (!settings.include_individual_entrepreneurs) q = q.eq("is_individual_entrepreneur", false);
   const zone = [
     a.department ? `department_code.eq.${a.department}` : null,
-    a.region ? `region.eq."${a.region.replace(/"/g, "")}"` : null,
+    ...[a.region, ...(a.nearbyRegions ?? [])].filter((r): r is string => Boolean(r)).map((r) => `region.eq."${r.replace(/"/g, "")}"`),
     "intervention_zone.eq.NATIONAL",
   ].filter(Boolean);
   if (a.department || a.region) q = q.or(zone.join(","));
@@ -211,6 +211,9 @@ function matchesTarget(a: OpportunityAnalysis, p: { naf_code: string | null; sec
   if (!a.department && !a.region) return true;
   return p.department_code === a.department || (a.region && p.region === a.region) || p.intervention_zone === "NATIONAL";
 }
+
+/** Besoins d'entreprises : seuil de pertinence (le métier exact est exigé ; la distance compte moins). */
+export const NEED_MIN_SCORE = 55;
 
 export type BuildResult = { campaignId: string | null; skipped?: string; stats?: Record<string, number> };
 
@@ -376,7 +379,15 @@ export async function buildNeedOutreachCampaign(
   const settings = await loadSettings(db);
   const { data: o } = await db.from("opportunities").select(`${OPP_FIELDS}, origin`).eq("id", opportunityId).maybeSingle();
   if (!o || o.origin !== "INTERNAL" || o.status !== "PUBLISHED" || o.is_demo) return { campaignId: null, skipped: "Besoin non publié" };
-  const a = analyzeOpportunity(o);
+  // Département manquant mais ville connue (saisie libre à la publication) : retrouvé dans le référentiel des communes
+  if (!o.department_code && o.city) {
+    const { data: places } = await db.from("places").select("department_code, region").ilike("name", o.city.trim()).limit(20);
+    const depts = [...new Set((places ?? []).map((pl) => pl.department_code))];
+    if (depts.length === 1) Object.assign(o, { department_code: depts[0], region: o.region ?? places![0].region });
+  }
+  // Besoin d'une entreprise inscrite : les métiers nommés dans le titre comptent même si le secteur est mal choisi,
+  // et les entreprises des régions voisines sont aussi considérées (le métier reste exigé)
+  const a = { ...analyzeOpportunity(o, { trustTitle: true }), nearbyRegions: o.region ? (NEIGHBOR_REGIONS[o.region] ?? []) : [] };
   const { data: existing } = await db.from("outreach_campaigns").select("id, status").eq("kind", "NEED").eq("opportunity_id", opportunityId).maybeSingle();
   if (existing && ["BUILDING", "CANCELLED"].includes(existing.status)) return { campaignId: existing.id, skipped: existing.status === "BUILDING" ? "Campagne en cours de préparation" : "Campagne annulée par l'administrateur" };
   let campaignId = existing?.id ?? null;
@@ -414,16 +425,17 @@ export async function buildNeedOutreachCampaign(
       loadSuppressions(db),
       selectAll((from, to) => db.from("companies").select("siren").not("siren", "is", null).order("id").range(from, to)),
     ]);
-    const fresh = found.filter((p) => !already.has(p.id));
+    // Métier précis identifié (titre, description) : seules les entreprises de ce métier sont retenues
+    const fresh = found.filter((p) => !already.has(p.id) && (!a.primaryNaf.length || (p.naf_code !== null && a.primaryNaf.includes(p.naf_code))));
     const prospects = new Map(fresh.map((p) => [p.id, p]));
     const scored = fresh
       .map((p) => ({ p, m: scoreMatch(a, p as ProspectInput, (x) => ref.sectorLabel(x) ?? x) }))
-      .filter((x) => x.m.score >= settings.min_score)
+      .filter((x) => x.m.score >= Math.min(settings.min_score, NEED_MIN_SCORE))
       .sort((x, y) => y.m.score - x.m.score || Number(Boolean(y.p.email)) - Number(Boolean(x.p.email)));
     // Les entreprises joignables d'abord, dans la limite du quota du jour pour ce besoin
     const chosen = [...scored.filter((x) => x.p.email), ...scored.filter((x) => !x.p.email)].slice(0, quota);
     const pairs = chosen.map((x) => ({ prospectId: x.p.id, opportunityId, score: x.m.score, reasons: x.m.reasons, deadline: o.response_deadline }));
-    const groups = groupByProspect(pairs, settings.min_score, 1);
+    const groups = groupByProspect(pairs, Math.min(settings.min_score, NEED_MIN_SCORE), 1);
     const rows = await insertRecipients(db, campaignId!, groups, prospects, settings, {
       supp,
       customerSirens: new Set(customers.map((c) => c.siren!)),
@@ -453,12 +465,14 @@ export async function buildNeedOutreachCampaign(
       .filter(Boolean)
       .join("\n");
     // Validation : une campagne déjà validée le reste ; sinon validation automatique si l'Outreach ne l'exige pas
+    // Besoins d'entreprises inscrites : envoi automatique chaque jour (pas de validation manuelle), en réel
+    // ou en simulation selon le réglage de l'Outreach au moment du passage
     const wasValidated = priorStatus !== null && ["VALIDATED", "SENDING", "SENT", "SIMULATED"].includes(priorStatus);
     const hasWork = stats.emails_prepared + stats.no_email > 0;
-    const status = wasValidated || (!settings.require_validation && hasWork) ? "VALIDATED" : priorStatus === "READY" || hasWork ? "READY" : (priorStatus ?? "READY");
+    const status = wasValidated || hasWork ? "VALIDATED" : (priorStatus ?? "READY");
     await db
       .from("outreach_campaigns")
-      .update({ status, ...(status === "VALIDATED" && !wasValidated ? { validated_at: new Date().toISOString() } : {}), stats, report, error: null, updated_at: new Date().toISOString() })
+      .update({ status, dry_run: settings.dry_run, ...(status === "VALIDATED" && !wasValidated ? { validated_at: new Date().toISOString() } : {}), stats, report, error: null, updated_at: new Date().toISOString() })
       .eq("id", campaignId!);
     return { campaignId, stats, identified: stats.prospects_analyzed, relevant: stats.companies_selected, added: addedToday };
   } catch (e) {
@@ -639,6 +653,11 @@ async function sendQueue(db: Db, deadline: number, sleep: (ms: number) => Promis
     }
     const need = c.kind === "NEED";
     const capped = c.kind === "AUTO";
+    // Besoins : quota quotidien propre à chaque besoin (chaque besoin publié reçoit sa part, chaque jour)
+    if (need && !simulate) {
+      const { count } = await db.from("outreach_recipients").select("id", { count: "exact", head: true }).eq("campaign_id", c.id).eq("status", "SENT").gte("sent_at", startOfDay);
+      needRemaining = Math.max(0, settings.need_daily_send_cap - (count ?? 0));
+    }
     await db.from("outreach_campaigns").update({ status: "SENDING" }).eq("id", c.id);
     while (Date.now() < deadline) {
       const room = simulate ? 25 : Math.min(25, need ? needRemaining : totalRemaining, need ? needHourRemaining : hourRemaining, capped ? autoRemaining : 25);

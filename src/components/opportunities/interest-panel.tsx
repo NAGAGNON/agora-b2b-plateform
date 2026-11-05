@@ -80,12 +80,22 @@ export function InterestPanel(p: Props) {
     );
   }
   if (!p.hasCompany) {
+    // Indépendants compris : un profil express (métier, ville, nom) suffit, puis retour ici, formulaire ouvert
     return (
       <div className="space-y-3">
-        <p className="text-sm text-slate-600">Complétez le profil de votre entreprise pour pouvoir répondre.</p>
-        <ButtonLink href={`/onboarding/entreprise?suite=${encodeURIComponent(next)}`} full size="lg">
-          Créer mon entreprise
-        </ButtonLink>
+        {p.open ? (
+          <>
+            <ButtonLink href={`/onboarding/entreprise?suite=${encodeURIComponent(`${next}?message=1`)}`} full size="lg" data-testid="need-message">
+              <MessageSquare className="size-5" aria-hidden /> Envoyer un message
+            </ButtonLink>
+            <p className="text-sm text-slate-600">
+              Entreprise ou indépendant : présentez-vous en 30 secondes (métier, ville, nom) pour que l&apos;auteur du besoin sache qui lui écrit. Vous revenez
+              ensuite ici pour écrire votre message.
+            </p>
+          </>
+        ) : (
+          p.closedReason && <Notice tone="warning">{p.closedReason}</Notice>
+        )}
       </div>
     );
   }

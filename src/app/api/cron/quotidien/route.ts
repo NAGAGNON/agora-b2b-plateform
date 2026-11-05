@@ -12,6 +12,8 @@ import { processNeedCampaigns } from "@/lib/needs";
 import { runDueSources } from "@/lib/collect/run";
 import { importPlaces } from "@/lib/collect/places";
 import { logServerError } from "@/lib/errors";
+import { processPendingNeeds } from "@/lib/auto-moderation";
+import { processUnverifiedCompanies } from "@/lib/company-verify";
 import { runDailyArticles } from "@/lib/articles";
 import { submitChangedUrls } from "@/lib/indexnow";
 import type { Json } from "@/lib/database.types";
@@ -79,6 +81,8 @@ async function run(req: Request) {
   await step("digests", () => processAlertDigests());
   await step("alertes-email", () => processLeadDigests());
   // Mise en relation des besoins publiés (filet de sécurité de la publication, relances) avant l'envoi des e-mails
+  await step("validation-besoins", async () => (elapsed() < 170_000 ? processPendingNeeds(createAdminClient(), { limit: 5 }) : { skipped: "reporté au passage suivant (temps insuffisant)" }));
+  await step("verification-entreprises", async () => (elapsed() < 180_000 ? processUnverifiedCompanies(createAdminClient(), { limit: 15 }) : { skipped: "reporté au passage suivant (temps insuffisant)" }));
   await step("besoins", async () => (elapsed() < 190_000 ? processNeedCampaigns(createAdminClient(), { deadline: started + 215_000 }) : { skipped: "reporté au passage suivant (temps insuffisant)" }));
   // Rappels aux demandeurs : besoin sans réponse après 3 jours, date limite dans moins de 48 h
   await step("rappels-besoins", async () => {
