@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { requireAccount } from "@/lib/members-only";
 import { notFound } from "next/navigation";
 import { OpportunityResults } from "@/components/opportunities/opportunity-results";
@@ -48,7 +49,12 @@ export default async function OpportunitiesPage(props: PageProps<"/opportunites"
         intro={
           <>
             Appels d&apos;offres publics, consultations et besoins publiés par des entreprises, partout en France.
-            <span className="hidden sm:inline"> La source de chaque opportunité est toujours indiquée, avec un lien vers l&apos;annonce officielle.</span>
+            <span className="hidden sm:inline"> La source de chaque opportunité est toujours indiquée, avec un lien vers l&apos;annonce officielle.</span>{" "}
+            Freelance ?{" "}
+            <Link href="/independants" className="font-semibold text-teal-700 underline">
+              Voir les missions de votre métier
+            </Link>
+            .
           </>
         }
       >

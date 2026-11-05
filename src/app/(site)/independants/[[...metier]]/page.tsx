@@ -9,10 +9,26 @@ import { visitorRpc } from "@/lib/queries/public-cache";
 import { deadlineLabel } from "@/lib/format";
 import { ALL_FREELANCE_TERMS, FREELANCE_TRADES, freelanceTrade } from "@/lib/freelance";
 import { cn } from "@/lib/cn";
+import { JsonLd, breadcrumbLd } from "@/components/json-ld";
 
 const PER_PAGE = 30;
+/** En dessous, la page de métier n'est pas proposée à Google (page trop maigre), mais reste accessible. */
+const MIN_INDEXABLE = 3;
 
 type Props = { params: Promise<{ metier?: string[] }>; searchParams: Promise<Record<string, string | string[] | undefined>> };
+
+const pageOf = (sp: Record<string, string | string[] | undefined>) => Math.max(1, Math.min(50, Number(typeof sp.page === "string" ? sp.page : 1) || 1));
+
+/** Offres de la page (lecture publique en cache : la même requête sert aux métadonnées et à la page). */
+async function load(trade: ReturnType<typeof freelanceTrade>, page: number) {
+  const { data } = await visitorRpc(
+    "freelance_offers",
+    { p_terms: trade ? trade.terms : ALL_FREELANCE_TERMS, p_limit: PER_PAGE, p_offset: (page - 1) * PER_PAGE, p_include_demo: false, p_all_missions: !trade },
+    { always: true },
+  );
+  const rows = data ?? [];
+  return { rows, total: Number(rows[0]?.total_count ?? 0) };
+}
 
 async function resolve(params: Props["params"]) {
   const segs = (await params).metier ?? [];
@@ -22,14 +38,19 @@ async function resolve(params: Props["params"]) {
   return trade;
 }
 
-export async function generateMetadata({ params }: Props) {
+export async function generateMetadata({ params, searchParams }: Props) {
   const trade = await resolve(params);
+  const page = pageOf(await searchParams);
+  const { total } = await load(trade, page);
+  const label = trade?.label.toLowerCase();
   return pageMetadata({
-    title: trade ? `Missions ${trade.label.toLowerCase()} pour indépendants et freelances` : "Missions pour indépendants et freelances",
+    title: trade ? `Missions freelance en ${label} : offres en cours` : "Missions freelance et offres pour indépendants",
     description: trade
-      ? `Offres et missions en cours en ${trade.label.toLowerCase()} : marchés publics et besoins d'entreprises ouverts aux indépendants, partout en France. Alerte gratuite.`
-      : "Traduction, graphisme, rédaction, vidéo, développement, formation à distance : les missions et offres en cours pour les indépendants, partout en France. Alerte gratuite.",
+      ? `${total ? `${total} offre${total > 1 ? "s" : ""} en cours` : "Offres"} en ${label} pour freelances et indépendants : missions d'entreprises et marchés publics, partout en France. Alerte gratuite.`
+      : "Missions freelance en traduction, graphisme, rédaction, vidéo, réalité virtuelle, e-learning, conseil : offres en cours pour indépendants, partout en France. Alerte gratuite.",
     path: trade ? `/independants/${trade.slug}` : "/independants",
+    // Pages suivantes et métiers sans assez d'offres : accessibles, mais pas proposés à Google
+    noindex: page > 1 || (Boolean(trade) && total < MIN_INDEXABLE),
   });
 }
 
@@ -40,22 +61,23 @@ export async function generateMetadata({ params }: Props) {
 export default async function FreelancePage({ params, searchParams }: Props) {
   const trade = await resolve(params);
   const sp = await searchParams;
-  const page = Math.max(1, Math.min(50, Number(typeof sp.page === "string" ? sp.page : 1) || 1));
-  const { data } = await visitorRpc(
-    "freelance_offers",
-    { p_terms: trade ? trade.terms : ALL_FREELANCE_TERMS, p_limit: PER_PAGE, p_offset: (page - 1) * PER_PAGE, p_include_demo: false, p_all_missions: !trade },
-    { always: true },
-  );
-  const rows = data ?? [];
-  const total = Number(rows[0]?.total_count ?? 0);
+  const page = pageOf(sp);
+  const { rows, total } = await load(trade, page);
   if (page > 1 && !rows.length) notFound();
   const base = trade ? `/independants/${trade.slug}` : "/independants";
   const signup = `/inscription?suite=${encodeURIComponent(base)}`;
   return (
     <>
+      <JsonLd
+        data={breadcrumbLd([
+          { name: "Accueil", path: "/" },
+          { name: "Missions freelance", path: "/independants" },
+          ...(trade ? [{ name: trade.label, path: base }] : []),
+        ])}
+      />
       <PageHero
-        eyebrow="Indépendants et freelances"
-        title={trade ? `Missions en ${trade.label.toLowerCase()}` : "Des missions pour les indépendants"}
+        eyebrow="Freelances et indépendants"
+        title={trade ? `Missions freelance en ${trade.label.toLowerCase()}` : "Missions freelance et offres pour indépendants"}
         intro={
           <>
             Missions courtes publiées par des entreprises, et appels d&apos;offres en cours dans votre métier. Créez votre profil en 30 secondes : vous recevez

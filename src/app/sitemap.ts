@@ -23,8 +23,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Pas de date de modification pour les pages fixes : une date toujours « maintenant » serait ignorée par Google
   const entries: MetadataRoute.Sitemap = STATIC_PATHS.map((p) => ({ url: `${base}${p}`, changeFrequency: p === "" ? "daily" : "monthly", priority: p === "" ? 1 : 0.6 }));
   entries.push(...GUIDES.map((g) => ({ url: `${base}/ressources/${g.slug}`, changeFrequency: "monthly" as const, priority: 0.5 })));
-  // Indépendants : la rubrique et une page par métier
-  entries.push({ url: `${base}/independants`, changeFrequency: "daily", priority: 0.6 }, ...FREELANCE_TRADES.map((t) => ({ url: `${base}/independants/${t.slug}`, changeFrequency: "daily" as const, priority: 0.5 })));
+  // Missions freelance : la rubrique (toujours) et les pages de métier ayant assez d'offres (voir plus bas)
+  entries.push({ url: `${base}/independants`, changeFrequency: "daily", priority: 0.6 });
 
   const url = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_PUBLISHABLE_KEY ?? process.env.SUPABASE_ANON_KEY;
@@ -36,6 +36,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     auth: { persistSession: false },
     global: { fetch: (input, init) => fetch(input, { ...init, signal: init?.signal ?? AbortSignal.timeout(15_000) }) },
   });
+  // Pages de métier des missions freelance : seulement celles qui ont au moins 3 offres en cours (comme leur indexation)
+  for (const t of FREELANCE_TRADES) {
+    const { data } = await db.rpc("freelance_offers", { p_terms: t.terms, p_limit: 1, p_include_demo: false, p_all_missions: false });
+    if (Number(data?.[0]?.total_count ?? 0) >= 3) entries.push({ url: `${base}/independants/${t.slug}`, changeFrequency: "daily", priority: 0.5 });
+  }
   // Lecture par pages : l'API de la base renvoie au plus 1000 lignes par requête
   const paged = async <T,>(query: (from: number, to: number) => PromiseLike<{ data: T[] | null }>, maxPages: number) => {
     const all: T[] = [];
