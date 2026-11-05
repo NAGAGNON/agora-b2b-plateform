@@ -49,8 +49,8 @@ test("besoin d'une entreprise : un visiteur sans compte écrit directement à l'
   await expect(page.getByText("Réfection complète d'une toiture de 750 m² avec désamiantage.")).toBeVisible();
   const form = page.getByTestId("need-contact");
   await form.getByLabel("Nom et prénom").fill("Jean Couvreur");
-  await form.getByLabel("Entreprise", { exact: true }).fill(`Toitures ${RUN}`);
-  await form.getByLabel("Adresse e-mail", { exact: true }).fill(`couvreur-${RUN}@example.test`);
+  await form.getByLabel(/^Entreprise/).fill(`Toitures ${RUN}`);
+  await form.getByLabel(/^Adresse e-mail/).fill(`couvreur-${RUN}@example.test`);
   await form.getByLabel("Votre message").fill("Bonjour, nous pouvons intervenir dès décembre, devis sous 48 h.");
   // Accord de transmission jamais présumé : refusé sans la case, saisie conservée
   await form.getByRole("button", { name: "Envoyer mon message" }).click();
