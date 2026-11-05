@@ -5,7 +5,10 @@ import { PageHero } from "@/components/layout/page-hero";
 import { ButtonLink } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/states";
 import { pageMetadata } from "@/lib/seo";
-import { visitorRpc } from "@/lib/queries/public-cache";
+import { unstable_cache } from "next/cache";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { logServerError } from "@/lib/errors";
+import { PUBLIC_CACHE_TAG } from "@/lib/queries/public-cache";
 import { deadlineLabel } from "@/lib/format";
 import { ALL_FREELANCE_TERMS, FREELANCE_TRADES, freelanceTrade } from "@/lib/freelance";
 import { cn } from "@/lib/cn";
@@ -19,14 +22,33 @@ type Props = { params: Promise<{ metier?: string[] }>; searchParams: Promise<Rec
 
 const pageOf = (sp: Record<string, string | string[] | undefined>) => Math.max(1, Math.min(50, Number(typeof sp.page === "string" ? sp.page : 1) || 1));
 
-/** Offres de la page (lecture publique en cache : la même requête sert aux métadonnées et à la page). */
+/**
+ * Offres publiques de la page, lues côté serveur (sans le délai de 3 s des visiteurs anonymes : la
+ * recherche sur tous les métiers le frôle) et gardées 15 min. Une erreur n'est jamais mise en cache.
+ */
+const freelanceRows = unstable_cache(
+  async (slug: string, page: number) => {
+    const trade = freelanceTrade(slug || undefined);
+    const { data, error } = await createAdminClient().rpc("freelance_offers", {
+      p_terms: trade ? trade.terms : ALL_FREELANCE_TERMS,
+      p_limit: PER_PAGE,
+      p_offset: (page - 1) * PER_PAGE,
+      p_include_demo: false,
+      p_all_missions: !trade,
+    });
+    if (error) throw error;
+    return data ?? [];
+  },
+  ["freelance-offers-v1"],
+  { revalidate: 900, tags: [PUBLIC_CACHE_TAG] },
+);
+
+/** Offres de la page (la même lecture sert aux métadonnées et à la page). */
 async function load(trade: ReturnType<typeof freelanceTrade>, page: number) {
-  const { data } = await visitorRpc(
-    "freelance_offers",
-    { p_terms: trade ? trade.terms : ALL_FREELANCE_TERMS, p_limit: PER_PAGE, p_offset: (page - 1) * PER_PAGE, p_include_demo: false, p_all_missions: !trade },
-    { always: true },
-  );
-  const rows = data ?? [];
+  const rows = await freelanceRows(trade?.slug ?? "", page).catch((e) => {
+    logServerError("freelance offers", e);
+    return [];
+  });
   return { rows, total: Number(rows[0]?.total_count ?? 0) };
 }
 
