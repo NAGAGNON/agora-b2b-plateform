@@ -9,7 +9,7 @@ type Layout = {
   paragraphs: string[];
   cta?: { label: string; url: string };
   footer?: string;
-  list?: { label: string; url: string }[];
+  list?: { label: string; url: string; kicker?: string | null; subtitle?: string | null; summary?: string | null; meta?: string[]; deadline?: string | null; image?: string | null }[];
   /** Ligne au-dessus du titre (catégorie). */
   kicker?: string;
   /** Photo d'en-tête (public/email/hero-*.jpg). */
@@ -19,7 +19,9 @@ type Layout = {
 /** Gabarit des e-mails de compte et de notification : en-tête, photo, titre, texte, bouton. */
 export function renderEmail({ title, paragraphs, cta, footer, list, kicker, hero = "meridiens" }: Layout): { html: string; text: string } {
   const base = siteUrl();
-  const items = list?.length ? cards(list.map((i) => ({ title: i.label, url: i.url, action: "Voir" }))) : "";
+  const items = list?.length
+    ? cards(list.map((i) => ({ title: i.label, url: i.url, action: i.summary || i.deadline ? "Voir l'offre" : "Voir", kicker: i.kicker, subtitle: i.subtitle, summary: i.summary, meta: i.meta, deadline: i.deadline, image: i.image })))
+    : "";
   const html = shell({
     base,
     subject: title,
@@ -30,6 +32,6 @@ export function renderEmail({ title, paragraphs, cta, footer, list, kicker, hero
     body: `${paragraphs.map(paragraph).join("")}${items}${cta ? button(cta.label, cta.url) : ""}`,
     notes: note(escapeHtml(footer ?? "Vous recevez cet e-mail car vous avez un compte LinkProB2B. Gérez vos préférences dans votre espace, rubrique Paramètres.")),
   });
-  const text = [title, "", ...paragraphs, ...(list?.map((i) => `- ${i.label} : ${i.url}`) ?? []), cta ? `${cta.label} : ${cta.url}` : "", "", "L'équipe LinkProB2B", "", footer ?? ""].join("\n");
+  const text = [title, "", ...paragraphs, ...(list?.flatMap((i) => [`- ${i.label}${i.subtitle ? ` (${i.subtitle})` : ""}${i.deadline ? ` — réponse avant le ${i.deadline}` : ""}`, `  ${i.url}`]) ?? []), cta ? `${cta.label} : ${cta.url}` : "", "", "L'équipe LinkProB2B", "", footer ?? ""].join("\n");
   return { html, text };
 }
