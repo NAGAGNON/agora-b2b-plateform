@@ -1,4 +1,5 @@
 import "server-only";
+import { matchedSkill } from "@/lib/skill-catalog";
 import { cache } from "react";
 import { getSession } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -18,11 +19,6 @@ export const getFitProfile = cache(async (): Promise<FitProfile | null> => {
   return { sectors: profile?.sectors ?? [], skills: profile?.skills ?? [], department: data.department_code, region: data.region };
 });
 
-const norm = (s: string) =>
-  s
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "");
 
 /**
  * Raisons simples et vérifiables pour lesquelles une offre concerne l'entreprise : son métier, sa
@@ -36,11 +32,8 @@ export function fitReasons(
   if (o.sector_slug && p.sectors.includes(o.sector_slug)) reasons.push("Votre métier");
   if (o.department_code && p.department && o.department_code === p.department) reasons.push("Votre département");
   else if (o.region && p.region && o.region === p.region) reasons.push("Votre région");
-  const text = norm(`${o.title} ${o.summary ?? ""}`);
-  const skill = p.skills.find((s) => {
-    const k = norm(s.trim());
-    return k.length >= 4 && text.includes(k);
-  });
-  if (skill) reasons.push(`« ${skill.trim()} »`);
+  // Compétence citée dans l'intitulé ou le résumé (mots du catalogue du métier, ou spécialité précise)
+  const skill = matchedSkill(p.skills, `${o.title} ${o.summary ?? ""}`);
+  if (skill) reasons.push(`« ${skill} »`);
   return reasons;
 }

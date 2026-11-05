@@ -15,6 +15,7 @@ import { autoLogoFor } from "@/lib/company-logos";
 import { createStarterAlert } from "@/lib/starter-alert";
 import { notifyAdminsOfCompany } from "@/lib/signup-notify";
 import { autoVerifyCompany } from "@/lib/company-verify";
+import { alertTermsFor, SKILL_CATALOG } from "@/lib/skill-catalog";
 import { ALLOWED_LOGO_TYPES, MAX_LOGO_BYTES } from "@/lib/constants";
 import { companyProfileSchema, companySchema, emailSchema, parseForm, userProfileSchema, type ActionResult } from "@/lib/validation";
 
@@ -74,6 +75,14 @@ export async function createCompanyExpress(_prev: ActionResult | null, fd: FormD
   if (!session) return { ok: false, error: "Session expirée, reconnectez-vous." };
   const d = parsed.data;
   if (!d.city && !d.postalCode) return { ok: false, error: "Indiquez votre ville ou votre code postal.", fieldErrors: { city: "Ville ou code postal" } };
+  // Compétences : cases du catalogue de ce métier, puis saisie libre (séparées par des virgules)
+  const catalog = new Set((SKILL_CATALOG[d.sector] ?? []).map((s) => s.label));
+  const picked = fd.getAll("skill").map(String).filter((s) => catalog.has(s));
+  const typed = (d.speciality ?? "").split(/[,;\n]/).map((x) => x.trim()).filter((x) => x.length >= 2);
+  const skills = [...new Set([...picked, ...typed])].slice(0, 12);
+  // Ciblage précis : au moins une compétence (c'est elle qui choisit les offres envoyées)
+  if (!skills.length || !alertTermsFor(skills).terms.length)
+    return { ok: false, error: "Choisissez au moins une compétence précise.", fieldErrors: { speciality: "Cochez au moins une compétence, ou écrivez votre spécialité (ex. traduction anglais-français, graphisme, plomberie)." } };
   const supabase = await createClient();
   const { data: companyId, error } = await supabase.rpc("create_company", {
     p_name: d.name,
@@ -82,8 +91,8 @@ export async function createCompanyExpress(_prev: ActionResult | null, fd: FormD
     p_city: d.city || undefined,
     p_postal_code: d.postalCode || undefined,
     p_sectors: [d.sector],
-    // Plusieurs compétences séparées par des virgules : chacune compte dans le score de pertinence
-    p_skills: [...new Set((d.speciality ?? "").split(/[,;\n]/).map((x) => x.trim()).filter((x) => x.length >= 2))].slice(0, 10),
+    // Compétences : chacune compte dans le score de pertinence et choisit les offres de l'alerte
+    p_skills: skills,
   });
   if (error || !companyId) return actionError(error);
   fetchLogoAfterResponse(companyId);
@@ -91,7 +100,7 @@ export async function createCompanyExpress(_prev: ActionResult | null, fd: FormD
   (await cookies()).set(ACTIVE_COMPANY_COOKIE, companyId, { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/" });
   // Alerte de départ sur ce métier et ce département, si la personne n'en a pas encore
   const { data: co } = await createAdminClient().from("companies").select("department_code").eq("id", companyId).maybeSingle();
-  await createStarterAlert(session.userId, { sector: d.sector, department: co?.department_code ?? null });
+  await createStarterAlert(session.userId, { sector: d.sector, department: co?.department_code ?? null, skills });
   revalidatePath("/", "layout");
   redirect(safeNext(fd.get("suite"), "/dashboard/recommandations?bienvenue=1"));
 }
