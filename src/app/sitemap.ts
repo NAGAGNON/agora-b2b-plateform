@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { FREELANCE_TRADES } from "@/lib/freelance";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
 import { STATIC_PATHS, siteUrl } from "@/lib/seo";
@@ -22,6 +23,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Pas de date de modification pour les pages fixes : une date toujours « maintenant » serait ignorée par Google
   const entries: MetadataRoute.Sitemap = STATIC_PATHS.map((p) => ({ url: `${base}${p}`, changeFrequency: p === "" ? "daily" : "monthly", priority: p === "" ? 1 : 0.6 }));
   entries.push(...GUIDES.map((g) => ({ url: `${base}/ressources/${g.slug}`, changeFrequency: "monthly" as const, priority: 0.5 })));
+  // Indépendants : la rubrique et une page par métier
+  entries.push({ url: `${base}/independants`, changeFrequency: "daily", priority: 0.6 }, ...FREELANCE_TRADES.map((t) => ({ url: `${base}/independants/${t.slug}`, changeFrequency: "daily" as const, priority: 0.5 })));
 
   const url = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_PUBLISHABLE_KEY ?? process.env.SUPABASE_ANON_KEY;

@@ -4,7 +4,7 @@ import { regionBySlug, slugify } from "@/lib/geo";
 
 export type RawSearchParams = Record<string, string | string[] | undefined>;
 
-const ALL_TYPES: OpportunityType[] = ["NEED", "QUOTE_REQUEST", "PRIVATE_CONSULTATION", "PRIVATE_TENDER", "EXTERNAL_OPPORTUNITY", "PUBLIC_TENDER"];
+const ALL_TYPES: OpportunityType[] = ["NEED", "MISSION", "QUOTE_REQUEST", "PRIVATE_CONSULTATION", "PRIVATE_TENDER", "EXTERNAL_OPPORTUNITY", "PUBLIC_TENDER"];
 const SIZES: CompanySize[] = ["INDEPENDANT", "TPE", "PME", "ETI", "GE"];
 const SORTS = ["recent", "deadline", "relevance", "distance"] as const;
 export type SortKey = (typeof SORTS)[number];

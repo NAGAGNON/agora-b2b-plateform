@@ -21,7 +21,7 @@ describe("alertes par compétences", () => {
     const u = await user("skill-alert");
     const graph = (await offer("Création d'une charte graphique et d'un logo", "Identité visuelle de la commune.", "communication-evenementiel")).data!;
     const other = (await offer("Travaux de voirie", "Réfection de chaussée ; mise en page du dossier non demandée.", "travaux-btp")).data!;
-    const vr = (await offer("Production de modules pédagogiques en réalité virtuelle", "Modules immersifs.", "formation")).data!;
+    const vr = (await offer("Production de modules pédagogiques en réalité virtuelle", "Modules immersifs de formation pour les agents.", "formation")).data!;
     const derat = (await offer("Contrat 2D – 3D dératisation", "Lutte contre les nuisibles.", "nettoyage-proprete")).data!;
     const { data: a, error } = await admin
       .from("alerts")

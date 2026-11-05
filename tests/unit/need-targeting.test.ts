@@ -55,3 +55,15 @@ describe("alertes par compétences", () => {
     expect(matchedSkill(["Réalité virtuelle, 3D et serious games"], "Production de modules pédagogiques en réalité virtuelle")).toBe("Réalité virtuelle, 3D et serious games");
   });
 });
+
+import { FREELANCE_TRADES } from "@/lib/freelance";
+
+describe("rubrique indépendants", () => {
+  it("métiers à distance, adresses uniques et lisibles", () => {
+    const slugs = FREELANCE_TRADES.map((t) => t.slug);
+    expect(new Set(slugs).size).toBe(slugs.length);
+    expect(slugs).toContain("traduction-et-interpretariat");
+    expect(slugs).toContain("graphisme-et-identite-visuelle");
+    expect(FREELANCE_TRADES.every((t) => t.remote && /^[a-z0-9-]+$/.test(t.slug))).toBe(true);
+  });
+});

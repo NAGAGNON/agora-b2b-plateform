@@ -16,6 +16,7 @@ const COLUMNS = [
     title: "Pour vous",
     links: [
       { href: "/fournisseurs", label: "Pour les fournisseurs" },
+      { href: "/independants", label: "Pour les indépendants et freelances" },
       { href: "/demandeurs", label: "Pour les demandeurs" },
       { href: "/ingenieurs-affaires", label: "Pour les ingénieurs d'affaires" },
       { href: "/ressources", label: "Ressources et guides" },
