@@ -31,3 +31,39 @@ describe("ciblage des besoins d'entreprises", () => {
     expect(scoreMatch(a, { ...p, region: "Bretagne", department_code: "29" }).score).toBeLessThan(m.score);
   });
 });
+
+import { alertTermsFor, matchedSkill, skillTerms } from "@/lib/skill-catalog";
+
+describe("alertes par compétences", () => {
+  it("métiers exercés à distance : alerte nationale ; métiers de terrain : département", () => {
+    expect(alertTermsFor(["Traduction et interprétariat"]).remote).toBe(true);
+    expect(alertTermsFor(["Graphisme et identité visuelle", "Rédaction et contenus"]).remote).toBe(true);
+    expect(alertTermsFor(["Couverture et étanchéité"]).remote).toBe(false);
+    expect(alertTermsFor(["Traduction et interprétariat", "Plomberie et sanitaires"]).remote).toBe(false);
+  });
+
+  it("les mots trop généraux saisis seuls sont ignorés, les spécialités précises gardées", () => {
+    expect(skillTerms("application")).toEqual([]);
+    expect(skillTerms("3D")).toEqual([]);
+    expect(skillTerms("Réalité virtuelle")).toEqual(["realite virtuelle"]);
+    expect(alertTermsFor(["application", "simulation"]).terms).toEqual([]);
+  });
+
+  it("une offre de graphisme est reconnue, une offre de dératisation « 2D-3D » ne l'est pas pour la 3D", () => {
+    expect(matchedSkill(["Graphisme et identité visuelle"], "Création d'une charte graphique et d'un logo pour la ville")).toBe("Graphisme et identité visuelle");
+    expect(matchedSkill(["Réalité virtuelle, 3D et serious games"], "Contrat 2D – 3D dératisation – désinsectisation")).toBeNull();
+    expect(matchedSkill(["Réalité virtuelle, 3D et serious games"], "Production de modules pédagogiques en réalité virtuelle")).toBe("Réalité virtuelle, 3D et serious games");
+  });
+});
+
+import { FREELANCE_TRADES } from "@/lib/freelance";
+
+describe("rubrique indépendants", () => {
+  it("métiers à distance, adresses uniques et lisibles", () => {
+    const slugs = FREELANCE_TRADES.map((t) => t.slug);
+    expect(new Set(slugs).size).toBe(slugs.length);
+    expect(slugs).toContain("traduction-et-interpretariat");
+    expect(slugs).toContain("graphisme-et-identite-visuelle");
+    expect(FREELANCE_TRADES.every((t) => t.remote && /^[a-z0-9-]+$/.test(t.slug))).toBe(true);
+  });
+});

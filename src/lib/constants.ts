@@ -70,6 +70,7 @@ export const BRITTANY_DEPARTMENTS = [
 
 export const OPPORTUNITY_TYPE_LABELS: Record<OpportunityType, string> = {
   NEED: "Besoin",
+  MISSION: "Mission courte (indépendant)",
   QUOTE_REQUEST: "Demande de devis",
   PRIVATE_CONSULTATION: "Consultation privée",
   PRIVATE_TENDER: "Appel d'offres privé",
@@ -77,11 +78,12 @@ export const OPPORTUNITY_TYPE_LABELS: Record<OpportunityType, string> = {
   PUBLIC_TENDER: "Marché public",
 };
 
-export const INTERNAL_TYPES: OpportunityType[] = ["NEED", "QUOTE_REQUEST", "PRIVATE_CONSULTATION", "PRIVATE_TENDER"];
+export const INTERNAL_TYPES: OpportunityType[] = ["NEED", "MISSION", "QUOTE_REQUEST", "PRIVATE_CONSULTATION", "PRIVATE_TENDER"];
 export const EXTERNAL_TYPES: OpportunityType[] = ["EXTERNAL_OPPORTUNITY", "PUBLIC_TENDER"];
 
 export const OPPORTUNITY_TYPE_HELP: Record<OpportunityType, string> = {
   NEED: "Vous recherchez un prestataire ou un fournisseur, sans formalisme particulier.",
+  MISSION: "Une tâche ponctuelle pour un indépendant : traduction, graphisme, montage vidéo, renfort de quelques jours ou semaines…",
   QUOTE_REQUEST: "Vous souhaitez recevoir plusieurs propositions chiffrées.",
   PRIVATE_CONSULTATION: "Consultation structurée auprès de plusieurs fournisseurs, avec critères et date limite.",
   PRIVATE_TENDER: "Appel d'offres formalisé : cahier des charges, documents, critères, présélection et sélection.",

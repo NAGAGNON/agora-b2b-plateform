@@ -6,8 +6,9 @@ import { siteUrl } from "@/lib/seo";
 import { sendWelcome } from "@/lib/email/auth-emails";
 import { notifyAdminsOfSignup } from "@/lib/signup-notify";
 import { buyerAlertName, followBuyer } from "@/lib/buyer-follow";
+import { alertTermsFor } from "@/lib/skill-catalog";
 
-type Criteria = { sector: string | null; department: string | null; buyerName?: string | null };
+type Criteria = { sector: string | null; department: string | null; buyerName?: string | null; skills?: string[] };
 
 const OFFER_PATH = /^\/opportunites\/([0-9a-f-]{36})(?:[/?#]|$)/i;
 const BUYER_PATH = /^\/acheteurs\/([a-z0-9-]{1,80})(?:[/?#]|$)/;
@@ -54,6 +55,27 @@ export async function createStarterAlert(userId: string, criteria: Criteria | nu
   if (!criteria?.sector) return false;
   try {
     const db = createAdminClient();
+    // Compétences connues (profil express) : alerte précise sur les mots du métier ; toute la France
+    // pour les métiers exercés à distance (traduction, graphisme…), sinon le département
+    const { terms, remote } = alertTermsFor(criteria.skills ?? []);
+    if (terms.length) {
+      const department = remote ? null : criteria.department;
+      const { data: d } = department ? await db.from("departments").select("name").eq("code", department).maybeSingle() : { data: null };
+      const name = [(criteria.skills ?? []).slice(0, 3).join(", "), d?.name ?? (remote ? "toute la France" : null)].filter(Boolean).join(" — ").slice(0, 120);
+      const row = { name, sector_slug: criteria.sector, department_code: department, region: null, match_terms: terms, frequency: "DAILY" as const };
+      // Alerte large créée à l'inscription (secteur seul, sans mots) : remplacée par l'alerte précise
+      const { data: existing } = await db.from("alerts").select("id, match_terms, skills, keywords").eq("user_id", userId);
+      const broad = (existing ?? []).find((a) => !a.match_terms?.length && !a.skills?.length && !a.keywords?.trim());
+      if (broad && (existing ?? []).length === 1) {
+        const { error } = await db.from("alerts").update(row).eq("id", broad.id);
+        if (error) throw error;
+        return true;
+      }
+      if ((existing ?? []).length) return false;
+      const { error } = await db.from("alerts").insert({ user_id: userId, ...row });
+      if (error) throw error;
+      return true;
+    }
     const { count } = await db.from("alerts").select("id", { count: "exact", head: true }).eq("user_id", userId);
     if (count) return false;
     const [{ data: s }, { data: d }] = await Promise.all([

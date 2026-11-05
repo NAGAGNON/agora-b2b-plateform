@@ -6,25 +6,28 @@ import { Field, Input, Select } from "@/components/ui/form";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { Notice } from "@/components/ui/notice";
 import { COMPANY_SIZE_LABELS, type CompanySize, type SectorOption } from "@/lib/constants";
+import { SKILL_CATALOG } from "@/lib/skill-catalog";
 
 type Place = { name: string; postal_code: string };
 
 /** Profil express : 4 informations pour recevoir les offres qui vous correspondent (le reste se complète plus tard). */
 export function ExpressCompanyForm({ sectors, places, next, defaultName }: { sectors: SectorOption[]; places: Place[]; next?: string; defaultName?: string }) {
   // React vide le formulaire après chaque envoi : on garde la saisie pour la réafficher en cas d'erreur
-  const [last, setLast] = useState<{ n: number; v: Record<string, string> }>({ n: 0, v: {} });
+  const [last, setLast] = useState<{ n: number; v: Record<string, string>; skills: string[] }>({ n: 0, v: {}, skills: [] });
+  const [sector, setSector] = useState("");
   const [state, action] = useActionState(async (prev: Awaited<ReturnType<typeof createCompanyExpress>> | null, fd: FormData) => {
-    setLast((l) => ({ n: l.n + 1, v: Object.fromEntries([...fd.entries()].map(([k, x]) => [k, String(x)])) }));
+    setLast((l) => ({ n: l.n + 1, v: Object.fromEntries([...fd.entries()].map(([k, x]) => [k, String(x)])), skills: fd.getAll("skill").map(String) }));
     return createCompanyExpress(prev, fd);
   }, null);
   const v = last.v;
+  const catalog = SKILL_CATALOG[sector] ?? [];
   const fe = state && !state.ok ? state.fieldErrors : undefined;
   return (
     <form key={last.n} action={action} className="space-y-5" noValidate data-testid="express-form">
       {next && <input type="hidden" name="suite" value={next} />}
       <Field label="Votre métier" name="sector" error={fe?.sector} required hint="Les offres et alertes seront choisies selon ce métier.">
         {(p) => (
-          <Select {...p} defaultValue={v.sector ?? ""}>
+          <Select {...p} value={sector} onChange={(e) => setSector(e.target.value)}>
             <option value="" disabled>
               Choisissez votre métier
             </option>
@@ -36,7 +39,26 @@ export function ExpressCompanyForm({ sectors, places, next, defaultName }: { sec
           </Select>
         )}
       </Field>
-      <Field label="Vos compétences" name="speciality" error={fe?.speciality} hint="Facultatif mais conseillé, séparées par des virgules : ex. plomberie, électricité, nettoyage de bureaux, développement web. Chacune affine les offres proposées.">
+      {catalog.length > 0 && (
+        <fieldset data-testid="skill-choices">
+          <legend className="text-sm font-medium text-navy">Ce que vous faites</legend>
+          <p className="mt-1 text-xs text-slate-500">Cochez une ou plusieurs cases : vous ne recevrez que les offres qui parlent de ces métiers.</p>
+          <div className="mt-2 grid gap-2 sm:grid-cols-2">
+            {catalog.map((s) => (
+              <label key={s.label} className="flex items-start gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-navy has-[:checked]:border-teal-500 has-[:checked]:bg-teal-50">
+                <input type="checkbox" name="skill" value={s.label} defaultChecked={last.skills.includes(s.label)} className="mt-0.5 size-4 accent-teal-600" />
+                <span>{s.label}</span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+      )}
+      <Field
+        label="Vos compétences"
+        name="speciality"
+        error={fe?.speciality}
+        hint={catalog.length ? "Autre spécialité ? Écrivez-la, séparée par des virgules (ex. traduction anglais-français, réalité virtuelle)." : "Séparées par des virgules : ex. plomberie, traduction, graphisme, développement web. Chacune choisit les offres que vous recevrez."}
+      >
         {(p) => <Input {...p} defaultValue={v.speciality} maxLength={300} />}
       </Field>
       <div className="grid gap-5 sm:grid-cols-3">

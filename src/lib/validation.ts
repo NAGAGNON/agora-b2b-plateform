@@ -164,7 +164,7 @@ export const userProfileSchema = z.object({
   notifyStatus: checkbox,
 });
 
-const internalType = z.enum(["NEED", "QUOTE_REQUEST", "PRIVATE_CONSULTATION", "PRIVATE_TENDER"], {
+const internalType = z.enum(["NEED", "MISSION", "QUOTE_REQUEST", "PRIVATE_CONSULTATION", "PRIVATE_TENDER"], {
   error: "Type d'opportunité invalide",
 });
 

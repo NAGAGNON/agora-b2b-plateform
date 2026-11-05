@@ -4,7 +4,12 @@
  * mots figure dans son intitulé, son résumé ou son descriptif : rien n'est estimé.
  * Les mots sont écrits sans majuscules ; les accents sont ignorés à la comparaison.
  */
-export type CatalogSkill = { label: string; terms: string[] };
+export type CatalogSkill = {
+  label: string;
+  terms: string[];
+  /** Métier qui s'exerce souvent à distance (indépendants, freelances) : alerte sur toute la France */
+  remote?: boolean;
+};
 
 export const SKILL_CATALOG: Record<string, CatalogSkill[]> = {
   "travaux-btp": [
@@ -71,6 +76,9 @@ export const SKILL_CATALOG: Record<string, CatalogSkill[]> = {
     { label: "Infogérance et support", terms: ["infogerance", "support utilisateurs", "maintenance informatique", "assistance informatique", "tierce maintenance"] },
     { label: "Hébergement et cloud", terms: ["hebergement", "cloud", "saas", "datacenter"] },
     { label: "Données et SIG", terms: ["base de donnees", "donnees geographiques", "sig", "cartographie", "geomatique"] },
+    { label: "Réalité virtuelle, 3D et serious games", terms: ["realite virtuelle", "realite augmentee", "realite mixte", "serious game", "serious games", "jeu serieux", "jeux serieux", "immersif", "immersive", "modelisation 3d", "jumeau numerique", "jumeaux numeriques", "unity"], remote: true },
+    { label: "Design UX/UI", terms: ["ux design", "design ux", "ui design", "experience utilisateur", "ergonomie web", "design d'interface", "design d'interfaces"], remote: true },
+    { label: "Données et intelligence artificielle", terms: ["intelligence artificielle", "data science", "science des donnees", "apprentissage automatique", "machine learning", "datavisualisation"], remote: true },
   ],
   cybersecurite: [
     { label: "Audit et tests d'intrusion", terms: ["audit de securite", "tests d'intrusion", "pentest", "audit de cybersecurite"] },
@@ -117,7 +125,7 @@ export const SKILL_CATALOG: Record<string, CatalogSkill[]> = {
   "services-aux-entreprises": [
     { label: "Impression et reprographie", terms: ["impression", "imprimerie", "reprographie", "editique"] },
     { label: "Accueil et standard", terms: ["prestations d'accueil", "accueil physique", "accueil telephonique", "standard telephonique", "hotesse", "hote d'accueil"] },
-    { label: "Traduction et interprétariat", terms: ["traduction", "interpretariat", "interpretation"] },
+    { label: "Traduction et interprétariat", terms: ["traduction", "traductions", "traducteur", "interpretariat", "interpretes", "sous-titrage", "transcription"], remote: true },
     { label: "Fournitures de bureau", terms: ["fournitures de bureau", "papeterie", "mobilier de bureau"] },
     { label: "Courrier et affranchissement", terms: ["courrier", "affranchissement", "routage"] },
   ],
@@ -126,22 +134,29 @@ export const SKILL_CATALOG: Record<string, CatalogSkill[]> = {
     { label: "Conseil juridique", terms: ["juridique", "avocat", "assistance juridique", "conseil juridique"] },
     { label: "Ressources humaines", terms: ["ressources humaines", "recrutement", "cabinet de recrutement"] },
     { label: "Expertise comptable et finances", terms: ["expertise comptable", "commissaire aux comptes", "comptable", "audit financier"] },
+    { label: "Études de marché et enquêtes", terms: ["etude de marche", "etudes de marche", "enquete de satisfaction", "enquetes de satisfaction", "etude qualitative", "etude quantitative", "barometre"], remote: true },
+    { label: "Marketing et stratégie", terms: ["strategie marketing", "marketing", "plan marketing", "etude de positionnement"], remote: true },
   ],
   formation: [
     { label: "Formation sécurité", terms: ["formation securite", "formations securite", "habilitation electrique", "sst", "caces"] },
     { label: "Formation management et bureautique", terms: ["formation management", "formation au management", "bureautique"] },
-    { label: "Langues", terms: ["langues", "anglais", "francais langue etrangere", "fle"] },
+    { label: "Langues", terms: ["formation linguistique", "cours de langues", "formation en langues", "anglais", "francais langue etrangere"] },
+    { label: "E-learning et ingénierie pédagogique", terms: ["e-learning", "elearning", "digital learning", "ingenierie pedagogique", "modules pedagogiques", "capsules pedagogiques", "formation a distance"], remote: true },
   ],
   "assurances-finance": [
     { label: "Assurances", terms: ["assurance", "assurances", "dommages aux biens", "responsabilite civile", "flotte automobile"] },
     { label: "Services bancaires et financiers", terms: ["services bancaires", "emprunt", "financement", "affacturage"] },
   ],
   "communication-evenementiel": [
-    { label: "Communication et graphisme", terms: ["agence de communication", "plan de communication", "strategie de communication", "supports de communication", "graphisme", "identite visuelle", "charte graphique"] },
+    { label: "Stratégie et agence de communication", terms: ["agence de communication", "plan de communication", "strategie de communication", "supports de communication", "campagne de communication"] },
+    { label: "Graphisme et identité visuelle", terms: ["graphisme", "graphiste", "identite visuelle", "charte graphique", "creation graphique", "conception graphique", "mise en page", "infographie", "illustrations", "pao"], remote: true },
+    { label: "Rédaction et contenus", terms: ["redaction de contenus", "redaction web", "redacteur", "redactionnel", "contenus editoriaux", "copywriting", "ecriture de contenus"], remote: true },
+    { label: "Réseaux sociaux", terms: ["reseaux sociaux", "community management", "community manager", "animation des reseaux"], remote: true },
+    { label: "Motion design et montage vidéo", terms: ["motion design", "montage video", "animation 2d", "animation 3d", "films d'animation"], remote: true },
     { label: "Événementiel", terms: ["evenementiel", "organisation d'evenements", "organisation de salons", "seminaire", "congres"] },
-    { label: "Vidéo et photographie", terms: ["realisation video", "films", "audiovisuel", "photographie", "reportages photo"] },
+    { label: "Vidéo et photographie", terms: ["realisation video", "realisation de films", "production audiovisuelle", "audiovisuel", "photographie", "photographe", "reportages photo", "prises de vue"] },
     { label: "Signalétique", terms: ["signaletique", "enseignes", "panneaux signaletiques"] },
-    { label: "Médias et publicité", terms: ["achat d'espace", "achats d'espaces", "publicite", "agence media", "campagne de communication"] },
+    { label: "Médias et publicité", terms: ["achat d'espace", "achats d'espaces", "publicite", "agence media"] },
   ],
   "restauration-alimentation": [
     { label: "Restauration collective", terms: ["restauration collective", "restauration scolaire", "cantine", "repas"] },
@@ -162,11 +177,35 @@ export const normalizeSkillText = (s: string) =>
 
 const BY_LABEL = new Map(Object.values(SKILL_CATALOG).flat().map((s) => [normalizeSkillText(s.label), s]));
 
-/** Mots qui désignent une compétence : ceux du catalogue, sinon la compétence telle que saisie. */
+/**
+ * Mots trop généraux pour cibler seuls (saisie libre) : ils figurent dans des offres de tous les métiers
+ * (« application de peinture », « contrat 2D-3D de dératisation », « simulation de chiffrage »…).
+ */
+const GENERIC = new Set(
+  "application applications logiciel logiciels simulation interactif interactive service services prestation prestations travaux maintenance conseil conseils etude etudes formation formations gestion projet projets developpement creation conception realisation fourniture fournitures installation entretien reparation 2d 3d web digital numerique informatique communication design technique techniques ingenierie expertise audit".split(" "),
+);
+
+/** Mots qui désignent une compétence : ceux du catalogue, sinon la compétence telle que saisie (si assez précise). */
 export function skillTerms(skill: string): string[] {
   const n = normalizeSkillText(skill);
   const known = BY_LABEL.get(n);
-  return known ? known.terms : n.length >= 3 ? [n] : [];
+  if (known) return known.terms;
+  const clean = n.replace(/[^a-z0-9#+' -]+/g, " ").replace(/\s+/g, " ").trim();
+  if (clean.length < 3 || GENERIC.has(clean)) return [];
+  return [clean];
+}
+
+/** Compétence du catalogue (libellé exact), ou null pour une saisie libre. */
+export const catalogSkill = (label: string) => BY_LABEL.get(normalizeSkillText(label)) ?? null;
+
+/**
+ * Mots d'alerte pour une liste de compétences (catalogue et saisie libre), sans doublon.
+ * `remote` : toutes les compétences du catalogue choisies s'exercent à distance → alerte nationale.
+ */
+export function alertTermsFor(skills: string[]): { terms: string[]; remote: boolean } {
+  const terms = expandSkills(skills).slice(0, 60);
+  const known = skills.map(catalogSkill).filter((x): x is CatalogSkill => x !== null);
+  return { terms, remote: known.length > 0 && known.every((k) => k.remote) };
 }
 
 /** Tous les mots d'une liste de compétences (sans doublon). */
