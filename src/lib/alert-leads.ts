@@ -1,5 +1,6 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { digestItems } from "@/lib/email/outbox";
 import { sectorLabel } from "@/lib/constants";
 
 /**
@@ -144,7 +145,7 @@ export async function processLeadDigests({ now = Date.now(), limit = 300 } = {})
         type: "lead_digest",
         title: `Vos nouveaux marchés : ${label}`,
         body: `${opps.length} opportunité(s) publiée(s) depuis votre dernier e-mail. Créez votre compte gratuit pour suivre vos affaires, recevoir des alertes sur mesure et contacter les entreprises.`,
-        items: opps.map((o) => ({ label: `${o.title}${o.city ? ` — ${o.city}` : ""}`, url: `/opportunites/${o.id}` })),
+        items: await digestItems(db, opps.map((o) => o.id)),
         link: `/inscription?email=${encodeURIComponent(l.email)}`,
         unsubscribe: `/alertes/arreter?jeton=${l.token}`,
       },

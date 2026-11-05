@@ -2,7 +2,7 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { env } from "@/lib/env";
 import { renderEmail } from "@/lib/email/templates";
-import type { Hero } from "@/lib/email/design";
+import { familyOf, type Hero } from "@/lib/email/design";
 import { sendEmail } from "@/lib/email/send";
 
 const CTA_LABELS: Record<string, string> = {
@@ -60,7 +60,8 @@ const LOOK: Record<string, { kicker: string; hero: Hero }> = {
   subscription_ended: { kicker: "Abonnement", hero: "bureau" },
 };
 
-export type NotificationPayload = { type?: string; title?: string; body?: string; link?: string; items?: { label: string; url: string }[]; unsubscribe?: string };
+export type DigestItem = { label: string; url: string; kicker?: string | null; subtitle?: string | null; summary?: string | null; meta?: string[]; deadline?: string | null; image?: string | null };
+export type NotificationPayload = { type?: string; title?: string; body?: string; link?: string; items?: DigestItem[]; unsubscribe?: string };
 
 /** Gabarit des e-mails de notification (un par type d'événement, via le titre, le texte et l'action). */
 export function notificationLayout(template: string, payload: NotificationPayload, subject: string): Parameters<typeof renderEmail>[0] {
@@ -70,7 +71,7 @@ export function notificationLayout(template: string, payload: NotificationPayloa
     hero: look?.hero,
     title: payload.title ?? subject,
     paragraphs: payload.body ? [payload.body] : [],
-    list: payload.items?.map((i) => ({ label: i.label, url: env.siteUrl + i.url })),
+    list: payload.items?.map((i) => ({ ...i, url: env.siteUrl + i.url, image: i.image ? env.siteUrl + i.image : null })),
     cta: payload.link ? { label: CTA_LABELS[payload.type ?? template] ?? "Voir sur LinkProB2B", url: env.siteUrl + payload.link } : undefined,
     footer: payload.unsubscribe
       ? `Vous recevez cet e-mail car vous avez créé une alerte. Se désabonner en un clic : ${env.siteUrl}${payload.unsubscribe}`
@@ -150,11 +151,57 @@ export async function processAlertDigests(): Promise<{ alerts: number; emails: n
       payload: {
         title: `Votre alerte « ${a.name} »`,
         body: `${matches.length} opportunité(s) correspondent à vos critères depuis le dernier envoi.`,
-        items: matches.map((m) => ({ label: m.title, url: `/opportunites/${m.id}` })),
+        items: await digestItems(admin, matches.map((m) => m.id)),
         unsubscribe: `/alertes/desabonnement?jeton=${a.unsubscribe_token}`,
       },
     });
     emails++;
   }
   return { alerts: alerts?.length ?? 0, emails };
+}
+
+const dayFmt = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Paris" });
+const cut = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1).trimEnd()}…` : s);
+/** Intitulé qui n'est qu'une référence interne de l'acheteur (« UMSDIPA202602 ») : pas lisible seul. */
+export const isReferenceTitle = (t: string) => !/\s/.test(t.trim()) || /^[A-Z0-9][A-Z0-9_./-]{3,}$/.test(t.trim());
+
+/**
+ * Cartes des offres d'un e-mail d'alerte : de quoi il s'agit (résumé), qui achète, où, date limite,
+ * secteur. Un intitulé réduit à une référence est remplacé par le début du descriptif (référence gardée).
+ */
+export async function digestItems(admin: ReturnType<typeof createAdminClient>, ids: string[]): Promise<DigestItem[]> {
+  if (!ids.length) return [];
+  const [{ data: rows }, { data: sectors }] = await Promise.all([
+    admin
+      .from("opportunities")
+      .select("id, title, summary, description, sector_slug, city, department_code, region, response_deadline, origin, external_buyer_name, company:companies(name), source:external_sources(name)")
+      .in("id", ids.slice(0, 20)),
+    admin.from("sectors").select("slug, label"),
+  ]);
+  const label = new Map((sectors ?? []).map((s) => [s.slug, s.label]));
+  const byId = new Map((rows ?? []).map((r) => [r.id, r]));
+  return ids
+    .slice(0, 20)
+    .map((id) => byId.get(id))
+    .filter((r): r is NonNullable<typeof r> => Boolean(r))
+    .map((r) => {
+      const one = <T,>(x: T | T[] | null) => (Array.isArray(x) ? (x[0] ?? null) : x);
+      const desc = (r.summary ?? r.description ?? "").replace(/\s+/g, " ").trim();
+      const ref = isReferenceTitle(r.title);
+      const title = ref && desc ? cut(desc, 110) : cut(r.title, 140);
+      const buyer = r.origin === "EXTERNAL" ? r.external_buyer_name : (one(r.company as { name: string } | { name: string }[] | null)?.name ?? null);
+      const place = [r.city, r.department_code ? `(${r.department_code})` : null].filter(Boolean).join(" ") || r.region;
+      const source = one(r.source as { name: string } | { name: string }[] | null)?.name;
+      return {
+        label: title,
+        url: `/opportunites/${r.id}`,
+        kicker: [r.sector_slug ? label.get(r.sector_slug) : null, ref ? `Réf. ${r.title.trim()}` : null].filter(Boolean).join(" · ") || null,
+        subtitle: buyer,
+        // Intitulé remplacé par le descriptif : pas de répétition en dessous
+        summary: !ref && desc ? cut(desc, 200) : null,
+        meta: [place, r.origin === "EXTERNAL" && source ? `Source : ${source}` : r.origin === "INTERNAL" ? "Publiée sur LinkProB2B" : null].filter((x): x is string => Boolean(x)),
+        deadline: r.response_deadline ? dayFmt.format(new Date(r.response_deadline)) : null,
+        image: `/email/vignette-${familyOf(r.sector_slug)}.jpg`,
+      };
+    });
 }
