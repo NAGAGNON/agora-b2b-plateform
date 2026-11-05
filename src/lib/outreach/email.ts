@@ -139,7 +139,7 @@ export function renderNeedEmail(i: NeedEmailInput): { subject: string; html: str
     n.deadline ? ["Réponse souhaitée avant le", n.deadline] : null,
   ].filter((x): x is [string, string] => Boolean(x));
   const intro = `Une entreprise a publié sur LinkProB2B un besoin qui pourrait correspondre à l'activité de ${i.companyName}.`;
-  const why = `Au regard de votre activité (${i.activity})${n.location ? ` et de votre localisation` : ""}, nous pensons que cette demande peut vous intéresser. Vous pouvez consulter le détail et écrire directement à l'entreprise qui l'a publiée.`;
+  const why = `Au regard de votre activité (${i.activity})${n.location ? ` et de votre localisation` : ""}, nous pensons que cette demande peut vous intéresser. Vous pouvez consulter le détail et écrire directement à l'entreprise qui l'a publiée, sans créer de compte.`;
   const needCard = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:4px 0 18px;border:1px solid ${C.border};border-left:4px solid ${C.teal};border-radius:12px;background:${C.soft}"><tr><td style="padding:18px 20px">
 <p style="margin:0 0 6px;font-size:18px;line-height:24px;font-weight:800;color:${C.navy}">${escapeHtml(n.title)}</p>
 ${n.buyer ? `<p style="margin:0 0 8px;font-size:13px;line-height:19px;color:${C.muted}">Publié par <strong style="color:${C.slate}">${escapeHtml(n.buyer)}</strong></p>` : ""}
@@ -159,7 +159,7 @@ ${facts(pairs)}
       needCard +
       paragraph(why) +
       button("ENVOYER UN MESSAGE", i.messageUrl) +
-      `<p style="margin:0 0 18px;clear:both;font-size:13px;line-height:19px;color:${C.muted}">Création d'un compte gratuite, nécessaire pour échanger avec l'entreprise. <a href="${escapeHtml(n.url)}" style="color:${C.tealDark};font-weight:600">Voir le besoin</a></p>`,
+      `<p style="margin:0 0 18px;clear:both;font-size:13px;line-height:19px;color:${C.muted}">Sans création de compte : votre message est transmis directement à l'entreprise. <a href="${escapeHtml(n.url)}" style="color:${C.tealDark};font-weight:600">Voir le besoin</a></p>`,
     notes: footerNotes(i, "Ne plus recevoir de messages de LinkProB2B"),
     pixelUrl: i.pixelUrl,
   });

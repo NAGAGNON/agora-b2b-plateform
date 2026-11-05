@@ -576,6 +576,17 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"need_contacts": {
+                  Row: {
+                    "company": string,"created_at": string,"email": string,"id": string,"message": string,"name": string,"opportunity_id": string,"outreach_recipient_id": string | null,"phone": string | null
+                  }
+                  Insert: {
+                    "company": string,"created_at"?: string,"email": string,"id"?: string,"message": string,"name": string,"opportunity_id": string,"outreach_recipient_id"?: string | null,"phone"?: string | null
+                  }
+                  Update: {
+                    "company"?: string,"created_at"?: string,"email"?: string,"id"?: string,"message"?: string,"name"?: string,"opportunity_id"?: string,"outreach_recipient_id"?: string | null,"phone"?: string | null
+                  }
+                  Relationships: []
                 },"need_matches": {
                   Row: {
                     "company_id": string,"created_at": string,"id": string,"need_campaign_id": string,"notified_at": string | null,"opportunity_id": string,"reasons": (string)[],"reminded_at": string | null,"score": number,"skip_reason": string | null,"status": string

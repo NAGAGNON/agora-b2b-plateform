@@ -36,14 +36,18 @@ export async function runGrowthStrategy(now = new Date(), db: Db = createAdminCl
   const day = parisToday(now);
   if (!(await growthEnabled(db))) return { skipped: "Stratégie automatique désactivée", day, changes: [], watch: [] };
   const from = new Date(now.getTime() - GROWTH_WINDOW_DAYS * 86_400_000).toISOString();
-  const [{ data: metrics, error }, { data: prevRow }, { data: sectors }, { data: departments }, { data: snapshotToday }] = await Promise.all([
+  const [{ data: rawMetrics, error }, { count: accounts }, { data: prevRow }, { data: sectors }, { data: departments }, { data: snapshotToday }] = await Promise.all([
     db.rpc("growth_metrics", { p_from: from, p_to: now.toISOString() }),
+    db.from("users").select("id", { count: "exact", head: true }).gte("created_at", from).lt("created_at", now.toISOString()),
     db.from("platform_settings").select("value").eq("key", STRATEGY_KEY).maybeSingle(),
     db.from("sectors").select("slug, label"),
     db.from("departments").select("code, slug"),
     db.from("growth_snapshots").select("strategy").eq("day", day).maybeSingle(),
   ]);
   if (error) throw error;
+  // Inscriptions réelles (comptes créés) : la mesure par visite les sous-estime (confirmation par
+  // e-mail ou connexion Google ouvrent une nouvelle visite)
+  const metrics = { ...(rawMetrics as unknown as GrowthMetrics), signups: accounts ?? (rawMetrics as unknown as GrowthMetrics).signups };
   // Base de comparaison : la stratégie de la veille (un nouveau calcul le même jour repart de la même base)
   const stored = (prevRow?.value ?? null) as GrowthStrategy | null;
   let previous = stored?.version === 1 ? stored : null;
@@ -53,7 +57,7 @@ export async function runGrowthStrategy(now = new Date(), db: Db = createAdminCl
   }
   const sectorLabels = new Map((sectors ?? []).map((s) => [s.slug, s.label]));
   const deptSlugs = new Map((departments ?? []).map((d) => [d.code, d.slug]));
-  const { strategy, changes } = decideStrategy(metrics as unknown as GrowthMetrics, previous, {
+  const { strategy, changes } = decideStrategy(metrics, previous, {
     day,
     regionSlugs: new Set(REGIONS.map((r) => r.slug)),
     regionName: (slug) => REGIONS.find((r) => r.slug === slug)?.name ?? slug,

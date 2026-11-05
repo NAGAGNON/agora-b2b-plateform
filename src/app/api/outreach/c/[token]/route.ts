@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { isUuid } from "@/lib/format";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { OUTREACH_COOKIE, OUTREACH_COOKIE_MAX_AGE, isAutomatedHit, recipientFromToken, track } from "@/lib/outreach/tracking";
+import { AUTOMATED_VISIT_COOKIE, OUTREACH_COOKIE, OUTREACH_COOKIE_MAX_AGE, isAutomatedHit, recipientFromToken, track } from "@/lib/outreach/tracking";
 
 /**
  * Lien suivi d'un e-mail de prospection. Destinations possibles UNIQUEMENT :
@@ -28,8 +28,11 @@ export async function GET(req: Request, ctx: RouteContext<"/api/outreach/c/[toke
     if (data) target = `${base}/opportunites/${o}?${new URL(req.url).searchParams.get("m") === "1" ? "message=1&" : ""}${utm}`;
   }
   // Vérification automatique par la messagerie : redirigée, mais pas comptée comme un clic
-  if (!isAutomatedHit(req, r.sent_at)) await track(r, "CLICK", target.includes("/selection/") ? {} : { opportunityId: o! });
+  const automated = isAutomatedHit(req, r.sent_at);
+  if (!automated) await track(r, "CLICK", target.includes("/selection/") ? {} : { opportunityId: o! });
   const res = NextResponse.redirect(target, { status: 302, headers: { "X-Robots-Tag": "noindex", "Cache-Control": "no-store" } });
+  // Pages affichées ensuite par ce navigateur de vérification : hors mesure d'audience (10 min)
+  if (automated) res.cookies.set(AUTOMATED_VISIT_COOKIE, "1", { httpOnly: true, secure: base.startsWith("https://"), sameSite: "lax", path: "/", maxAge: 600 });
   res.cookies.set(OUTREACH_COOKIE, token, { httpOnly: true, secure: base.startsWith("https://"), sameSite: "lax", path: "/", maxAge: OUTREACH_COOKIE_MAX_AGE });
   return res;
 }

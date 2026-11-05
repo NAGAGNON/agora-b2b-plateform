@@ -43,6 +43,8 @@ export default async function ManageOpportunityPage(props: PageProps<"/dashboard
     supabase.from("proposal_evaluations").select("proposal_id, score, note"),
     supabase.from("conversations").select("id, supplier_company_id").eq("opportunity_id", id),
   ]);
+  // Messages laissés sans compte (lecture autorisée aux membres de l'entreprise auteure du besoin)
+  const { data: guestMessages } = await supabase.from("need_contacts").select("id, name, company, email, phone, message, created_at").eq("opportunity_id", id).order("created_at", { ascending: false }).limit(50);
   // Suivi de la mise en relation (besoin publié publiquement) : entreprise propriétaire vérifiée ci-dessus
   const showVisibility = !o.is_demo && o.visibility === "PUBLIC" && ["PUBLISHED", "EXPIRED", "CLOSED"].includes(o.status);
   const admin = showVisibility ? createAdminClient() : null;
@@ -141,6 +143,39 @@ export default async function ManageOpportunityPage(props: PageProps<"/dashboard
         <DashboardCard label="Shortlist" value={shortlist.length} icon={<Star className="size-5" aria-hidden />} />
         <DashboardCard label="Documents" value={o.documents.length} icon={<FileText className="size-5" aria-hidden />} />
       </div>
+
+      {(guestMessages ?? []).length > 0 && (
+        <section aria-labelledby="guest-messages" className="mb-6">
+          <h2 id="guest-messages" className="mb-3 font-heading text-lg font-bold text-navy">
+            Messages reçus ({guestMessages!.length})
+          </h2>
+          <ul className="space-y-3">
+            {guestMessages!.map((g) => (
+              <li key={g.id}>
+                <Card className="p-5">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <p className="font-bold text-navy">
+                      {g.name} <span className="font-normal text-slate-600">— {g.company}</span>
+                    </p>
+                    <span className="text-xs text-slate-500">{formatDateTime(g.created_at)}</span>
+                  </div>
+                  <p className="mt-2 whitespace-pre-line text-sm text-slate-700 [overflow-wrap:anywhere]">{g.message}</p>
+                  <p className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+                    <a href={`mailto:${g.email}`} className="font-semibold text-teal-700 hover:underline">
+                      {g.email}
+                    </a>
+                    {g.phone && (
+                      <a href={`tel:${g.phone.replace(/[^+0-9]/g, "")}`} className="font-semibold text-teal-700 hover:underline">
+                        {g.phone}
+                      </a>
+                    )}
+                  </p>
+                </Card>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <LinkTabs
         active={tab}

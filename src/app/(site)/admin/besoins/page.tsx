@@ -140,6 +140,7 @@ export default async function AdminNeeds() {
                       ["Ouverts / clics e-mail", `${m.emailsOpened} / ${m.emailsClicked}`],
                       ["Inscrits venus des e-mails", `${m.emailsSignups}`],
                       ["Vues · « Envoyer un message »", `${m.views} · ${m.messageClicks}`],
+                      ["Messages sans compte", `${m.contacts}`],
                       ["Intérêts · réponses", `${m.interests} · ${m.proposals}`],
                       ["Échanges · retenue", `${m.conversations} · ${m.selected}${m.outcome === "AWARDED" ? " (attribué)" : ""}`],
                     ].map(([k, v]) => (

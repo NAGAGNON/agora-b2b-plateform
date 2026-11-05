@@ -14,6 +14,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { useToast } from "@/components/ui/toast";
 import type { InterestStatus, ProposalStatus } from "@/lib/constants";
 import { ActionError } from "@/components/billing/upgrade-prompt";
+import { NeedContactForm } from "@/components/opportunities/need-contact-form";
 
 type Props = {
   opportunityId: string;
@@ -45,30 +46,7 @@ export function InterestPanel(p: Props) {
   }, null);
 
   const next = `/opportunites/${p.opportunityId}`;
-  if (!p.signedIn) {
-    return (
-      <div className="space-y-3">
-        <p className="text-sm text-slate-600">Vous pouvez répondre à ce besoin ? Écrivez directement à l&apos;entreprise qui l&apos;a publié (compte gratuit).</p>
-        {p.open ? (
-          <a href={`/api/besoins/${p.opportunityId}/message`} className={buttonClasses({ full: true, size: "lg" })} data-testid="need-message">
-            <MessageSquare className="size-5" aria-hidden /> Envoyer un message
-          </a>
-        ) : (
-          p.closedReason && <Notice tone="warning">{p.closedReason}</Notice>
-        )}
-        <a href={`/api/besoins/${p.opportunityId}/message?compte=1`} className={buttonClasses({ full: true, variant: "outline" })}>
-          J&apos;ai déjà un compte
-        </a>
-        <p className="text-center text-xs text-slate-500">
-          ou{" "}
-          <Link href={`/inscription?suite=${encodeURIComponent(next)}`} className="underline">
-            créer un compte
-          </Link>{" "}
-          pour suivre ce besoin
-        </p>
-      </div>
-    );
-  }
+  if (!p.signedIn) return <GuestPanel {...p} next={next} />;
   if (p.isOwner) {
     return (
       <div className="space-y-3">
@@ -198,6 +176,47 @@ export function InterestPanel(p: Props) {
             <SubmitButton>Envoyer</SubmitButton>
           </div>
         </form>
+      </Modal>
+    </div>
+  );
+}
+
+/**
+ * Visiteur sans compte : il écrit directement à l'entreprise (nom, entreprise, coordonnées, message),
+ * sans inscription. Le compte reste proposé pour suivre le besoin et recevoir ceux de son métier.
+ */
+function GuestPanel(p: Props & { next: string }) {
+  const [open, setOpen] = useState(Boolean(p.openMessage && p.open));
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-slate-600">Vous pouvez répondre à ce besoin ? Écrivez directement à l&apos;entreprise qui l&apos;a publié, sans créer de compte.</p>
+      {p.open ? (
+        <Button
+          full
+          size="lg"
+          data-testid="need-message"
+          onClick={() => {
+            setOpen(true);
+            void trackNeedMessageClick(p.opportunityId);
+          }}
+        >
+          <MessageSquare className="size-5" aria-hidden /> Envoyer un message
+        </Button>
+      ) : (
+        p.closedReason && <Notice tone="warning">{p.closedReason}</Notice>
+      )}
+      <p className="text-center text-xs text-slate-500">
+        Déjà membre ?{" "}
+        <Link href={`/connexion?suite=${encodeURIComponent(`${p.next}?message=1`)}`} className="underline">
+          Se connecter
+        </Link>{" "}
+        ·{" "}
+        <Link href={`/inscription?suite=${encodeURIComponent(p.next)}`} className="underline">
+          Créer un compte
+        </Link>
+      </p>
+      <Modal open={open} onClose={() => setOpen(false)} title="Envoyer un message à l'entreprise" description="Sans création de compte : l'entreprise reçoit votre message par e-mail et vous répond directement.">
+        <NeedContactForm opportunityId={p.opportunityId} />
       </Modal>
     </div>
   );

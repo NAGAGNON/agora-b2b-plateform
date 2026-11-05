@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { INTERNAL_VISIT_COOKIE, INTERNAL_VISIT_MAX_AGE, isInternalVisitor } from "@/lib/audience-exclusion";
 import { rateLimit } from "@/lib/rate-limit";
 import { siteUrl } from "@/lib/seo";
+import { AUTOMATED_VISIT_COOKIE } from "@/lib/outreach/tracking";
 
 export const dynamic = "force-dynamic";
 
@@ -57,7 +58,10 @@ export async function POST(req: Request) {
     const path = v.data.path.split("?")[0].split("#")[0];
     if (EXCLUDED.test(path)) return new NextResponse(null, { status: 204 });
     // Visite interne : appareil déjà reconnu, ou compte connecté de l'équipe / du propriétaire
-    if ((await cookies()).get(INTERNAL_VISIT_COOKIE)?.value === "1") return new NextResponse(null, { status: 204 });
+    const jar = await cookies();
+    if (jar.get(INTERNAL_VISIT_COOKIE)?.value === "1") return new NextResponse(null, { status: 204 });
+    // Vérification automatique d'un lien d'e-mail par la messagerie du destinataire : pas une visite
+    if (jar.get(AUTOMATED_VISIT_COOKIE)?.value === "1") return new NextResponse(null, { status: 204 });
     const { data: auth } = await (await createClient()).auth.getClaims();
     if (auth?.claims?.sub) {
       const { data: user } = await db.from("users").select("platform_role, email").eq("id", auth.claims.sub).maybeSingle();

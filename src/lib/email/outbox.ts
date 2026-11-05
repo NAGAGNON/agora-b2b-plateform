@@ -10,6 +10,7 @@ const CTA_LABELS: Record<string, string> = {
   proposal_received: "Voir la réponse",
   proposal_status: "Voir ma réponse",
   interest_received: "Voir les fournisseurs intéressés",
+  need_contact: "Voir mon besoin",
   interest_status: "Voir l'opportunité",
   opportunity_published: "Voir mon opportunité",
   opportunity_changes_requested: "Modifier mon opportunité",
@@ -35,6 +36,7 @@ const LOOK: Record<string, { kicker: string; hero: Hero }> = {
   proposal_received: { kicker: "Réponse reçue", hero: "accord" },
   proposal_status: { kicker: "Votre réponse", hero: "accord" },
   interest_received: { kicker: "Intérêt reçu", hero: "accord" },
+  need_contact: { kicker: "Réponse à votre besoin", hero: "accord" },
   interest_status: { kicker: "Opportunité suivie", hero: "accord" },
   opportunity_published: { kicker: "Publication", hero: "plans" },
   opportunity_changes_requested: { kicker: "Publication", hero: "plans" },
@@ -61,7 +63,7 @@ const LOOK: Record<string, { kicker: string; hero: Hero }> = {
 };
 
 export type DigestItem = { label: string; url: string; kicker?: string | null; subtitle?: string | null; summary?: string | null; meta?: string[]; deadline?: string | null; image?: string | null };
-export type NotificationPayload = { type?: string; title?: string; body?: string; link?: string; items?: DigestItem[]; unsubscribe?: string };
+export type NotificationPayload = { type?: string; title?: string; body?: string; paragraphs?: string[]; link?: string; items?: DigestItem[]; unsubscribe?: string };
 
 /** Gabarit des e-mails de notification (un par type d'événement, via le titre, le texte et l'action). */
 export function notificationLayout(template: string, payload: NotificationPayload, subject: string): Parameters<typeof renderEmail>[0] {
@@ -70,7 +72,7 @@ export function notificationLayout(template: string, payload: NotificationPayloa
     kicker: look?.kicker,
     hero: look?.hero,
     title: payload.title ?? subject,
-    paragraphs: payload.body ? [payload.body] : [],
+    paragraphs: payload.paragraphs?.length ? payload.paragraphs : payload.body ? [payload.body] : [],
     list: payload.items?.map((i) => ({ ...i, url: env.siteUrl + i.url, image: i.image ? env.siteUrl + i.image : null })),
     cta: payload.link ? { label: CTA_LABELS[payload.type ?? template] ?? "Voir sur LinkProB2B", url: env.siteUrl + payload.link } : undefined,
     footer: payload.unsubscribe

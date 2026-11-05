@@ -275,6 +275,18 @@ export const contactSchema = z.object({
   website: z.string().max(0).optional(), // champ piège anti-robot
 });
 
+/** Réponse à un besoin sans compte (nom, entreprise, coordonnées, message, accord de transmission). */
+export const needContactSchema = z.object({
+  opportunityId: z.uuid(),
+  name: requiredText(2, 120, "Le nom"),
+  company: requiredText(2, 160, "L'entreprise"),
+  email: emailSchema,
+  phone: optionalText(30),
+  message: requiredText(10, 2000, "Le message"),
+  consent: z.literal("on", { error: "Cochez la case pour que vos coordonnées soient transmises" }),
+  website: z.string().max(0).optional(), // champ piège anti-robot
+});
+
 export const moderationSchema = z
   .object({
     opportunityId: z.uuid(),
