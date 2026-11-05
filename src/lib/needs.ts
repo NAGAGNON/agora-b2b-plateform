@@ -328,6 +328,8 @@ export type NeedMetrics = {
   emailsSimulated: number;
   emailsOpened: number;
   emailsClicked: number;
+  /** Entreprises contactées pour ce besoin qui se sont ensuite inscrites */
+  emailsSignups: number;
   interests: number;
   proposals: number;
   conversations: number;
@@ -342,7 +344,7 @@ export async function needMetrics(db: DB, opportunityId: string): Promise<NeedMe
   const { data: o } = await db.from("opportunities").select("outcome").eq("id", opportunityId).maybeSingle();
   const camp = nc?.outreach_campaign_id ?? null;
   const rec = (status: string[]) => (camp ? count(db.from("outreach_recipients").select("id", { count: "exact", head: true }).eq("campaign_id", camp).in("status", status)) : Promise.resolve(0));
-  const [views, messageClicks, shareClicks, notified, reminded, prepared, waiting, sent, simulated, opened, clicked, interests, proposals, conversations, selected] = await Promise.all([
+  const [views, messageClicks, shareClicks, notified, reminded, prepared, waiting, sent, simulated, opened, clicked, interests, proposals, conversations, selected, signups] = await Promise.all([
     count(db.from("analytics_events").select("id", { count: "exact", head: true }).eq("event_name", "view_opportunity").eq("properties->>opportunity_id", opportunityId)),
     count(db.from("analytics_events").select("id", { count: "exact", head: true }).eq("event_name", "need_message_click").eq("properties->>opportunity_id", opportunityId)),
     count(db.from("analytics_events").select("id", { count: "exact", head: true }).eq("event_name", "need_share_click").eq("properties->>opportunity_id", opportunityId)),
@@ -358,6 +360,7 @@ export async function needMetrics(db: DB, opportunityId: string): Promise<NeedMe
     count(db.from("proposals").select("id", { count: "exact", head: true }).eq("opportunity_id", opportunityId).neq("status", "WITHDRAWN")),
     count(db.from("conversations").select("id", { count: "exact", head: true }).eq("opportunity_id", opportunityId)),
     count(db.from("proposals").select("id", { count: "exact", head: true }).eq("opportunity_id", opportunityId).eq("status", "SELECTED")),
+    camp ? count(db.from("outreach_recipients").select("id", { count: "exact", head: true }).eq("campaign_id", camp).not("signed_up_at", "is", null)) : Promise.resolve(0),
   ]);
   return {
     views,
@@ -375,6 +378,7 @@ export async function needMetrics(db: DB, opportunityId: string): Promise<NeedMe
     emailsSimulated: simulated,
     emailsOpened: opened,
     emailsClicked: clicked,
+    emailsSignups: signups,
     interests,
     proposals,
     conversations,
