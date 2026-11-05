@@ -64,7 +64,7 @@ export default async function HomePage(props: PageProps<"/">) {
   const supabase = await createClient();
   // Base lente ou indisponible : chaque bloc a sa valeur de repli, la page s'affiche toujours
   const safe = <T, F = T>(p: PromiseLike<T>, fallback: F): Promise<T | F> => Promise.resolve(p).catch(() => fallback);
-  const [sectors, { data: analyses }, latest, stats, { data: growth }, labels, { total: needsTotal }] = await Promise.all([
+  const [sectors, { data: analyses }, latest, stats, { data: growth }, labels, { total: needsTotal, rows: needsRows }] = await Promise.all([
     safe(getSectors(), []),
     safe(supabase.from("articles").select("slug, title, description, published_at").eq("status", "PUBLISHED").order("published_at", { ascending: false }).limit(3), { data: null }),
     // Même calcul que la page « Explorer les opportunités » (opportunités ouvertes), trois plus récentes en aperçu
@@ -74,9 +74,11 @@ export default async function HomePage(props: PageProps<"/">) {
     safe(supabase.from("platform_settings").select("value").eq("key", "growth_public").maybeSingle(), { data: null }),
     safe(getSectorLabels(), {} as Record<string, string>),
     // Besoins d'entreprises visibles par un visiteur : sinon les liens mènent à la publication
-    safe(searchOpportunities(parseOpportunityFilters({ origine: "INTERNAL" }), 1), { rows: [], total: 0, error: true as const }),
+    safe(searchOpportunities(parseOpportunityFilters({ origine: "INTERNAL", tri: "recent" }), 6), { rows: [], total: 0, error: true as const }),
   ]);
   const hasNeeds = Number(needsTotal) > 0;
+  // Besoins publiés directement par des entreprises inscrites : mis en avant en tête de page (vrais besoins uniquement)
+  const clientNeeds = needsRows.filter((o) => !o.is_demo).slice(0, 3);
   const featuredRegions = homeRegions(growth?.value ?? null);
   const openCount = Number(latest.total);
   const preview = latest.rows.filter((o) => !o.is_demo || latest.rows.every((x) => x.is_demo));
@@ -177,6 +179,62 @@ export default async function HomePage(props: PageProps<"/">) {
           </div>
         </div>
       </section>
+
+      {/* Besoins publiés directement par des entreprises inscrites : mis en avant */}
+      {clientNeeds.length > 0 && (
+        <section className="container-page pt-12 sm:pt-16" aria-labelledby="besoins-clients" data-testid="home-client-needs">
+          <div className="rounded-3xl border-2 border-teal-200 bg-gradient-to-br from-teal-50 via-white to-sky p-5 shadow-sm sm:p-8">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <p className="flex items-center gap-2 text-sm font-semibold tracking-wide text-teal-700 uppercase">
+                  <Handshake className="size-4" aria-hidden /> Besoins d&apos;entreprises
+                </p>
+                <h2 id="besoins-clients" className="mt-1 text-2xl font-extrabold sm:text-3xl">
+                  Des entreprises cherchent un prestataire en ce moment
+                </h2>
+                <p className="mt-1 text-sm text-slate-600">Publiés directement sur LinkProB2B : répondez-leur sans intermédiaire.</p>
+              </div>
+              {Number(needsTotal) > clientNeeds.length && (
+                <TrackedLink cta="home_besoins_clients_tous" href="/opportunites?origine=INTERNAL" className="inline-flex items-center gap-1 text-sm font-semibold text-teal-700 hover:underline">
+                  Voir les {nf(Number(needsTotal))} besoins <ArrowRight className="size-4" aria-hidden />
+                </TrackedLink>
+              )}
+            </div>
+            <ul className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
+              {clientNeeds.map((o) => {
+                const deadline = deadlineLabel(o.response_deadline);
+                const place = o.city ?? (o.department_code ? `Département ${o.department_code}` : null);
+                return (
+                  <li key={o.id} className="min-w-0">
+                    <TrackedLink cta="home_besoin_client" href={`/opportunites/${o.id}`} className="group flex h-full min-w-0 flex-col rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-teal-300 hover:shadow-md">
+                      <span className="inline-flex w-fit items-center gap-1 rounded-full bg-teal-100 px-2 py-0.5 text-xs font-semibold text-teal-800">
+                        <Building2 className="size-3.5" aria-hidden /> Besoin d&apos;entreprise
+                      </span>
+                      <span className="mt-2 line-clamp-3 font-semibold [overflow-wrap:anywhere] text-navy group-hover:text-teal-700">{o.title}</span>
+                      {o.company_name && <span className="mt-1 truncate text-sm text-slate-600">{o.company_name}</span>}
+                      <span className="mt-auto flex flex-wrap gap-x-3 gap-y-1 pt-3 text-xs text-slate-600">
+                        {place && (
+                          <span className="inline-flex items-center gap-1">
+                            <MapPin className="size-3.5" aria-hidden /> {place}
+                          </span>
+                        )}
+                        {deadline && (
+                          <span className="inline-flex items-center gap-1 font-medium text-navy">
+                            <CalendarClock className="size-3.5" aria-hidden /> {deadline}
+                          </span>
+                        )}
+                      </span>
+                      <span className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-teal-700">
+                        Voir le besoin et répondre <ArrowRight className="size-4" aria-hidden />
+                      </span>
+                    </TrackedLink>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </section>
+      )}
 
       {/* Aperçu réel : les trois dernières opportunités publiées */}
       {preview.length > 0 && (
