@@ -10,6 +10,8 @@ import { getSession } from "@/lib/auth";
 import { PageHero } from "@/components/layout/page-hero";
 import { getDepartments, getPlaces, getSectors } from "@/lib/queries/platform";
 import { pageMetadata, siteUrl } from "@/lib/seo";
+import { getMemberCompanies, getPlatformStats, liveStats } from "@/lib/queries/platform";
+import { MemberProofCompact } from "@/components/home/member-proof";
 
 export const metadata = pageMetadata({
   title: "Publier un besoin",
@@ -47,6 +49,8 @@ async function partnerValues(id: string | undefined): Promise<WizardValues | und
 export default async function PublishPage(props: { searchParams: Promise<{ partenaire?: string }> }) {
   const session = await getSession();
   if (!session || !session.activeCompany) {
+    const [platform, memberCompanies] = await Promise.all([getPlatformStats().catch(() => null), getMemberCompanies(12).catch(() => [])]);
+    const live = liveStats(platform);
     return (
       <>
       <PageHero
@@ -74,6 +78,12 @@ export default async function PublishPage(props: { searchParams: Promise<{ parte
                 </li>
               ))}
             </ul>
+            {live && (
+              <div className="mt-6">
+                <p className="mb-2 text-sm font-semibold text-navy">Votre besoin sera vu par les professionnels inscrits</p>
+                <MemberProofCompact initial={live} companies={memberCompanies} />
+              </div>
+            )}
           </div>
           <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-xl shadow-navy/5 sm:p-10">
             {!session ? (

@@ -1744,6 +1744,11 @@ isOneToOne: false
 "public_platform_stats":
 { Args: Record<PropertyKey, never>; Returns: Json
                            },
+"public_member_companies":
+{ Args: { "p_limit"?: number }; Returns: {
+              "city": string | null,"logo_path": string | null,"name": string,"region": string | null,"size": Database["public"]["Enums"]["company_size"] | null,"slug": string
+            }[]
+                           },
 "purge_campaign_placeholders":
 { Args: { "p_limit"?: number }; Returns: number
                            },
