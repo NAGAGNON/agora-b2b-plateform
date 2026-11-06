@@ -47,7 +47,7 @@ import { ShareLinks } from "@/components/share-links";
 import { cookies, headers } from "next/headers";
 import { OfferAccessGate } from "@/components/opportunities/offer-access-gate";
 import { TenderBriefPanel } from "@/components/opportunities/tender-brief";
-import { boampId, storedBrief } from "@/lib/tender-brief";
+import { boampId, storedBrief, tedId } from "@/lib/tender-brief";
 import { founderOffer, founderOpen } from "@/lib/billing/founder";
 import { NeedContactForm } from "@/components/opportunities/need-contact-form";
 import { OUTREACH_COOKIE, outreachVisitor, track as trackOutreach } from "@/lib/outreach/tracking";
@@ -148,12 +148,13 @@ async function membersOnlyGate(id: string) {
   );
 }
 
-/** Données de la fiche synthèse d'une offre issue du BOAMP (null si l'offre n'a pas d'avis BOAMP). */
+/** Données de la fiche synthèse d'un appel d'offres BOAMP ou TED (null sans avis officiel exploitable). */
 async function briefContext(id: string) {
   const db = createAdminClient();
   const { data: sources } = await db.from("opportunity_sources").select("original_url").eq("opportunity_id", id);
   const idweb = (sources ?? []).map((x) => boampId(x.original_url)).find(Boolean);
-  if (!idweb) return null;
+  const ted = idweb ? null : (sources ?? []).map((x) => tedId(x.original_url)).find(Boolean);
+  if (!idweb && !ted) return null;
   const user = await createClient();
   const plan = (await user.rpc("user_plan")).data ?? "FREE";
   const allowed = (await user.rpc("plan_feature", { p_plan: plan, p_key: "tender_brief" })).data === true;
@@ -161,7 +162,7 @@ async function briefContext(id: string) {
   return {
     allowed,
     initial: allowed ? await storedBrief(id, db) : null,
-    source: `BOAMP n° ${idweb}`,
+    source: idweb ? `BOAMP n° ${idweb}` : `TED n° ${ted}`,
     upgradeHref: open ? "/offre-fondateur" : "/tarifs",
     upgradeLabel: open ? "Débloquer avec Pro" : "Voir l'offre Pro",
   };

@@ -1060,13 +1060,13 @@ isOneToOne: false
                   ]
                 },"pipeline_items": {
                   Row: {
-                    "company_id": string,"created_at": string,"estimated_value": number | null,"id": string,"next_action": string | null,"next_action_at": string | null,"notes": string | null,"opportunity_id": string,"stage": Database["public"]['Enums']["pipeline_stage"],"updated_at": string,"updated_by": string | null
+                    "brief_done": number[],"company_id": string,"created_at": string,"estimated_value": number | null,"id": string,"next_action": string | null,"next_action_at": string | null,"notes": string | null,"opportunity_id": string,"stage": Database["public"]['Enums']["pipeline_stage"],"updated_at": string,"updated_by": string | null
                   }
                   Insert: {
-                    "company_id": string,"created_at"?: string,"estimated_value"?: number | null,"id"?: string,"next_action"?: string | null,"next_action_at"?: string | null,"notes"?: string | null,"opportunity_id": string,"stage"?: Database["public"]['Enums']["pipeline_stage"],"updated_at"?: string,"updated_by"?: string | null
+                    "brief_done"?: number[],"company_id": string,"created_at"?: string,"estimated_value"?: number | null,"id"?: string,"next_action"?: string | null,"next_action_at"?: string | null,"notes"?: string | null,"opportunity_id": string,"stage"?: Database["public"]['Enums']["pipeline_stage"],"updated_at"?: string,"updated_by"?: string | null
                   }
                   Update: {
-                    "company_id"?: string,"created_at"?: string,"estimated_value"?: number | null,"id"?: string,"next_action"?: string | null,"next_action_at"?: string | null,"notes"?: string | null,"opportunity_id"?: string,"stage"?: Database["public"]['Enums']["pipeline_stage"],"updated_at"?: string,"updated_by"?: string | null
+                    "brief_done"?: number[],"company_id"?: string,"created_at"?: string,"estimated_value"?: number | null,"id"?: string,"next_action"?: string | null,"next_action_at"?: string | null,"notes"?: string | null,"opportunity_id"?: string,"stage"?: Database["public"]['Enums']["pipeline_stage"],"updated_at"?: string,"updated_by"?: string | null
                   }
                   Relationships: [
                     {
