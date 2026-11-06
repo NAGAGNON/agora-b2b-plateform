@@ -440,6 +440,7 @@ export async function buildNeedOutreachCampaign(
       supp,
       customerSirens: new Set(customers.map((c) => c.siren!)),
       oppSector: new Map([[opportunityId, o.sector_slug]]),
+      need: true,
     });
     const { data: prev } = await db.from("outreach_campaigns").select("stats").eq("id", campaignId!).single();
     const p = (prev?.stats ?? {}) as Record<string, number>;
@@ -500,7 +501,7 @@ async function insertRecipients(
   groups: Groups,
   prospects: Map<string, ProspectRow>,
   settings: OutreachSettings,
-  { supp, customerSirens, oppSector }: { supp: Awaited<ReturnType<typeof loadSuppressions>>; customerSirens: Set<string>; oppSector: Map<string, string | null> },
+  { supp, customerSirens, oppSector, need = false }: { supp: Awaited<ReturnType<typeof loadSuppressions>>; customerSirens: Set<string>; oppSector: Map<string, string | null>; need?: boolean },
 ) {
   // Historique des contacts (fréquence maximale sur 30 jours)
   const recentCounts = new Map<string, number>();
@@ -508,10 +509,15 @@ async function insertRecipients(
     const { data } = await db.from("outreach_recipients").select("prospect_id").in("prospect_id", part).eq("status", "SENT").gte("sent_at", new Date(Date.now() - 30 * DAY).toISOString());
     for (const r of data ?? []) recentCounts.set(r.prospect_id, (recentCounts.get(r.prospect_id) ?? 0) + 1);
   }
-  // Déjà en attente d'envoi dans une autre campagne (automatique, manuelle ou complémentaire) : pas deux e-mails
+  // Déjà en attente d'envoi dans une autre campagne (automatique, manuelle ou complémentaire) : pas deux e-mails.
+  // Campagne dédiée à un besoin : seules comptent les autres campagnes de besoins (celles de la prospection
+  // générale peuvent rester en attente sans jamais partir quand elle est en pause) ; le délai minimum entre
+  // deux e-mails reste vérifié juste avant chaque envoi, toutes campagnes confondues.
   const pendingElsewhere = new Set<string>();
   for (const part of chunk(groups.map((g) => g.prospectId), 300)) {
-    const { data } = await db.from("outreach_recipients").select("prospect_id").in("prospect_id", part).in("status", ["PENDING", "QUEUED", "SENDING"]).neq("campaign_id", campaignId);
+    let q = db.from("outreach_recipients").select("prospect_id, campaign:outreach_campaigns!inner(kind)").in("prospect_id", part).in("status", ["PENDING", "QUEUED", "SENDING"]).neq("campaign_id", campaignId);
+    if (need) q = q.eq("campaign.kind", "NEED");
+    const { data } = await q;
     for (const r of data ?? []) pendingElsewhere.add(r.prospect_id);
   }
   const minGap = Date.now() - settings.min_days_between_contacts * DAY;
