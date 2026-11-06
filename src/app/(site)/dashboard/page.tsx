@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, BellRing, FileStack, Handshake, Heart, Inbox, PlusCircle, Send, Sparkles, Users } from "lucide-react";
 import { requireSession } from "@/lib/auth";
+import { MemberProofCompact } from "@/components/home/member-proof";
 import { createClient } from "@/lib/supabase/server";
 import { DashboardCard, Card, CardHeader } from "@/components/ui/card";
 import { ButtonLink } from "@/components/ui/button";
@@ -11,7 +12,7 @@ import { RecommendationList } from "@/components/dashboard/recommendations";
 import { GettingStarted } from "@/components/dashboard/getting-started";
 import { NextActions } from "@/components/dashboard/next-actions";
 import { SinceLastVisit } from "@/components/dashboard/since-last-visit";
-import { getSectorLabels, showDemoData } from "@/lib/queries/platform";
+import { getMemberCompanies, getPlatformStats, getSectorLabels, liveStats, showDemoData } from "@/lib/queries/platform";
 import { PIPELINE_STAGES, type PipelineStage } from "@/lib/constants";
 import { formatMoney, relativeTime } from "@/lib/format";
 
@@ -95,6 +96,9 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
   const pending = opps.filter((o) => ["PENDING_REVIEW", "CHANGES_REQUESTED", "DRAFT"].includes(o.status));
   const finished = opps.filter((o) => ["CLOSED", "EXPIRED"].includes(o.status) || (o.status === "PUBLISHED" && o.response_deadline && new Date(o.response_deadline) <= now));
 
+  // Communauté en direct (chiffres réels) : le membre voit le site grandir à chaque visite
+  const [platform, memberCompanies] = await Promise.all([getPlatformStats().catch(() => null), getMemberCompanies(12).catch(() => [])]);
+  const live = liveStats(platform);
   return (
     <div className="space-y-10">
       {sp.bienvenue && (
@@ -262,6 +266,14 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
               </div>
             )}
           </Card>
+        </section>
+      )}
+      {live && (
+        <section aria-labelledby="communaute">
+          <h2 id="communaute" className="mb-3 text-lg font-bold text-navy">
+            La communauté LinkProB2B, en direct
+          </h2>
+          <MemberProofCompact initial={live} companies={memberCompanies} />
         </section>
       )}
     </div>
