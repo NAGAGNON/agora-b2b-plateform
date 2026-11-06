@@ -576,6 +576,17 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"founder_offer_sends": {
+                  Row: {
+                    "created_at": string,"step": string,"user_id": string
+                  }
+                  Insert: {
+                    "created_at"?: string,"step": string,"user_id": string
+                  }
+                  Update: {
+                    "created_at"?: string,"step"?: string,"user_id"?: string
+                  }
+                  Relationships: []
                 },"need_contacts": {
                   Row: {
                     "company": string,"created_at": string,"email": string,"id": string,"message": string,"name": string,"opportunity_id": string,"outreach_recipient_id": string | null,"phone": string | null

@@ -10,6 +10,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { getStripe, priceIdFor, stripeConfigured, paidPlansOpen, stripeMode, taxRateId, type PaidPlan } from "@/lib/billing/stripe";
 import { ENTITLED_STATUSES } from "@/lib/billing/sync";
 import type { ActionResult } from "@/lib/validation";
+import { FOUNDER_COUPON_ID, FOUNDER_DISCOUNT, founderOffer, founderOpen, isFounder } from "@/lib/billing/founder";
 
 /**
  * Paiement et gestion de l'abonnement. L'offre choisie est validée côté serveur et
@@ -94,6 +95,78 @@ export async function startCheckout(_prev: ActionResult | null, fd: FormData): P
     await db.from("audit_logs").insert({ actor_user_id: session.userId, action: "billing.checkout_started", entity_type: "company", entity_id: companyId, metadata: { plan, interval, terms_accepted: true } });
   } catch (e) {
     logServerError("stripe checkout", e);
+    return { ok: false, error: "Impossible d'ouvrir la page de paiement pour le moment. Réessayez dans quelques instants." };
+  }
+  if (!url) return { ok: false, error: "Impossible d'ouvrir la page de paiement pour le moment." };
+  redirect(url);
+}
+
+/** Réduction « membre fondateur » (−50 % à vie) : créée une seule fois dans Stripe, réutilisée ensuite. */
+async function ensureFounderCoupon(): Promise<string> {
+  const stripe = getStripe();
+  try {
+    return (await stripe.coupons.retrieve(FOUNDER_COUPON_ID)).id;
+  } catch {
+    const c = await stripe.coupons.create(
+      { id: FOUNDER_COUPON_ID, name: "Membre fondateur LinkProB2B", percent_off: FOUNDER_DISCOUNT, duration: "forever" },
+      { idempotencyKey: `coupon-${FOUNDER_COUPON_ID}` },
+    );
+    return c.id;
+  }
+}
+
+const founderSchema = z.object({
+  interval: z.enum(["month", "year"]).default("month"),
+  acceptTerms: z.literal("on", { error: "Veuillez accepter les conditions d'abonnement pour continuer." }),
+});
+
+/**
+ * Souscription « membre fondateur » : offre Pro avec la réduction fondateur appliquée à vie.
+ * Uniquement pendant l'offre (réglage activé, non terminée) et pour un compte créé avant son lancement.
+ */
+export async function startFounderCheckout(_prev: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  const parsed = founderSchema.safeParse({ interval: fd.get("interval") ?? undefined, acceptTerms: fd.get("acceptTerms") });
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Demande invalide." };
+  const interval = parsed.data.interval;
+  const { session, error } = await adminCompany("/offre-fondateur");
+  if (error) return { ok: false, error };
+  const offer = await founderOffer();
+  if (!founderOpen(offer) || !isFounder(offer, session.profile.created_at)) return { ok: false, error: "Cette offre n'est pas disponible pour votre compte." };
+  if (!stripeConfigured()) return { ok: false, error: UNAVAILABLE };
+  if (!paidPlansOpen(session.isStaff)) return { ok: false, error: "Le paiement en ligne est en cours de mise en service." };
+  if (liveBlocked()) return { ok: false, error: "Paiement désactivé : le mode LIVE de Stripe n'est pas encore autorisé." };
+  if (interval === "year" && !priceIdFor("PRO", "year")) return { ok: false, error: "L'abonnement annuel n'est pas encore disponible. Choisissez l'abonnement mensuel." };
+  if (!(await rateLimit("billing-checkout", 10, 3600))) return { ok: false, error: "Trop de tentatives. Réessayez dans quelques minutes." };
+
+  const companyId = session.activeCompany.company.id;
+  const db = createAdminClient();
+  const { data: live } = await db.from("subscriptions").select("id").eq("company_id", companyId).in("status", [...ENTITLED_STATUSES]).limit(1);
+  if (live && live.length > 0) return { ok: false, error: "Votre entreprise a déjà un abonnement : gérez-le depuis « Mon abonnement »." };
+
+  let url: string | null = null;
+  try {
+    const customer = await ensureCustomer(companyId, session.activeCompany.company.name, session.email);
+    const coupon = await ensureFounderCoupon();
+    const tax = taxRateId();
+    const checkout = await getStripe().checkout.sessions.create({
+      mode: "subscription",
+      customer,
+      client_reference_id: companyId,
+      line_items: [{ price: priceIdFor("PRO", interval)!, quantity: 1 }],
+      discounts: [{ coupon }],
+      subscription_data: { metadata: { company_id: companyId, plan: "PRO", interval, founder: "1" }, ...(tax ? { default_tax_rates: [tax] } : {}) },
+      metadata: { company_id: companyId, plan: "PRO", interval, founder: "1", terms_accepted_at: new Date().toISOString(), accepted_by: session.userId },
+      billing_address_collection: "required",
+      customer_update: { address: "auto", name: "auto" },
+      tax_id_collection: { enabled: true },
+      locale: "fr",
+      success_url: `${env.siteUrl}/dashboard/abonnement?paiement=succes&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${env.siteUrl}/offre-fondateur?paiement=annule`,
+    });
+    url = checkout.url;
+    await db.from("audit_logs").insert({ actor_user_id: session.userId, action: "billing.founder_checkout_started", entity_type: "company", entity_id: companyId, metadata: { interval, terms_accepted: true } });
+  } catch (e) {
+    logServerError("stripe founder checkout", e);
     return { ok: false, error: "Impossible d'ouvrir la page de paiement pour le moment. Réessayez dans quelques instants." };
   }
   if (!url) return { ok: false, error: "Impossible d'ouvrir la page de paiement pour le moment." };
