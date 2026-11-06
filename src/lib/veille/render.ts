@@ -91,9 +91,13 @@ export function renderVeilleEmail(i: VeilleEmailInput): { subject: string; html:
   const top = new Map<string, number>();
   for (const o of i.items) if (o.sector_slug) top.set(o.sector_slug, (top.get(o.sector_slug) ?? 0) + 1);
   const mainSector = [...top.entries()].sort((x, y) => y[1] - x[1])[0]?.[0] ?? null;
+  // Veille du matin (du lundi au vendredi) ou alertes quotidiennes : pas d'invitation à passer au quotidien
+  const daily = i.frequency === "DAILY" || i.frequency === "WEEKDAYS";
   const reason =
     i.frequency === "DAILY"
       ? "Vous recevez cet e-mail car vous avez activé les alertes quotidiennes de LinkProB2B."
+      : i.frequency === "WEEKDAYS"
+        ? "Vous recevez cet e-mail car vous avez un compte LinkProB2B et avez accepté de recevoir sa veille par e-mail, chaque matin du lundi au vendredi."
       : "Vous recevez cet e-mail car vous avez un compte LinkProB2B et avez accepté de recevoir ses actualités ou sa veille par e-mail.";
   const html = shell({
     base: i.base,
@@ -106,7 +110,7 @@ export function renderVeilleEmail(i: VeilleEmailInput): { subject: string; html:
       paragraphs.map(paragraph).join("") +
       renderCards(i.items, L.item, i) +
       button("Voir toutes les opportunités ouvertes", L.all, { align: "center" }) +
-      (i.frequency !== "DAILY"
+      (!daily
         ? callout({
             kicker: "Alerte quotidienne",
             title: "Et si les opportunités venaient directement à vous ?",
@@ -134,7 +138,7 @@ export function renderVeilleEmail(i: VeilleEmailInput): { subject: string; html:
       "",
     ]),
     `Toutes les opportunités ouvertes : ${L.all}`,
-    ...(i.frequency !== "DAILY" ? ["", "Recevoir mes opportunités chaque jour : " + L.daily, "Vous préférez une veille moins fréquente ? Recevez deux sélections par semaine, le lundi et le vendredi."] : []),
+    ...(!daily ? ["", "Recevoir mes opportunités chaque jour : " + L.daily, "Vous préférez une veille moins fréquente ? Recevez deux sélections par semaine, le lundi et le vendredi."] : []),
     "",
     reason,
     `Gérer mes préférences : ${L.prefs}`,

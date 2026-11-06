@@ -20,7 +20,7 @@ export const metadata = { title: "Veille par e-mail" };
 
 const KIND_LABELS: Record<string, string> = { INVITE: "Invitation à activer la veille", LAUNCH: "Lancement", MONDAY: "Lundi", FRIDAY: "Vendredi", DAILY: "Alerte quotidienne", SUIVI: "Suivi des inscrits" };
 const STATUS_LABELS: Record<string, string> = { BUILDING: "En préparation", SENDING: "En cours d'envoi", PAUSED: "Suspendue", SENT: "Envoyée", CANCELLED: "Annulée", EMPTY: "Rien à envoyer" };
-const FREQ_LABELS: Record<string, string> = { TWICE_WEEKLY: "Lundi et vendredi", DAILY: "Quotidienne" };
+const FREQ_LABELS: Record<string, string> = { WEEKDAYS: "Chaque matin (lun.–ven.)", TWICE_WEEKLY: "Lundi et vendredi", DAILY: "Quotidienne" };
 
 function Stat({ label, value, hint }: { label: string; value: number | string; hint?: string }) {
   return (

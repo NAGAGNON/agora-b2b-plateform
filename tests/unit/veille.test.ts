@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { cleanPool, criteriaFor, matchScore, selectOpportunities, type VeilleOpportunity } from "@/lib/veille/select";
 import { renderVeilleEmail, veilleSubject } from "@/lib/veille/render";
-import { editionsFor, weekday } from "@/lib/veille/engine";
+import { editionsFor, eligibleFor, weekday } from "@/lib/veille/engine";
 
 const now = new Date("2026-10-14T08:00:00Z");
 const opp = (p: Partial<VeilleOpportunity> & { id: string }): VeilleOpportunity => ({
@@ -99,5 +99,21 @@ describe("E-mail de veille", () => {
     expect(daily.html).not.toContain("Recevoir mes opportunités chaque jour");
     expect(daily.subject).toBe("Votre opportunité du jour correspond à vos critères");
     expect(veilleSubject("DAILY", 4)).toBe("Vos opportunités du jour — 4 correspondent à vos critères");
+  });
+});
+
+describe("veille du matin (WEEKDAYS)", () => {
+  const base = { user_id: "u", email: "a@b.fr", full_name: "A", sectors: [], regions: [], types: [], keywords: [], company_name: "X", company_sectors: ["travaux-btp"], company_region: "Occitanie", consent: "actualites" };
+  it("sélection du lundi et du vendredi, alerte du matin les autres jours ouvrés", () => {
+    const m = { ...base, frequency: "WEEKDAYS" };
+    expect(eligibleFor("MONDAY", m)).toBe(true);
+    expect(eligibleFor("FRIDAY", m)).toBe(true);
+    expect(eligibleFor("DAILY", m)).toBe(true);
+  });
+  it("sans métier connu, pas d'alerte du matin", () => {
+    expect(eligibleFor("DAILY", { ...base, frequency: "WEEKDAYS", company_sectors: [] })).toBe(false);
+  });
+  it("le choix « lundi et vendredi » est respecté", () => {
+    expect(eligibleFor("DAILY", { ...base, frequency: "TWICE_WEEKLY" })).toBe(false);
   });
 });

@@ -97,8 +97,10 @@ export async function alreadySent(db: DB, userIds: string[]) {
 
 export function eligibleFor(kind: VeilleKind, m: AudienceMember): boolean {
   if (kind === "LAUNCH") return true;
-  if (kind === "DAILY") return m.frequency === "DAILY" && criteriaFor(m).basis !== null;
-  return m.frequency === "TWICE_WEEKLY";
+  // WEEKDAYS (par défaut) : la sélection du lundi et du vendredi, et l'alerte du matin les autres jours
+  // ouvrés (une seule veille par personne et par jour, le week-end est en pause)
+  if (kind === "DAILY") return (m.frequency === "DAILY" || m.frequency === "WEEKDAYS") && criteriaFor(m).basis !== null;
+  return m.frequency === "TWICE_WEEKLY" || m.frequency === "WEEKDAYS";
 }
 
 /** Prépare une édition : un envoi par destinataire éligible, avec sa sélection. Idempotent (une édition par jour et par type). */
@@ -361,7 +363,7 @@ export async function memberFor(db: DB, userId: string): Promise<AudienceMember 
     user_id: u.id,
     email: u.email.toLowerCase(),
     full_name: u.full_name,
-    frequency: p?.frequency ?? "TWICE_WEEKLY",
+    frequency: p?.frequency ?? "WEEKDAYS",
     sectors: p?.sectors ?? [],
     regions: p?.regions ?? [],
     types: (p?.types as string[]) ?? [],
@@ -428,6 +430,7 @@ export async function veilleStats(db: DB) {
     eligible: audience.length,
     daily: audience.filter((m) => m.frequency === "DAILY").length,
     twiceWeekly: audience.filter((m) => m.frequency === "TWICE_WEEKLY").length,
+    weekdays: audience.filter((m) => m.frequency === "WEEKDAYS").length,
     personalized: audience.filter((m) => criteriaFor(m).basis !== null).length,
     pending,
     sent,

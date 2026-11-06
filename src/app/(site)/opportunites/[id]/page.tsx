@@ -625,6 +625,20 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
                 </a>
               )}
             </div>
+            {external && isOpen && !o.is_demo && (
+              <div className="rounded-2xl border border-teal-200 bg-teal-50/60 p-4" data-testid="find-partner">
+                <p className="font-semibold text-navy">Un lot hors de votre métier ?</p>
+                <p className="mt-1 text-sm text-slate-600">
+                  Trouvez un partenaire ou un sous-traitant pour répondre ensemble. Votre demande est présentée aux entreprises de ce métier dans la zone.
+                </p>
+                <Link
+                  href={session?.activeCompany ? `/publier?partenaire=${o.id}` : `/connexion?suite=${encodeURIComponent(`/publier?partenaire=${o.id}`)}`}
+                  className={`${buttonClasses({ variant: "outline", full: true })} mt-3`}
+                >
+                  <Users className="size-4" aria-hidden /> Trouver un partenaire
+                </Link>
+              </div>
+            )}
             {showLeadForm && (
               <AlertLeadForm
                 compact
