@@ -38,3 +38,31 @@ describe("alertes par compétences", () => {
     expect(await match(derat.id, b!.id)).toBe(false);
   });
 });
+
+describe("alertes d'un département peu actif", () => {
+  it("élargies à la région (même métier), jamais au-delà ; remises à zéro si le département change", async () => {
+    const u = await user("widen-alert");
+    const at = (dept: string, region: string) =>
+      admin
+        .from("opportunities")
+        .insert({ type: "PUBLIC_TENDER", origin: "EXTERNAL", status: "PUBLISHED", visibility: "PUBLIC", title: `IT ${RUN} Étude de structure ${dept}`, description: "Mission d'ingénierie : étude de structure et note de calcul.", sector_slug: "ingenierie-etudes", department_code: dept, region, response_deadline: new Date(Date.now() + 20 * 86_400_000).toISOString(), published_at: new Date().toISOString() })
+        .select("id")
+        .single();
+    const herault = (await at("34", "Occitanie")).data!;
+    const gironde = (await at("33", "Nouvelle-Aquitaine")).data!;
+    const { data: a } = await admin
+      .from("alerts")
+      .insert({ user_id: u.id, name: "Ingénierie — Lozère", sector_slug: "ingenierie-etudes", department_code: "48", created_at: new Date(Date.now() - 2 * 3_600_000).toISOString() })
+      .select("id")
+      .single();
+    const match = async (o: string) => (await admin.rpc("opportunity_matches_alert", { p_opportunity_id: o, p_alert_id: a!.id })).data;
+    expect(await match(herault.id)).toBe(false);
+    await admin.rpc("widen_sparse_alerts");
+    const { data: widened } = await admin.from("alerts").select("widen_region, name").eq("id", a!.id).single();
+    expect(widened).toEqual({ widen_region: "Occitanie", name: "Ingénierie — Lozère + région Occitanie" });
+    expect(await match(herault.id)).toBe(true);
+    expect(await match(gironde.id)).toBe(false);
+    await admin.from("alerts").update({ department_code: "33" }).eq("id", a!.id);
+    expect((await admin.from("alerts").select("widen_region").eq("id", a!.id).single()).data?.widen_region).toBeNull();
+  });
+});

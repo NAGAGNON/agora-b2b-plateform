@@ -78,6 +78,12 @@ async function run(req: Request) {
   // Rédaction bornée : il reste toujours environ 80 s pour les étapes suivantes
   await step("articles", async () => (elapsed() < 150_000 ? runDailyArticles({ deadline: started + 220_000 }) : { skipped: "reporté au passage suivant (temps insuffisant)" }));
   await step("indexnow", () => submitChangedUrls());
+  // Alertes d'un département trop peu actif : élargies à la région (même métier) avant l'envoi des résumés
+  await step("alertes-elargies", async () => {
+    const { data, error } = await createAdminClient().rpc("widen_sparse_alerts");
+    if (error) throw error;
+    return { elargies: data };
+  });
   await step("digests", () => processAlertDigests());
   await step("alertes-email", () => processLeadDigests());
   // Mise en relation des besoins publiés (filet de sécurité de la publication, relances) avant l'envoi des e-mails
