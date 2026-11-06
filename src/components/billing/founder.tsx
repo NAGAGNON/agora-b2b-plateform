@@ -115,7 +115,7 @@ export function FounderOfferView({
               ["« À vie », c'est-à-dire ?", `Tant que votre abonnement reste actif, vous payez ${formatEuros(FOUNDER_PRICE_HT)} HT par mois, même si le prix de Pro augmente. Si vous résiliez, le tarif fondateur n'est plus disponible ensuite.`],
               ["Et si Pro ne me convient pas ?", `Vous êtes remboursé intégralement si vous le demandez dans les ${REFUND_DAYS} jours suivant votre souscription, sans justification : un simple message depuis la page Contact.`],
               ["Puis-je arrêter quand je veux ?", "Oui, sans engagement. La résiliation se fait en un clic dans « Mon abonnement » ; Pro reste actif jusqu'à la fin du mois payé."],
-              ["Que se passe-t-il si je ne prends pas l'offre ?", "Rien ne change pour vous : vous gardez l'accès gratuit aux offres, une alerte sur votre métier, la publication et la réponse aux besoins."],
+              ["Que se passe-t-il si je ne prends pas l'offre ?", "Vous gardez l'offre Gratuite, sans rien payer : les offres et besoins publiés (15 recherches par semaine), une alerte sur votre métier, la publication et la réponse aux besoins."],
               [
                 "Pourquoi cette offre ?",
                 founder
