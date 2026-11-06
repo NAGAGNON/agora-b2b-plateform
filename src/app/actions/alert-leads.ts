@@ -7,6 +7,7 @@ import { emailSchema, type ActionResult } from "@/lib/validation";
 import { subscribeLead, unsubscribeLead } from "@/lib/alert-leads";
 import { flushEmailsAfterResponse } from "@/lib/email/flush";
 import { track } from "@/lib/analytics";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 const schema = z.object({
   email: emailSchema,
@@ -15,6 +16,7 @@ const schema = z.object({
   region: z.string().max(80).nullable(),
   opportunityId: z.uuid().nullable(),
   path: z.string().max(300).nullable(),
+  buyer: z.string().regex(/^[a-z0-9-]{1,80}$/).nullable(),
   label: z.string().max(200),
   consent: z.literal("on", { error: "Cochez la case pour recevoir les marchés par e-mail." }),
 });
@@ -32,21 +34,29 @@ export async function subscribeAlertLead(_prev: ActionResult | null, fd: FormDat
     region: opt(fd.get("region")),
     opportunityId: opt(fd.get("opportunityId")),
     path: opt(fd.get("path")),
+    buyer: opt(fd.get("buyer")),
     label: opt(fd.get("label")) ?? "",
     consent: fd.get("consent"),
   });
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Adresse e-mail invalide." };
   if (!(await rateLimit("alert-lead", 5, 3600))) return { ok: false, error: "Trop de demandes. Réessayez dans une heure." };
   const d = parsed.data;
+  // Acheteur suivi : nom officiel relu en base (jamais celui envoyé par le formulaire)
+  let buyer: { slug: string; name: string } | null = null;
+  if (d.buyer) {
+    const { data } = await createAdminClient().rpc("buyer_opportunities", { p_slug: d.buyer, p_limit: 1 });
+    if (!data?.[0]) return { ok: false, error: "Acheteur introuvable." };
+    buyer = { slug: d.buyer, name: data[0].buyer_name };
+  }
   try {
     const r = await subscribeLead({
       email: d.email,
-      criteria: { sector: d.sector, department: d.department, region: d.region },
+      criteria: buyer ? { sector: null, department: null, region: null, buyer } : { sector: d.sector, department: d.department, region: d.region },
       opportunityId: d.opportunityId,
       path: d.path,
-      criteriaLabel: d.label || "vos critères",
+      criteriaLabel: buyer ? `de ${buyer.name}` : d.label || "vos critères",
     });
-    await track("create_alert", { kind: "email_only", state: r.state, path: d.path, sector: d.sector, department: d.department });
+    await track("create_alert", { kind: buyer ? "buyer_email_only" : "email_only", state: r.state, path: d.path, sector: d.sector, department: d.department });
     if (r.state === "already") return { ok: true, message: "Cette alerte est déjà active pour votre adresse : vous recevez déjà ces marchés." };
     flushEmailsAfterResponse();
     return { ok: true, message: "C'est presque fini : cliquez sur le lien que nous venons de vous envoyer par e-mail pour activer l'alerte." };

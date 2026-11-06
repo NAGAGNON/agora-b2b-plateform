@@ -25,13 +25,13 @@ export type Database = {
           Tables: {
             "alert_leads": {
                   Row: {
-                    "confirmation_sent_at": string | null,"confirmed_at": string | null,"consent_text": string,"created_at": string,"department_code": string | null,"email": string,"emails_sent": number,"id": string,"last_sent_at": string | null,"region": string | null,"sector_slug": string | null,"source_opportunity_id": string | null,"source_path": string | null,"status": string,"token": string,"unsubscribed_at": string | null
+                    "buyer_name": string | null,"buyer_slug": string | null,"confirmation_sent_at": string | null,"confirmed_at": string | null,"consent_text": string,"created_at": string,"department_code": string | null,"email": string,"emails_sent": number,"id": string,"last_sent_at": string | null,"region": string | null,"sector_slug": string | null,"source_opportunity_id": string | null,"source_path": string | null,"status": string,"token": string,"unsubscribed_at": string | null
                   }
                   Insert: {
-                    "confirmation_sent_at"?: string | null,"confirmed_at"?: string | null,"consent_text": string,"created_at"?: string,"department_code"?: string | null,"email": string,"emails_sent"?: number,"id"?: string,"last_sent_at"?: string | null,"region"?: string | null,"sector_slug"?: string | null,"source_opportunity_id"?: string | null,"source_path"?: string | null,"status"?: string,"token"?: string,"unsubscribed_at"?: string | null
+                    "buyer_name"?: string | null,"buyer_slug"?: string | null,"confirmation_sent_at"?: string | null,"confirmed_at"?: string | null,"consent_text": string,"created_at"?: string,"department_code"?: string | null,"email": string,"emails_sent"?: number,"id"?: string,"last_sent_at"?: string | null,"region"?: string | null,"sector_slug"?: string | null,"source_opportunity_id"?: string | null,"source_path"?: string | null,"status"?: string,"token"?: string,"unsubscribed_at"?: string | null
                   }
                   Update: {
-                    "confirmation_sent_at"?: string | null,"confirmed_at"?: string | null,"consent_text"?: string,"created_at"?: string,"department_code"?: string | null,"email"?: string,"emails_sent"?: number,"id"?: string,"last_sent_at"?: string | null,"region"?: string | null,"sector_slug"?: string | null,"source_opportunity_id"?: string | null,"source_path"?: string | null,"status"?: string,"token"?: string,"unsubscribed_at"?: string | null
+                    "buyer_name"?: string | null,"buyer_slug"?: string | null,"confirmation_sent_at"?: string | null,"confirmed_at"?: string | null,"consent_text"?: string,"created_at"?: string,"department_code"?: string | null,"email"?: string,"emails_sent"?: number,"id"?: string,"last_sent_at"?: string | null,"region"?: string | null,"sector_slug"?: string | null,"source_opportunity_id"?: string | null,"source_path"?: string | null,"status"?: string,"token"?: string,"unsubscribed_at"?: string | null
                   }
                   Relationships: [
                     {

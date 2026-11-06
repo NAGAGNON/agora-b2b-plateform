@@ -21,6 +21,7 @@ export function AlertLeadForm({
   path,
   title = "Recevoir les marchés similaires",
   compact = false,
+  buyer = null,
 }: {
   label: string;
   sector: string | null;
@@ -30,6 +31,8 @@ export function AlertLeadForm({
   path: string;
   title?: string;
   compact?: boolean;
+  /** Acheteur suivi (slug) : ses nouveaux appels d'offres, au lieu d'un métier et d'une zone */
+  buyer?: string | null;
 }) {
   const [state, action] = useActionState(subscribeAlertLead, null as ActionResult | null);
   const id = `lead-${opportunityId ?? path}`.replace(/[^a-z0-9-]/gi, "-");
@@ -39,7 +42,15 @@ export function AlertLeadForm({
         <BellRing className="size-5 text-teal-700" aria-hidden /> {title}
       </p>
       <p className="mt-1 text-sm text-slate-700">
-        Les nouveaux marchés <strong>{label}</strong> par e-mail, chaque semaine. Gratuit, sans compte, désinscription en un clic.
+        {buyer ? (
+          <>
+            Les nouveaux appels d&apos;offres <strong>{label}</strong> par e-mail. Gratuit, sans compte, désinscription en un clic.
+          </>
+        ) : (
+          <>
+            Les nouveaux marchés <strong>{label}</strong> par e-mail, chaque semaine. Gratuit, sans compte, désinscription en un clic.
+          </>
+        )}
       </p>
       {state?.ok ? (
         <Notice tone="success" className="mt-3">
@@ -52,6 +63,7 @@ export function AlertLeadForm({
           <input type="hidden" name="region" value={region ?? ""} />
           <input type="hidden" name="opportunityId" value={opportunityId ?? ""} />
           <input type="hidden" name="path" value={path} />
+          {buyer && <input type="hidden" name="buyer" value={buyer} />}
           <input type="hidden" name="label" value={label} />
           <div className="hidden" aria-hidden>
             <label>
@@ -64,7 +76,7 @@ export function AlertLeadForm({
           </label>
           <div className="flex flex-col gap-2 sm:flex-row">
             <Input id={`${id}-email`} name="email" type="email" required autoComplete="email" placeholder="vous@entreprise.fr" className="min-w-0 flex-1 bg-white" />
-            <SubmitButton pendingLabel="Envoi…">Recevoir les marchés</SubmitButton>
+            <SubmitButton pendingLabel="Envoi…">{buyer ? "Suivre" : "Recevoir les marchés"}</SubmitButton>
           </div>
           <label htmlFor={`${id}-consent`} className="flex cursor-pointer items-start gap-2 text-xs text-slate-600">
             <input id={`${id}-consent`} type="checkbox" name="consent" required className="mt-0.5 size-4 shrink-0 accent-teal" />

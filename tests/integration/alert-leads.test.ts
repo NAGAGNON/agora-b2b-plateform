@@ -2,6 +2,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { admin, cleanup, days, RUN } from "./helpers";
 import { confirmLead, LEAD_DIGEST_INTERVAL_MS, processLeadDigests, subscribeLead, unsubscribeLead } from "@/lib/alert-leads";
+import { buyerSlug } from "@/lib/buyer-slug";
 
 const EMAIL = `lead-${RUN}@example.test`;
 const SECTOR = "electricite-automatisme";
@@ -105,5 +106,21 @@ describe("alertes par e-mail sans compte", () => {
     const { data } = await admin.rpc("open_opportunity_counts");
     const row = (data ?? []).find((r) => r.dimension === "department_sector" && r.key === `${DEP}|${SECTOR}`);
     expect(Number(row?.n ?? 0)).toBeGreaterThanOrEqual(1);
+  });
+
+  it("suivre un acheteur avec sa seule adresse : confirmation, puis ses nouveaux marchés", async () => {
+    const email = `lead-buyer-${RUN}@example.test`;
+    const slug = buyerSlug(`Commune IT ${RUN}`)!;
+    await subscribeLead({ email, criteria: { sector: null, department: null, region: null, buyer: { slug, name: `Commune IT ${RUN}` } }, path: `/acheteurs/${slug}`, criteriaLabel: `de Commune IT ${RUN}` });
+    const row = async () => (await admin.from("alert_leads").select("*").eq("email", email).eq("buyer_slug", slug).single()).data!;
+    expect((await row()).status).toBe("PENDING");
+    await confirmLead((await row()).token);
+    await admin.from("alert_leads").update({ confirmed_at: days(-2) }).eq("email", email);
+    await processLeadDigests();
+    const { data: mails } = await admin.from("email_outbox").select("subject, payload").eq("to_email", email).eq("template", "lead_digest");
+    expect(mails ?? []).toHaveLength(1);
+    expect(mails![0].subject).toContain(`Commune IT ${RUN}`);
+    await admin.from("alert_leads").delete().eq("email", email);
+    await admin.from("email_outbox").delete().eq("to_email", email);
   });
 });

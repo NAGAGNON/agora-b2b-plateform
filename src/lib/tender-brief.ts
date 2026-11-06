@@ -142,7 +142,11 @@ export async function ensureBrief(opportunityId: string, { db = createAdminClien
  */
 export async function prepareBriefs(db = createAdminClient(), { limit = 25, deadline = Date.now() + 60_000 } = {}) {
   const now = new Date().toISOString();
-  const { data: companies } = await db.from("companies").select("id").or(`plan_code.in.(PRO,BUSINESS),trial_ends_at.gt.${now}`);
+  // Phase de lancement gratuite : la fiche est offerte à tous, donc préparée pour toutes les entreprises inscrites
+  const freeLaunch = (await db.rpc("free_launch")).data === true;
+  const { data: companies } = freeLaunch
+    ? await db.from("companies").select("id").eq("is_demo", false).eq("status", "ACTIVE")
+    : await db.from("companies").select("id").or(`plan_code.in.(PRO,BUSINESS),trial_ends_at.gt.${now}`);
   const ids = (companies ?? []).map((c) => c.id);
   if (!ids.length) return { prepared: 0, skipped: "Aucune entreprise abonnée ou en essai" };
   const { data: profiles } = await db.from("company_profiles").select("sectors").in("company_id", ids);
