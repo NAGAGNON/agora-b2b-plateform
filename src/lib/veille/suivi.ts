@@ -125,8 +125,8 @@ export function planSuivi(m: SuiviMember, h: SuiviHistory, now: Date): { step: S
     if (age >= 6 && !h.steps.has("DECOUVERTE")) return { step: "DECOUVERTE", news };
   }
   // Pas encore de fiche entreprise (rien ne peut être trié pour la personne) : deux rappels de plus,
-  // vers J+4 puis J+10, au moins 5 jours d'écart ; jamais au-delà de deux mois après l'inscription
-  if (!m.has_company && age < 60) {
+  // vers J+4 puis J+10, au moins 5 jours d'écart ; seulement le premier mois (ensuite, relance des absents)
+  if (!m.has_company && age < 30) {
     const gap = !h.lastProfil || daysBetween(h.lastProfil, now) >= 5 - 0.15;
     if (age >= 4 && !h.steps.has("PROFIL2") && gap) return { step: "PROFIL2", news: null };
     if (age >= 10 && h.steps.has("PROFIL2") && !h.steps.has("PROFIL3") && gap) return { step: "PROFIL3", news: null };
