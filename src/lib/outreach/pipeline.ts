@@ -418,8 +418,11 @@ export async function buildNeedOutreachCampaign(
   const quota = Math.max(0, (maxRecipients ?? settings.need_daily_send_cap) - waiting);
   try {
     const ref = await loadReferentials(db);
-    // Découverte (source publique SIRENE) pour élargir la base d'entreprises de ce métier dans la zone
-    const discovery = discover && settings.discovery_enabled && quota > 0 ? await discoverProspects(db, [a], Math.min(deadline - 30_000, Date.now() + 60_000), 10) : { calls: 0, added: 0, errors: 0 };
+    // Découverte (source publique SIRENE) pour élargir la base d'entreprises de ce métier dans la zone.
+    // Toujours active pour un besoin d'entreprise inscrite, même quand la prospection générale est en pause
+    // (sinon la campagne s'arrête dès que les entreprises déjà connues ont toutes été contactées)
+    // (pas d'appel réseau au registre pendant les tests automatiques)
+    const discovery = discover && quota > 0 && !process.env.VITEST ? await discoverProspects(db, [a], Math.min(deadline - 30_000, Date.now() + 60_000), 10) : { calls: 0, added: 0, errors: 0 };
     const [found, supp, customers] = await Promise.all([
       quota > 0 ? candidates(db, a, { ...settings, max_prospects_per_opportunity: Math.max(settings.max_prospects_per_opportunity, quota + already.size) }) : Promise.resolve([]),
       loadSuppressions(db),
