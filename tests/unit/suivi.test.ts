@@ -134,3 +134,20 @@ describe("e-mail de suivi", () => {
     expect(e.text).toMatch(/Publier mon besoin/);
   });
 });
+
+describe("rappels de la fiche entreprise", () => {
+  const noCo = (age: number) => member({ created_at: ago(age), last_seen_at: ago(age), has_company: false, profile_complete: false, has_alert: true, has_need: false });
+  it("J+4 puis J+10, au moins 5 jours d'écart, seulement le premier mois", () => {
+    expect(planSuivi(noCo(4.2), history({ steps: new Set(["PROFIL", "ALERTE"]), lastSuivi: new Date(ago(1)), lastProfil: new Date(ago(3)) }), NOW)).toBeNull();
+    expect(planSuivi(noCo(7.5), history({ steps: new Set(["PROFIL", "ALERTE", "DECOUVERTE"]), lastSuivi: new Date(ago(1)), lastProfil: new Date(ago(6.5)) }), NOW)?.step).toBe("PROFIL2");
+    expect(planSuivi(noCo(10.5), history({ steps: new Set(["PROFIL", "ALERTE", "DECOUVERTE", "PROFIL2"]), lastSuivi: new Date(ago(2)), lastProfil: new Date(ago(2)) }), NOW)?.step).not.toBe("PROFIL3");
+    expect(planSuivi(noCo(12), history({ steps: new Set(["PROFIL", "ALERTE", "DECOUVERTE", "PROFIL2"]), lastSuivi: new Date(ago(6)), lastProfil: new Date(ago(6)) }), NOW)?.step).toBe("PROFIL3");
+    expect(planSuivi(noCo(40), history({ lastSuivi: new Date(ago(20)) }), NOW)?.step).not.toMatch(/^PROFIL/);
+  });
+  it("e-mail : métier à indiquer, sans mention d'outil automatique", () => {
+    const e = renderSuiviEmail({ step: "PROFIL3", base: "https://www.linkprob2b.com", token: "t", member: noCo(12), items: [], news: null, newSince: 0, now: NOW, sectorLabel: (s) => s, typeLabel: (t) => t });
+    expect(e.subject).toMatch(/dernier rappel/i);
+    expect(e.html).toContain("Indiquer mon métier");
+    expect(JSON.stringify(e)).not.toMatch(/\bIA\b|intelligence artificielle/i);
+  });
+});

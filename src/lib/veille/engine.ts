@@ -97,8 +97,10 @@ export async function alreadySent(db: DB, userIds: string[]) {
 
 export function eligibleFor(kind: VeilleKind, m: AudienceMember): boolean {
   if (kind === "LAUNCH") return true;
-  if (kind === "DAILY") return m.frequency === "DAILY" && criteriaFor(m).basis !== null;
-  return m.frequency === "TWICE_WEEKLY";
+  // WEEKDAYS (par défaut) : la sélection du lundi et du vendredi, et l'alerte du matin les autres jours
+  // ouvrés (une seule veille par personne et par jour, le week-end est en pause)
+  if (kind === "DAILY") return (m.frequency === "DAILY" || m.frequency === "WEEKDAYS") && criteriaFor(m).basis !== null;
+  return m.frequency === "TWICE_WEEKLY" || m.frequency === "WEEKDAYS";
 }
 
 /** Prépare une édition : un envoi par destinataire éligible, avec sa sélection. Idempotent (une édition par jour et par type). */
@@ -148,15 +150,33 @@ export async function buildEdition(db: DB, kind: VeilleKind, date: string, now =
   return { campaignId: campaign.id, recipients: rows.length, skipped, created: true };
 }
 
+/** Opportunités montrées en entier dans une veille de l'offre Gratuite (après le lancement payant). */
+export const FREE_VEILLE_ITEMS = 3;
+
+/** Le membre est-il limité à l'offre Gratuite ? Jamais pendant la phase de lancement gratuite. */
+export async function veilleLimited(db: DB, userId: string): Promise<boolean> {
+  if ((await db.rpc("free_launch")).data === true) return false;
+  const { data: m } = await db.from("company_members").select("company_id").eq("user_id", userId).order("created_at").limit(1).maybeSingle();
+  if (!m) return true;
+  const plan = (await db.rpc("company_plan", { p_company_id: m.company_id })).data;
+  return plan !== "PRO" && plan !== "BUSINESS";
+}
+
 /** Rendu d'un envoi précis (aussi utilisé pour l'aperçu en administration). */
 export async function renderForSend(db: DB, send: { token: string; opportunity_ids: string[] }, kind: VeilleKind, member: AudienceMember, now = new Date()) {
   // Vérification juste avant l'envoi : annonces toujours publiées, publiques et ouvertes
   const { data } = await db.from("opportunities").select(OPP_COLUMNS).in("id", send.opportunity_ids).eq("status", "PUBLISHED").eq("visibility", "PUBLIC").eq("is_demo", false);
   const valid = cleanPool(((data ?? []) as unknown as OppRow[]).map(toOpp), now);
-  const items = send.opportunity_ids.map((id) => valid.find((o) => o.id === id)).filter((o): o is VeilleOpportunity => Boolean(o));
+  const all = send.opportunity_ids.map((id) => valid.find((o) => o.id === id)).filter((o): o is VeilleOpportunity => Boolean(o));
+  // Offre Gratuite : les premières en entier, les autres annoncées (« réservées aux membres Pro »)
+  const limited = member.user_id ? await veilleLimited(db, member.user_id).catch(() => false) : false;
+  const items = limited ? all.slice(0, FREE_VEILLE_ITEMS) : all;
+  const locked = all.length - items.length;
+  const offerOpen = locked > 0 && (await db.from("platform_settings").select("value").eq("key", "founder_offer").maybeSingle()).data?.value;
+  const upgradeUrl = `${siteUrl()}${(offerOpen as { enabled?: boolean } | null)?.enabled ? "/offre-fondateur" : "/tarifs"}`;
   const labels = await loadLabels(db);
   const firstName = member.full_name?.trim().split(/\s+/)[0] || null;
-  return { items, email: renderVeilleEmail({ kind, base: siteUrl(), token: send.token, firstName, items, basis: criteriaFor(member).basis, frequency: member.frequency, ...labels }) };
+  return { items, email: renderVeilleEmail({ kind, base: siteUrl(), token: send.token, firstName, items, basis: criteriaFor(member).basis, frequency: member.frequency, locked, upgradeUrl, ...labels }) };
 }
 
 
@@ -290,6 +310,30 @@ async function recordResult(db: DB, s: { id: string; email: string; attempts: nu
   return /authentification/i.test(r.error ?? "") ? (r.error ?? "Erreur d'authentification") : null;
 }
 
+/**
+ * Preuve réelle pour l'invitation à publier un besoin : la diffusion du dernier besoin d'entreprise
+ * (entreprises contactées et e-mails ouverts, chiffres de la base). null sans exemple significatif.
+ */
+export async function needProof(db: DB): Promise<string | null> {
+  const { data: c } = await db
+    .from("outreach_campaigns")
+    .select("id, opportunity:opportunities(city)")
+    .eq("kind", "NEED")
+    .in("status", ["SENDING", "SENT"])
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!c) return null;
+  const [{ count: sent }, { count: opened }] = await Promise.all([
+    db.from("outreach_recipients").select("id", { count: "exact", head: true }).eq("campaign_id", c.id).eq("status", "SENT"),
+    db.from("outreach_recipients").select("id", { count: "exact", head: true }).eq("campaign_id", c.id).eq("status", "SENT").not("opened_at", "is", null),
+  ]);
+  if (!sent || sent < 20) return null;
+  const o = Array.isArray(c.opportunity) ? c.opportunity[0] : c.opportunity;
+  const city = o?.city ? ` à ${o.city.charAt(0)}${o.city.slice(1).toLowerCase()}` : "";
+  return `Exemple réel : le dernier besoin publié${city} a été présenté à ${sent} entreprises du métier${opened ? `, et ${opened} ont ouvert l'e-mail` : ""}.`;
+}
+
 /** Rendu d'un e-mail de suivi juste avant l'envoi (annonces revérifiées). null : plus rien à montrer. */
 export async function renderSuiviForSend(db: DB, send: { token: string; opportunity_ids: string[]; step: string | null; news_key: string | null }, m: SuiviMember, pool: VeilleOpportunity[], now = new Date()) {
   const { data } = send.opportunity_ids.length ? await db.from("opportunities").select(OPP_COLUMNS).in("id", send.opportunity_ids).eq("status", "PUBLISHED").eq("visibility", "PUBLIC").eq("is_demo", false) : { data: [] };
@@ -299,7 +343,8 @@ export async function renderSuiviForSend(db: DB, send: { token: string; opportun
   const step = (send.step ?? "RETOUR") as SuiviStep;
   if (step === "RETOUR" && !items.length && !news) return null;
   const { newSince, newSinceDept } = freshForMember(pool, m);
-  const email = renderSuiviEmail({ step, base: siteUrl(), token: send.token, member: m, items, news, newSince, newSinceDept, now, ...(await loadLabels(db)) });
+  const proof = step === "BESOIN" ? await needProof(db).catch(() => null) : null;
+  const email = renderSuiviEmail({ step, base: siteUrl(), token: send.token, member: m, items, news, newSince, newSinceDept, needProof: proof, now, ...(await loadLabels(db)) });
   return { ...email, itemIds: items.map((o) => o.id) };
 }
 
@@ -361,7 +406,7 @@ export async function memberFor(db: DB, userId: string): Promise<AudienceMember 
     user_id: u.id,
     email: u.email.toLowerCase(),
     full_name: u.full_name,
-    frequency: p?.frequency ?? "TWICE_WEEKLY",
+    frequency: p?.frequency ?? "WEEKDAYS",
     sectors: p?.sectors ?? [],
     regions: p?.regions ?? [],
     types: (p?.types as string[]) ?? [],
@@ -428,6 +473,7 @@ export async function veilleStats(db: DB) {
     eligible: audience.length,
     daily: audience.filter((m) => m.frequency === "DAILY").length,
     twiceWeekly: audience.filter((m) => m.frequency === "TWICE_WEEKLY").length,
+    weekdays: audience.filter((m) => m.frequency === "WEEKDAYS").length,
     personalized: audience.filter((m) => criteriaFor(m).basis !== null).length,
     pending,
     sent,

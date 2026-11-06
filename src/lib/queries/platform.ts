@@ -88,7 +88,26 @@ export type PlatformStats = {
   last_sync_at: string | null;
   sources: string[];
   companies: number;
+  /** Professionnels inscrits (adresse confirmée), dont ceux des 7 derniers jours, et entreprises inscrites */
+  members?: number;
+  members_7d?: number;
+  members_30d?: number;
+  registered_companies?: number;
 };
+
+/** Chiffres initiaux des compteurs en direct (null sans inscrit : rien n'est affiché). */
+export function liveStats(s: PlatformStats | null) {
+  if (!s?.members) return null;
+  return { members: s.members, members_7d: s.members_7d ?? 0, members_30d: s.members_30d ?? 0, companies: s.registered_companies ?? 0, active: s.active };
+}
+
+export type MemberCompany = { name: string; slug: string; logo_path: string | null; city: string | null; region: string | null };
+
+/** Entreprises affichées dans l'annuaire public (choix de chaque entreprise), les plus grandes d'abord. */
+export const getMemberCompanies = cache(async (limit = 16): Promise<MemberCompany[]> => {
+  const { data } = await visitorRpc("public_member_companies", { p_limit: limit }, { always: true });
+  return (data ?? []) as MemberCompany[];
+});
 
 /** Indicateurs publics de fraîcheur (agrégats réels, jamais estimés). */
 export const getPlatformStats = cache(async (): Promise<PlatformStats | null> => {

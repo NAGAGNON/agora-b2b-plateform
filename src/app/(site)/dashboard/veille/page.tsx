@@ -18,7 +18,7 @@ export default async function VeillePage(props: PageProps<"/dashboard/veille">) 
   ]);
   const wantsDaily = sp.frequence === "quotidienne";
   const consented = Boolean(pref?.consent_at) || (!pref && session.profile.marketing_consent);
-  const active = consented && (pref?.frequency ?? "TWICE_WEEKLY") !== "NONE";
+  const active = consented && (pref?.frequency ?? "WEEKDAYS") !== "NONE";
   const sectorOptions = (sectors?.length ? sectors : Object.entries(SECTOR_LABELS).map(([slug, label]) => ({ slug, label }))).map((s) => ({ value: s.slug, label: s.label }));
   return (
     <div className="space-y-6">
@@ -38,14 +38,16 @@ export default async function VeillePage(props: PageProps<"/dashboard/veille">) 
         {active
           ? pref?.frequency === "DAILY"
             ? "Statut actuel : alertes quotidiennes activées."
-            : "Statut actuel : deux sélections par semaine (lundi et vendredi)."
+            : (pref?.frequency ?? "WEEKDAYS") === "WEEKDAYS"
+              ? "Statut actuel : veille chaque matin, du lundi au vendredi."
+              : "Statut actuel : deux sélections par semaine (lundi et vendredi)."
           : "Statut actuel : vous ne recevez pas la veille par e-mail."}
       </Notice>
       <Card>
         <CardHeader title="Mes préférences" description="Ces critères servent uniquement à choisir les opportunités qui vous sont envoyées." />
         <div className="p-5">
           <VeilleForm
-            v={{ frequency: pref?.frequency ?? (consented ? "TWICE_WEEKLY" : "NONE"), sectors: pref?.sectors ?? [], regions: pref?.regions ?? [], types: (pref?.types as string[]) ?? [], keywords: pref?.keywords ?? [], consented }}
+            v={{ frequency: pref?.frequency ?? (consented ? "WEEKDAYS" : "NONE"), sectors: pref?.sectors ?? [], regions: pref?.regions ?? [], types: (pref?.types as string[]) ?? [], keywords: pref?.keywords ?? [], consented }}
             frequencyHint={wantsDaily ? "DAILY" : undefined}
             sectors={sectorOptions}
             regions={REGIONS.map((r) => ({ value: r.name, label: r.name }))}

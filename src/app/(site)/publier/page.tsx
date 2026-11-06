@@ -1,13 +1,17 @@
 import Link from "next/link";
 import { CheckCircle2, ShieldCheck, Clock, Users } from "lucide-react";
-import { PublishWizard } from "@/components/opportunities/publish-wizard";
+import { PublishWizard, type WizardValues } from "@/components/opportunities/publish-wizard";
+import { createClient } from "@/lib/supabase/server";
+import { formatDate } from "@/lib/format";
 import { NeedDraftForm } from "@/components/opportunities/need-draft-form";
 import { ButtonLink } from "@/components/ui/button";
 import { Notice } from "@/components/ui/notice";
 import { getSession } from "@/lib/auth";
 import { PageHero } from "@/components/layout/page-hero";
 import { getDepartments, getPlaces, getSectors } from "@/lib/queries/platform";
-import { pageMetadata } from "@/lib/seo";
+import { pageMetadata, siteUrl } from "@/lib/seo";
+import { getMemberCompanies, getPlatformStats, liveStats } from "@/lib/queries/platform";
+import { MemberProofCompact } from "@/components/home/member-proof";
 
 export const metadata = pageMetadata({
   title: "Publier un besoin",
@@ -15,9 +19,38 @@ export const metadata = pageMetadata({
   path: "/publier",
 });
 
-export default async function PublishPage() {
+/** Besoin pré-rempli pour trouver un partenaire ou un sous-traitant à partir d'un appel d'offres (uniquement ses données réelles). */
+async function partnerValues(id: string | undefined): Promise<WizardValues | undefined> {
+  if (!id || !/^[0-9a-f-]{36}$/i.test(id)) return undefined;
+  const supabase = await createClient();
+  const { data: o } = await supabase
+    .from("opportunities")
+    .select("title, sector_slug, city, postal_code, department_code, response_deadline, external_buyer_name, origin, status")
+    .eq("id", id)
+    .maybeSingle();
+  if (!o || o.status !== "PUBLISHED") return undefined;
+  const deadline = o.response_deadline ? formatDate(o.response_deadline) : null;
+  const title = `Partenaire recherché pour répondre à : ${o.title}`;
+  return {
+    type: "NEED",
+    title: title.length > 180 ? `${title.slice(0, 177)}…` : title,
+    description: [
+      `Nous préparons une réponse à l'appel d'offres « ${o.title} »${o.external_buyer_name ? ` (${o.external_buyer_name})` : ""}${deadline ? `, à remettre avant le ${deadline}` : ""}.`,
+      "Nous recherchons une entreprise partenaire (co-traitance ou sous-traitance) pour la partie suivante : [précisez le lot ou la prestation].",
+      `Avis complet : ${siteUrl()}/opportunites/${id}`,
+    ].join("\n\n"),
+    sector_slug: o.sector_slug,
+    city: o.city,
+    postal_code: o.postal_code,
+    department_code: o.department_code,
+  };
+}
+
+export default async function PublishPage(props: { searchParams: Promise<{ partenaire?: string }> }) {
   const session = await getSession();
   if (!session || !session.activeCompany) {
+    const [platform, memberCompanies] = await Promise.all([getPlatformStats().catch(() => null), getMemberCompanies(12).catch(() => [])]);
+    const live = liveStats(platform);
     return (
       <>
       <PageHero
@@ -45,6 +78,12 @@ export default async function PublishPage() {
                 </li>
               ))}
             </ul>
+            {live && (
+              <div className="mt-6">
+                <p className="mb-2 text-sm font-semibold text-navy">Votre besoin sera vu par les professionnels inscrits</p>
+                <MemberProofCompact initial={live} companies={memberCompanies} />
+              </div>
+            )}
           </div>
           <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-xl shadow-navy/5 sm:p-10">
             {!session ? (
@@ -94,7 +133,7 @@ export default async function PublishPage() {
         <Notice tone="error">Votre entreprise est suspendue : la publication est désactivée. Contactez l&apos;équipe LinkProB2B.</Notice>
       ) : (
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8">
-          <PublishWizard places={places} departments={departments} sectors={await getSectors()} companyName={session.activeCompany.company.name} />
+          <PublishWizard values={await partnerValues((await props.searchParams).partenaire)} places={places} departments={departments} sectors={await getSectors()} companyName={session.activeCompany.company.name} />
         </div>
       )}
     </div>

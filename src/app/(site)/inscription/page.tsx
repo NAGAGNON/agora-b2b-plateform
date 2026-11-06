@@ -11,7 +11,8 @@ import { recipientFromReferral, referralStillTrusted } from "@/lib/outreach/trac
 import { unstable_cache } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/errors";
-import { getOpenCounts } from "@/lib/queries/platform";
+import { getMemberCompanies, getOpenCounts, getPlatformStats, liveStats } from "@/lib/queries/platform";
+import { MemberProofCompact } from "@/components/home/member-proof";
 import { formatDate } from "@/lib/format";
 import { CalendarClock, Lock, MapPin } from "lucide-react";
 import { founderOffer, founderOpen } from "@/lib/billing/founder";
@@ -73,6 +74,8 @@ export default async function SignUpPage(props: PageProps<"/inscription">) {
         }),
       ]);
   const total = count ? count("total", "") : 0;
+  const [platform, memberCompanies] = forOffer ? [null, []] : await Promise.all([getPlatformStats().catch(() => null), getMemberCompanies(12).catch(() => [])]);
+  const live = liveStats(platform);
   const launch = founderOpen(await founderOffer().catch(() => ({ enabled: false, launchedAt: null, endsAt: null, seats: 0 })));
   const fromList = next === "/opportunites" || next?.startsWith("/opportunites?") || next === "/entreprises";
   return (
@@ -138,6 +141,11 @@ export default async function SignUpPage(props: PageProps<"/inscription">) {
             <Lock className="size-3.5 text-teal-700" aria-hidden /> Compte gratuit : accès aux offres complètes et alertes de votre métier par e-mail.
           </p>
         </section>
+      )}
+      {live && (
+        <div className="mb-6">
+          <MemberProofCompact initial={live} companies={memberCompanies} />
+        </div>
       )}
       <SignUpForm referral={referral} next={next} defaultEmail={defaultEmail} />
       <GoogleButton next={next} referral={referral} />

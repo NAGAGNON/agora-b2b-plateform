@@ -27,8 +27,9 @@ export default async function ConfirmLeadPage(props: PageProps<"/alertes/confirm
   const [deps, labels] = await Promise.all([getDepartments(), getSectorLabels()]);
   const dep = deps.find((d) => d.code === lead.department_code);
   const region = dep ? regionByName(dep.region) : null;
-  const listPath =
-    dep && region && lead.sector_slug
+  const listPath = lead.buyer_slug
+    ? `/acheteurs/${lead.buyer_slug}`
+    : dep && region && lead.sector_slug
       ? `/opportunites/${region.slug}/${dep.slug}/${lead.sector_slug}`
       : dep && region
         ? `/opportunites/${region.slug}/${dep.slug}`
@@ -41,14 +42,14 @@ export default async function ConfirmLeadPage(props: PageProps<"/alertes/confirm
         <CheckCircle2 className="size-10 text-teal-600" aria-hidden />
         <h1 className="mt-3 text-2xl font-bold">Votre alerte est active</h1>
         <p className="mt-3 text-slate-600">
-          Vous recevrez chaque semaine les nouveaux marchés <strong>{leadCriteriaLabel({ sector: lead.sector_slug, department: lead.department_code, region: lead.region }, dep?.name, labels)}</strong>.
+          Vous recevrez chaque semaine les nouveaux marchés <strong>{leadCriteriaLabel({ sector: lead.sector_slug, department: lead.department_code, region: lead.region, buyer: lead.buyer_slug ? { slug: lead.buyer_slug, name: lead.buyer_name ?? "cet acheteur" } : null }, dep?.name, labels)}</strong>.
         </p>
         <div className="mt-6 rounded-xl bg-sky p-5">
           <p className="font-semibold text-navy">Allez plus loin, gratuitement</p>
           <p className="mt-1 text-sm text-slate-700">
             Avec un compte : alertes sur mesure chaque jour, publication de vos besoins, contact direct avec les entreprises et suivi de vos affaires.
           </p>
-          <ButtonLink href={`/inscription?email=${encodeURIComponent(lead.email)}`} className="mt-4">
+          <ButtonLink href={`/inscription?email=${encodeURIComponent(lead.email)}${lead.buyer_slug ? `&suite=${encodeURIComponent(`/acheteurs/${lead.buyer_slug}`)}` : ""}`} className="mt-4">
             Créer mon compte gratuit
           </ButtonLink>
         </div>

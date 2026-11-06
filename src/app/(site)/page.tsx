@@ -31,7 +31,8 @@ import { TrackedButtonLink, TrackedLink } from "@/components/ui/tracked-link";
 import { Notice } from "@/components/ui/notice";
 import { searchOpportunities } from "@/lib/queries/opportunities";
 import { parseOpportunityFilters } from "@/lib/search-params";
-import { getPlatformStats, getSectorLabels, getSectors } from "@/lib/queries/platform";
+import { getMemberCompanies, getPlatformStats, getSectorLabels, getSectors, liveStats } from "@/lib/queries/platform";
+import { MemberProof } from "@/components/home/member-proof";
 import { pageMetadata } from "@/lib/seo";
 import { createClient } from "@/lib/supabase/server";
 import { deadlineLabel, formatDate } from "@/lib/format";
@@ -64,7 +65,7 @@ export default async function HomePage(props: PageProps<"/">) {
   const supabase = await createClient();
   // Base lente ou indisponible : chaque bloc a sa valeur de repli, la page s'affiche toujours
   const safe = <T, F = T>(p: PromiseLike<T>, fallback: F): Promise<T | F> => Promise.resolve(p).catch(() => fallback);
-  const [sectors, { data: analyses }, latest, stats, { data: growth }, labels, { total: needsTotal, rows: needsRows }] = await Promise.all([
+  const [sectors, { data: analyses }, latest, stats, { data: growth }, labels, { total: needsTotal, rows: needsRows }, memberCompanies] = await Promise.all([
     safe(getSectors(), []),
     safe(supabase.from("articles").select("slug, title, description, published_at").eq("status", "PUBLISHED").order("published_at", { ascending: false }).limit(3), { data: null }),
     // Même calcul que la page « Explorer les opportunités » (opportunités ouvertes), trois plus récentes en aperçu
@@ -75,7 +76,10 @@ export default async function HomePage(props: PageProps<"/">) {
     safe(getSectorLabels(), {} as Record<string, string>),
     // Besoins d'entreprises visibles par un visiteur : sinon les liens mènent à la publication
     safe(searchOpportunities(parseOpportunityFilters({ origine: "INTERNAL", tri: "recent" }), 6), { rows: [], total: 0, error: true as const }),
+    // Entreprises de l'annuaire public (choix de chaque entreprise) : bande défilante des membres
+    safe(getMemberCompanies(), []),
   ]);
+  const live = liveStats(stats);
   const hasNeeds = Number(needsTotal) > 0;
   // Besoins publiés directement par des entreprises inscrites : mis en avant en tête de page (vrais besoins uniquement)
   const clientNeeds = needsRows.filter((o) => !o.is_demo).slice(0, 3);
@@ -179,6 +183,9 @@ export default async function HomePage(props: PageProps<"/">) {
           </div>
         </div>
       </section>
+
+      {/* Compteurs en direct (chiffres réels) et entreprises membres de l'annuaire */}
+      {live && <MemberProof initial={live} companies={memberCompanies} />}
 
       {/* Besoins publiés directement par des entreprises inscrites : mis en avant */}
       {clientNeeds.length > 0 && (

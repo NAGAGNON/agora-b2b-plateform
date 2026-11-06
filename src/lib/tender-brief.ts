@@ -3,7 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { BOAMP_ENDPOINT } from "@/lib/collect/connectors";
+import { BOAMP_ENDPOINT, TED_ENDPOINT, tedText } from "@/lib/collect/connectors";
 import { REPORT_MODEL } from "@/lib/daily-report";
 import { logServerError } from "@/lib/errors";
 
@@ -52,6 +52,48 @@ export async function boampNoticeText(idweb: string): Promise<string | null> {
   return `${head}\n\nAvis complet (JSON officiel) :\n${String(r.donnees ?? "").slice(0, 14_000)}`;
 }
 
+/** Numéro de publication TED (« 771559-2026 ») tiré de l'adresse de la source. */
+export function tedId(url: string | null | undefined): string | null {
+  return url ? (/ted\.europa\.eu\/[a-z]{2}\/notice\/(?:-\/detail\/)?(\d{1,8}-\d{4})/i.exec(url)?.[1] ?? null) : null;
+}
+
+const TED_FIELDS = [
+  "notice-title", "buyer-name", "procedure-type", "contract-nature", "place-of-performance", "classification-cpv",
+  "title-lot", "description-lot", "estimated-value-lot", "duration-period-value-lot", "duration-period-unit-lot",
+  "deadline-receipt-tender-date-lot", "deadline-receipt-request-date-lot", "award-criterion-description-lot",
+  "selection-criterion-description-lot", "publication-date",
+];
+
+/** Valeurs lisibles d'un champ TED (en français de préférence), toutes les valeurs des lots comprises. */
+function tedValues(v: unknown): string[] {
+  if (v === null || v === undefined) return [];
+  if (Array.isArray(v)) return v.flatMap(tedValues);
+  if (typeof v === "object") {
+    const o = v as Record<string, unknown>;
+    const lang = o.fra ?? o.FRA ?? o.eng ?? o.ENG;
+    return lang !== undefined ? tedValues(lang) : [tedText(o) ?? ""].filter(Boolean);
+  }
+  return [String(v)];
+}
+
+/** Avis TED en texte (API de recherche officielle, anonyme), champ par champ. */
+export async function tedNoticeText(pub: string): Promise<string | null> {
+  const res = await fetch(TED_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ query: `publication-number=${pub}`, fields: TED_FIELDS, limit: 1, scope: "ALL" }),
+    signal: AbortSignal.timeout(20_000),
+  });
+  if (!res.ok) return null;
+  const n = ((await res.json()) as { notices?: Record<string, unknown>[] }).notices?.[0];
+  if (!n) return null;
+  const lines = TED_FIELDS.map((k) => {
+    const vals = [...new Set(tedValues(n[k]).map((x) => x.trim()).filter(Boolean))];
+    return vals.length ? `${k} : ${vals.join(" | ")}` : null;
+  }).filter(Boolean);
+  return lines.length ? `Avis européen (TED) n° ${pub}\n${lines.join("\n")}`.slice(0, 14_000) : null;
+}
+
 /** Fiche déjà préparée, ou null. */
 export async function storedBrief(opportunityId: string, db = createAdminClient()): Promise<TenderBrief | null> {
   const { data } = await db.from("tender_briefs").select("content").eq("opportunity_id", opportunityId).maybeSingle();
@@ -68,10 +110,13 @@ export async function ensureBrief(opportunityId: string, { db = createAdminClien
   if (existing) return existing;
   if (!process.env.ANTHROPIC_API_KEY && !client) return null;
   const { data: sources } = await db.from("opportunity_sources").select("original_url").eq("opportunity_id", opportunityId);
+  // Avis BOAMP en priorité (le plus complet), sinon l'avis européen TED
   const idweb = (sources ?? []).map((s) => boampId(s.original_url)).find(Boolean);
-  if (!idweb) return null;
+  const ted = idweb ? null : (sources ?? []).map((s) => tedId(s.original_url)).find(Boolean);
+  if (!idweb && !ted) return null;
+  const ref = idweb ? `BOAMP ${idweb}` : `TED ${ted}`;
   try {
-    const text = await boampNoticeText(idweb);
+    const text = idweb ? await boampNoticeText(idweb) : await tedNoticeText(ted!);
     if (!text) return null;
     const ai = client ?? new Anthropic({ timeout: 60_000, maxRetries: 1 });
     const response = await ai.beta.messages.parse({
@@ -79,11 +124,11 @@ export async function ensureBrief(opportunityId: string, { db = createAdminClien
       max_tokens: 2000,
       output_config: { format: betaZodOutputFormat(BriefSchema) },
       system: SYSTEM,
-      messages: [{ role: "user", content: `Avis BOAMP n° ${idweb} :\n\n${text}` }],
+      messages: [{ role: "user", content: `Avis ${ref} :\n\n${text}` }],
     });
     if (response.stop_reason === "refusal" || !response.parsed_output) return null;
     const brief = response.parsed_output;
-    await db.from("tender_briefs").upsert({ opportunity_id: opportunityId, content: brief as never, source_ref: `BOAMP ${idweb}` });
+    await db.from("tender_briefs").upsert({ opportunity_id: opportunityId, content: brief as never, source_ref: ref });
     return brief;
   } catch (e) {
     logServerError("tender brief", e);
@@ -97,7 +142,11 @@ export async function ensureBrief(opportunityId: string, { db = createAdminClien
  */
 export async function prepareBriefs(db = createAdminClient(), { limit = 25, deadline = Date.now() + 60_000 } = {}) {
   const now = new Date().toISOString();
-  const { data: companies } = await db.from("companies").select("id").or(`plan_code.in.(PRO,BUSINESS),trial_ends_at.gt.${now}`);
+  // Phase de lancement gratuite : la fiche est offerte à tous, donc préparée pour toutes les entreprises inscrites
+  const freeLaunch = (await db.rpc("free_launch")).data === true;
+  const { data: companies } = freeLaunch
+    ? await db.from("companies").select("id").eq("is_demo", false).eq("status", "ACTIVE")
+    : await db.from("companies").select("id").or(`plan_code.in.(PRO,BUSINESS),trial_ends_at.gt.${now}`);
   const ids = (companies ?? []).map((c) => c.id);
   if (!ids.length) return { prepared: 0, skipped: "Aucune entreprise abonnée ou en essai" };
   const { data: profiles } = await db.from("company_profiles").select("sectors").in("company_id", ids);

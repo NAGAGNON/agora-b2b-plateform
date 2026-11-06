@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Sparkles } from "lucide-react";
+import { Lock, Sparkles } from "lucide-react";
 import { requireSession } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { getSectorLabels, showDemoData } from "@/lib/queries/platform";
@@ -10,6 +10,7 @@ import { RecommendationList, SCORING_RULES } from "@/components/dashboard/recomm
 import { hasFullAccess } from "@/lib/billing/entitlements";
 import { UpgradePrompt } from "@/components/billing/upgrade-prompt";
 import { Notice } from "@/components/ui/notice";
+import { founderOffer, founderOpen } from "@/lib/billing/founder";
 
 const FREE_PREVIEW = 3;
 
@@ -36,9 +37,14 @@ export default async function RecommendationsPage(props: PageProps<"/dashboard/r
   const noSkills = !prof?.skills?.length;
   const [{ data, error }, sectorLabels] = await Promise.all([
     // Offre Gratuite : aperçu des premières recommandations seulement (contrôlé côté serveur)
-    supabase.rpc("recommended_opportunities", { p_company_id: company.id, p_limit: free ? FREE_PREVIEW : 30, p_include_demo: await showDemoData() }),
+    supabase.rpc("recommended_opportunities", { p_company_id: company.id, p_limit: 30, p_include_demo: await showDemoData() }),
     getSectorLabels(),
   ]);
+  // Offre Gratuite : les 3 meilleures en entier ; les suivantes sont comptées et montrées floutées
+  // (aucun titre envoyé au navigateur), pour que le membre sache ce qu'il manque
+  const shown = free ? (data ?? []).slice(0, FREE_PREVIEW) : (data ?? []);
+  const locked = free ? Math.max(0, (data?.length ?? 0) - FREE_PREVIEW) : 0;
+  const upgradeHref = locked && founderOpen(await founderOffer().catch(() => ({ enabled: false, launchedAt: null, endsAt: null, seats: 0 }))) ? "/offre-fondateur" : "/tarifs";
 
   return (
     <div className="space-y-6">
@@ -72,7 +78,34 @@ export default async function RecommendationsPage(props: PageProps<"/dashboard/r
           {error ? (
             <p className="px-5 py-6 text-sm text-red-700">Les recommandations n&apos;ont pas pu être calculées.</p>
           ) : data?.length ? (
-            <RecommendationList items={data} sectorLabels={sectorLabels} />
+            <>
+              <RecommendationList items={shown} sectorLabels={sectorLabels} />
+              {locked > 0 && (
+                <div className="relative mx-5 mb-5 overflow-hidden rounded-2xl" data-testid="recommendations-locked">
+                  <div aria-hidden className="pointer-events-none space-y-3 blur-[3px] select-none">
+                    {Array.from({ length: Math.min(locked, 3) }, (_, i) => (
+                      <div key={i} className="rounded-xl border border-slate-200 bg-white p-4">
+                        <div className="h-3 w-24 rounded bg-teal-100" />
+                        <div className="mt-3 h-4 w-4/5 rounded bg-slate-200" />
+                        <div className="mt-2 h-3 w-2/5 rounded bg-slate-100" />
+                      </div>
+                    ))}
+                  </div>
+                  <div className="absolute inset-0 flex items-center justify-center bg-white/40">
+                    <div className="max-w-sm animate-pop rounded-2xl bg-navy p-5 text-center text-white shadow-xl ring-1 ring-white/10">
+                      <Lock className="mx-auto size-6 text-teal-300" aria-hidden />
+                      <p className="mt-2 font-bold text-white">
+                        {locked} autre{locked > 1 ? "s" : ""} offre{locked > 1 ? "s" : ""} recommandée{locked > 1 ? "s" : ""} pour vous
+                      </p>
+                      <p className="mt-1 text-sm text-white/75">Réservées aux membres Pro, avec leur score et leur fiche synthèse.</p>
+                      <Link href={upgradeHref} className="btn-shine mt-4 inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-teal to-cyan-400 px-4 py-2 text-sm font-bold text-navy">
+                        Débloquer avec Pro
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
           ) : (
             <p className="px-5 py-6 text-sm text-slate-500">
               Aucune opportunité ne correspond encore à votre profil. Complétez vos secteurs, votre zone et vos compétences dans{" "}

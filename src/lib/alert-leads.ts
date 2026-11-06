@@ -16,9 +16,10 @@ export const LEAD_CONSENT =
 export const LEAD_DIGEST_INTERVAL_MS = 7 * 86_400_000;
 const MAX_ITEMS = 10;
 
-export type LeadCriteria = { sector: string | null; department: string | null; region: string | null };
+export type LeadCriteria = { sector: string | null; department: string | null; region: string | null; buyer?: { slug: string; name: string } | null };
 
 export function leadCriteriaLabel(c: LeadCriteria, depName?: string | null, labels: Record<string, string> = {}) {
+  if (c.buyer) return `de ${c.buyer.name}`;
   const parts = [c.sector ? sectorLabel(c.sector, labels) : null, depName ? `${depName}${c.department ? ` (${c.department})` : ""}` : c.department ? `département ${c.department}` : c.region];
   return parts.filter(Boolean).join(" — ") || "toutes les opportunités";
 }
@@ -30,8 +31,9 @@ export function leadCriteriaLabel(c: LeadCriteria, depName?: string | null, labe
 export async function subscribeLead(input: { email: string; criteria: LeadCriteria; opportunityId?: string | null; path?: string | null; criteriaLabel: string }) {
   const db = createAdminClient();
   const email = input.email.trim().toLowerCase();
-  const { sector, department, region } = input.criteria;
+  const { sector, department, region, buyer } = input.criteria;
   let q = db.from("alert_leads").select("id, status, token, confirmation_sent_at").eq("email", email);
+  q = buyer ? q.eq("buyer_slug", buyer.slug) : q.is("buyer_slug", null);
   q = sector ? q.eq("sector_slug", sector) : q.is("sector_slug", null);
   q = department ? q.eq("department_code", department) : q.is("department_code", null);
   const { data: existing } = await q.maybeSingle();
@@ -45,6 +47,8 @@ export async function subscribeLead(input: { email: string; criteria: LeadCriter
     sector_slug: sector,
     department_code: department,
     region,
+    buyer_slug: buyer?.slug ?? null,
+    buyer_name: buyer?.name ?? null,
     source_opportunity_id: input.opportunityId ?? null,
     source_path: input.path ?? null,
     status: "PENDING",
@@ -72,7 +76,7 @@ export async function subscribeLead(input: { email: string; criteria: LeadCriter
 
 export async function leadFromToken(token: string) {
   if (!/^[0-9a-f-]{36}$/i.test(token)) return null;
-  const { data } = await createAdminClient().from("alert_leads").select("id, email, status, sector_slug, department_code, region, confirmed_at").eq("token", token).maybeSingle();
+  const { data } = await createAdminClient().from("alert_leads").select("id, email, status, sector_slug, department_code, region, buyer_slug, buyer_name, confirmed_at").eq("token", token).maybeSingle();
   return data;
 }
 
@@ -102,7 +106,7 @@ export async function processLeadDigests({ now = Date.now(), limit = 300 } = {})
   const before = new Date(now - LEAD_DIGEST_INTERVAL_MS + 60_000).toISOString();
   const { data: leads } = await db
     .from("alert_leads")
-    .select("id, email, token, sector_slug, department_code, region, confirmed_at, last_sent_at, emails_sent")
+    .select("id, email, token, sector_slug, department_code, region, buyer_slug, buyer_name, confirmed_at, last_sent_at, emails_sent")
     .eq("status", "CONFIRMED")
     .or(`last_sent_at.is.null,last_sent_at.lt.${before}`)
     .order("last_sent_at", { ascending: true, nullsFirst: true })
@@ -116,6 +120,33 @@ export async function processLeadDigests({ now = Date.now(), limit = 300 } = {})
     // Premier envoi : opportunités des 7 derniers jours (la personne vient de s'inscrire)
     const since = l.last_sent_at ?? new Date(Math.min(now, new Date(l.confirmed_at ?? now).getTime()) - LEAD_DIGEST_INTERVAL_MS).toISOString();
     if (!l.last_sent_at && l.confirmed_at && now - new Date(l.confirmed_at).getTime() < 86_400_000) continue; // laisser au moins un jour après la confirmation
+    // Acheteur suivi : ses appels d'offres ouverts publiés depuis le dernier envoi
+    if (l.buyer_slug) {
+      const { data: rows } = await db.rpc("buyer_opportunities", { p_slug: l.buyer_slug, p_limit: 100 });
+      const opps = (rows ?? []).filter((o) => o.is_open && o.published_at && o.published_at > since).slice(0, MAX_ITEMS);
+      const sentAt = new Date(now).toISOString();
+      if (!opps.length) {
+        await db.from("alert_leads").update({ last_sent_at: sentAt }).eq("id", l.id);
+        continue;
+      }
+      const name = l.buyer_name ?? rows?.[0]?.buyer_name ?? "cet acheteur";
+      await db.from("email_outbox").insert({
+        to_email: l.email,
+        template: "lead_digest",
+        subject: `${opps.length} nouvel${opps.length > 1 ? "s" : ""} appel${opps.length > 1 ? "s" : ""} d'offres — ${name}`,
+        payload: {
+          type: "lead_digest",
+          title: `Les nouveaux marchés de ${name}`,
+          body: `${opps.length} appel(s) d'offres publié(s) par ${name} depuis votre dernier e-mail. Créez votre compte gratuit pour recevoir chaque nouveau marché dès sa publication et suivre vos réponses.`,
+          items: await digestItems(db, opps.map((o) => o.id)),
+          link: `/inscription?email=${encodeURIComponent(l.email)}&suite=${encodeURIComponent(`/acheteurs/${l.buyer_slug}`)}`,
+          unsubscribe: `/alertes/arreter?jeton=${l.token}`,
+        },
+      });
+      await db.from("alert_leads").update({ last_sent_at: sentAt, emails_sent: (l.emails_sent ?? 0) + 1 }).eq("id", l.id);
+      emails++;
+      continue;
+    }
     let q = db
       .from("opportunities")
       .select("id, title, city, department_code, response_deadline")

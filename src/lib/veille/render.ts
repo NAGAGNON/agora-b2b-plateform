@@ -15,6 +15,9 @@ export type VeilleEmailInput = {
   frequency: string;
   sectorLabel: (slug: string) => string;
   typeLabel: (type: string) => string;
+  /** Offre Gratuite (après le lancement payant) : nombre d'opportunités de la sélection réservées à Pro */
+  locked?: number;
+  upgradeUrl?: string;
 };
 
 const dateFmt = new Intl.DateTimeFormat("fr-FR", { timeZone: "Europe/Paris", day: "numeric", month: "long" });
@@ -91,9 +94,13 @@ export function renderVeilleEmail(i: VeilleEmailInput): { subject: string; html:
   const top = new Map<string, number>();
   for (const o of i.items) if (o.sector_slug) top.set(o.sector_slug, (top.get(o.sector_slug) ?? 0) + 1);
   const mainSector = [...top.entries()].sort((x, y) => y[1] - x[1])[0]?.[0] ?? null;
+  // Veille du matin (du lundi au vendredi) ou alertes quotidiennes : pas d'invitation à passer au quotidien
+  const daily = i.frequency === "DAILY" || i.frequency === "WEEKDAYS";
   const reason =
     i.frequency === "DAILY"
       ? "Vous recevez cet e-mail car vous avez activé les alertes quotidiennes de LinkProB2B."
+      : i.frequency === "WEEKDAYS"
+        ? "Vous recevez cet e-mail car vous avez un compte LinkProB2B et avez accepté de recevoir sa veille par e-mail, chaque matin du lundi au vendredi."
       : "Vous recevez cet e-mail car vous avez un compte LinkProB2B et avez accepté de recevoir ses actualités ou sa veille par e-mail.";
   const html = shell({
     base: i.base,
@@ -105,8 +112,16 @@ export function renderVeilleEmail(i: VeilleEmailInput): { subject: string; html:
     body:
       paragraphs.map(paragraph).join("") +
       renderCards(i.items, L.item, i) +
+      (i.locked && i.upgradeUrl
+        ? callout({
+            kicker: "Réservé aux membres Pro",
+            title: `${i.locked} autre${i.locked > 1 ? "s" : ""} opportunité${i.locked > 1 ? "s" : ""} pour vous dans cette sélection`,
+            text: "Avec Pro : toutes vos opportunités chaque matin, la fiche synthèse de chaque appel d'offres et les besoins des entreprises en avant-première.",
+            cta: { label: "Débloquer avec Pro", url: i.upgradeUrl },
+          })
+        : "") +
       button("Voir toutes les opportunités ouvertes", L.all, { align: "center" }) +
-      (i.frequency !== "DAILY"
+      (!daily
         ? callout({
             kicker: "Alerte quotidienne",
             title: "Et si les opportunités venaient directement à vous ?",
@@ -133,8 +148,9 @@ export function renderVeilleEmail(i: VeilleEmailInput): { subject: string; html:
       `  ${L.item(o.id)}`,
       "",
     ]),
+    ...(i.locked && i.upgradeUrl ? [`${i.locked} autre(s) opportunité(s) pour vous dans cette sélection, réservée(s) aux membres Pro : ${i.upgradeUrl}`, ""] : []),
     `Toutes les opportunités ouvertes : ${L.all}`,
-    ...(i.frequency !== "DAILY" ? ["", "Recevoir mes opportunités chaque jour : " + L.daily, "Vous préférez une veille moins fréquente ? Recevez deux sélections par semaine, le lundi et le vendredi."] : []),
+    ...(!daily ? ["", "Recevoir mes opportunités chaque jour : " + L.daily, "Vous préférez une veille moins fréquente ? Recevez deux sélections par semaine, le lundi et le vendredi."] : []),
     "",
     reason,
     `Gérer mes préférences : ${L.prefs}`,

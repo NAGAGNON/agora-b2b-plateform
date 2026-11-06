@@ -20,7 +20,7 @@ export async function confirmVeilleUnsubscribe(fd: FormData) {
 }
 
 const schema = z.object({
-  frequency: z.enum(["TWICE_WEEKLY", "DAILY", "NONE"], { message: "Choisissez une fréquence." }),
+  frequency: z.enum(["WEEKDAYS", "TWICE_WEEKLY", "DAILY", "NONE"], { message: "Choisissez une fréquence." }),
   consent: z.boolean(),
   sectors: z.array(z.string().regex(/^[a-z0-9-]{1,60}$/)).max(40),
   regions: z.array(z.string().refine((r) => REGIONS.some((x) => x.name === r))).max(20),
@@ -74,7 +74,9 @@ export async function saveVeillePreferences(_prev: ActionResult | null, fd: Form
   return {
     ok: true,
     message:
-      d.frequency === "DAILY"
+      d.frequency === "WEEKDAYS"
+        ? "Veille enregistrée : vous recevrez les nouvelles opportunités chaque matin, du lundi au vendredi."
+        : d.frequency === "DAILY"
         ? "Alertes quotidiennes activées : vous recevrez chaque jour les nouvelles opportunités correspondant à vos critères (s'il y en a)."
         : d.frequency === "TWICE_WEEKLY"
           ? "Veille enregistrée : vous recevrez une sélection le lundi et le vendredi."

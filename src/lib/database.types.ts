@@ -25,13 +25,13 @@ export type Database = {
           Tables: {
             "alert_leads": {
                   Row: {
-                    "confirmation_sent_at": string | null,"confirmed_at": string | null,"consent_text": string,"created_at": string,"department_code": string | null,"email": string,"emails_sent": number,"id": string,"last_sent_at": string | null,"region": string | null,"sector_slug": string | null,"source_opportunity_id": string | null,"source_path": string | null,"status": string,"token": string,"unsubscribed_at": string | null
+                    "buyer_name": string | null,"buyer_slug": string | null,"confirmation_sent_at": string | null,"confirmed_at": string | null,"consent_text": string,"created_at": string,"department_code": string | null,"email": string,"emails_sent": number,"id": string,"last_sent_at": string | null,"region": string | null,"sector_slug": string | null,"source_opportunity_id": string | null,"source_path": string | null,"status": string,"token": string,"unsubscribed_at": string | null
                   }
                   Insert: {
-                    "confirmation_sent_at"?: string | null,"confirmed_at"?: string | null,"consent_text": string,"created_at"?: string,"department_code"?: string | null,"email": string,"emails_sent"?: number,"id"?: string,"last_sent_at"?: string | null,"region"?: string | null,"sector_slug"?: string | null,"source_opportunity_id"?: string | null,"source_path"?: string | null,"status"?: string,"token"?: string,"unsubscribed_at"?: string | null
+                    "buyer_name"?: string | null,"buyer_slug"?: string | null,"confirmation_sent_at"?: string | null,"confirmed_at"?: string | null,"consent_text": string,"created_at"?: string,"department_code"?: string | null,"email": string,"emails_sent"?: number,"id"?: string,"last_sent_at"?: string | null,"region"?: string | null,"sector_slug"?: string | null,"source_opportunity_id"?: string | null,"source_path"?: string | null,"status"?: string,"token"?: string,"unsubscribed_at"?: string | null
                   }
                   Update: {
-                    "confirmation_sent_at"?: string | null,"confirmed_at"?: string | null,"consent_text"?: string,"created_at"?: string,"department_code"?: string | null,"email"?: string,"emails_sent"?: number,"id"?: string,"last_sent_at"?: string | null,"region"?: string | null,"sector_slug"?: string | null,"source_opportunity_id"?: string | null,"source_path"?: string | null,"status"?: string,"token"?: string,"unsubscribed_at"?: string | null
+                    "buyer_name"?: string | null,"buyer_slug"?: string | null,"confirmation_sent_at"?: string | null,"confirmed_at"?: string | null,"consent_text"?: string,"created_at"?: string,"department_code"?: string | null,"email"?: string,"emails_sent"?: number,"id"?: string,"last_sent_at"?: string | null,"region"?: string | null,"sector_slug"?: string | null,"source_opportunity_id"?: string | null,"source_path"?: string | null,"status"?: string,"token"?: string,"unsubscribed_at"?: string | null
                   }
                   Relationships: [
                     {
@@ -1060,13 +1060,13 @@ isOneToOne: false
                   ]
                 },"pipeline_items": {
                   Row: {
-                    "company_id": string,"created_at": string,"estimated_value": number | null,"id": string,"next_action": string | null,"next_action_at": string | null,"notes": string | null,"opportunity_id": string,"stage": Database["public"]['Enums']["pipeline_stage"],"updated_at": string,"updated_by": string | null
+                    "brief_done": number[],"company_id": string,"created_at": string,"estimated_value": number | null,"id": string,"next_action": string | null,"next_action_at": string | null,"notes": string | null,"opportunity_id": string,"stage": Database["public"]['Enums']["pipeline_stage"],"updated_at": string,"updated_by": string | null
                   }
                   Insert: {
-                    "company_id": string,"created_at"?: string,"estimated_value"?: number | null,"id"?: string,"next_action"?: string | null,"next_action_at"?: string | null,"notes"?: string | null,"opportunity_id": string,"stage"?: Database["public"]['Enums']["pipeline_stage"],"updated_at"?: string,"updated_by"?: string | null
+                    "brief_done"?: number[],"company_id": string,"created_at"?: string,"estimated_value"?: number | null,"id"?: string,"next_action"?: string | null,"next_action_at"?: string | null,"notes"?: string | null,"opportunity_id": string,"stage"?: Database["public"]['Enums']["pipeline_stage"],"updated_at"?: string,"updated_by"?: string | null
                   }
                   Update: {
-                    "company_id"?: string,"created_at"?: string,"estimated_value"?: number | null,"id"?: string,"next_action"?: string | null,"next_action_at"?: string | null,"notes"?: string | null,"opportunity_id"?: string,"stage"?: Database["public"]['Enums']["pipeline_stage"],"updated_at"?: string,"updated_by"?: string | null
+                    "brief_done"?: number[],"company_id"?: string,"created_at"?: string,"estimated_value"?: number | null,"id"?: string,"next_action"?: string | null,"next_action_at"?: string | null,"notes"?: string | null,"opportunity_id"?: string,"stage"?: Database["public"]['Enums']["pipeline_stage"],"updated_at"?: string,"updated_by"?: string | null
                   }
                   Relationships: [
                     {
@@ -1743,6 +1743,11 @@ isOneToOne: false
                            },
 "public_platform_stats":
 { Args: Record<PropertyKey, never>; Returns: Json
+                           },
+"public_member_companies":
+{ Args: { "p_limit"?: number }; Returns: {
+              "city": string | null,"logo_path": string | null,"name": string,"region": string | null,"size": Database["public"]["Enums"]["company_size"] | null,"slug": string
+            }[]
                            },
 "purge_campaign_placeholders":
 { Args: { "p_limit"?: number }; Returns: number

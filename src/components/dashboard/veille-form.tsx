@@ -10,6 +10,7 @@ type Option = { value: string; label: string };
 export type VeilleFormValues = { frequency: string; sectors: string[]; regions: string[]; types: string[]; keywords: string[]; consented: boolean };
 
 const FREQUENCIES = [
+  { value: "WEEKDAYS", label: "Chaque matin, du lundi au vendredi (conseillé)", hint: "Les nouvelles opportunités de vos métiers chaque matin ouvré, et une sélection plus large le lundi et le vendredi. Rien le week-end." },
   { value: "TWICE_WEEKLY", label: "Deux sélections par semaine", hint: "Le lundi et le vendredi, les opportunités les plus pertinentes." },
   { value: "DAILY", label: "Alertes quotidiennes", hint: "Chaque jour, uniquement s'il y a de nouvelles opportunités correspondant à vos critères." },
   { value: "NONE", label: "Aucune veille par e-mail", hint: "Votre compte reste actif. Les e-mails indispensables (sécurité, messages) continuent." },

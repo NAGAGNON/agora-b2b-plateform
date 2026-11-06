@@ -20,6 +20,8 @@ export const metadata = pageMetadata({
 
 const LAUNCH_HIGHLIGHTS = [
   "Profil entreprise et annuaire",
+  "Fiche synthèse de chaque appel d'offres",
+  "Veille chaque matin, du lundi au vendredi",
   "Recherche d'opportunités et alertes e-mail",
   "Besoins publiés et réponses reçues, sans limite",
   "Favoris, recommandations et pipeline commercial",

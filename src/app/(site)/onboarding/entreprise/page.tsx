@@ -20,6 +20,11 @@ export default async function OnboardingCompanyPage(props: PageProps<"/onboardin
   if (!full)
     return (
       <div className="container-page max-w-2xl py-10 sm:py-14">
+        {sp.bienvenue === "1" && (
+          <p className="mb-4 inline-flex animate-rise items-center gap-2 rounded-full bg-teal-50 px-3 py-1.5 text-sm font-semibold text-teal-800 ring-1 ring-teal/20">
+            <CheckCircle2 className="size-4" aria-hidden /> Adresse confirmée, bienvenue sur LinkProB2B
+          </p>
+        )}
         <p className="text-sm font-semibold tracking-wide text-teal-700 uppercase">Dernière étape · 30 secondes</p>
         <h1 className="mt-1 text-2xl font-bold sm:text-3xl">Quelles offres vous intéressent ?</h1>
         <p className="mt-2 text-slate-600">

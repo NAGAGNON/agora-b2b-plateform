@@ -7,6 +7,8 @@ import { Notice } from "@/components/ui/notice";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { companyOfferState, founderOffer, founderOpen, founderSeatsTaken, marketPulse, seatsLeft } from "@/lib/billing/founder";
 import { LaunchCard, type LaunchCardProps } from "@/components/billing/launch-card";
+import { CompanySetupBanner } from "@/components/dashboard/company-setup-banner";
+import { getPlatformStats } from "@/lib/queries/platform";
 
 const nowMs = () => Date.now();
 
@@ -34,6 +36,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
     ]);
     launch = { state, pulse, seatsLeft: seatsLeft(offer, taken), endsAt: offer.endsAt, now: nowMs() };
   }
+  // Sans fiche entreprise, le site ne peut rien trier pour le membre : bandeau sur toutes les pages de l'espace
+  const openCount = session.activeCompany ? 0 : ((await getPlatformStats().catch(() => null))?.active ?? 0);
   return (
     <div className="container-page py-6 sm:py-8">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -48,6 +52,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         </p>
         <CompanySwitcher companies={session.memberships.map((m) => ({ id: m.company.id, name: m.company.name }))} activeId={session.activeCompany?.company.id ?? null} />
       </div>
+      {!session.activeCompany && <CompanySetupBanner openCount={openCount} />}
       {launch && <LaunchCard {...launch} />}
       {session.activeCompany?.company.status === "SUSPENDED" && (
         <Notice tone="error" className="mb-6" title="Entreprise suspendue">

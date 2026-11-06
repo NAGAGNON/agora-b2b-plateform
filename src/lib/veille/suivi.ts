@@ -44,7 +44,7 @@ export function freshForMember(pool: VeilleOpportunity[], m: SuiviMember) {
   return { newSince: fresh.length, newSinceDept: dept.length };
 }
 
-export type SuiviStep = "PROFIL" | "ALERTE" | "DECOUVERTE" | "BESOIN" | "RETOUR";
+export type SuiviStep = "PROFIL" | "PROFIL2" | "PROFIL3" | "ALERTE" | "DECOUVERTE" | "BESOIN" | "RETOUR";
 
 /** Invitation à publier un besoin : tous les 3 jours, tant que l'entreprise n'en a publié aucun. */
 export const BESOIN_INTERVAL_DAYS = 3;
@@ -61,6 +61,8 @@ export type SuiviHistory = {
   unopened: number;
   /** Dernière invitation à publier un besoin */
   lastBesoin: Date | null;
+  /** Dernier rappel de création de la fiche entreprise */
+  lastProfil?: Date | null;
 };
 
 export const emptyHistory = (): SuiviHistory => ({ lastSuivi: null, lastAny: null, steps: new Set(), news: new Set(), unopened: 0, lastBesoin: null });
@@ -122,6 +124,13 @@ export function planSuivi(m: SuiviMember, h: SuiviHistory, now: Date): { step: S
     if (age >= 3 && !h.steps.has("ALERTE") && !m.has_alert && m.frequency !== "DAILY") return { step: "ALERTE", news: null };
     if (age >= 6 && !h.steps.has("DECOUVERTE")) return { step: "DECOUVERTE", news };
   }
+  // Pas encore de fiche entreprise (rien ne peut être trié pour la personne) : deux rappels de plus,
+  // vers J+4 puis J+10, au moins 5 jours d'écart ; seulement le premier mois (ensuite, relance des absents)
+  if (!m.has_company && age < 30) {
+    const gap = !h.lastProfil || daysBetween(h.lastProfil, now) >= 5 - 0.15;
+    if (age >= 4 && !h.steps.has("PROFIL2") && gap) return { step: "PROFIL2", news: null };
+    if (age >= 10 && h.steps.has("PROFIL2") && !h.steps.has("PROFIL3") && gap) return { step: "PROFIL3", news: null };
+  }
   // Entreprise inscrite sans besoin publié : invitation tous les 3 jours
   if (m.has_company && !m.has_need && age >= 1 && (!h.lastBesoin || daysBetween(h.lastBesoin, now) >= BESOIN_INTERVAL_DAYS - 0.15)) return { step: "BESOIN", news: null };
   // Relance des absents
@@ -166,6 +175,7 @@ export async function loadHistories(db: DB, userIds: string[], now: Date): Promi
         if (!h.lastSuivi || at > h.lastSuivi) h.lastSuivi = at;
         h.steps.add(r.step);
         if (r.step === "BESOIN" && (!h.lastBesoin || at > h.lastBesoin)) h.lastBesoin = at;
+        if (r.step.startsWith("PROFIL") && (!h.lastProfil || at > h.lastProfil)) h.lastProfil = at;
         if (r.news_key) h.news.add(r.news_key);
         // Du plus récent au plus ancien : e-mails de suivi consécutifs jamais ouverts
         if (r.status === "SENT" && !streakDone.has(r.user_id)) {
@@ -179,7 +189,7 @@ export async function loadHistories(db: DB, userIds: string[], now: Date): Promi
   return map;
 }
 
-const ITEMS: Record<SuiviStep, number> = { PROFIL: 3, ALERTE: 3, DECOUVERTE: 3, BESOIN: 0, RETOUR: 6 };
+const ITEMS: Record<SuiviStep, number> = { PROFIL: 3, PROFIL2: 3, PROFIL3: 3, ALERTE: 3, DECOUVERTE: 3, BESOIN: 0, RETOUR: 6 };
 
 /**
  * Prépare le suivi du jour (après les éditions de veille : une personne déjà servie aujourd'hui est ignorée).
@@ -246,7 +256,7 @@ export async function buildSuivi(
   return { campaignId: campaign.id, recipients: rows.length, created: true, steps };
 }
 
-export const STEP_LABELS: Record<SuiviStep, string> = { PROFIL: "Accueil — fiche entreprise", ALERTE: "Accueil — alerte", DECOUVERTE: "Accueil — découverte", BESOIN: "Invitation à publier un besoin", RETOUR: "Relance des absents" };
+export const STEP_LABELS: Record<SuiviStep, string> = { PROFIL: "Accueil — fiche entreprise", PROFIL2: "Rappel — fiche entreprise (J+4)", PROFIL3: "Dernier rappel — fiche entreprise (J+10)", ALERTE: "Accueil — alerte", DECOUVERTE: "Accueil — découverte", BESOIN: "Invitation à publier un besoin", RETOUR: "Relance des absents" };
 
 export type SuiviEmailInput = {
   step: SuiviStep;
@@ -257,6 +267,8 @@ export type SuiviEmailInput = {
   news: SuiviNews | null;
   /** Nouvelles opportunités correspondant à la personne depuis sa dernière visite */
   newSince: number;
+  /** Exemple réel et récent de diffusion d'un besoin (chiffres de la base), pour l'invitation à publier */
+  needProof?: string | null;
   /** Dont dans le département de son entreprise */
   newSinceDept?: number;
   now: Date;
@@ -294,6 +306,25 @@ function content(i: SuiviEmailInput): { subject: string; kicker: string; title: 
       ],
       checklist: missing,
       cta: { label: i.member.has_company && i.member.profile_complete ? "Ajouter mon logo" : "Compléter ma fiche", page: i.member.has_company && i.member.profile_complete ? "logo" : "entreprise" },
+    };
+  }
+  if (i.step === "PROFIL2" || i.step === "PROFIL3") {
+    const last = i.step === "PROFIL3";
+    return {
+      subject: last ? `${first ? `${first}, d` : "D"}ernier rappel : vos marchés triés pour vous` : `${first ? `${first}, 30` : "30"} secondes pour recevoir les marchés de votre métier`,
+      kicker: last ? "Dernier rappel" : "Votre compte LinkProB2B",
+      title: "Dites-nous votre métier, on s'occupe du reste",
+      paragraphs: [
+        hello,
+        "Sans votre métier ni votre ville, nous ne pouvons pas trier les appels d'offres pour vous. Il suffit de les indiquer, en 30 secondes.",
+        last ? "C'est notre dernier message à ce sujet. Voici quelques appels d'offres ouverts en ce moment :" : "Voici quelques appels d'offres ouverts en ce moment :",
+      ],
+      checklist: [
+        "Chaque matin, les nouveaux marchés de votre métier, du lundi au vendredi.",
+        "Chaque appel d'offres résumé en 30 secondes : dates, pièces à fournir, pièges à éviter.",
+        "Les besoins publiés par les entreprises de votre secteur.",
+      ],
+      cta: { label: "Indiquer mon métier", page: "entreprise" },
     };
   }
   if (i.step === "ALERTE") {
@@ -338,6 +369,7 @@ function content(i: SuiviEmailInput): { subject: string; kicker: string; title: 
         hello,
         "Vous cherchez un prestataire, un sous-traitant ou un fournisseur ? Au lieu de démarcher vous-même, décrivez votre besoin en quelques minutes sur LinkProB2B.",
         "Dès sa validation, nous le présentons aux entreprises inscrites dont l'activité correspond, et nous allons chercher pour vous d'autres entreprises concernées. Vous recevez leurs réponses directement dans votre messagerie.",
+        ...(i.needProof ? [i.needProof] : []),
       ],
       checklist: [
         "Gratuit : jusqu'à 5 besoins actifs avec l'offre gratuite.",
