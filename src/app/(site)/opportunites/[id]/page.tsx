@@ -156,15 +156,22 @@ async function briefContext(id: string) {
   const ted = idweb ? null : (sources ?? []).map((x) => tedId(x.original_url)).find(Boolean);
   if (!idweb && !ted) return null;
   const user = await createClient();
+  const session = await getSession();
   const plan = (await user.rpc("user_plan")).data ?? "FREE";
-  const allowed = (await user.rpc("plan_feature", { p_plan: plan, p_key: "tender_brief" })).data === true;
+  // Visiteur non connecté : jamais la fiche complète (elle se prépare pour un compte)
+  const allowed = Boolean(session) && (await user.rpc("plan_feature", { p_plan: plan, p_key: "tender_brief" })).data === true;
   const open = founderOpen(await founderOffer(db));
+  const stored = await storedBrief(id, db);
+  const path = `/opportunites/${id}`;
   return {
     allowed,
-    initial: allowed ? await storedBrief(id, db) : null,
+    initial: allowed ? stored : null,
+    // En une phrase, ce que veut l'acheteur (tiré de l'avis officiel) : visible de tous, utile aussi aux moteurs de recherche
+    teaser: allowed ? null : (stored?.summary ?? null),
     source: idweb ? `BOAMP n° ${idweb}` : `TED n° ${ted}`,
-    upgradeHref: open ? "/offre-fondateur" : "/tarifs",
-    upgradeLabel: open ? "Débloquer avec Pro" : "Voir l'offre Pro",
+    upgradeHref: !session ? `/inscription?suite=${encodeURIComponent(path)}` : open ? "/offre-fondateur" : "/tarifs",
+    upgradeLabel: !session ? "Voir la fiche : compte gratuit" : open ? "Débloquer avec Pro" : "Voir l'offre Pro",
+    lockedTitle: !session ? "Réservé aux membres" : "Réservé aux membres Pro",
   };
 }
 
@@ -469,6 +476,8 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
                 initial={brief.initial}
                 source={brief.source}
                 allowed={brief.allowed}
+                teaser={brief.teaser}
+                lockedTitle={brief.lockedTitle}
                 upgrade={
                   <Link href={brief.upgradeHref} className={buttonClasses({ full: true, className: "btn-shine" })}>
                     {brief.upgradeLabel}

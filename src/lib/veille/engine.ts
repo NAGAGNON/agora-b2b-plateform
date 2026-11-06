@@ -292,6 +292,30 @@ async function recordResult(db: DB, s: { id: string; email: string; attempts: nu
   return /authentification/i.test(r.error ?? "") ? (r.error ?? "Erreur d'authentification") : null;
 }
 
+/**
+ * Preuve réelle pour l'invitation à publier un besoin : la diffusion du dernier besoin d'entreprise
+ * (entreprises contactées et e-mails ouverts, chiffres de la base). null sans exemple significatif.
+ */
+export async function needProof(db: DB): Promise<string | null> {
+  const { data: c } = await db
+    .from("outreach_campaigns")
+    .select("id, opportunity:opportunities(city)")
+    .eq("kind", "NEED")
+    .in("status", ["SENDING", "SENT"])
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!c) return null;
+  const [{ count: sent }, { count: opened }] = await Promise.all([
+    db.from("outreach_recipients").select("id", { count: "exact", head: true }).eq("campaign_id", c.id).eq("status", "SENT"),
+    db.from("outreach_recipients").select("id", { count: "exact", head: true }).eq("campaign_id", c.id).eq("status", "SENT").not("opened_at", "is", null),
+  ]);
+  if (!sent || sent < 20) return null;
+  const o = Array.isArray(c.opportunity) ? c.opportunity[0] : c.opportunity;
+  const city = o?.city ? ` à ${o.city.charAt(0)}${o.city.slice(1).toLowerCase()}` : "";
+  return `Exemple réel : le dernier besoin publié${city} a été présenté à ${sent} entreprises du métier${opened ? `, et ${opened} ont ouvert l'e-mail` : ""}.`;
+}
+
 /** Rendu d'un e-mail de suivi juste avant l'envoi (annonces revérifiées). null : plus rien à montrer. */
 export async function renderSuiviForSend(db: DB, send: { token: string; opportunity_ids: string[]; step: string | null; news_key: string | null }, m: SuiviMember, pool: VeilleOpportunity[], now = new Date()) {
   const { data } = send.opportunity_ids.length ? await db.from("opportunities").select(OPP_COLUMNS).in("id", send.opportunity_ids).eq("status", "PUBLISHED").eq("visibility", "PUBLIC").eq("is_demo", false) : { data: [] };
@@ -301,7 +325,8 @@ export async function renderSuiviForSend(db: DB, send: { token: string; opportun
   const step = (send.step ?? "RETOUR") as SuiviStep;
   if (step === "RETOUR" && !items.length && !news) return null;
   const { newSince, newSinceDept } = freshForMember(pool, m);
-  const email = renderSuiviEmail({ step, base: siteUrl(), token: send.token, member: m, items, news, newSince, newSinceDept, now, ...(await loadLabels(db)) });
+  const proof = step === "BESOIN" ? await needProof(db).catch(() => null) : null;
+  const email = renderSuiviEmail({ step, base: siteUrl(), token: send.token, member: m, items, news, newSince, newSinceDept, needProof: proof, now, ...(await loadLabels(db)) });
   return { ...email, itemIds: items.map((o) => o.id) };
 }
 

@@ -123,7 +123,24 @@ const List = ({ items }: { items: string[] }) => (
 );
 
 /** Encadré de la fiche : complète pour Pro (préparée à la demande si besoin), floutée sinon. */
-export function TenderBriefPanel({ opportunityId, initial, source, allowed, upgrade }: { opportunityId: string; initial: TenderBrief | null; source: string | null; allowed: boolean; upgrade: React.ReactNode }) {
+export function TenderBriefPanel({
+  opportunityId,
+  initial,
+  source,
+  allowed,
+  upgrade,
+  teaser = null,
+  lockedTitle = "Réservé aux membres Pro",
+}: {
+  opportunityId: string;
+  initial: TenderBrief | null;
+  source: string | null;
+  allowed: boolean;
+  upgrade: React.ReactNode;
+  /** Résumé en une phrase, montré à ceux qui n'ont pas la fiche complète */
+  teaser?: string | null;
+  lockedTitle?: string;
+}) {
   const [brief, setBrief] = useState<TenderBrief | null>(initial);
   const [state, setState] = useState<"idle" | "loading" | "none" | "error">(initial ? "idle" : allowed ? "loading" : "idle");
   const [done, setDone] = useState<number[]>([]);
@@ -207,6 +224,7 @@ export function TenderBriefPanel({ opportunityId, initial, source, allowed, upgr
             <p className="text-sm text-slate-600">La fiche n&apos;a pas pu être préparée pour le moment. Réessayez un peu plus tard.</p>
           ) : (
             <div className="relative">
+              {teaser && <p className="mb-4 text-lg text-navy">{teaser}</p>}
               <div aria-hidden className="pointer-events-none space-y-3 blur-sm select-none">
                 <p className="text-lg text-navy">Des entreprises pour réaliser les travaux décrits dans l&apos;avis, en plusieurs lots…</p>
                 <div className="grid gap-3 sm:grid-cols-2">
@@ -219,7 +237,7 @@ export function TenderBriefPanel({ opportunityId, initial, source, allowed, upgr
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="max-w-sm rounded-2xl bg-white/95 p-5 text-center shadow-lg ring-1 ring-slate-200">
                   <Lock className="mx-auto size-6 text-teal-700" aria-hidden />
-                  <p className="mt-2 font-bold text-navy">Réservé aux membres Pro</p>
+                  <p className="mt-2 font-bold text-navy">{lockedTitle}</p>
                   <p className="mt-1 text-sm text-slate-600">Dates, pièces à fournir, critères et pièges à éviter, en 30 secondes.</p>
                   <div className="mt-4">{upgrade}</div>
                 </div>

@@ -12,7 +12,7 @@ import {
   Tag,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { pageMetadata } from "@/lib/seo";
+import { pageMetadata, siteUrl } from "@/lib/seo";
 import { daysUntil, deadlineLabel, formatDate } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
 import { SectorVisual } from "@/components/opportunities/sector-visual";
@@ -75,7 +75,7 @@ export async function generateMetadata(props: PageProps<"/acheteurs/[slug]">) {
           62,
         )
       : clip(`Appels d'offres ${b.name}`, 62),
-    description: `${n ? `${nf.format(n)} appel${n > 1 ? "s" : ""} d'offres ouvert${n > 1 ? "s" : ""}` : "Aucun appel d'offres ouvert actuellement"} de ${b.name} : objet, lieu et date limite de réponse, d'après les annonces officielles (BOAMP, TED).`,
+    description: `${n ? `${nf.format(n)} appel${n > 1 ? "s" : ""} d'offres ouvert${n > 1 ? "s" : ""}` : "Aucun appel d'offres ouvert actuellement"} de ${b.name} : objet, lieu, date limite et fiche synthèse, d'après les annonces officielles (BOAMP, TED). Suivez ses nouveaux marchés par e-mail, gratuitement.`,
     path: `/acheteurs/${slug}`,
     // Indexée seulement avec au moins un appel d'offres ouvert (pas de page vide)
     noindex: n === 0,
@@ -369,6 +369,22 @@ export default async function BuyerPage(props: PageProps<"/acheteurs/[slug]">) {
 
   return (
     <div className="bg-slate-50/60">
+      {b.open.length > 0 && (
+        <JsonLd
+          data={{
+            "@context": "https://schema.org",
+            "@type": "ItemList",
+            name: `Appels d'offres ouverts : ${b.name}`,
+            numberOfItems: b.open.length,
+            itemListElement: b.open.slice(0, 30).map((o, i) => ({
+              "@type": "ListItem",
+              position: i + 1,
+              url: `${siteUrl()}/opportunites/${o.id}`,
+              name: o.title,
+            })),
+          }}
+        />
+      )}
       <JsonLd
         data={breadcrumbLd([
           { name: "Acheteurs publics", path: "/acheteurs" },
