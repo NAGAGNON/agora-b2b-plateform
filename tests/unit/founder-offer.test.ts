@@ -47,7 +47,7 @@ describe("offre de lancement", () => {
     expect(a.subject).toBe("Camille, Pro vous est offert pendant 30 jours");
     expect(a.price).toEqual({ now: "14,50 € HT/mois", before: "29 €", detail: "à vie · 12 places restantes" });
     expect(a.benefits).toHaveLength(3);
-    expect(a.foot).toBe("Sans engagement · Satisfait ou remboursé 30 jours");
+    expect(a.foot).toBe("Sans engagement · arrêt en un clic · remboursé sous 30 jours si besoin");
     expect(a.intro).toContain("déjà activé");
     expect(a.intro.length).toBeLessThan(120);
     const all = JSON.stringify([a, founderEmail("RAPPEL", ctx()), founderEmail("FIN_ESSAI", ctx()), founderEmail("DERNIER", ctx())]);

@@ -72,7 +72,7 @@ export function FounderCheckoutForm({ label, disabled = false }: { label: string
           et confirme ma souscription à l&apos;offre Pro au tarif fondateur.
         </span>
       </label>
-      <SubmitButton full size="lg" disabled={disabled} pendingLabel="Ouverture du paiement sécurisé…">
+      <SubmitButton full size="lg" disabled={disabled} className="btn-shine" pendingLabel="Ouverture du paiement sécurisé…">
         {label}
       </SubmitButton>
       {state && !state.ok && <FieldError message={state.error} />}

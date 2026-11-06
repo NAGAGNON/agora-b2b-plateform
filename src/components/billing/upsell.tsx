@@ -37,16 +37,18 @@ export async function UpgradeGate({ session, title, reason, suite, testId }: { s
       </Link>
     );
   return (
-    <section className="mx-auto max-w-lg overflow-hidden rounded-2xl bg-navy text-center text-white shadow-lg" data-testid={testId}>
-      <div className="p-7 sm:p-9">
-        <span className="inline-flex size-12 items-center justify-center rounded-2xl bg-white/10 text-teal-300">
+    <section className="relative mx-auto max-w-lg overflow-hidden rounded-3xl bg-navy text-center text-white shadow-[0_30px_70px_-25px_rgb(20_194_173/0.55)] ring-1 ring-white/10" data-testid={testId}>
+      <div aria-hidden className="pointer-events-none absolute -top-20 left-1/2 size-72 -translate-x-1/2 animate-aurora rounded-full bg-teal/30 blur-3xl" />
+      <div aria-hidden className="pointer-events-none absolute -bottom-24 -right-10 size-64 animate-aurora rounded-full bg-violet/30 blur-3xl [animation-delay:-8s]" />
+      <div className="relative p-7 sm:p-9">
+        <span className="inline-flex size-12 animate-float items-center justify-center rounded-2xl bg-gradient-to-br from-teal/40 to-violet/40 text-white ring-1 ring-white/15">
           <Lock className="size-6" aria-hidden />
         </span>
         <h2 className="mt-4 text-xl font-bold sm:text-2xl">{title}</h2>
         <div className="mt-2 text-white/80">{reason}</div>
         <div className="mx-auto mt-6 max-w-xs rounded-xl bg-white p-3 text-navy">{action}</div>
         {open && left > 0 && (
-          <p className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-amber-300">
+          <p className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-teal-300">
             <Sparkles className="size-4" aria-hidden /> Tarif fondateur : {left} place{left > 1 ? "s" : ""} restante{left > 1 ? "s" : ""}
           </p>
         )}

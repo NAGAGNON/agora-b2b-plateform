@@ -34,7 +34,7 @@ export function LaunchCard({ state, pulse, seatsLeft, now }: LaunchCardProps) {
     title = `Pro offert ${ON_DEMAND_TRIAL_DAYS} jours`;
     sub = "Créez votre profil en 30 secondes pour l'activer.";
     action = (
-      <Link href="/onboarding/entreprise?suite=%2Fdashboard" className={buttonClasses({ size: "sm", className: "shrink-0" })}>
+      <Link href="/onboarding/entreprise?suite=%2Fdashboard" className={buttonClasses({ size: "sm", className: "btn-shine shrink-0" })}>
         Activer
       </Link>
     );
@@ -44,7 +44,7 @@ export function LaunchCard({ state, pulse, seatsLeft, now }: LaunchCardProps) {
     sub = `Gardez-le à ${price}.`;
     progress = Math.max(4, Math.min(100, (d / 30) * 100));
     action = (
-      <Link href="/offre-fondateur" className={buttonClasses({ size: "sm", className: "shrink-0" })}>
+      <Link href="/offre-fondateur" className={buttonClasses({ size: "sm", className: "btn-shine shrink-0" })}>
         Garder Pro
       </Link>
     );
@@ -60,7 +60,7 @@ export function LaunchCard({ state, pulse, seatsLeft, now }: LaunchCardProps) {
     title = "Votre essai Pro est terminé";
     sub = `Réactivez-le à ${price}.`;
     action = (
-      <Link href="/offre-fondateur" className={buttonClasses({ size: "sm", className: "shrink-0" })}>
+      <Link href="/offre-fondateur" className={buttonClasses({ size: "sm", className: "btn-shine shrink-0" })}>
         Réactiver Pro
       </Link>
     );
@@ -68,10 +68,12 @@ export function LaunchCard({ state, pulse, seatsLeft, now }: LaunchCardProps) {
 
   const meta = [market, seats].filter(Boolean).join(" · ");
   return (
-    <div className="mb-6 overflow-hidden rounded-2xl bg-navy text-white shadow-sm" data-testid="launch-card">
-      <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+    <div className="relative mb-6 overflow-hidden rounded-2xl bg-navy text-white shadow-[0_18px_40px_-20px_rgb(20_194_173/0.6)] ring-1 ring-white/10" data-testid="launch-card">
+      <div aria-hidden className="pointer-events-none absolute -top-16 -right-10 size-56 animate-aurora rounded-full bg-violet/30 blur-3xl" />
+      <div aria-hidden className="pointer-events-none absolute -bottom-20 left-10 size-56 animate-aurora rounded-full bg-teal/25 blur-3xl [animation-delay:-6s]" />
+      <div className="relative flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
         <div className="flex items-center gap-3">
-          <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-xl bg-white/10 text-amber-300">
+          <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-teal/40 to-violet/40 text-white ring-1 ring-white/15">
             <Sparkles className="size-5" aria-hidden />
           </span>
           <div>
@@ -83,8 +85,8 @@ export function LaunchCard({ state, pulse, seatsLeft, now }: LaunchCardProps) {
         {action}
       </div>
       {progress !== null && (
-        <div className="h-1.5 bg-white/10" aria-hidden>
-          <div className="h-full bg-teal-400" style={{ width: `${progress}%` }} />
+        <div className="relative h-1.5 bg-white/10" aria-hidden>
+          <div className="h-full animate-shimmer bg-[linear-gradient(90deg,var(--color-teal),var(--color-glow),var(--color-violet),var(--color-teal))] bg-[length:200%_auto]" style={{ width: `${progress}%` }} />
         </div>
       )}
     </div>
