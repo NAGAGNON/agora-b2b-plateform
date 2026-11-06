@@ -328,6 +328,34 @@ export function unknownReportNumbers(s: DailySummary, facts: unknown): string[] 
   return [...new Set(found.filter((n) => !allowed.has(n)))];
 }
 
+/** Bilan des tâches automatiques trop pauvre (ligne manquante ou vide, ex. « x ») : à réécrire. */
+export function weakAutomatique(s: DailySummary): boolean {
+  return s.automatique.length < 3 || s.automatique.some((a) => a.bilan.trim().length < 15);
+}
+
+/** Bilan factuel de secours pour les tâches automatiques, construit directement depuis les faits. */
+export function automatiqueFromFacts(facts: Pick<DailyFacts, "collecte" | "taches_automatiques">): DailySummary["automatique"] {
+  const c = facts.collecte;
+  const errors = c.sources.reduce((n, x) => n + x.erreurs, 0);
+  const failed = c.sources.filter((x) => x.statut !== "SUCCESS").length;
+  const names = [...new Set(c.sources.map((x) => x.source))].join(" et ");
+  const passes = facts.taches_automatiques.passages_du_jour;
+  const failedSteps = [...new Set(passes.flatMap((p) => p.etapes_en_echec))];
+  return [
+    {
+      domaine: "Collecte des opportunités",
+      // Aucun nombre calculé ici : seuls des nombres présents tels quels dans les faits
+      bilan: `${c.opportunites_ajoutees_aujourdhui} opportunités ajoutées${names ? ` depuis ${names}` : ""}${failed ? ", certains relevés en échec" : ", tous les relevés réussis"}${errors ? ", avec des erreurs à vérifier" : ", sans erreur"}.`,
+    },
+    {
+      domaine: "Tâches automatiques",
+      bilan: passes.length
+        ? `Passages de ${passes.map((p) => p.heure).join(", ")}${failedSteps.length ? `, étapes en échec : ${failedSteps.join(", ")}` : ", sans étape en échec"}.`
+        : "Aucun passage enregistré aujourd'hui.",
+    },
+  ];
+}
+
 const SYSTEM = `Tu es l'analyste de LinkProB2B, plateforme B2B française (marchés publics et privés, mise en relation acheteurs-fournisseurs).
 Tu rédiges pour le propriétaire du site, qui n'est pas technicien, un bilan clair et direct de la journée en cours, en français simple.
 Règles absolues :
@@ -390,6 +418,18 @@ export async function generateDailyReport(now = new Date(), { final = false }: {
         ({ summary, model } = await writeSummary(facts, `une première version contenait des nombres absents des faits (${unknown.join(", ")}). Supprime-les ou remplace-les par des nombres présents dans les faits.`, final, until - Date.now()));
         unknown = unknownReportNumbers(summary, facts);
       }
+      // Bilan des tâches incomplet (déjà vu : une seule ligne « x ») : une réécriture si le temps le permet
+      if (weakAutomatique(summary) && until - Date.now() >= 60_000) {
+        const retry = await writeSummary(facts, "le bilan « automatique » était incomplet. Écris une ligne détaillée (au moins une phrase) pour chaque domaine : Collecte des opportunités, Outreach, Référencement naturel, Articles, E-mails et alertes.", final, until - Date.now()).catch(() => null);
+        if (retry && !weakAutomatique(retry.summary) && !unknownReportNumbers(retry.summary, facts).length) ({ summary, model } = retry);
+      }
+      // Dernier recours : lignes vides remplacées par un bilan factuel, jamais de « x » affiché
+      if (weakAutomatique(summary)) {
+        const solid = summary.automatique.filter((a) => a.bilan.trim().length >= 15);
+        const known = new Set(solid.map((a) => a.domaine));
+        summary = { ...summary, automatique: [...automatiqueFromFacts(facts).filter((a) => !known.has(a.domaine)), ...solid] };
+      }
+      unknown = unknownReportNumbers(summary, facts);
       if (unknown.length) note = `Nombres non retrouvés dans les données, à vérifier : ${unknown.join(", ")}`;
     } catch (e) {
       logServerError("daily report", e);
