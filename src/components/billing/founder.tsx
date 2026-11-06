@@ -1,10 +1,18 @@
 import { BadgeCheck, CalendarClock, Check, Lock, ShieldCheck } from "lucide-react";
-import { PLANS, formatEuros, priceTTC } from "@/lib/billing/plans";
+import { formatEuros, priceTTC } from "@/lib/billing/plans";
 import { FOUNDER_PRICE_HT, REFUND_DAYS, REGULAR_PRICE_HT } from "@/lib/billing/founder";
 import { formatDate } from "@/lib/format";
 
-const PRO = PLANS.find((p) => p.code === "PRO")!;
-const FREE_KEPT = ["Voir toutes les offres et les besoins publiés", "1 alerte par e-mail sur votre métier", "Publier un besoin", "Répondre aux besoins des entreprises"];
+/** Ce qui fait gagner des clients (avant les outils) : ordre voulu. */
+const PRO_GAINS = [
+  "Les besoins des entreprises en avant-première, 48 h avant les autres",
+  "Votre entreprise proposée en premier aux clients qui publient un besoin",
+  "Alertes illimitées : tous vos métiers, toutes vos zones, chaque matin",
+  "Historique complet des acheteurs publics : anticipez leurs renouvellements",
+  "Recherches illimitées sur toute la France",
+  "Pipeline commercial, favoris illimités et statistiques",
+];
+const FREE_KEPT = ["Les offres et besoins publiés (15 recherches par semaine)", "1 alerte par e-mail (3 offres par envoi)", "Publier un besoin", "Répondre aux besoins des entreprises"];
 
 /** Contenu de la page de l'offre fondateur (le bouton de paiement est fourni par la page). */
 export function FounderOfferView({
@@ -45,14 +53,14 @@ export function FounderOfferView({
               Ce que Pro vous apporte
             </h2>
             <ul className="mt-4 space-y-2.5 text-sm text-slate-700">
-              {PRO.highlights.map((h) => (
+              {PRO_GAINS.map((h) => (
                 <li key={h} className="flex gap-2.5">
                   <Check className="mt-0.5 size-4 shrink-0 text-teal-700" aria-hidden /> {h}
                 </li>
               ))}
             </ul>
             <h3 className="mt-6 text-sm font-bold text-navy">Et si vous ne souscrivez pas ?</h3>
-            <p className="mt-1 text-sm text-slate-600">Vous gardez gratuitement l&apos;essentiel, comme aujourd&apos;hui :</p>
+            <p className="mt-1 text-sm text-slate-600">Vous gardez gratuitement l&apos;essentiel :</p>
             <ul className="mt-2 space-y-1.5 text-sm text-slate-600">
               {FREE_KEPT.map((h) => (
                 <li key={h} className="flex gap-2.5">
