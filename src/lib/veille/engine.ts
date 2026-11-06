@@ -150,15 +150,33 @@ export async function buildEdition(db: DB, kind: VeilleKind, date: string, now =
   return { campaignId: campaign.id, recipients: rows.length, skipped, created: true };
 }
 
+/** Opportunités montrées en entier dans une veille de l'offre Gratuite (après le lancement payant). */
+export const FREE_VEILLE_ITEMS = 3;
+
+/** Le membre est-il limité à l'offre Gratuite ? Jamais pendant la phase de lancement gratuite. */
+export async function veilleLimited(db: DB, userId: string): Promise<boolean> {
+  if ((await db.rpc("free_launch")).data === true) return false;
+  const { data: m } = await db.from("company_members").select("company_id").eq("user_id", userId).order("created_at").limit(1).maybeSingle();
+  if (!m) return true;
+  const plan = (await db.rpc("company_plan", { p_company_id: m.company_id })).data;
+  return plan !== "PRO" && plan !== "BUSINESS";
+}
+
 /** Rendu d'un envoi précis (aussi utilisé pour l'aperçu en administration). */
 export async function renderForSend(db: DB, send: { token: string; opportunity_ids: string[] }, kind: VeilleKind, member: AudienceMember, now = new Date()) {
   // Vérification juste avant l'envoi : annonces toujours publiées, publiques et ouvertes
   const { data } = await db.from("opportunities").select(OPP_COLUMNS).in("id", send.opportunity_ids).eq("status", "PUBLISHED").eq("visibility", "PUBLIC").eq("is_demo", false);
   const valid = cleanPool(((data ?? []) as unknown as OppRow[]).map(toOpp), now);
-  const items = send.opportunity_ids.map((id) => valid.find((o) => o.id === id)).filter((o): o is VeilleOpportunity => Boolean(o));
+  const all = send.opportunity_ids.map((id) => valid.find((o) => o.id === id)).filter((o): o is VeilleOpportunity => Boolean(o));
+  // Offre Gratuite : les premières en entier, les autres annoncées (« réservées aux membres Pro »)
+  const limited = member.user_id ? await veilleLimited(db, member.user_id).catch(() => false) : false;
+  const items = limited ? all.slice(0, FREE_VEILLE_ITEMS) : all;
+  const locked = all.length - items.length;
+  const offerOpen = locked > 0 && (await db.from("platform_settings").select("value").eq("key", "founder_offer").maybeSingle()).data?.value;
+  const upgradeUrl = `${siteUrl()}${(offerOpen as { enabled?: boolean } | null)?.enabled ? "/offre-fondateur" : "/tarifs"}`;
   const labels = await loadLabels(db);
   const firstName = member.full_name?.trim().split(/\s+/)[0] || null;
-  return { items, email: renderVeilleEmail({ kind, base: siteUrl(), token: send.token, firstName, items, basis: criteriaFor(member).basis, frequency: member.frequency, ...labels }) };
+  return { items, email: renderVeilleEmail({ kind, base: siteUrl(), token: send.token, firstName, items, basis: criteriaFor(member).basis, frequency: member.frequency, locked, upgradeUrl, ...labels }) };
 }
 
 

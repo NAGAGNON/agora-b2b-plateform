@@ -15,6 +15,9 @@ export type VeilleEmailInput = {
   frequency: string;
   sectorLabel: (slug: string) => string;
   typeLabel: (type: string) => string;
+  /** Offre Gratuite (après le lancement payant) : nombre d'opportunités de la sélection réservées à Pro */
+  locked?: number;
+  upgradeUrl?: string;
 };
 
 const dateFmt = new Intl.DateTimeFormat("fr-FR", { timeZone: "Europe/Paris", day: "numeric", month: "long" });
@@ -109,6 +112,14 @@ export function renderVeilleEmail(i: VeilleEmailInput): { subject: string; html:
     body:
       paragraphs.map(paragraph).join("") +
       renderCards(i.items, L.item, i) +
+      (i.locked && i.upgradeUrl
+        ? callout({
+            kicker: "Réservé aux membres Pro",
+            title: `${i.locked} autre${i.locked > 1 ? "s" : ""} opportunité${i.locked > 1 ? "s" : ""} pour vous dans cette sélection`,
+            text: "Avec Pro : toutes vos opportunités chaque matin, la fiche synthèse de chaque appel d'offres et les besoins des entreprises en avant-première.",
+            cta: { label: "Débloquer avec Pro", url: i.upgradeUrl },
+          })
+        : "") +
       button("Voir toutes les opportunités ouvertes", L.all, { align: "center" }) +
       (!daily
         ? callout({
@@ -137,6 +148,7 @@ export function renderVeilleEmail(i: VeilleEmailInput): { subject: string; html:
       `  ${L.item(o.id)}`,
       "",
     ]),
+    ...(i.locked && i.upgradeUrl ? [`${i.locked} autre(s) opportunité(s) pour vous dans cette sélection, réservée(s) aux membres Pro : ${i.upgradeUrl}`, ""] : []),
     `Toutes les opportunités ouvertes : ${L.all}`,
     ...(!daily ? ["", "Recevoir mes opportunités chaque jour : " + L.daily, "Vous préférez une veille moins fréquente ? Recevez deux sélections par semaine, le lundi et le vendredi."] : []),
     "",

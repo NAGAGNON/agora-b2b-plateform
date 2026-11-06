@@ -117,3 +117,14 @@ describe("veille du matin (WEEKDAYS)", () => {
     expect(eligibleFor("DAILY", { ...base, frequency: "TWICE_WEEKLY" })).toBe(false);
   });
 });
+
+describe("veille de l'offre Gratuite (après le lancement)", () => {
+  it("annonce les opportunités réservées à Pro, sans les montrer", () => {
+    const base = { base: "https://www.linkprob2b.com", token: "t", sectorLabel: (s: string) => s, typeLabel: (t: string) => t };
+    const e = renderVeilleEmail({ ...base, kind: "DAILY", firstName: "Anne", items: [opp({ id: "a" })], basis: "entreprise", frequency: "WEEKDAYS", locked: 4, upgradeUrl: "https://www.linkprob2b.com/offre-fondateur" });
+    expect(e.html).toContain("4 autres opportunités pour vous dans cette sélection");
+    expect(e.html).toContain("Débloquer avec Pro");
+    expect(e.text).toContain("réservée(s) aux membres Pro");
+    expect(renderVeilleEmail({ ...base, kind: "DAILY", firstName: null, items: [opp({ id: "a" })], basis: "entreprise", frequency: "WEEKDAYS" }).html).not.toContain("Débloquer avec Pro");
+  });
+});
