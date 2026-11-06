@@ -80,8 +80,8 @@ export default async function OpportunitiesPage(props: PageProps<"/opportunites"
         <UpgradeGate
           session={await getSession()}
           testId="search-limit"
-          title="Vous avez utilisé vos recherches gratuites de la semaine"
-          reason="L'offre Gratuite comprend 15 recherches par semaine. Avec Pro, vos recherches sont illimitées, sur toute la France et tous vos métiers."
+          title="Vos 15 recherches gratuites de la semaine sont utilisées"
+          reason="Avec Pro, vos recherches sont illimitées."
           suite={`/opportunites?${new URLSearchParams(Object.entries(sp).flatMap(([k, v]) => (typeof v === "string" ? [[k, v]] : [])))}`}
         />
       )}

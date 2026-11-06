@@ -56,14 +56,15 @@ export default async function PricingPage() {
       )}
 
       {offerOpen && (
-        <div className="mx-auto max-w-3xl rounded-2xl border-2 border-amber-300 bg-amber-50 p-5 text-center" data-testid="pricing-launch">
-          <p className="text-lg font-bold text-navy">Offre de lancement : Pro à {formatEuros(FOUNDER_PRICE_HT)} HT/mois, à vie</p>
-          <p className="mt-1 text-sm text-slate-700">
-            Moitié prix tant que l&apos;abonnement reste actif · {offerSeats} place{offerSeats > 1 ? "s" : ""} restante{offerSeats > 1 ? "s" : ""} · 14 jours d&apos;essai offerts à
-            l&apos;inscription · satisfait ou remboursé 30 jours.
-          </p>
-          <Link href="/offre-fondateur" className={buttonClasses({ className: "mt-3" })}>
-            Voir l&apos;offre de lancement
+        <div className="mx-auto flex max-w-3xl flex-col items-center justify-between gap-4 rounded-2xl bg-navy p-5 text-white sm:flex-row" data-testid="pricing-launch">
+          <div>
+            <p className="text-lg font-bold">Offre de lancement : Pro à {formatEuros(FOUNDER_PRICE_HT)}/mois à vie</p>
+            <p className="text-sm text-white/80">
+              {offerSeats} place{offerSeats > 1 ? "s" : ""} restante{offerSeats > 1 ? "s" : ""} · satisfait ou remboursé 30 jours
+            </p>
+          </div>
+          <Link href="/offre-fondateur" className={buttonClasses({ className: "shrink-0" })}>
+            J&apos;en profite
           </Link>
         </div>
       )}

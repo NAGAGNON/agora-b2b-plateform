@@ -4,6 +4,7 @@ import { formatEuros } from "@/lib/billing/plans";
 import { FOUNDER_PRICE_HT, LAUNCH_TRIAL_DAYS, REFUND_DAYS, REGULAR_PRICE_HT, founderOffer, founderOpen, founderSeatsTaken, seatsLeft, type FounderOffer } from "@/lib/billing/founder";
 import { flushEmailsAfterResponse } from "@/lib/email/flush";
 import { logServerError } from "@/lib/errors";
+import type { OfferEmail } from "@/lib/email/offer-template";
 
 export type FounderStep = "ANNONCE" | "RAPPEL" | "FIN_ESSAI" | "DERNIER";
 
@@ -13,65 +14,61 @@ const dateFr = (iso: string) => new Intl.DateTimeFormat("fr-FR", { day: "numeric
 type Ctx = { firstName: string | null; hasCompany: boolean; seatsLeft: number; offer: Pick<FounderOffer, "launchedAt" | "endsAt"> };
 
 /**
- * E-mails de l'offre de lancement, envoyés aux membres inscrits avant le lancement :
- *  ANNONCE (jour 1) : Pro offert 30 jours, sans carte ; tarif fondateur à vie, places limitées.
- *  RAPPEL (7 jours avant la fin de l'essai) ; FIN_ESSAI (essai terminé) ; DERNIER (2 jours avant la fin de l'offre).
+ * E-mails de l'offre de lancement, envoyés aux membres inscrits avant le lancement. Courts : un titre,
+ * deux lignes, le prix, trois avantages, un bouton.
+ *  ANNONCE (jour 1) · RAPPEL (7 jours avant la fin de l'essai) · FIN_ESSAI · DERNIER (2 jours avant la fin).
  */
-export function founderEmail(step: FounderStep, c: Ctx) {
-  const hello = c.firstName ? `Bonjour ${c.firstName},` : "Bonjour,";
-  const price = `${formatEuros(FOUNDER_PRICE_HT)} HT par mois au lieu de ${formatEuros(REGULAR_PRICE_HT)}, à vie`;
-  const seats = c.seatsLeft > 0 ? `Seulement ${c.seatsLeft} place${c.seatsLeft > 1 ? "s" : ""} à ce tarif.` : "";
+export function founderEmail(step: FounderStep, c: Ctx): OfferEmail {
   const end = c.offer.endsAt ? dateFr(c.offer.endsAt) : null;
-  const guarantee = `Sans engagement, et satisfait ou remboursé pendant ${REFUND_DAYS} jours.`;
+  const seats = c.seatsLeft > 0 ? `${c.seatsLeft} place${c.seatsLeft > 1 ? "s" : ""} restante${c.seatsLeft > 1 ? "s" : ""}` : "à vie";
+  const price = { now: `${formatEuros(FOUNDER_PRICE_HT)} HT/mois`, before: `${formatEuros(REGULAR_PRICE_HT)}`, detail: c.seatsLeft > 0 ? `à vie · ${seats}` : "à vie" };
+  const benefits = ["Les besoins des entreprises 48 h avant les autres", "Votre entreprise proposée en premier aux clients", "Alertes et recherches illimitées, partout en France"];
+  const foot = `Sans engagement · Satisfait ou remboursé ${REFUND_DAYS} jours`;
+  const hi = c.firstName ? `${c.firstName}, ` : "";
   if (step === "ANNONCE")
     return {
-      subject: c.firstName ? `${c.firstName}, Pro vous est offert pendant ${LAUNCH_TRIAL_DAYS} jours` : `Pro vous est offert pendant ${LAUNCH_TRIAL_DAYS} jours`,
-      title: `Merci d'avoir fait partie des premiers : Pro offert ${LAUNCH_TRIAL_DAYS} jours`,
-      paragraphs: [
-        hello,
-        "Vous faites partie des toutes premières personnes à avoir rejoint LinkProB2B. Pour vous remercier, nous vous offrons l'offre Pro pendant 30 jours, sans carte bancaire et sans rien à faire.",
-        c.hasCompany
-          ? "C'est déjà activé sur votre compte : les besoins des entreprises en avant-première (48 h avant les autres), des alertes sur tous vos métiers et toutes vos zones, et votre entreprise proposée en priorité aux clients qui publient un besoin."
-          : "Pour l'activer, créez votre profil d'entreprise en 30 secondes : vous recevez alors les besoins des entreprises en avant-première (48 h avant les autres), des alertes sur tous vos métiers et toutes vos zones, et votre entreprise est proposée en priorité aux clients.",
-        `Et si Pro vous plaît, gardez-le au tarif fondateur : ${price}. ${seats}`.trim(),
-        guarantee,
-      ],
-      cta: c.hasCompany ? "Découvrir mon offre" : "Activer mon essai Pro",
+      subject: `${hi}Pro vous est offert pendant ${LAUNCH_TRIAL_DAYS} jours`.replace(/^./, (x) => x.toUpperCase()),
+      kicker: "Merci d'être parmi les premiers",
+      title: `Pro vous est offert ${LAUNCH_TRIAL_DAYS} jours`,
+      intro: c.hasCompany
+        ? "C'est déjà activé sur votre compte. Sans carte, sans engagement, rien à faire."
+        : "Créez votre profil d'entreprise en 30 secondes pour l'activer. Sans carte, sans engagement.",
+      benefits,
+      price,
+      cta: c.hasCompany ? "Découvrir Pro" : "Activer mon essai",
+      foot,
     };
   if (step === "RAPPEL")
     return {
-      subject: "Votre essai Pro se termine dans 7 jours",
-      title: "Plus que 7 jours d'essai Pro",
-      paragraphs: [
-        hello,
-        "Votre essai Pro se termine dans 7 jours. Ensuite, votre compte repasse à l'offre Gratuite : une seule alerte, un nombre limité de recherches, et les besoins des entreprises 48 h après les membres Pro.",
-        `Pour garder tout ce que vous avez aujourd'hui : ${price}. ${seats}`.trim(),
-        guarantee,
-      ],
-      cta: "Garder Pro au tarif fondateur",
+      subject: "Plus que 7 jours d'essai Pro",
+      kicker: "Votre essai Pro",
+      title: "Plus que 7 jours de Pro",
+      intro: "Ensuite, votre compte repasse en Gratuit : 1 alerte et des recherches limitées. Gardez tout au tarif fondateur.",
+      benefits,
+      price,
+      cta: "Garder Pro",
+      foot,
     };
   if (step === "FIN_ESSAI")
     return {
-      subject: `Votre essai Pro est terminé : gardez-le à ${formatEuros(FOUNDER_PRICE_HT)} HT par mois`,
+      subject: `Votre essai est terminé : gardez Pro à ${formatEuros(FOUNDER_PRICE_HT)}`,
+      kicker: "Votre essai Pro",
       title: "Votre essai Pro est terminé",
-      paragraphs: [
-        hello,
-        "Votre essai Pro de 30 jours est terminé : votre compte est repassé à l'offre Gratuite.",
-        `Vous pouvez encore réactiver Pro au tarif fondateur, ${price}${end ? `, jusqu'au ${end}` : ""}. ${seats}`.trim(),
-        guarantee,
-      ],
-      cta: "Réactiver Pro au tarif fondateur",
+      intro: `Réactivez Pro au tarif fondateur${end ? `, jusqu'au ${end}` : ""}.`,
+      benefits,
+      price,
+      cta: "Réactiver Pro",
+      foot,
     };
   return {
     subject: `Dernier rappel : le tarif fondateur se termine le ${end ?? "bientôt"}`,
-    title: "Dernier rappel : le tarif fondateur se termine",
-    paragraphs: [
-      hello,
-      `Le tarif fondateur (${price}) se termine le ${end ?? "bientôt"}. Après cette date, Pro sera à ${formatEuros(REGULAR_PRICE_HT)} HT par mois. ${seats}`.trim(),
-      guarantee,
-      "C'est notre dernier message à ce sujet : merci encore de nous avoir fait confiance dès le début.",
-    ],
+    kicker: "Dernier rappel",
+    title: `Tarif fondateur : fin le ${end ?? "bientôt"}`,
+    intro: `Ensuite, Pro sera à ${formatEuros(REGULAR_PRICE_HT)} HT/mois. C'est notre dernier message à ce sujet.`,
+    benefits,
+    price,
     cta: "Profiter du tarif fondateur",
+    foot,
   };
 }
 
@@ -114,7 +111,7 @@ export async function processFounderCampaign(db = createAdminClient(), now = Dat
       to_email: u.email,
       template: "founder",
       subject: m.subject,
-      payload: { type: "founder", title: m.title, paragraphs: m.paragraphs, link: withCompany.has(u.id) ? "/offre-fondateur" : "/onboarding/entreprise?suite=%2Foffre-fondateur", cta: m.cta },
+      payload: { type: "founder", offer: m, link: withCompany.has(u.id) ? "/offre-fondateur" : "/onboarding/entreprise?suite=%2Foffre-fondateur" } as never,
     });
     if (error) logServerError("founder email", error);
     else queued++;

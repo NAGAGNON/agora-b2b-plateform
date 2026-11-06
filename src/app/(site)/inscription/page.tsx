@@ -97,11 +97,10 @@ export default async function SignUpPage(props: PageProps<"/inscription">) {
       }
     >
       {launch && !forOffer && (
-        <div className="mb-6 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-navy" data-testid="signup-trial">
-          <p className="font-bold">Pro offert pendant 14 jours, sans carte bancaire</p>
-          <p className="mt-1 text-slate-700">
-            Dès votre inscription : alertes sur tous vos métiers et toutes vos zones, besoins des entreprises en avant-première, historique complet des acheteurs,
-            recherches illimitées. Aucun prélèvement à la fin de l&apos;essai.
+        <div className="mb-6 flex items-center gap-3 rounded-2xl bg-navy p-4 text-white" data-testid="signup-trial">
+          <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-xl bg-white/10 font-bold text-amber-300">14 j</span>
+          <p className="text-sm">
+            <strong>Pro offert 14 jours</strong> à l&apos;inscription. Sans carte, sans engagement.
           </p>
         </div>
       )}

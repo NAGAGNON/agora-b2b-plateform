@@ -17,17 +17,17 @@ export async function UpgradeGate({ session, title, reason, suite, testId }: { s
   const state = company ? await companyOfferState(company.company.id) : null;
   const left = open ? seatsLeft(offer, await founderSeatsTaken()) : 0;
   let action: React.ReactNode;
-  if (open && company && state && !state.trialUsed && !state.paid) action = <StartTrialForm suite={suite} label={`Débloquer : essai Pro gratuit ${ON_DEMAND_TRIAL_DAYS} jours`} />;
+  if (open && company && state && !state.trialUsed && !state.paid) action = <StartTrialForm suite={suite} label={`Essayer Pro ${ON_DEMAND_TRIAL_DAYS} jours gratuits`} hint={false} />;
   else if (open && !company)
     action = (
       <Link href={`/onboarding/entreprise?suite=${encodeURIComponent(suite)}`} className={buttonClasses({ full: true, size: "lg" })}>
-        Créer mon profil et essayer Pro gratuitement
+        Essayer Pro gratuitement
       </Link>
     );
   else if (open && left > 0)
     action = (
       <Link href="/offre-fondateur" className={buttonClasses({ full: true, size: "lg" })}>
-        Passer à Pro pour {formatEuros(FOUNDER_PRICE_HT)} HT/mois, à vie
+        Pro à {formatEuros(FOUNDER_PRICE_HT)}/mois à vie
       </Link>
     );
   else
@@ -37,18 +37,20 @@ export async function UpgradeGate({ session, title, reason, suite, testId }: { s
       </Link>
     );
   return (
-    <section className="mx-auto max-w-xl rounded-2xl border-2 border-amber-300 bg-gradient-to-b from-amber-50 to-white p-6 text-center shadow-sm sm:p-8" data-testid={testId}>
-      <span className="inline-flex size-12 items-center justify-center rounded-full bg-amber-100 text-amber-700">
-        <Lock className="size-6" aria-hidden />
-      </span>
-      <h2 className="mt-4 text-xl font-bold text-navy sm:text-2xl">{title}</h2>
-      <div className="mt-2 text-slate-700">{reason}</div>
-      <div className="mx-auto mt-6 max-w-sm">{action}</div>
-      {open && left > 0 && (
-        <p className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-amber-800">
-          <Sparkles className="size-4" aria-hidden /> Tarif fondateur : plus que {left} place{left > 1 ? "s" : ""}
-        </p>
-      )}
+    <section className="mx-auto max-w-lg overflow-hidden rounded-2xl bg-navy text-center text-white shadow-lg" data-testid={testId}>
+      <div className="p-7 sm:p-9">
+        <span className="inline-flex size-12 items-center justify-center rounded-2xl bg-white/10 text-teal-300">
+          <Lock className="size-6" aria-hidden />
+        </span>
+        <h2 className="mt-4 text-xl font-bold sm:text-2xl">{title}</h2>
+        <div className="mt-2 text-white/80">{reason}</div>
+        <div className="mx-auto mt-6 max-w-xs rounded-xl bg-white p-3 text-navy">{action}</div>
+        {open && left > 0 && (
+          <p className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-amber-300">
+            <Sparkles className="size-4" aria-hidden /> Tarif fondateur : {left} place{left > 1 ? "s" : ""} restante{left > 1 ? "s" : ""}
+          </p>
+        )}
+      </div>
     </section>
   );
 }

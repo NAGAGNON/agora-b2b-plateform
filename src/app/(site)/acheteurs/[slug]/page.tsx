@@ -489,7 +489,7 @@ export default async function BuyerPage(props: PageProps<"/acheteurs/[slug]">) {
                     session={session}
                     testId="buyer-history-limit"
                     title={`${nf.format(b.past.length - pastShown.length)} autres annonces de cet acheteur`}
-                    reason="L'historique complet de l'acheteur (ce qu'il achète, à quel rythme, quand ses contrats se renouvellent) est réservé à Pro : de quoi préparer votre réponse avant même la publication."
+                    reason="L'historique complet de l'acheteur est réservé à Pro : anticipez ses prochains contrats."
                     suite={path}
                   />
                 </div>

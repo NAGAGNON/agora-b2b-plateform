@@ -81,7 +81,7 @@ export function FounderCheckoutForm({ label, disabled = false }: { label: string
 }
 
 /** Essai Pro de 14 jours, sans carte bancaire (une fois par entreprise). */
-export function StartTrialForm({ suite, label = "Essayer Pro gratuitement 14 jours" }: { suite: string; label?: string }) {
+export function StartTrialForm({ suite, label = "Essayer Pro gratuitement 14 jours", hint = true }: { suite: string; label?: string; hint?: boolean }) {
   const [state, action] = useActionState(startProTrial, null as ActionResult | null);
   return (
     <form action={action} className="space-y-2">
@@ -89,7 +89,7 @@ export function StartTrialForm({ suite, label = "Essayer Pro gratuitement 14 jou
       <SubmitButton full size="lg" pendingLabel="Activation…">
         {label}
       </SubmitButton>
-      <p className="text-center text-xs text-slate-500">Sans carte bancaire · aucun prélèvement à la fin de l&apos;essai</p>
+      {hint && <p className="text-center text-xs text-slate-500">Sans carte bancaire · aucun prélèvement à la fin de l&apos;essai</p>}
       {state && !state.ok && <FieldError message={state.error} />}
     </form>
   );

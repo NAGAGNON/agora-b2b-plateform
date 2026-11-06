@@ -2,6 +2,7 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { env } from "@/lib/env";
 import { founderOffer, founderOpen } from "@/lib/billing/founder";
+import { renderOfferEmail, type OfferEmail } from "@/lib/email/offer-template";
 import { renderEmail } from "@/lib/email/templates";
 import { familyOf, type Hero } from "@/lib/email/design";
 import { sendEmail } from "@/lib/email/send";
@@ -106,7 +107,11 @@ export async function processEmailOutbox(limit = 50): Promise<{ sent: number; sk
       .eq("attempts", row.attempts)
       .select("id");
     if (!claimed?.length) continue;
-    const { html, text } = renderEmail(notificationLayout(row.template, (row.payload ?? {}) as NotificationPayload, row.subject));
+    const payload = (row.payload ?? {}) as NotificationPayload & { offer?: OfferEmail };
+    // Offre de lancement : gabarit dédié, court et visuel (prix en grand, trois avantages, un bouton)
+    const { html, text } = payload.offer
+      ? renderOfferEmail(payload.offer, env.siteUrl, env.siteUrl + (payload.link ?? "/offre-fondateur"))
+      : renderEmail(notificationLayout(row.template, payload, row.subject));
     const result = await sendEmail({ to: row.to_email, subject: row.subject, html, text, idempotencyKey: `outbox-${row.id}` });
     stats[result.status === "SENT" ? "sent" : result.status === "SKIPPED" ? "skipped" : "failed"]++;
     await admin

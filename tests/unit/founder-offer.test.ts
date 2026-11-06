@@ -42,17 +42,18 @@ describe("offre de lancement", () => {
     expect(dueStep(offer, t0 + 38 * DAY)).toBeNull();
   });
 
-  it("e-mails : essai offert, prix, places, garantie, aucune mention d'outil automatique", () => {
+  it("e-mails courts : essai offert, prix fondateur, places, garantie, aucune mention d'outil automatique", () => {
     const a = founderEmail("ANNONCE", ctx());
     expect(a.subject).toBe("Camille, Pro vous est offert pendant 30 jours");
-    const text = a.paragraphs.join(" ");
-    expect(text).toContain("14,50 € HT par mois au lieu de 29 €, à vie");
-    expect(text).toContain("Seulement 12 places");
-    expect(text).toContain("satisfait ou remboursé pendant 30 jours");
-    expect(text).toContain("déjà activé");
-    expect(text).not.toMatch(/\bIA\b|intelligence artificielle|robot/i);
-    expect(founderEmail("ANNONCE", ctx({ hasCompany: false })).paragraphs.join(" ")).toContain("créez votre profil");
+    expect(a.price).toEqual({ now: "14,50 € HT/mois", before: "29 €", detail: "à vie · 12 places restantes" });
+    expect(a.benefits).toHaveLength(3);
+    expect(a.foot).toBe("Sans engagement · Satisfait ou remboursé 30 jours");
+    expect(a.intro).toContain("déjà activé");
+    expect(a.intro.length).toBeLessThan(120);
+    const all = JSON.stringify([a, founderEmail("RAPPEL", ctx()), founderEmail("FIN_ESSAI", ctx()), founderEmail("DERNIER", ctx())]);
+    expect(all).not.toMatch(/\bIA\b|intelligence artificielle|robot/i);
+    expect(founderEmail("ANNONCE", ctx({ hasCompany: false })).intro).toContain("Créez votre profil");
     expect(founderEmail("DERNIER", ctx()).subject).toContain("7 janvier");
-    expect(founderEmail("FIN_ESSAI", ctx({ seatsLeft: 1 })).paragraphs.join(" ")).toContain("Seulement 1 place à ce tarif");
+    expect(founderEmail("FIN_ESSAI", ctx({ seatsLeft: 1 })).price.detail).toBe("à vie · 1 place restante");
   });
 });
