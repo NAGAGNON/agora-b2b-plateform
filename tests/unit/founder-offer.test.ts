@@ -46,7 +46,7 @@ describe("offre de lancement", () => {
     const a = founderEmail("ANNONCE", ctx());
     expect(a.subject).toBe("Camille, Pro vous est offert pendant 30 jours");
     expect(a.price).toEqual({ now: "14,50 € HT/mois", before: "29 €", detail: "à vie · 12 places restantes" });
-    expect(a.benefits).toHaveLength(3);
+    expect(a.benefits).toHaveLength(4);
     expect(a.foot).toBe("Sans engagement · arrêt en un clic · remboursé sous 30 jours si besoin");
     expect(a.intro).toContain("déjà activé");
     expect(a.intro.length).toBeLessThan(120);

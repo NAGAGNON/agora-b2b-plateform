@@ -598,6 +598,17 @@ isOneToOne: false
                     "day"?: string,"searches"?: number,"user_id"?: string
                   }
                   Relationships: []
+                },"tender_briefs": {
+                  Row: {
+                    "content": Json,"created_at": string,"opportunity_id": string,"source_ref": string | null
+                  }
+                  Insert: {
+                    "content": Json,"created_at"?: string,"opportunity_id": string,"source_ref"?: string | null
+                  }
+                  Update: {
+                    "content"?: Json,"created_at"?: string,"opportunity_id"?: string,"source_ref"?: string | null
+                  }
+                  Relationships: []
                 },"need_contacts": {
                   Row: {
                     "company": string,"created_at": string,"email": string,"id": string,"message": string,"name": string,"opportunity_id": string,"outreach_recipient_id": string | null,"phone": string | null

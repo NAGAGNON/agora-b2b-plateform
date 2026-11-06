@@ -100,7 +100,7 @@ export default async function SignUpPage(props: PageProps<"/inscription">) {
         <div className="mb-6 flex items-center gap-3 rounded-2xl bg-navy p-4 text-white ring-1 ring-white/10" data-testid="signup-trial">
           <span className="inline-flex size-10 shrink-0 animate-float items-center justify-center rounded-xl bg-gradient-to-br from-teal to-violet text-sm font-bold">14 j</span>
           <p className="text-sm">
-            <strong>Pro offert 14 jours</strong> à l&apos;inscription. Sans carte, sans engagement.
+            <strong>Pro offert 14 jours</strong> : chaque appel d&apos;offres résumé en 30 secondes, besoins en avant-première. Sans carte.
           </p>
         </div>
       )}

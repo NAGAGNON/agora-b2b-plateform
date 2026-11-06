@@ -50,7 +50,7 @@ export function LaunchCard({ state, pulse, seatsLeft, now }: LaunchCardProps) {
     );
   } else if (!state.trialUsed) {
     title = `Essayez Pro ${ON_DEMAND_TRIAL_DAYS} jours, gratuitement`;
-    sub = "Sans carte, sans engagement.";
+    sub = "Fiches synthèse, besoins en avant-première, alertes illimitées. Sans carte.";
     action = (
       <div className="w-full shrink-0 sm:w-60">
         <StartTrialForm suite="/dashboard" label="Essayer Pro" hint={false} />

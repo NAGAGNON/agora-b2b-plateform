@@ -36,6 +36,8 @@ export const PLANS: PlanInfo[] = [
     yearlyPriceHT: 290,
     tagline: "Pour développer votre activité avec des opportunités adaptées.",
     highlights: [
+      "Fiche synthèse de chaque appel d'offres",
+      "Besoins des entreprises en avant-première",
       "Besoins actifs illimités",
       "Recommandations « Recommandé pour votre entreprise »",
       "Alertes illimitées",

@@ -1,10 +1,11 @@
-import { Bell, Check, ChevronDown, History, Minus, Sparkles, Star, Zap } from "lucide-react";
+import { Bell, Check, ChevronDown, FileSearch, History, Minus, Sparkles, Star, Zap } from "lucide-react";
 import { formatEuros, priceTTC } from "@/lib/billing/plans";
 import { FOUNDER_PRICE_HT, REFUND_DAYS, REGULAR_PRICE_HT } from "@/lib/billing/founder";
 import { formatDate } from "@/lib/format";
 
 /** Ce que l'abonné gagne (des clients, du temps), pas une liste de fonctions. */
 const WINS = [
+  { icon: FileSearch, title: "Chaque appel d'offres résumé en 30 secondes", text: "Dates, pièces à fournir, critères et pièges à éviter, sans lire 80 pages." },
   { icon: Zap, title: "48 h d'avance sur les autres", text: "Les besoins des entreprises arrivent chez vous en premier." },
   { icon: Star, title: "Vous passez devant", text: "Votre entreprise est proposée en tête aux clients qui publient un besoin." },
   { icon: Bell, title: "Plus aucune offre ratée", text: "Alertes et recherches illimitées, tous vos métiers, toute la France." },
@@ -12,6 +13,7 @@ const WINS = [
 ];
 
 const COMPARE: [string, string | boolean, string | boolean][] = [
+  ["Fiche synthèse de chaque appel d'offres", false, true],
   ["Besoins des entreprises", "48 h après", "En avant-première"],
   ["Proposé en premier aux clients", false, true],
   ["Alertes par e-mail", "1 alerte, 3 offres", "Illimitées"],

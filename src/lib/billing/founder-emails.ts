@@ -22,7 +22,7 @@ export function founderEmail(step: FounderStep, c: Ctx): OfferEmail {
   const end = c.offer.endsAt ? dateFr(c.offer.endsAt) : null;
   const seats = c.seatsLeft > 0 ? `${c.seatsLeft} place${c.seatsLeft > 1 ? "s" : ""} restante${c.seatsLeft > 1 ? "s" : ""}` : "à vie";
   const price = { now: `${formatEuros(FOUNDER_PRICE_HT)} HT/mois`, before: `${formatEuros(REGULAR_PRICE_HT)}`, detail: c.seatsLeft > 0 ? `à vie · ${seats}` : "à vie" };
-  const benefits = ["Les besoins des entreprises 48 h avant les autres", "Votre entreprise proposée en premier aux clients", "Alertes et recherches illimitées, partout en France"];
+  const benefits = ["Chaque appel d'offres résumé en 30 secondes", "Les besoins des entreprises 48 h avant les autres", "Votre entreprise proposée en premier aux clients", "Alertes et recherches illimitées, partout en France"];
   const foot = `Sans engagement · arrêt en un clic · remboursé sous ${REFUND_DAYS} jours si besoin`;
   const hi = c.firstName ? `${c.firstName}, ` : "";
   if (step === "ANNONCE")
