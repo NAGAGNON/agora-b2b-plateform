@@ -1,6 +1,7 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { env } from "@/lib/env";
+import { founderOffer, founderOpen } from "@/lib/billing/founder";
 import { renderEmail } from "@/lib/email/templates";
 import { familyOf, type Hero } from "@/lib/email/design";
 import { sendEmail } from "@/lib/email/send";
@@ -65,7 +66,7 @@ const LOOK: Record<string, { kicker: string; hero: Hero }> = {
 };
 
 export type DigestItem = { label: string; url: string; kicker?: string | null; subtitle?: string | null; summary?: string | null; meta?: string[]; deadline?: string | null; image?: string | null };
-export type NotificationPayload = { type?: string; title?: string; body?: string; paragraphs?: string[]; link?: string; items?: DigestItem[]; unsubscribe?: string };
+export type NotificationPayload = { type?: string; title?: string; body?: string; paragraphs?: string[]; link?: string; cta?: string; items?: DigestItem[]; unsubscribe?: string };
 
 /** Gabarit des e-mails de notification (un par type d'événement, via le titre, le texte et l'action). */
 export function notificationLayout(template: string, payload: NotificationPayload, subject: string): Parameters<typeof renderEmail>[0] {
@@ -76,7 +77,7 @@ export function notificationLayout(template: string, payload: NotificationPayloa
     title: payload.title ?? subject,
     paragraphs: payload.paragraphs?.length ? payload.paragraphs : payload.body ? [payload.body] : [],
     list: payload.items?.map((i) => ({ ...i, url: env.siteUrl + i.url, image: i.image ? env.siteUrl + i.image : null })),
-    cta: payload.link ? { label: CTA_LABELS[payload.type ?? template] ?? "Voir sur LinkProB2B", url: env.siteUrl + payload.link } : undefined,
+    cta: payload.link ? { label: payload.cta ?? CTA_LABELS[payload.type ?? template] ?? "Voir sur LinkProB2B", url: env.siteUrl + payload.link } : undefined,
     footer: payload.unsubscribe
       ? `Vous recevez cet e-mail car vous avez créé une alerte. Se désabonner en un clic : ${env.siteUrl}${payload.unsubscribe}`
       : undefined,
@@ -131,6 +132,7 @@ export async function processAlertDigests(): Promise<{ alerts: number; emails: n
     .eq("is_active", true)
     .in("frequency", ["DAILY", "WEEKLY"]);
   let emails = 0;
+  const launchOpen = founderOpen(await founderOffer(admin));
   for (const a of alerts ?? []) {
     const periodMs = a.frequency === "DAILY" ? 86_400_000 : 7 * 86_400_000;
     const since = a.last_sent_at ?? a.created_at;
@@ -147,6 +149,11 @@ export async function processAlertDigests(): Promise<{ alerts: number; emails: n
     });
     // Préférence « recevoir les e-mails » respectée (la notification dans l'espace reste créée)
     if (!user.notify_email) continue;
+    // Offre Gratuite (après la phase de lancement) : quelques offres seulement, le reste réservé à Pro
+    const plan = (await admin.rpc("user_plan", { p_user_id: a.user_id })).data ?? "FREE";
+    const cap = (await admin.rpc("plan_feature", { p_plan: plan, p_key: "digest_items" })).data as number | null;
+    const shown = cap == null ? matches : matches.slice(0, cap);
+    const hidden = matches.length - shown.length;
     await admin.from("email_outbox").insert({
       user_id: a.user_id,
       to_email: user.email,
@@ -155,7 +162,17 @@ export async function processAlertDigests(): Promise<{ alerts: number; emails: n
       payload: {
         title: `Votre alerte « ${a.name} »`,
         body: `${matches.length} opportunité(s) correspondent à vos critères depuis le dernier envoi.`,
-        items: await digestItems(admin, matches.map((m) => m.id)),
+        items: await digestItems(admin, shown.map((m) => m.id)),
+        ...(hidden > 0
+          ? {
+              paragraphs: [
+                `${matches.length} opportunité(s) correspondent à vos critères depuis le dernier envoi. Voici les ${shown.length} plus récentes.`,
+                `Les ${hidden} autres sont réservées aux membres Pro, qui reçoivent aussi les besoins des entreprises 48 h avant tout le monde.`,
+              ],
+              link: launchOpen ? "/offre-fondateur" : "/tarifs",
+              cta: `Voir les ${hidden} autres opportunités`,
+            }
+          : {}),
         unsubscribe: `/alertes/desabonnement?jeton=${a.unsubscribe_token}`,
       },
     });

@@ -2,6 +2,8 @@
 
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { revalidatePath } from "next/cache";
+import { createClient } from "@/lib/supabase/server";
 import { requireCompany } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { env } from "@/lib/env";
@@ -10,7 +12,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { getStripe, priceIdFor, stripeConfigured, paidPlansOpen, stripeMode, taxRateId, type PaidPlan } from "@/lib/billing/stripe";
 import { ENTITLED_STATUSES } from "@/lib/billing/sync";
 import type { ActionResult } from "@/lib/validation";
-import { FOUNDER_COUPON_ID, FOUNDER_DISCOUNT, founderOffer, founderOpen, isFounder } from "@/lib/billing/founder";
+import { FOUNDER_COUPON_ID, FOUNDER_DISCOUNT, founderOffer, founderOpen, founderSeatsTaken, seatsLeft } from "@/lib/billing/founder";
 
 /**
  * Paiement et gestion de l'abonnement. L'offre choisie est validée côté serveur et
@@ -115,14 +117,16 @@ async function ensureFounderCoupon(): Promise<string> {
   }
 }
 
+const db0 = () => createAdminClient();
+
 const founderSchema = z.object({
   interval: z.enum(["month", "year"]).default("month"),
   acceptTerms: z.literal("on", { error: "Veuillez accepter les conditions d'abonnement pour continuer." }),
 });
 
 /**
- * Souscription « membre fondateur » : offre Pro avec la réduction fondateur appliquée à vie.
- * Uniquement pendant l'offre (réglage activé, non terminée) et pour un compte créé avant son lancement.
+ * Souscription au tarif fondateur : offre Pro avec la réduction fondateur appliquée à vie.
+ * Uniquement pendant l'offre de lancement (non terminée) et tant qu'il reste des places.
  */
 export async function startFounderCheckout(_prev: ActionResult | null, fd: FormData): Promise<ActionResult> {
   const parsed = founderSchema.safeParse({ interval: fd.get("interval") ?? undefined, acceptTerms: fd.get("acceptTerms") });
@@ -131,7 +135,8 @@ export async function startFounderCheckout(_prev: ActionResult | null, fd: FormD
   const { session, error } = await adminCompany("/offre-fondateur");
   if (error) return { ok: false, error };
   const offer = await founderOffer();
-  if (!founderOpen(offer) || !isFounder(offer, session.profile.created_at)) return { ok: false, error: "Cette offre n'est pas disponible pour votre compte." };
+  if (!founderOpen(offer)) return { ok: false, error: "L'offre de lancement est terminée. Les offres actuelles sont sur la page Tarifs." };
+  if (seatsLeft(offer, await founderSeatsTaken(db0())) <= 0) return { ok: false, error: "Toutes les places au tarif fondateur ont été prises. Les offres actuelles sont sur la page Tarifs." };
   if (!stripeConfigured()) return { ok: false, error: UNAVAILABLE };
   if (!paidPlansOpen(session.isStaff)) return { ok: false, error: "Le paiement en ligne est en cours de mise en service." };
   if (liveBlocked()) return { ok: false, error: "Paiement désactivé : le mode LIVE de Stripe n'est pas encore autorisé." };
@@ -190,4 +195,15 @@ export async function openBillingPortal(): Promise<ActionResult> {
     return { ok: false, error: "Le portail de gestion est momentanément indisponible. Réessayez dans quelques instants." };
   }
   redirect(url);
+}
+
+/** Essai Pro de 14 jours sans carte (une fois par entreprise, pendant l'offre de lancement). */
+export async function startProTrial(_prev: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  const next = typeof fd.get("suite") === "string" && String(fd.get("suite")).startsWith("/") ? String(fd.get("suite")) : "/dashboard";
+  const session = await requireCompany(next);
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("start_pro_trial", { p_company_id: session.activeCompany.company.id });
+  if (error) return { ok: false, error: /déjà/.test(error.message) ? "L'essai Pro a déjà été utilisé pour votre entreprise." : "L'essai Pro n'est pas disponible pour le moment." };
+  revalidatePath("/", "layout");
+  redirect(`${next}${next.includes("?") ? "&" : "?"}essai=active`);
 }

@@ -1,54 +1,59 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getSession } from "@/lib/auth";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { env } from "@/lib/env";
 import { PRIVATE_METADATA } from "@/lib/seo";
-import { founderOffer, founderOpen, isFounder } from "@/lib/billing/founder";
-import { FounderBanner, FounderOfferView } from "@/components/billing/founder";
+import { companyOfferState, founderOffer, founderOpen, founderSeatsTaken, isFounder, seatsLeft } from "@/lib/billing/founder";
+import { FounderOfferView } from "@/components/billing/founder";
+import { LaunchCard } from "@/components/billing/launch-card";
 import { FounderCheckoutForm } from "@/components/dashboard/billing-forms";
 import { Notice } from "@/components/ui/notice";
 import { buttonClasses } from "@/components/ui/button";
 
-export const metadata = { ...PRIVATE_METADATA, title: "Offre membre fondateur" };
+export const metadata = { ...PRIVATE_METADATA, title: "Offre de lancement" };
+
+const DAY = 86_400_000;
+/** Repère temporel de l'aperçu (dates fictives). */
+const nowMs = () => Date.now();
 
 /**
- * Offre « membre fondateur ». Invisible tant qu'elle n'est pas lancée (page introuvable), sauf en
- * aperçu (?apercu=1) pour l'équipe ou hors production : rien n'est alors payable.
+ * Offre de lancement (tarif fondateur). Introuvable tant qu'elle n'est pas lancée, sauf en aperçu
+ * (?apercu=1) pour l'équipe ou hors production : rien n'y est payable.
  */
-/** Date de fin fictive de l'aperçu : dans trois semaines. */
-function previewEnd() {
-  const d = new Date();
-  d.setDate(d.getDate() + 21);
-  return d.toISOString();
-}
-
 export default async function FounderOfferPage(props: PageProps<"/offre-fondateur">) {
   const sp = await props.searchParams;
   const [session, offer] = await Promise.all([getSession(), founderOffer()]);
   const preview = sp.apercu === "1" && (!env.isProduction || Boolean(session?.isStaff));
   if (preview) {
-    const endsAt = previewEnd();
+    const now = nowMs();
+    const endsAt = new Date(now + 37 * DAY).toISOString();
+    const pulse = { sectors: ["travaux-btp"], france: 312, department: 18, departmentCode: "30" };
+    const free = { plan: "FREE" as const, paid: false, trialEndsAt: null, trialActive: false, trialUsed: false };
     return (
       <>
-        <div className="container-page pt-6">
-          <Notice tone="info" title="Aperçu">
-            Aperçu de l&apos;offre fondateur telle que la verront les inscrits une fois lancée. Rien n&apos;est payable ici. Ci-dessous, le bandeau affiché dans leur espace.
+        <div className="container-page space-y-4 pt-6">
+          <Notice tone="info" title="Aperçu (exemples fictifs)">
+            L&apos;offre telle que la verront les membres une fois lancée. Rien n&apos;est payable ici. Ci-dessous, l&apos;encart affiché dans l&apos;espace membre selon la
+            situation : essai en cours, essai à démarrer, essai terminé, compte sans entreprise.
           </Notice>
-          <div className="mt-4">
-            <FounderBanner endsAt={endsAt} />
-          </div>
+          <LaunchCard state={{ ...free, plan: "PRO", trialActive: true, trialUsed: true, trialEndsAt: new Date(now + 12 * DAY).toISOString() }} pulse={pulse} seatsLeft={23} endsAt={endsAt} now={now} />
+          <LaunchCard state={free} pulse={pulse} seatsLeft={23} endsAt={endsAt} now={now} />
+          <LaunchCard state={{ ...free, trialUsed: true }} pulse={pulse} seatsLeft={9} endsAt={endsAt} now={now} />
+          <LaunchCard state={null} pulse={null} seatsLeft={23} endsAt={endsAt} now={now} />
         </div>
-        <FounderOfferView firstName="Camille" endsAt={endsAt} action={<FounderCheckoutForm label="Devenir membre fondateur" disabled />} />
+        <FounderOfferView firstName="Camille" endsAt={endsAt} seatsLeft={23} action={<FounderCheckoutForm label="Devenir membre fondateur" disabled />} />
       </>
     );
   }
   if (!founderOpen(offer)) notFound();
+  const left = seatsLeft(offer, await founderSeatsTaken());
   if (!session) {
     return (
       <FounderOfferView
         firstName={null}
+        founder={false}
         endsAt={offer.endsAt}
+        seatsLeft={left}
         action={
           <Link href="/connexion?suite=%2Foffre-fondateur" className={buttonClasses({ full: true, size: "lg" })}>
             Me connecter pour en profiter
@@ -59,24 +64,24 @@ export default async function FounderOfferPage(props: PageProps<"/offre-fondateu
   }
   const firstName = session.profile.full_name?.trim().split(/\s+/)[0] ?? null;
   const company = session.activeCompany;
-  const eligible = isFounder(offer, session.profile.created_at);
-  const { data: plan } = company ? await createAdminClient().from("companies").select("plan_code").eq("id", company.company.id).maybeSingle() : { data: null };
-  const paid = Boolean(plan && plan.plan_code !== "FREE");
+  const state = company ? await companyOfferState(company.company.id) : null;
   let action: React.ReactNode;
-  if (!eligible) action = <Notice tone="info">Cette offre est réservée aux personnes inscrites avant son lancement. Les offres actuelles sont sur la page Tarifs.</Notice>;
+  if (left <= 0) action = <Notice tone="info">Toutes les places au tarif fondateur ont été prises. Les offres actuelles sont sur la page Tarifs.</Notice>;
   else if (!company)
     action = (
       <Link href="/onboarding/entreprise?suite=%2Foffre-fondateur" className={buttonClasses({ full: true, size: "lg" })}>
         Créer mon profil (30 secondes) pour en profiter
       </Link>
     );
-  else if (paid) action = <Notice tone="success">Votre entreprise est déjà abonnée. Merci pour votre confiance !</Notice>;
+  else if (state?.paid) action = <Notice tone="success">Votre entreprise est déjà abonnée. Merci pour votre confiance !</Notice>;
   else if (company.role !== "COMPANY_ADMIN") action = <Notice tone="info">Seul l&apos;administrateur de votre entreprise peut souscrire.</Notice>;
-  else action = <FounderCheckoutForm label="Devenir membre fondateur" />;
+  else action = <FounderCheckoutForm label={state?.trialActive ? "Garder Pro au tarif fondateur" : "Devenir membre fondateur"} />;
   return (
     <FounderOfferView
       firstName={firstName}
+      founder={isFounder(offer, session.profile.created_at)}
       endsAt={offer.endsAt}
+      seatsLeft={left}
       action={action}
       note={sp.paiement === "annule" ? "Paiement annulé : rien n'a été prélevé. Vous pouvez réessayer quand vous voulez." : undefined}
     />

@@ -14,6 +14,7 @@ import { logServerError } from "@/lib/errors";
 import { getOpenCounts } from "@/lib/queries/platform";
 import { formatDate } from "@/lib/format";
 import { CalendarClock, Lock, MapPin } from "lucide-react";
+import { founderOffer, founderOpen } from "@/lib/billing/founder";
 
 export const metadata = pageMetadata({
   title: "Créer un compte",
@@ -72,6 +73,7 @@ export default async function SignUpPage(props: PageProps<"/inscription">) {
         }),
       ]);
   const total = count ? count("total", "") : 0;
+  const launch = founderOpen(await founderOffer().catch(() => ({ enabled: false, launchedAt: null, endsAt: null, seats: 0 })));
   const fromList = next === "/opportunites" || next?.startsWith("/opportunites?") || next === "/entreprises";
   return (
     <AuthShell
@@ -94,6 +96,15 @@ export default async function SignUpPage(props: PageProps<"/inscription">) {
         </>
       }
     >
+      {launch && !forOffer && (
+        <div className="mb-6 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-navy" data-testid="signup-trial">
+          <p className="font-bold">Pro offert pendant 14 jours, sans carte bancaire</p>
+          <p className="mt-1 text-slate-700">
+            Dès votre inscription : alertes sur tous vos métiers et toutes vos zones, besoins des entreprises en avant-première, historique complet des acheteurs,
+            recherches illimitées. Aucun prélèvement à la fin de l&apos;essai.
+          </p>
+        </div>
+      )}
       {sp.erreur === "google" && (
         <Notice tone="warning" title="Connexion Google indisponible" className="mb-6">
           Réessayez, ou créez votre compte avec votre adresse e-mail.

@@ -5,8 +5,10 @@ import { PRIVATE_METADATA } from "@/lib/seo";
 import { createClient } from "@/lib/supabase/server";
 import { Notice } from "@/components/ui/notice";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { founderOffer, founderOpen, isFounder } from "@/lib/billing/founder";
-import { FounderBanner } from "@/components/billing/founder";
+import { companyOfferState, founderOffer, founderOpen, founderSeatsTaken, marketPulse, seatsLeft } from "@/lib/billing/founder";
+import { LaunchCard, type LaunchCardProps } from "@/components/billing/launch-card";
+
+const nowMs = () => Date.now();
 
 export const metadata = PRIVATE_METADATA;
 
@@ -19,12 +21,18 @@ export default async function DashboardLayout({ children }: { children: React.Re
     : { count: 0 };
   // Dernière activité et jour de visite (« depuis votre dernière visite », taux de retour), sans autre donnée.
   void supabase.rpc("touch_visit").then(() => {});
-  // Offre membre fondateur (seulement une fois lancée) : comptes d'avant le lancement, entreprise à l'offre Gratuite
+  // Offre de lancement (seulement une fois lancée) : encart adapté à chaque membre (essai, jours restants, tarif fondateur)
   const offer = await founderOffer().catch(() => null);
-  let founderBanner = false;
-  if (offer && founderOpen(offer) && isFounder(offer, session.profile.created_at)) {
-    const { data: c } = session.activeCompany ? await createAdminClient().from("companies").select("plan_code").eq("id", session.activeCompany.company.id).maybeSingle() : { data: null };
-    founderBanner = !c || c.plan_code === "FREE";
+  let launch: LaunchCardProps | null = null;
+  if (offer && founderOpen(offer)) {
+    const db = createAdminClient();
+    const companyId = session.activeCompany?.company.id ?? null;
+    const [state, pulse, taken] = await Promise.all([
+      companyId ? companyOfferState(companyId, db) : Promise.resolve(null),
+      companyId ? marketPulse(companyId, db) : Promise.resolve(null),
+      founderSeatsTaken(db),
+    ]);
+    launch = { state, pulse, seatsLeft: seatsLeft(offer, taken), endsAt: offer.endsAt, now: nowMs() };
   }
   return (
     <div className="container-page py-6 sm:py-8">
@@ -40,7 +48,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         </p>
         <CompanySwitcher companies={session.memberships.map((m) => ({ id: m.company.id, name: m.company.name }))} activeId={session.activeCompany?.company.id ?? null} />
       </div>
-      {founderBanner && <FounderBanner endsAt={offer!.endsAt} />}
+      {launch && <LaunchCard {...launch} />}
       {session.activeCompany?.company.status === "SUSPENDED" && (
         <Notice tone="error" className="mb-6" title="Entreprise suspendue">
           Votre entreprise a été suspendue par la modération : ses publications ne sont plus visibles et certaines actions sont désactivées.

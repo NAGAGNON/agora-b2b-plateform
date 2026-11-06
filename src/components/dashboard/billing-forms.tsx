@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useActionState } from "react";
-import { openBillingPortal, startCheckout, startFounderCheckout } from "@/app/actions/billing";
+import { openBillingPortal, startCheckout, startFounderCheckout, startProTrial } from "@/app/actions/billing";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { FieldError } from "@/components/ui/form";
 import type { ActionResult } from "@/lib/validation";
@@ -75,6 +75,21 @@ export function FounderCheckoutForm({ label, disabled = false }: { label: string
       <SubmitButton full size="lg" disabled={disabled} pendingLabel="Ouverture du paiement sécurisé…">
         {label}
       </SubmitButton>
+      {state && !state.ok && <FieldError message={state.error} />}
+    </form>
+  );
+}
+
+/** Essai Pro de 14 jours, sans carte bancaire (une fois par entreprise). */
+export function StartTrialForm({ suite, label = "Essayer Pro gratuitement 14 jours" }: { suite: string; label?: string }) {
+  const [state, action] = useActionState(startProTrial, null as ActionResult | null);
+  return (
+    <form action={action} className="space-y-2">
+      <input type="hidden" name="suite" value={suite} />
+      <SubmitButton full size="lg" pendingLabel="Activation…">
+        {label}
+      </SubmitButton>
+      <p className="text-center text-xs text-slate-500">Sans carte bancaire · aucun prélèvement à la fin de l&apos;essai</p>
       {state && !state.ok && <FieldError message={state.error} />}
     </form>
   );

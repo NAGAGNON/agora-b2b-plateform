@@ -128,6 +128,27 @@ export default function SubscriptionTermsPage() {
           ),
         },
         {
+          id: "satisfait-rembourse",
+          title: "Satisfait ou remboursé",
+          content: (
+            <p>
+              Lors d&apos;une première souscription à une offre payante, vous pouvez demander le remboursement intégral du premier paiement dans les 30 jours
+              qui suivent, sans avoir à vous justifier, par un simple message depuis la page Contact. L&apos;abonnement est alors résilié et l&apos;entreprise
+              repasse à l&apos;offre Gratuite.
+            </p>
+          ),
+        },
+        {
+          id: "essai-pro",
+          title: "Essai gratuit de l'offre Pro",
+          content: (
+            <p>
+              Lorsqu&apos;un essai de l&apos;offre Pro est proposé, il est gratuit, sans carte bancaire et sans engagement : à la fin de l&apos;essai, aucun
+              prélèvement n&apos;a lieu et l&apos;entreprise repasse automatiquement à l&apos;offre Gratuite, sauf souscription de sa part.
+            </p>
+          ),
+        },
+        {
           id: "retour-gratuit",
           title: "Retour à l'offre Gratuite",
           content: (

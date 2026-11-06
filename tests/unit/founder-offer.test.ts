@@ -4,41 +4,55 @@ vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: () => ({}) }));
 vi.mock("@/lib/email/flush", () => ({ flushEmailsAfterResponse: () => {} }));
 
 const { dueStep, founderEmail } = await import("@/lib/billing/founder-emails");
-const { founderOpen, isFounder, FOUNDER_PRICE_HT } = await import("@/lib/billing/founder");
+const { founderOpen, isFounder, seatsLeft, daysLeft, FOUNDER_PRICE_HT } = await import("@/lib/billing/founder");
 
 const DAY = 86_400_000;
 const t0 = Date.parse("2026-12-01T09:00:00Z");
-const offer = { enabled: true, launchedAt: new Date(t0).toISOString(), endsAt: new Date(t0 + 21 * DAY).toISOString() };
+const offer = { enabled: true, launchedAt: new Date(t0).toISOString(), endsAt: new Date(t0 + 37 * DAY).toISOString(), seats: 30 };
+const off = { enabled: false, launchedAt: null, endsAt: null, seats: 30 };
+const ctx = (over: Partial<Parameters<typeof founderEmail>[1]> = {}) => ({ firstName: "Camille", hasCompany: true, seatsLeft: 12, offer, ...over });
 
-describe("offre membre fondateur", () => {
+describe("offre de lancement", () => {
   it("moitié prix de Pro", () => expect(FOUNDER_PRICE_HT).toBe(14.5));
 
   it("inactive tant qu'elle n'est pas lancée, terminée après la date de fin", () => {
-    expect(founderOpen({ enabled: false, launchedAt: null, endsAt: null })).toBe(false);
+    expect(founderOpen(off)).toBe(false);
     expect(founderOpen(offer, t0 + DAY)).toBe(true);
-    expect(founderOpen(offer, t0 + 22 * DAY)).toBe(false);
-    expect(dueStep({ enabled: false, launchedAt: null, endsAt: null }, t0)).toBeNull();
+    expect(founderOpen(offer, t0 + 38 * DAY)).toBe(false);
+    expect(dueStep(off, t0)).toBeNull();
   });
 
-  it("réservée aux comptes créés avant le lancement", () => {
+  it("membres fondateurs : comptes créés avant le lancement", () => {
     expect(isFounder(offer, new Date(t0 - DAY).toISOString())).toBe(true);
     expect(isFounder(offer, new Date(t0 + DAY).toISOString())).toBe(false);
   });
 
-  it("annonce, rappel à J+7, dernier rappel 2 jours avant la fin", () => {
-    expect(dueStep(offer, t0 + 3_600_000)).toBe("ANNONCE");
-    expect(dueStep(offer, t0 + 8 * DAY)).toBe("RAPPEL");
-    expect(dueStep(offer, t0 + 20 * DAY)).toBe("DERNIER");
-    expect(dueStep(offer, t0 + 22 * DAY)).toBeNull();
+  it("places restantes et jours d'essai restants", () => {
+    expect(seatsLeft(offer, 7)).toBe(23);
+    expect(seatsLeft(offer, 40)).toBe(0);
+    expect(daysLeft(new Date(t0 + 2.5 * DAY).toISOString(), t0)).toBe(3);
+    expect(daysLeft(null, t0)).toBe(0);
   });
 
-  it("e-mails : prénom, prix, rien ne change sans souscription, aucune mention d'outil automatique", () => {
-    const a = founderEmail("ANNONCE", "Camille", offer);
-    expect(a.subject).toContain("Camille");
+  it("annonce, rappel 7 jours avant la fin de l'essai, fin d'essai, dernier rappel", () => {
+    expect(dueStep(offer, t0 + 3_600_000)).toBe("ANNONCE");
+    expect(dueStep(offer, t0 + 24 * DAY)).toBe("RAPPEL");
+    expect(dueStep(offer, t0 + 31 * DAY)).toBe("FIN_ESSAI");
+    expect(dueStep(offer, t0 + 36 * DAY)).toBe("DERNIER");
+    expect(dueStep(offer, t0 + 38 * DAY)).toBeNull();
+  });
+
+  it("e-mails : essai offert, prix, places, garantie, aucune mention d'outil automatique", () => {
+    const a = founderEmail("ANNONCE", ctx());
+    expect(a.subject).toBe("Camille, Pro vous est offert pendant 30 jours");
     const text = a.paragraphs.join(" ");
-    expect(text).toContain("14,50 € HT par mois au lieu de 29 €");
-    expect(text).toContain("rien ne change");
+    expect(text).toContain("14,50 € HT par mois au lieu de 29 €, à vie");
+    expect(text).toContain("Seulement 12 places");
+    expect(text).toContain("satisfait ou remboursé pendant 30 jours");
+    expect(text).toContain("déjà activé");
     expect(text).not.toMatch(/\bIA\b|intelligence artificielle|robot/i);
-    expect(founderEmail("DERNIER", null, offer).subject).toContain("22 décembre");
+    expect(founderEmail("ANNONCE", ctx({ hasCompany: false })).paragraphs.join(" ")).toContain("créez votre profil");
+    expect(founderEmail("DERNIER", ctx()).subject).toContain("7 janvier");
+    expect(founderEmail("FIN_ESSAI", ctx({ seatsLeft: 1 })).paragraphs.join(" ")).toContain("Seulement 1 place à ce tarif");
   });
 });
