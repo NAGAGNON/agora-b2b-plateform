@@ -71,13 +71,16 @@ export async function NeedSuggestions({ needId, excludeCompanyIds }: { needId: s
   const db = createAdminClient();
   const { data } = await db
     .from("need_matches")
-    .select("company_id, score, reasons, status, company:companies(id, slug, name, city, is_public, status)")
+    .select("company_id, score, reasons, status, company:companies(id, slug, name, city, is_public, status, plan_code)")
     .eq("opportunity_id", needId)
     .order("score", { ascending: false })
     .limit(30);
   const rows = (data ?? [])
     .map((m) => ({ ...m, company: Array.isArray(m.company) ? m.company[0] : m.company }))
     .filter((m) => m.company && m.company.is_public && m.company.status === "ACTIVE" && !excludeCompanyIds.includes(m.company_id))
+    // Entreprises abonnées (Pro, Business) proposées en premier aux clients, avec un badge
+    .map((m) => ({ ...m, pro: m.company!.plan_code === "PRO" || m.company!.plan_code === "BUSINESS" }))
+    .sort((a, b) => Number(b.pro) - Number(a.pro) || b.score - a.score)
     .slice(0, 6);
   if (!rows.length) return null;
   return (
@@ -95,6 +98,7 @@ export async function NeedSuggestions({ needId, excludeCompanyIds }: { needId: s
             <Link href={`/entreprises/${m.company!.slug}`} className="font-semibold text-navy hover:text-teal-700">
               {m.company!.name}
             </Link>
+            {m.pro && <span className="ml-2 inline-flex rounded-full bg-amber-100 px-2 py-0.5 align-middle text-xs font-semibold text-amber-800">Membre Pro</span>}
             {m.company!.city && (
               <p className="mt-0.5 flex items-center gap-1 text-xs text-slate-600">
                 <MapPin className="size-3.5" aria-hidden /> {m.company!.city}

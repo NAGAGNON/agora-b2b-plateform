@@ -46,6 +46,9 @@ import { BuyerOfficial } from "@/components/buyers/buyer-official";
 import { ShareLinks } from "@/components/share-links";
 import { cookies, headers } from "next/headers";
 import { OfferAccessGate } from "@/components/opportunities/offer-access-gate";
+import { TenderBriefPanel } from "@/components/opportunities/tender-brief";
+import { boampId, storedBrief } from "@/lib/tender-brief";
+import { founderOffer, founderOpen } from "@/lib/billing/founder";
 import { NeedContactForm } from "@/components/opportunities/need-contact-form";
 import { OUTREACH_COOKIE, outreachVisitor, track as trackOutreach } from "@/lib/outreach/tracking";
 import { getSectorLabels, showDemoData, getLocationLabel, getDepartments, getOpenCounts } from "@/lib/queries/platform";
@@ -143,6 +146,25 @@ async function membersOnlyGate(id: string) {
       }}
     />
   );
+}
+
+/** Données de la fiche synthèse d'une offre issue du BOAMP (null si l'offre n'a pas d'avis BOAMP). */
+async function briefContext(id: string) {
+  const db = createAdminClient();
+  const { data: sources } = await db.from("opportunity_sources").select("original_url").eq("opportunity_id", id);
+  const idweb = (sources ?? []).map((x) => boampId(x.original_url)).find(Boolean);
+  if (!idweb) return null;
+  const user = await createClient();
+  const plan = (await user.rpc("user_plan")).data ?? "FREE";
+  const allowed = (await user.rpc("plan_feature", { p_plan: plan, p_key: "tender_brief" })).data === true;
+  const open = founderOpen(await founderOffer(db));
+  return {
+    allowed,
+    initial: allowed ? await storedBrief(id, db) : null,
+    source: `BOAMP n° ${idweb}`,
+    upgradeHref: open ? "/offre-fondateur" : "/tarifs",
+    upgradeLabel: open ? "Débloquer avec Pro" : "Voir l'offre Pro",
+  };
 }
 
 /** Fil d'Ariane géographique et métier : région › département › métier dans le département (pages d'atterrissage). */
@@ -265,6 +287,8 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
   ]);
 
   const external = o.origin === "EXTERNAL";
+  // Fiche synthèse (avis BOAMP) : complète pour les membres Pro, en essai ou pendant la phase de lancement
+  const brief = external ? await briefContext(o.id) : null;
   const sources = (Array.isArray(o.source) ? o.source : o.source ? [o.source] : []).sort((a, b) => Number(b.is_primary) - Number(a.is_primary));
   const source = sources[0];
   const otherSources = sources.slice(1);
@@ -438,6 +462,19 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
               <Info className="mt-0.5 size-3.5 shrink-0" aria-hidden /> {OPPORTUNITY_TYPE_HELP[o.type]}
             </p>
 
+            {brief && (
+              <TenderBriefPanel
+                opportunityId={o.id}
+                initial={brief.initial}
+                source={brief.source}
+                allowed={brief.allowed}
+                upgrade={
+                  <Link href={brief.upgradeHref} className={buttonClasses({ full: true, className: "btn-shine" })}>
+                    {brief.upgradeLabel}
+                  </Link>
+                }
+              />
+            )}
             {o.summary && <p className="mt-6 text-lg text-navy">{o.summary}</p>}
             <Section title={external ? "Résumé" : "Description"}>
               <p className="whitespace-pre-line">{o.description}</p>

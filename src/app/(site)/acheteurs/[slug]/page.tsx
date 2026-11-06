@@ -24,6 +24,7 @@ import { buttonClasses } from "@/components/ui/button";
 import { getLocationLabel, getSectorLabels } from "@/lib/queries/platform";
 import { cache } from "react";
 import { getSession } from "@/lib/auth";
+import { UpgradeGate } from "@/components/billing/upsell";
 import { GoogleButton } from "@/components/auth/google-button";
 import { clip } from "@/lib/format";
 
@@ -110,6 +111,12 @@ export default async function BuyerPage(props: PageProps<"/acheteurs/[slug]">) {
     getSectorLabels(),
     getSession(),
   ]);
+  // Historique complet des annonces passées : réservé à Pro une fois la phase de lancement gratuite terminée
+  const db = await createClient();
+  const plan = session ? ((await db.rpc("user_plan")).data ?? "FREE") : "FREE";
+  const historyLimit = (await db.rpc("plan_feature", { p_plan: plan, p_key: "buyer_history" })).data as number | null;
+  const pastShown = historyLimit == null ? b.past.slice(0, 20) : b.past.slice(0, historyLimit);
+  const pastLocked = historyLimit != null && b.past.length > historyLimit;
   const path = `/acheteurs/${slug}`;
   // Présentation tirée des annonces enregistrées (aucune donnée inventée) : métiers et lieux les plus fréquents
   const mainSectors = top(
@@ -472,10 +479,21 @@ export default async function BuyerPage(props: PageProps<"/acheteurs/[slug]">) {
                 renouvellements.
               </p>
               <ul className="mt-4 space-y-3">
-                {b.past.slice(0, 20).map((o) => (
+                {pastShown.map((o) => (
                   <Item key={o.id} o={o} open={false} />
                 ))}
               </ul>
+              {pastLocked && (
+                <div className="mt-6">
+                  <UpgradeGate
+                    session={session}
+                    testId="buyer-history-limit"
+                    title={`${nf.format(b.past.length - pastShown.length)} autres annonces de cet acheteur`}
+                    reason="L'historique complet de l'acheteur est réservé à Pro : anticipez ses prochains contrats."
+                    suite={path}
+                  />
+                </div>
+              )}
             </section>
           )}
         </div>

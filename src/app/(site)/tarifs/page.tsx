@@ -2,7 +2,8 @@ import Link from "next/link";
 import { freeLaunch } from "@/lib/billing/entitlements";
 import { PageHero } from "@/components/layout/page-hero";
 import { Check } from "lucide-react";
-import { ButtonLink } from "@/components/ui/button";
+import { ButtonLink, buttonClasses } from "@/components/ui/button";
+import { FOUNDER_PRICE_HT, founderOffer, founderOpen, founderSeatsTaken, seatsLeft } from "@/lib/billing/founder";
 import { Badge } from "@/components/ui/badge";
 import { ComparisonTable } from "@/components/billing/comparison-table";
 import { PLANS, formatEuros, priceTTC, yearlyMonthlyHT, yearlySavingHT } from "@/lib/billing/plans";
@@ -30,6 +31,9 @@ export default async function PricingPage() {
   const paidOpen = stripeMode() === "live" || !env.isProduction;
   // Phase de lancement : toutes les fonctionnalités gratuites pour les inscrits ; offres payantes prévues
   const launch = await freeLaunch();
+  const offer = await founderOffer().catch(() => null);
+  const offerOpen = Boolean(offer && founderOpen(offer));
+  const offerSeats = offer && offerOpen ? seatsLeft(offer, await founderSeatsTaken()) : 0;
   return (
     <>
     <PageHero
@@ -49,6 +53,20 @@ export default async function PricingPage() {
           Le paiement en ligne est en cours de mise en service : les offres Pro et Business ne peuvent pas encore être souscrites. L&apos;offre Gratuite
           est disponible dès maintenant, sans carte bancaire.
         </Notice>
+      )}
+
+      {offerOpen && (
+        <div className="mx-auto flex max-w-3xl flex-col items-center justify-between gap-4 rounded-2xl bg-navy p-5 text-white sm:flex-row" data-testid="pricing-launch">
+          <div>
+            <p className="text-lg font-bold">Offre de lancement : Pro à {formatEuros(FOUNDER_PRICE_HT)}/mois à vie</p>
+            <p className="text-sm text-white/80">
+              {offerSeats} place{offerSeats > 1 ? "s" : ""} restante{offerSeats > 1 ? "s" : ""} · satisfait ou remboursé 30 jours
+            </p>
+          </div>
+          <Link href="/offre-fondateur" className={buttonClasses({ className: "shrink-0" })}>
+            J&apos;en profite
+          </Link>
+        </div>
       )}
 
       <div className="mt-10 grid grid-cols-1 gap-6 lg:grid-cols-3">

@@ -33,6 +33,9 @@ export const MEMBER_MIN_GAP_DAYS = 2;
 /** Relance unique après 5 jours sans réponse. */
 export const MEMBER_REMINDER_DAYS = 5;
 
+/** Avance des membres Pro sur les nouveaux besoins des entreprises. */
+export const EARLY_ACCESS_HOURS = 48;
+
 const NEED_FIELDS =
   "id, title, summary, description, type, origin, status, visibility, is_demo, company_id, sector_slug, skills, keywords, services, constraints, criteria, city, department_code, region, budget_min, budget_max, budget_visible, start_date, response_deadline, target_company_size, max_suppliers, published_at, company:companies(name)";
 
@@ -141,8 +144,19 @@ async function matchMembers(db: DB, need: NeedRow, campaignId: string, now: Date
   const alreadyNotified = (known ?? []).filter((k) => ["NOTIFIED", "REMINDED", "RESPONDED"].includes(k.status)).length;
   let notified = 0;
   const buyer = (Array.isArray(need.company) ? need.company[0] : need.company)?.name ?? "Une entreprise";
+  // Avant-première : les membres Pro (ou en essai) sont prévenus dès la publication et en premier ; les
+  // autres 48 h plus tard (au passage suivant). Sans effet pendant la phase de lancement gratuite.
+  const early = new Map<string, boolean>();
+  for (const c of relevant) {
+    const plan = (await db.rpc("company_plan", { p_company_id: c.company_id })).data ?? "FREE";
+    early.set(c.company_id, (await db.rpc("plan_feature", { p_plan: plan, p_key: "early_needs" })).data !== false);
+  }
+  const youngNeed = need.published_at ? now.getTime() - new Date(need.published_at).getTime() < EARLY_ACCESS_HOURS * 3_600_000 : false;
+  const limitsOn = (await db.rpc("free_launch")).data === false;
+  relevant.sort((a, b) => Number(early.get(b.company_id)) - Number(early.get(a.company_id)));
   for (const c of relevant) {
     if (done.has(c.company_id)) continue;
+    if (youngNeed && !early.get(c.company_id)) continue;
     if (alreadyNotified + notified >= MEMBER_MAX_NOTIFIED) break;
     if (busy.has(c.company_id)) {
       await db.from("need_matches").update({ status: "SKIPPED", skip_reason: "Autre besoin proposé il y a moins de 2 jours" }).eq("opportunity_id", need.id).eq("company_id", c.company_id).eq("status", "IDENTIFIED");
@@ -153,7 +167,7 @@ async function matchMembers(db: DB, need: NeedRow, campaignId: string, now: Date
       p_company_id: c.company_id,
       p_type: "need_match",
       p_title: `Un besoin correspond à votre activité : ${need.title}`.slice(0, 180),
-      p_body: `${buyer} a publié ce besoin sur LinkProB2B${why ? ` (${why})` : ""}. Consultez-le et envoyez un message à l'entreprise si vous pouvez y répondre.`,
+      p_body: `${youngNeed && limitsOn ? "En avant-première pour les membres Pro : " : ""}${buyer} a publié ce besoin sur LinkProB2B${why ? ` (${why})` : ""}. Consultez-le et envoyez un message à l'entreprise si vous pouvez y répondre.`,
       p_link: `/opportunites/${need.id}?message=1`,
     });
     if (e) {

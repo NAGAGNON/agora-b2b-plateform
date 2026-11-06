@@ -105,7 +105,9 @@ export async function syncSubscription(sub: Stripe.Subscription, hintCompanyId?:
     plan_code: plan,
     status: sub.status,
     cancel_at_period_end: Boolean(sub.cancel_at_period_end || sub.cancel_at),
-    unit_amount_cents: item?.price?.unit_amount ?? null,
+    // Tarif fondateur (réduction de lancement) : prix réellement payé, et place comptée
+    founder: sub.metadata?.founder === "1",
+    unit_amount_cents: item?.price?.unit_amount != null && sub.metadata?.founder === "1" ? Math.round(item.price.unit_amount / 2) : (item?.price?.unit_amount ?? null),
     currency: item?.price?.currency ?? null,
     billing_interval: item?.price?.recurring?.interval ?? null,
     current_period_start: ts(item?.current_period_start),

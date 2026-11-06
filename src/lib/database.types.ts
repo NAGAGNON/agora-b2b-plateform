@@ -157,13 +157,13 @@ isOneToOne: false
                   ]
                 },"companies": {
                   Row: {
-                    "city": string | null,"created_at": string,"created_by": string | null,"department_code": string | null,"id": string,"is_demo": boolean,"kind": Database["public"]['Enums']["company_kind"],"lat": number | null,"lng": number | null,"logo_auto_checked_at": string | null,"logo_auto_note": string | null,"logo_auto_site": string | null,"logo_auto_version": number,"logo_path": string | null,"logo_source": string | null,"name": string,"plan_code": string,"postal_code": string | null,"region": string | null,"siren": string | null,"size": Database["public"]['Enums']["company_size"] | null,"slug": string,"status": Database["public"]['Enums']["company_status"],"stripe_customer_id": string | null,"updated_at": string,"verification_note": string | null,"verified_at": string | null,"verified_by": string | null,"website": string | null
+                    "city": string | null,"created_at": string,"created_by": string | null,"department_code": string | null,"id": string,"is_demo": boolean,"kind": Database["public"]['Enums']["company_kind"],"lat": number | null,"lng": number | null,"logo_auto_checked_at": string | null,"logo_auto_note": string | null,"logo_auto_site": string | null,"logo_auto_version": number,"logo_path": string | null,"logo_source": string | null,"name": string,"plan_code": string,"trial_ends_at": string | null,"trial_started_at": string | null,"postal_code": string | null,"region": string | null,"siren": string | null,"size": Database["public"]['Enums']["company_size"] | null,"slug": string,"status": Database["public"]['Enums']["company_status"],"stripe_customer_id": string | null,"updated_at": string,"verification_note": string | null,"verified_at": string | null,"verified_by": string | null,"website": string | null
                   }
                   Insert: {
-                    "city"?: string | null,"created_at"?: string,"created_by"?: string | null,"department_code"?: string | null,"id"?: string,"is_demo"?: boolean,"kind"?: Database["public"]['Enums']["company_kind"],"lat"?: number | null,"lng"?: number | null,"logo_auto_checked_at"?: string | null,"logo_auto_note"?: string | null,"logo_auto_site"?: string | null,"logo_auto_version"?: number,"logo_path"?: string | null,"logo_source"?: string | null,"name": string,"plan_code"?: string,"postal_code"?: string | null,"region"?: string | null,"siren"?: string | null,"size"?: Database["public"]['Enums']["company_size"] | null,"slug": string,"status"?: Database["public"]['Enums']["company_status"],"stripe_customer_id"?: string | null,"updated_at"?: string,"verification_note"?: string | null,"verified_at"?: string | null,"verified_by"?: string | null,"website"?: string | null
+                    "city"?: string | null,"created_at"?: string,"created_by"?: string | null,"department_code"?: string | null,"id"?: string,"is_demo"?: boolean,"kind"?: Database["public"]['Enums']["company_kind"],"lat"?: number | null,"lng"?: number | null,"logo_auto_checked_at"?: string | null,"logo_auto_note"?: string | null,"logo_auto_site"?: string | null,"logo_auto_version"?: number,"logo_path"?: string | null,"logo_source"?: string | null,"name": string,"plan_code"?: string,"trial_ends_at"?: string | null,"trial_started_at"?: string | null,"postal_code"?: string | null,"region"?: string | null,"siren"?: string | null,"size"?: Database["public"]['Enums']["company_size"] | null,"slug": string,"status"?: Database["public"]['Enums']["company_status"],"stripe_customer_id"?: string | null,"updated_at"?: string,"verification_note"?: string | null,"verified_at"?: string | null,"verified_by"?: string | null,"website"?: string | null
                   }
                   Update: {
-                    "city"?: string | null,"created_at"?: string,"created_by"?: string | null,"department_code"?: string | null,"id"?: string,"is_demo"?: boolean,"kind"?: Database["public"]['Enums']["company_kind"],"lat"?: number | null,"lng"?: number | null,"logo_auto_checked_at"?: string | null,"logo_auto_note"?: string | null,"logo_auto_site"?: string | null,"logo_auto_version"?: number,"logo_path"?: string | null,"logo_source"?: string | null,"name"?: string,"plan_code"?: string,"postal_code"?: string | null,"region"?: string | null,"siren"?: string | null,"size"?: Database["public"]['Enums']["company_size"] | null,"slug"?: string,"status"?: Database["public"]['Enums']["company_status"],"stripe_customer_id"?: string | null,"updated_at"?: string,"verification_note"?: string | null,"verified_at"?: string | null,"verified_by"?: string | null,"website"?: string | null
+                    "city"?: string | null,"created_at"?: string,"created_by"?: string | null,"department_code"?: string | null,"id"?: string,"is_demo"?: boolean,"kind"?: Database["public"]['Enums']["company_kind"],"lat"?: number | null,"lng"?: number | null,"logo_auto_checked_at"?: string | null,"logo_auto_note"?: string | null,"logo_auto_site"?: string | null,"logo_auto_version"?: number,"logo_path"?: string | null,"logo_source"?: string | null,"name"?: string,"plan_code"?: string,"trial_ends_at"?: string | null,"trial_started_at"?: string | null,"postal_code"?: string | null,"region"?: string | null,"siren"?: string | null,"size"?: Database["public"]['Enums']["company_size"] | null,"slug"?: string,"status"?: Database["public"]['Enums']["company_status"],"stripe_customer_id"?: string | null,"updated_at"?: string,"verification_note"?: string | null,"verified_at"?: string | null,"verified_by"?: string | null,"website"?: string | null
                   }
                   Relationships: [
                     {
@@ -576,6 +576,39 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"founder_offer_sends": {
+                  Row: {
+                    "created_at": string,"step": string,"user_id": string
+                  }
+                  Insert: {
+                    "created_at"?: string,"step": string,"user_id": string
+                  }
+                  Update: {
+                    "created_at"?: string,"step"?: string,"user_id"?: string
+                  }
+                  Relationships: []
+                },"search_usage": {
+                  Row: {
+                    "day": string,"searches": number,"user_id": string
+                  }
+                  Insert: {
+                    "day"?: string,"searches"?: number,"user_id": string
+                  }
+                  Update: {
+                    "day"?: string,"searches"?: number,"user_id"?: string
+                  }
+                  Relationships: []
+                },"tender_briefs": {
+                  Row: {
+                    "content": Json,"created_at": string,"opportunity_id": string,"source_ref": string | null
+                  }
+                  Insert: {
+                    "content": Json,"created_at"?: string,"opportunity_id": string,"source_ref"?: string | null
+                  }
+                  Update: {
+                    "content"?: Json,"created_at"?: string,"opportunity_id"?: string,"source_ref"?: string | null
+                  }
+                  Relationships: []
                 },"need_contacts": {
                   Row: {
                     "company": string,"created_at": string,"email": string,"id": string,"message": string,"name": string,"opportunity_id": string,"outreach_recipient_id": string | null,"phone": string | null
@@ -1285,13 +1318,13 @@ isOneToOne: false
                   ]
                 },"subscriptions": {
                   Row: {
-                    "billing_interval": string | null,"cancel_at_period_end": boolean,"canceled_at": string | null,"company_id": string,"created_at": string,"currency": string | null,"current_period_end": string | null,"current_period_start": string | null,"ended_at": string | null,"id": string,"latest_invoice_id": string | null,"plan_code": string,"started_at": string | null,"status": string,"stripe_customer_id": string,"stripe_price_id": string | null,"stripe_subscription_id": string,"unit_amount_cents": number | null,"updated_at": string
+                    "billing_interval": string | null,"cancel_at_period_end": boolean,"canceled_at": string | null,"company_id": string,"created_at": string,"founder": boolean,"currency": string | null,"current_period_end": string | null,"current_period_start": string | null,"ended_at": string | null,"id": string,"latest_invoice_id": string | null,"plan_code": string,"started_at": string | null,"status": string,"stripe_customer_id": string,"stripe_price_id": string | null,"stripe_subscription_id": string,"unit_amount_cents": number | null,"updated_at": string
                   }
                   Insert: {
-                    "billing_interval"?: string | null,"cancel_at_period_end"?: boolean,"canceled_at"?: string | null,"company_id": string,"created_at"?: string,"currency"?: string | null,"current_period_end"?: string | null,"current_period_start"?: string | null,"ended_at"?: string | null,"id"?: string,"latest_invoice_id"?: string | null,"plan_code": string,"started_at"?: string | null,"status": string,"stripe_customer_id": string,"stripe_price_id"?: string | null,"stripe_subscription_id": string,"unit_amount_cents"?: number | null,"updated_at"?: string
+                    "billing_interval"?: string | null,"cancel_at_period_end"?: boolean,"canceled_at"?: string | null,"company_id": string,"created_at"?: string,"founder"?: boolean,"currency"?: string | null,"current_period_end"?: string | null,"current_period_start"?: string | null,"ended_at"?: string | null,"id"?: string,"latest_invoice_id"?: string | null,"plan_code": string,"started_at"?: string | null,"status": string,"stripe_customer_id": string,"stripe_price_id"?: string | null,"stripe_subscription_id": string,"unit_amount_cents"?: number | null,"updated_at"?: string
                   }
                   Update: {
-                    "billing_interval"?: string | null,"cancel_at_period_end"?: boolean,"canceled_at"?: string | null,"company_id"?: string,"created_at"?: string,"currency"?: string | null,"current_period_end"?: string | null,"current_period_start"?: string | null,"ended_at"?: string | null,"id"?: string,"latest_invoice_id"?: string | null,"plan_code"?: string,"started_at"?: string | null,"status"?: string,"stripe_customer_id"?: string,"stripe_price_id"?: string | null,"stripe_subscription_id"?: string,"unit_amount_cents"?: number | null,"updated_at"?: string
+                    "billing_interval"?: string | null,"cancel_at_period_end"?: boolean,"canceled_at"?: string | null,"company_id"?: string,"created_at"?: string,"founder"?: boolean,"currency"?: string | null,"current_period_end"?: string | null,"current_period_start"?: string | null,"ended_at"?: string | null,"id"?: string,"latest_invoice_id"?: string | null,"plan_code"?: string,"started_at"?: string | null,"status"?: string,"stripe_customer_id"?: string,"stripe_price_id"?: string | null,"stripe_subscription_id"?: string,"unit_amount_cents"?: number | null,"updated_at"?: string
                   }
                   Relationships: [
                     {
@@ -1730,6 +1763,15 @@ isOneToOne: false
 { Args: { "p_terms": string[],"p_limit"?: number,"p_offset"?: number,"p_include_demo"?: boolean,"p_all_missions"?: boolean }; Returns: {
               "id": string,"title": string,"summary": string | null,"type": Database["public"]['Enums']["opportunity_type"],"origin": Database["public"]['Enums']["opportunity_origin"],"sector_slug": string | null,"city": string | null,"department_code": string | null,"region": string | null,"response_deadline": string | null,"published_at": string | null,"buyer": string | null,"is_mission": boolean,"total_count": number
             }[]
+                           },
+"count_search":
+{ Args: Record<PropertyKey, never>; Returns: boolean
+                           },
+"start_pro_trial":
+{ Args: { "p_company_id": string }; Returns: string
+                           },
+"launch_paid_offer":
+{ Args: { "p_ends_at": string,"p_seats"?: number }; Returns: Json
                            },
 "widen_sparse_alerts":
 { Args: Record<PropertyKey, never>; Returns: number

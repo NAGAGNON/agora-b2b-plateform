@@ -5,6 +5,8 @@ import { timingSafeEqual } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { env } from "@/lib/env";
 import { processAlertDigests, processEmailOutbox } from "@/lib/email/outbox";
+import { processFounderCampaign } from "@/lib/billing/founder-emails";
+import { prepareBriefs } from "@/lib/tender-brief";
 import { appSendsAuthEmails, remindUnconfirmedSignups } from "@/lib/email/auth-emails";
 import { processLeadDigests } from "@/lib/alert-leads";
 import { processMissingLogos } from "@/lib/company-logos";
@@ -85,6 +87,10 @@ async function run(req: Request) {
     return { elargies: data };
   });
   await step("digests", () => processAlertDigests());
+  // Fiches synthèse préparées à l'avance pour les métiers des entreprises abonnées ou en essai
+  await step("fiches-synthese", async () => (elapsed() < 200_000 ? prepareBriefs(createAdminClient(), { limit: 15, deadline: started + 240_000 }) : { skipped: "reporté au passage suivant (temps insuffisant)" }));
+  // Offre membre fondateur : rien tant qu'elle n'est pas lancée (réglage « founder_offer »)
+  await step("offre-fondateur", () => processFounderCampaign());
   await step("alertes-email", () => processLeadDigests());
   // Mise en relation des besoins publiés (filet de sécurité de la publication, relances) avant l'envoi des e-mails
   await step("validation-besoins", async () => (elapsed() < 170_000 ? processPendingNeeds(createAdminClient(), { limit: 5 }) : { skipped: "reporté au passage suivant (temps insuffisant)" }));

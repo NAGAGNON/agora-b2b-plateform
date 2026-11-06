@@ -14,6 +14,7 @@ import { logServerError } from "@/lib/errors";
 import { getOpenCounts } from "@/lib/queries/platform";
 import { formatDate } from "@/lib/format";
 import { CalendarClock, Lock, MapPin } from "lucide-react";
+import { founderOffer, founderOpen } from "@/lib/billing/founder";
 
 export const metadata = pageMetadata({
   title: "Créer un compte",
@@ -72,6 +73,7 @@ export default async function SignUpPage(props: PageProps<"/inscription">) {
         }),
       ]);
   const total = count ? count("total", "") : 0;
+  const launch = founderOpen(await founderOffer().catch(() => ({ enabled: false, launchedAt: null, endsAt: null, seats: 0 })));
   const fromList = next === "/opportunites" || next?.startsWith("/opportunites?") || next === "/entreprises";
   return (
     <AuthShell
@@ -94,6 +96,14 @@ export default async function SignUpPage(props: PageProps<"/inscription">) {
         </>
       }
     >
+      {launch && !forOffer && (
+        <div className="mb-6 flex items-center gap-3 rounded-2xl bg-navy p-4 text-white ring-1 ring-white/10" data-testid="signup-trial">
+          <span className="inline-flex size-10 shrink-0 animate-float items-center justify-center rounded-xl bg-gradient-to-br from-teal to-violet text-sm font-bold">14 j</span>
+          <p className="text-sm">
+            <strong>Pro offert 14 jours</strong> : chaque appel d&apos;offres résumé en 30 secondes, besoins en avant-première. Sans carte.
+          </p>
+        </div>
+      )}
       {sp.erreur === "google" && (
         <Notice tone="warning" title="Connexion Google indisponible" className="mb-6">
           Réessayez, ou créez votre compte avec votre adresse e-mail.

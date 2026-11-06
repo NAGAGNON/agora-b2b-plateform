@@ -3,6 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { founderOffer, founderOpen, founderSeatsTaken, seatsLeft } from "@/lib/billing/founder";
 import { logServerError } from "@/lib/errors";
 import { selectAll } from "@/lib/outreach/data";
 import { emptySeoSnapshot, type SeoSnapshot } from "@/lib/seo-snapshot";
@@ -91,6 +92,28 @@ async function needImpact(db: ReturnType<typeof createAdminClient>, sinceIso: st
     });
   }
   return out;
+}
+
+/** Offre de lancement (seulement une fois lancée) : essais en cours, abonnés au tarif fondateur, places restantes. */
+async function launchFacts(db: ReturnType<typeof createAdminClient>) {
+  const offer = await founderOffer(db);
+  if (!offer.enabled) return { statut: "pas encore lancée" };
+  const now = new Date().toISOString();
+  const [{ count: trials }, { count: ended }, taken, { count: paying }] = await Promise.all([
+    db.from("companies").select("id", { count: "exact", head: true }).eq("plan_code", "FREE").gt("trial_ends_at", now),
+    db.from("companies").select("id", { count: "exact", head: true }).eq("plan_code", "FREE").lte("trial_ends_at", now),
+    founderSeatsTaken(db),
+    db.from("subscriptions").select("id", { count: "exact", head: true }).in("status", ["active", "trialing", "past_due"]),
+  ]);
+  return {
+    statut: founderOpen(offer) ? "en cours" : "terminée",
+    fin: offer.endsAt,
+    essais_pro_en_cours: trials ?? 0,
+    essais_termines_sans_abonnement: ended ?? 0,
+    abonnes_tarif_fondateur: taken,
+    places_restantes: seatsLeft(offer, taken),
+    abonnements_payants_au_total: paying ?? 0,
+  };
 }
 
 /** Faits de la journée (heure de Paris), jusqu'à l'instant présent. */
@@ -196,6 +219,7 @@ export async function buildDailyFacts(now = new Date()) {
     },
     actions_des_visiteurs: { inscriptions: t.signups, recherches: t.searches, interets_manifestes: t.interests, reponses_envoyees: t.proposals, alertes_creees: t.alerts, clics_vers_les_sources: t.outbound },
     plateforme: { nouveaux_comptes: users, nouvelles_entreprises: companies, nouveaux_abonnements: (subs.data ?? []).map((s) => ({ formule: s.plan_code, statut: s.status })) },
+    offre_de_lancement: await launchFacts(db),
     outreach: {
       mode: outreachSettings.data ? (outreachSettings.data.dry_run ? "simulation" : outreachSettings.data.require_validation ? "réel avec validation manuelle" : "réel et automatique") : "inconnu",
       // Prospection générale (sélections d'opportunités) : arrêtée volontairement quand le plafond est à 0.
