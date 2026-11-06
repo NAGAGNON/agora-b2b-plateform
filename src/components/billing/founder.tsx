@@ -64,7 +64,7 @@ export function FounderOfferView({
           <span className="inline-flex animate-rise items-center gap-1.5 rounded-full bg-white/10 px-3.5 py-1.5 text-sm font-semibold text-teal-300 ring-1 ring-white/15 backdrop-blur">
             <Sparkles className="size-4" aria-hidden /> {founder ? `Merci${firstName ? ` ${firstName}` : ""}, vous faites partie des premiers` : "Offre de lancement"}
           </span>
-          <h1 className="mt-6 animate-rise text-4xl leading-[1.05] font-extrabold [animation-delay:80ms] sm:text-6xl">
+          <h1 className="mt-6 animate-rise text-4xl leading-[1.05] font-extrabold text-white [animation-delay:80ms] sm:text-6xl">
             Décrochez plus de clients,
             <br />
             <span className="text-gradient">avant les autres.</span>
@@ -113,7 +113,7 @@ export function FounderOfferView({
 
         {/* Comparatif */}
         <section aria-labelledby="compare" className="reveal mx-auto mt-20 max-w-3xl">
-          <h2 id="compare" className="text-center text-2xl font-bold sm:text-3xl">
+          <h2 id="compare" className="text-center text-2xl font-bold text-white sm:text-3xl">
             Gratuit ou <span className="text-gradient">Pro</span>
           </h2>
           <div className="mt-6 overflow-hidden rounded-2xl bg-white/5 ring-1 ring-white/10 backdrop-blur">
@@ -144,7 +144,7 @@ export function FounderOfferView({
 
         {/* Questions, repliées */}
         <section aria-labelledby="faq" className="reveal mx-auto mt-16 max-w-3xl">
-          <h2 id="faq" className="text-center text-2xl font-bold sm:text-3xl">
+          <h2 id="faq" className="text-center text-2xl font-bold text-white sm:text-3xl">
             Questions fréquentes
           </h2>
           <div className="mt-6 divide-y divide-white/10 rounded-2xl bg-white/5 ring-1 ring-white/10">

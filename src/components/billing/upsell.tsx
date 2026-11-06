@@ -44,7 +44,7 @@ export async function UpgradeGate({ session, title, reason, suite, testId }: { s
         <span className="inline-flex size-12 animate-float items-center justify-center rounded-2xl bg-gradient-to-br from-teal/40 to-violet/40 text-white ring-1 ring-white/15">
           <Lock className="size-6" aria-hidden />
         </span>
-        <h2 className="mt-4 text-xl font-bold sm:text-2xl">{title}</h2>
+        <h2 className="mt-4 text-xl font-bold text-white sm:text-2xl">{title}</h2>
         <div className="mt-2 text-white/80">{reason}</div>
         <div className="mx-auto mt-6 max-w-xs rounded-xl bg-white p-3 text-navy">{action}</div>
         {open && left > 0 && (
