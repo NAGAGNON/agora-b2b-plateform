@@ -158,7 +158,7 @@ export default async function CompanyPage(props: PageProps<"/entreprises/[slug]"
             <div className="p-5 pt-0 sm:p-8 sm:pt-0">
             <header className="flex flex-col gap-4 sm:flex-row sm:items-end">
               <div className="-mt-12 w-fit shrink-0 rounded-3xl bg-white p-2 shadow-xl ring-1 ring-slate-200 sm:-mt-14">
-                <CompanyLogo name={c.name} path={c.logo_path} size={96} />
+                <CompanyLogo name={c.name} path={c.logo_path} size={96} sector={profile?.sectors?.[0]} />
               </div>
               <div className="min-w-0 sm:pt-4">
                 <h1 className="flex flex-wrap items-center gap-2 text-2xl font-bold sm:text-3xl">

@@ -30,8 +30,8 @@ export async function SinceLastVisit({ userId, companyId, supplier, since, now, 
   if (!fresh.length && !endingList.length) return null;
   const plural = (n: number, s: string, p: string) => `${n} ${n > 1 ? p : s}`;
   return (
-    <section aria-labelledby="depuis-visite" className="rounded-2xl border border-teal-200 bg-teal-50/60 p-5" data-testid="since-last-visit">
-      <h2 id="depuis-visite" className="text-sm font-semibold uppercase tracking-wide text-teal-800">
+    <section aria-labelledby="depuis-visite" className="relative overflow-hidden rounded-3xl border border-teal-200/70 bg-gradient-to-br from-teal-50 via-white to-sky p-5 shadow-sm sm:p-6" data-testid="since-last-visit">
+      <h2 id="depuis-visite" className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-xs font-bold tracking-wide text-teal-800 uppercase shadow-sm ring-1 ring-teal/20">
         {since ? `Depuis votre dernière visite (${formatDate(since)})` : "Cette semaine"}
       </h2>
       <div className="mt-3 grid gap-4 sm:grid-cols-2">

@@ -32,10 +32,10 @@ const STAGE_TONE: Record<PipelineStage, string> = {
   DETECTED: "border-t-slate-400",
   QUALIFIED: "border-t-sky-400",
   INTERESTED: "border-t-teal",
-  RESPONSE_PREPARING: "border-t-amber-400",
+  RESPONSE_PREPARING: "border-t-indigo-400",
   RESPONSE_SENT: "border-t-violet-400",
   DISCUSSION: "border-t-cyan-500",
-  NEGOTIATION: "border-t-orange-500",
+  NEGOTIATION: "border-t-pink-500",
   WON: "border-t-emerald-500",
   LOST: "border-t-red-400",
 };
@@ -109,7 +109,7 @@ export function PipelineBoard({ items }: { items: PipelineCard[] }) {
                           )}
                           {c.estimated_value != null && <p className="mt-1 text-xs font-semibold text-navy">{formatMoney(c.estimated_value)}</p>}
                           {c.next_action && (
-                            <p className="mt-1 text-xs text-amber-800">
+                            <p className="mt-1 text-xs text-teal-800">
                               → {c.next_action}
                               {c.next_action_at ? ` (${formatDate(c.next_action_at)})` : ""}
                             </p>

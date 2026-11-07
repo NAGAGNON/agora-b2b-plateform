@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, BadgeCheck, Building2, MapPin, Search } from "lucide-react";
 import { CompanyLogo } from "@/components/companies/company-logo";
+import { LogoMarquee } from "@/components/home/member-proof";
 import { familyPhoto, sectorFamilySlug } from "@/components/opportunities/sector-visual";
 import { directoryFamilyCounts, searchCompanies } from "@/lib/queries/companies";
 import { getSectorLabels } from "@/lib/queries/platform";
@@ -16,10 +17,12 @@ import { SECTOR_FAMILIES } from "@/lib/sector-families";
  */
 export async function DirectoryShowcase() {
   const [{ rows }, counts, labels] = await Promise.all([
-    searchCompanies({ skills: [], page: 1 }, 8).catch(() => ({ rows: [] as Awaited<ReturnType<typeof searchCompanies>>["rows"] })),
+    searchCompanies({ skills: [], page: 1 }, 16).catch(() => ({ rows: [] as Awaited<ReturnType<typeof searchCompanies>>["rows"] })),
     directoryFamilyCounts().catch(() => new Map<string, number>()),
     getSectorLabels(),
   ]);
+  // Entreprises ayant mis leur logo : bandeau défilant (leur choix d'apparaître dans l'annuaire)
+  const withLogo = rows.filter((c) => c.logo_path).map((c) => ({ name: c.name, slug: c.slug, logo_path: c.logo_path, city: c.city, region: null }));
   return (
     <section aria-labelledby="annuaire" className="relative isolate mt-12 overflow-hidden bg-navy-900 py-14 text-white sm:mt-16 sm:py-20">
       <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
@@ -53,6 +56,13 @@ export async function DirectoryShowcase() {
             </Link>
           </div>
         </div>
+
+        {withLogo.length >= 2 && (
+          <div className="mt-10">
+            <p className="mb-4 text-sm font-semibold text-white/70">Elles sont dans l&apos;annuaire</p>
+            <LogoMarquee companies={withLogo} />
+          </div>
+        )}
 
         <ul className="mt-10 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
           {SECTOR_FAMILIES.map((f, i) => {
@@ -105,7 +115,7 @@ export async function DirectoryShowcase() {
                       </span>
                       <span className="relative flex flex-1 flex-col px-5 pb-5">
                         <span className="-mt-8 mb-3 block w-fit rounded-2xl bg-white p-1 shadow-lg ring-1 ring-white/20">
-                          <CompanyLogo name={c.name} path={c.logo_path} size={52} />
+                          <CompanyLogo name={c.name} path={c.logo_path} size={52} sector={c.sectors?.[0]} />
                         </span>
                         <span className="flex items-center gap-1.5 font-bold text-white group-hover:text-teal-200">
                           <span className="line-clamp-1">{c.name}</span>

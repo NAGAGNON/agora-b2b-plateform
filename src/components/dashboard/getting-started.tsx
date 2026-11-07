@@ -42,36 +42,40 @@ export function GettingStarted({ steps }: { steps: Step[] }) {
           </Link>
         )}
       </div>
-      <ol className="relative mt-5 grid items-start gap-2.5 md:grid-cols-2">
-        {steps.map((s, i) => (
+      <ol className="relative mt-5 grid gap-2.5 md:grid-cols-2">
+        {steps.map((s, i) => ({ s, i })).filter(({ s }) => !s.done).map(({ s, i }, k) => (
           <li
             key={s.label}
-            style={{ animationDelay: `${i * 60}ms` }}
-            className={`flex animate-rise items-start gap-3 rounded-2xl p-3 transition ${s.done ? "bg-white/50" : "bg-white shadow-sm ring-1 ring-slate-200 hover:ring-teal/40"}`}
+            style={{ animationDelay: `${k * 60}ms` }}
+            className="flex animate-rise items-start gap-3 rounded-2xl bg-white p-3 shadow-sm ring-1 ring-slate-200 transition hover:ring-teal/40"
           >
-            {s.done ? (
-              <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-teal text-navy" role="img" aria-label="Fait">
-                <Check className="size-4" />
-              </span>
-            ) : (
-              <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full border-2 border-dashed border-slate-300 text-xs font-bold text-slate-400" role="img" aria-label="À faire">
-                {i + 1}
-              </span>
-            )}
+            <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full border-2 border-dashed border-slate-300 text-xs font-bold text-slate-500" role="img" aria-label="À faire">
+              {i + 1}
+            </span>
             <div className="min-w-0">
-              <p className={s.done ? "font-semibold text-slate-500 line-through" : "font-semibold text-navy"}>{s.label}</p>
-              {!s.done && (
-                <>
-                  <p className="text-xs text-slate-600">{s.hint}</p>
-                  <Link href={s.href} className="mt-1 inline-flex items-center gap-1 text-sm font-semibold text-teal-700 hover:underline">
-                    {s.cta} <ArrowRight className="size-3.5" aria-hidden />
-                  </Link>
-                </>
-              )}
+              <p className="font-semibold text-navy">{s.label}</p>
+              <p className="text-xs text-slate-600">{s.hint}</p>
+              <Link href={s.href} className="mt-1 inline-flex items-center gap-1 text-sm font-semibold text-teal-700 hover:underline">
+                {s.cta} <ArrowRight className="size-3.5" aria-hidden />
+              </Link>
             </div>
           </li>
         ))}
       </ol>
+      {done > 0 && (
+        <ul className="relative mt-3 flex flex-wrap gap-2" aria-label="Étapes terminées">
+          {steps
+            .filter((s) => s.done)
+            .map((s) => (
+              <li key={s.label} className="inline-flex items-center gap-1.5 rounded-full bg-white/80 py-1 pr-3 pl-1 text-xs font-semibold text-slate-600 ring-1 ring-teal/20">
+                <span className="flex size-5 items-center justify-center rounded-full bg-teal text-navy" role="img" aria-label="Fait">
+                  <Check className="size-3.5" />
+                </span>
+                {s.label}
+              </li>
+            ))}
+        </ul>
+      )}
     </section>
   );
 }

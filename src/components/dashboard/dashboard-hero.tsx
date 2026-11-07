@@ -43,7 +43,7 @@ export function DashboardHero({
       <div className="flex flex-col gap-6 p-6 sm:p-8 lg:flex-row lg:items-end lg:justify-between">
         <div className="flex min-w-0 items-start gap-4 sm:gap-5">
           <span className="animate-float shrink-0 rounded-[1.4rem] bg-white/10 p-1.5 ring-1 ring-white/20 backdrop-blur">
-            <CompanyLogo name={company.name} path={company.logo_path} size={72} />
+            <CompanyLogo name={company.name} path={company.logo_path} size={72} sector={sector} />
           </span>
           <div className="min-w-0">
             <p className="animate-rise text-sm font-medium text-teal-200 first-letter:uppercase">{date}</p>

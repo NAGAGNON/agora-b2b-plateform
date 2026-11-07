@@ -1,4 +1,6 @@
 import { KanbanSquare } from "lucide-react";
+import { KanbanSquare as PageIcon } from "lucide-react";
+import { DashboardPageHeader } from "@/components/dashboard/page-header";
 import { requireCompany } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { PipelineBoard, type PipelineCard } from "@/components/dashboard/pipeline-board";
@@ -34,11 +36,17 @@ export default async function PipelinePage() {
   const free = !(await hasFullAccess(session.activeCompany.company.id));
   return (
     <div>
-      <h1 className="text-2xl font-bold">Pipeline commercial</h1>
-      <p className="mt-1 mb-6 text-slate-600">
-        Suivi privé de vos opportunités, de la détection au résultat. Seuls les membres de {session.activeCompany.company.name} y ont accès — ni les
-        demandeurs ni l&apos;équipe LinkProB2B.
-      </p>
+      <DashboardPageHeader
+        icon={<PageIcon />}
+        image="/images/illustrations/plans.webp"
+        title="Pipeline commercial"
+        description={
+          <>
+            Suivi privé de vos opportunités, de la détection au résultat. Seuls les membres de {session.activeCompany.company.name} y ont accès — ni les
+            demandeurs ni l&apos;équipe LinkProB2B.
+          </>
+        }
+      />
       {free && (
         <UpgradePrompt
           className="mb-6"

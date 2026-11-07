@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { MessageSquare as PageIcon } from "lucide-react";
+import { DashboardPageHeader } from "@/components/dashboard/page-header";
 import { MessageSquare } from "lucide-react";
 import { requireSession } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -28,10 +30,12 @@ export default async function MessagesPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold">Messages</h1>
-      <p className="mt-1 mb-6 text-slate-600">
-        Les conversations s&apos;ouvrent entre un demandeur et un fournisseur ayant manifesté son intérêt ou répondu à une opportunité.
-      </p>
+      <DashboardPageHeader
+        icon={<PageIcon />}
+        image="/images/illustrations/reunion.webp"
+        title="Messages"
+        description={<>Les conversations s&apos;ouvrent entre un demandeur et un fournisseur ayant manifesté son intérêt ou répondu à une opportunité.</>}
+      />
       {!convs?.length ? (
         <EmptyState
           icon={<MessageSquare className="size-6" aria-hidden />}

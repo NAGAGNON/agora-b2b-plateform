@@ -76,7 +76,7 @@ export default async function FollowsPage() {
                   </span>
                   <span className="flex flex-1 flex-col px-5 pb-5">
                     <span className="-mt-7 mb-2 block w-fit rounded-2xl bg-white p-1 shadow-md ring-1 ring-slate-200">
-                      <CompanyLogo name={c.name} path={c.logo_path} size={48} />
+                      <CompanyLogo name={c.name} path={c.logo_path} size={48} sector={prof(c).sectors?.[0]} />
                     </span>
                     <span className="font-bold text-navy group-hover:text-teal-700">{c.name}</span>
                     {prof(c).tagline && <span className="mt-1 line-clamp-2 text-sm text-slate-600">{prof(c).tagline}</span>}
@@ -101,7 +101,7 @@ export default async function FollowsPage() {
                 return (
                   <li key={n.id}>
                     <Link href={`/opportunites/${n.id}`} className="group flex items-center gap-4 px-5 py-4 transition hover:bg-teal-50/50">
-                      {c && <CompanyLogo name={c.name} path={c.logo_path} size={40} />}
+                      {c && <CompanyLogo name={c.name} path={c.logo_path} size={40} sector={prof(c).sectors?.[0]} />}
                       <span className="min-w-0 flex-1">
                         <span className="block truncate font-semibold text-navy group-hover:text-teal-700">{n.title}</span>
                         <span className="block text-xs text-slate-500">
@@ -134,7 +134,7 @@ export default async function FollowsPage() {
             {fans.map((c) => (
               <li key={c.id}>
                 <Link href={`/entreprises/${c.slug}`} className="flex items-center gap-3 rounded-2xl bg-white py-2 pr-4 pl-2 shadow-sm ring-1 ring-slate-200 transition hover:ring-teal/40">
-                  <CompanyLogo name={c.name} path={c.logo_path} size={36} />
+                  <CompanyLogo name={c.name} path={c.logo_path} size={36} sector={prof(c).sectors?.[0]} />
                   <span className="text-sm font-semibold text-navy">{c.name}</span>
                 </Link>
               </li>

@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { CreditCard as PageIcon } from "lucide-react";
+import { DashboardPageHeader } from "@/components/dashboard/page-header";
 import { requireCompany } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/format";
@@ -66,10 +68,7 @@ export default async function SubscriptionPage(props: PageProps<"/dashboard/abon
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Mon abonnement</h1>
-        <p className="mt-1 text-sm text-slate-500">Offre de l&apos;entreprise {company.name}.</p>
-      </div>
+      <DashboardPageHeader icon={<PageIcon />} image="/images/illustrations/gratte-ciel.webp" title="Mon abonnement" description={<>Offre de l&apos;entreprise {company.name}.</>} />
 
       {usage?.free_launch && plan === "FREE" && (
         <Notice tone="success" title="Phase de lancement : tout est gratuit">

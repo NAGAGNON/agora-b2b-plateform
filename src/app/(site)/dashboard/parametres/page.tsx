@@ -1,4 +1,6 @@
 import { Download } from "lucide-react";
+import { Settings as PageIcon } from "lucide-react";
+import { DashboardPageHeader } from "@/components/dashboard/page-header";
 import { requireSession } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardHeader } from "@/components/ui/card";
@@ -18,7 +20,7 @@ export default async function SettingsPage(props: PageProps<"/dashboard/parametr
   const verified = factors?.totp?.find((f) => f.status === "verified") ?? null;
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Paramètres du compte</h1>
+      <DashboardPageHeader icon={<PageIcon />} image="/images/illustrations/bureau.webp" title="Paramètres du compte" description="Mot de passe, sécurité, e-mails et données personnelles." />
       {sp.mfa === "requis" && (
         <Notice tone="warning" title="Double authentification requise">
           L&apos;accès à l&apos;administration exige la double authentification. Activez-la ci-dessous.

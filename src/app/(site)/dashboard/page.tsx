@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, BellRing, Briefcase, Megaphone, FileStack, Handshake, Heart, Inbox, PlusCircle, Send, Sparkles, Users } from "lucide-react";
+import { ArrowRight, BellRing, Briefcase, Megaphone, FileStack, Handshake, Heart, Inbox, Send, Sparkles, Users } from "lucide-react";
 import { requireSession } from "@/lib/auth";
 import { MemberProofCompact } from "@/components/home/member-proof";
 import { createClient } from "@/lib/supabase/server";

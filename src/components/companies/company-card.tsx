@@ -64,7 +64,7 @@ export async function CompanyCard({ c }: { c: CompanyCardData }) {
       </div>
       <div className="relative flex flex-1 flex-col px-5 pb-5">
         <div className="-mt-9 mb-3 w-fit rounded-2xl bg-white p-1.5 shadow-lg ring-1 ring-slate-200 transition duration-300 group-hover:-translate-y-0.5">
-          <CompanyLogo name={c.name} path={c.logo_path} size={60} />
+          <CompanyLogo name={c.name} path={c.logo_path} size={60} sector={c.sectors[0]} />
         </div>
         <h3 className="flex items-center gap-1.5 text-lg leading-snug font-bold text-navy">
           <Link href={`/entreprises/${c.slug}`} className="after:absolute after:inset-0 group-hover:text-teal-700">

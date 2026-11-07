@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AlarmClock, ArrowRight, CalendarClock, CheckCircle2, FileEdit, HelpCircle, Inbox, Lightbulb, MessageSquare } from "lucide-react";
+import { AlarmClock, ArrowRight, CalendarClock, CheckCircle2, FileEdit, HelpCircle, Inbox, Lightbulb, MessageSquare, Zap } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 
 const DAY = 86_400_000;
@@ -137,24 +137,35 @@ export async function NextActions({ companyId, userId, buyer, supplier, now }: {
 
   const list = actions.sort((a, b) => (a.tone === b.tone ? 0 : a.tone === "urgent" ? -1 : 1)).slice(0, 8);
   return (
-    <section aria-labelledby="a-faire" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <h2 id="a-faire" className="font-heading text-xl font-bold text-navy">
-        À faire maintenant
-      </h2>
+    <section aria-labelledby="a-faire" className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+      <div aria-hidden className="pointer-events-none absolute -top-20 -right-16 size-48 rounded-full bg-gradient-to-br from-teal/15 to-electric/10 blur-3xl" />
+      <div className="relative flex items-center gap-3">
+        <span className="flex size-10 items-center justify-center rounded-2xl bg-gradient-to-br from-teal to-cyan-400 text-navy shadow-md" aria-hidden>
+          <Zap className="size-5" />
+        </span>
+        <h2 id="a-faire" className="font-heading text-xl font-bold text-navy">
+          À faire maintenant
+        </h2>
+        {list.length > 0 && <span className="rounded-full bg-navy px-2.5 py-0.5 text-xs font-bold text-white">{list.length}</span>}
+      </div>
       {list.length === 0 ? (
-        <p className="mt-3 flex items-center gap-2 text-sm text-slate-600">
-          <CheckCircle2 className="size-5 text-teal-600" aria-hidden /> Rien d&apos;urgent pour le moment. {supplier ? "Consultez vos recommandations ou " : ""}
+        <p className="relative mt-4 flex items-center gap-2 rounded-2xl bg-teal-50/70 p-4 text-sm text-slate-700">
+          <CheckCircle2 className="size-5 shrink-0 text-teal-600" aria-hidden /> Rien d&apos;urgent pour le moment. {supplier ? "Consultez vos recommandations ou " : ""}
           <Link href={supplier ? "/dashboard/recommandations" : "/publier"} className="font-semibold text-teal-700 underline">
             {supplier ? "les opportunités recommandées" : "publiez un besoin"}
           </Link>
           .
         </p>
       ) : (
-        <ul className="mt-4 divide-y divide-slate-100">
-          {list.map((a) => (
-            <li key={a.key} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex min-w-0 items-start gap-3">
-                <span className={`flex size-9 shrink-0 items-center justify-center rounded-xl ${a.tone === "urgent" ? "bg-amber-50 text-amber-800" : "bg-teal-50 text-teal-700"}`}>
+        <ul className="relative mt-4 space-y-2">
+          {list.map((a, i) => (
+            <li
+              key={a.key}
+              style={{ animationDelay: `${i * 70}ms` }}
+              className="group flex animate-rise flex-col gap-3 rounded-2xl bg-slate-50/80 p-3 ring-1 ring-slate-100 transition hover:bg-white hover:shadow-md hover:ring-teal/30 sm:flex-row sm:items-center sm:justify-between"
+            >
+              <div className="flex min-w-0 items-center gap-3">
+                <span className={`flex size-10 shrink-0 items-center justify-center rounded-xl transition group-hover:scale-110 ${a.tone === "urgent" ? "bg-rose-100 text-rose-700" : "bg-teal-100 text-teal-800"}`}>
                   <a.icon className="size-5" aria-hidden />
                 </span>
                 <span className="min-w-0">
@@ -162,8 +173,8 @@ export async function NextActions({ companyId, userId, buyer, supplier, now }: {
                   {a.detail && <span className="block truncate text-sm text-slate-600">{a.detail}</span>}
                 </span>
               </div>
-              <Link href={a.href} className="inline-flex shrink-0 items-center gap-1 self-start text-sm font-semibold text-teal-700 hover:underline sm:self-center">
-                {a.cta} <ArrowRight className="size-4" aria-hidden />
+              <Link href={a.href} className="inline-flex shrink-0 items-center gap-1.5 self-start rounded-xl bg-navy px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-px hover:bg-navy-900 sm:self-center">
+                {a.cta} <ArrowRight className="size-4 transition group-hover:translate-x-0.5" aria-hidden />
               </Link>
             </li>
           ))}

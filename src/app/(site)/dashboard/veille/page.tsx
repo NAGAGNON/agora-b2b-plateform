@@ -1,4 +1,6 @@
 import { requireSession } from "@/lib/auth";
+import { Mail as PageIcon } from "lucide-react";
+import { DashboardPageHeader } from "@/components/dashboard/page-header";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardHeader } from "@/components/ui/card";
 import { Notice } from "@/components/ui/notice";
@@ -22,12 +24,12 @@ export default async function VeillePage(props: PageProps<"/dashboard/veille">) 
   const sectorOptions = (sectors?.length ? sectors : Object.entries(SECTOR_LABELS).map(([slug, label]) => ({ slug, label }))).map((s) => ({ value: s.slug, label: s.label }));
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Veille par e-mail</h1>
-        <p className="mt-1 text-sm text-slate-600">
-          Recevez des opportunités B2B réelles et encore ouvertes, choisies selon vos critères. Aucune annonce n&apos;est envoyée deux fois.
-        </p>
-      </div>
+      <DashboardPageHeader
+        icon={<PageIcon />}
+        image="/images/illustrations/ordinateurs.webp"
+        title="Veille par e-mail"
+        description={<>Recevez des opportunités B2B réelles et encore ouvertes, choisies selon vos critères. Aucune annonce n&apos;est envoyée deux fois.</>}
+      />
       {wantsDaily && (
         <Notice tone="info" title="Activer les alertes quotidiennes">
           Vérifiez vos critères ci-dessous puis cliquez sur « Enregistrer mes préférences » pour confirmer votre choix. Rien n&apos;est activé tant que vous n&apos;avez pas

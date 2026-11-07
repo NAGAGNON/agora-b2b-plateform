@@ -26,7 +26,7 @@ export async function FilterFields({ f, departments, places, idPrefix }: { f: Op
         <label htmlFor={id("q")} className="sr-only">
           Mots-clés
         </label>
-        <FilterInput id={id("q")} name="q" defaultValue={f.q} placeholder="ex. maintenance compresseurs" icon={<Search />} />
+        <FilterInput key={f.q ?? ""} id={id("q")} name="q" defaultValue={f.q} placeholder="ex. maintenance compresseurs" icon={<Search />} />
       </FilterSection>
 
       <FilterSection title="Secteur d'activité" icon={<Factory className="size-4" />} active={Boolean(f.sector)}>

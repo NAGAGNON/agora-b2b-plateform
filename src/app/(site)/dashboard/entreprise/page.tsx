@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { Building2 as PageIcon } from "lucide-react";
+import { DashboardPageHeader } from "@/components/dashboard/page-header";
 import { BadgeCheck } from "lucide-react";
 import { requireCompany } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -32,20 +34,22 @@ export default async function CompanySettingsPage() {
   const profile = Array.isArray(company.profile) ? company.profile[0] : company.profile;
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold">
+      <DashboardPageHeader
+        icon={<PageIcon />}
+        image="/images/illustrations/gratte-ciel.webp"
+        title={
+          <span className="flex items-center gap-2">
             {company.name}
             {company.verified_at && <BadgeCheck className="size-6 text-teal-600" aria-label="Entreprise vérifiée" />}
-          </h1>
-          <p className="text-sm text-slate-500">
-            Offre : gratuite · {company.verified_at ? `vérifiée le ${formatDate(company.verified_at)}` : "non vérifiée"}
-          </p>
-        </div>
-        <Link href={`/entreprises/${company.slug}`} className="text-sm font-semibold text-teal-700 underline">
-          Voir la page publique
-        </Link>
-      </div>
+          </span>
+        }
+        description={<>Offre : gratuite · {company.verified_at ? `vérifiée le ${formatDate(company.verified_at)}` : "non vérifiée"}</>}
+        action={
+          <Link href={`/entreprises/${company.slug}`} className="inline-flex h-10 items-center rounded-xl bg-white px-4 text-sm font-semibold text-teal-700 shadow-sm ring-1 ring-slate-200 hover:ring-teal/40">
+            Voir la page publique
+          </Link>
+        }
+      />
       {!company.verified_at && (
         <Notice tone="info" title="Vérification de l'entreprise">
           Le badge « Entreprise vérifiée » est attribué par l&apos;équipe LinkProB2B après contrôle (SIREN, existence de l&apos;entreprise). Renseignez votre
