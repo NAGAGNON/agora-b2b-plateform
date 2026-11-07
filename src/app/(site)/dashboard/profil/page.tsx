@@ -1,4 +1,6 @@
 import { requireSession } from "@/lib/auth";
+import { User as PageIcon } from "lucide-react";
+import { DashboardPageHeader } from "@/components/dashboard/page-header";
 import { Card, CardHeader } from "@/components/ui/card";
 import { UserProfileForm } from "@/components/dashboard/profile-forms";
 import { AvatarForm } from "@/components/dashboard/photo-forms";
@@ -13,7 +15,7 @@ export default async function ProfilePage() {
   const s = await requireSession("/dashboard/profil");
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Mon profil</h1>
+      <DashboardPageHeader icon={<PageIcon />} image="/images/illustrations/equipe.webp" title="Mon profil" description="Vos informations personnelles et votre photo." />
       <Card id="photo">
         <CardHeader title="Photo de profil" description={s.profile.avatar_path ? "Votre photo est en ligne." : "Ajoutez une photo pour personnaliser votre compte."} />
         <div className="p-5">

@@ -407,6 +407,31 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"company_follows": {
+                  Row: {
+                    "created_at": string,"created_by": string | null,"followed_company_id": string,"follower_company_id": string
+                  }
+                  Insert: {
+                    "created_at"?: string,"created_by"?: string | null,"followed_company_id": string,"follower_company_id": string
+                  }
+                  Update: {
+                    "created_at"?: string,"created_by"?: string | null,"followed_company_id"?: string,"follower_company_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "company_follows_followed_company_id_fkey"
+      columns: ["followed_company_id"]
+isOneToOne: false
+      referencedRelation: "companies"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "company_follows_follower_company_id_fkey"
+      columns: ["follower_company_id"]
+isOneToOne: false
+      referencedRelation: "companies"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"favorites": {
                   Row: {
                     "company_id": string | null,"created_at": string,"id": string,"opportunity_id": string | null,"user_id": string
@@ -1455,7 +1480,10 @@ isOneToOne: false
             [_ in never]: never
           }
           Functions: {
-            "accept_pending_invitations":
+            "company_followers_count":
+{ Args: { "p_company_id": string }; Returns: number
+                           },
+"accept_pending_invitations":
 { Args: Record<PropertyKey, never>; Returns: number
                            },
 "admin_audience_detail":
@@ -1845,8 +1873,13 @@ isOneToOne: false
 "save_proposal_evaluation":
 { Args: { "p_note": string,"p_proposal_id": string,"p_score": number }; Returns: undefined
                            },
+"directory_family_counts":
+{ Args: { "p_families": Json,"p_include_demo"?: boolean }; Returns: {
+              "companies": number,"family": string
+            }[]
+                           },
 "search_companies":
-{ Args: { "p_department"?: string,"p_include_demo"?: boolean,"p_kind"?: Database["public"]['Enums']["company_kind"],"p_limit"?: number,"p_offset"?: number,"p_q"?: string,"p_sector"?: string,"p_size"?: Database["public"]['Enums']["company_size"],"p_skills"?: (string)[] }; Returns: {
+{ Args: { "p_department"?: string,"p_include_demo"?: boolean,"p_kind"?: Database["public"]['Enums']["company_kind"],"p_limit"?: number,"p_offset"?: number,"p_q"?: string,"p_sector"?: string,"p_size"?: Database["public"]['Enums']["company_size"],"p_sectors"?: (string)[],"p_skills"?: (string)[] }; Returns: {
               "city": string,"department_code": string,"id": string,"is_demo": boolean,"kind": Database["public"]['Enums']["company_kind"],"logo_path": string,"name": string,"sectors": (string)[],"size": Database["public"]['Enums']["company_size"],"skills": (string)[],"slug": string,"tagline": string,"total_count": number,"verified": boolean
             }[]
                            },

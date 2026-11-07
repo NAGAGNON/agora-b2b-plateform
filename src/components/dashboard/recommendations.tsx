@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SectorVisual } from "@/components/opportunities/sector-visual";
 import { Info } from "lucide-react";
 import { OpportunityTypeBadge, OriginBadge } from "@/components/opportunities/opportunity-badge";
 import { DemoBadge } from "@/components/demo";
@@ -32,7 +33,9 @@ export function RecommendationList({ items, sectorLabels }: { items: Recommendat
   return (
     <ul className="divide-y divide-slate-100">
       {items.map((o) => (
-        <li key={o.id} className="px-5 py-4">
+        <li key={o.id} className="group flex gap-4 px-5 py-4 transition hover:bg-slate-50/70">
+          <SectorVisual sector={o.sector_slug} className="hidden size-16 shrink-0 rounded-2xl sm:block" />
+          <div className="min-w-0 flex-1">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
               <div className="flex flex-wrap gap-1.5">
@@ -62,6 +65,7 @@ export function RecommendationList({ items, sectorLabels }: { items: Recommendat
               ))}
             </ul>
           </details>
+          </div>
         </li>
       ))}
     </ul>

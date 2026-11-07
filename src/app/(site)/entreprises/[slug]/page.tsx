@@ -1,4 +1,7 @@
 import Link from "next/link";
+import Image from "next/image";
+import { familyPhoto, sectorFamilySlug } from "@/components/opportunities/sector-visual";
+import { SECTOR_FAMILIES } from "@/lib/sector-families";
 import { companyPhotoUrl } from "@/lib/storage-urls";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
@@ -7,6 +10,7 @@ import { Directory } from "@/components/companies/directory";
 import { CompanyLogo } from "@/components/companies/company-card";
 import { OpportunityCard } from "@/components/opportunities/opportunity-card";
 import { FavoriteButton } from "@/components/opportunities/favorite-button";
+import { FollowButton } from "@/components/companies/follow-button";
 import { ReportButton } from "@/components/report-button";
 import { Badge } from "@/components/ui/badge";
 import { Notice } from "@/components/ui/notice";
@@ -83,7 +87,8 @@ export default async function CompanyPage(props: PageProps<"/entreprises/[slug]"
   void track("view_company", { company_id: c.id });
 
   const supabase = await createClient();
-  const [{ data: opps }, fav, { data: photos }] = await Promise.all([
+  const myCompany = session?.activeCompany?.company.id;
+  const [{ data: opps }, fav, { data: photos }, followRow, { data: followers }] = await Promise.all([
     supabase
       .from("opportunities")
       .select("id, title, summary, type, origin, status, sector_slug, city, department_code, budget_min, budget_max, budget_visible, response_deadline, published_at, is_demo")
@@ -93,6 +98,10 @@ export default async function CompanyPage(props: PageProps<"/entreprises/[slug]"
       .limit(6),
     session ? supabase.from("favorites").select("id").eq("user_id", session.userId).eq("company_id", c.id).maybeSingle() : null,
     supabase.from("company_photos").select("id, storage_path, caption").eq("company_id", c.id).order("position").order("created_at").limit(8),
+    myCompany && myCompany !== c.id
+      ? supabase.from("company_follows").select("followed_company_id").eq("follower_company_id", myCompany).eq("followed_company_id", c.id).maybeSingle()
+      : null,
+    supabase.rpc("company_followers_count", { p_company_id: c.id }),
   ]);
 
   return (
@@ -136,10 +145,22 @@ export default async function CompanyPage(props: PageProps<"/entreprises/[slug]"
           </Notice>
         )}
         <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
-          <article className="min-w-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8">
-            <header className="flex flex-col gap-4 sm:flex-row sm:items-center">
-              <CompanyLogo name={c.name} path={c.logo_path} size={80} />
-              <div className="min-w-0">
+          <article className="min-w-0 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+            <div aria-hidden className="relative h-40 bg-navy sm:h-52">
+              <Image src={familyPhoto(sectorFamilySlug(profile?.sectors?.[0]))} alt="" fill unoptimized priority sizes="(min-width: 1024px) 60vw, 100vw" className="object-cover" />
+              <div className="absolute inset-0 bg-gradient-to-t from-navy/80 via-navy/25 to-transparent" />
+              {profile?.sectors?.[0] && (
+                <span className="absolute top-4 left-4 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold tracking-wide text-white uppercase ring-1 ring-white/25 backdrop-blur">
+                  {SECTOR_FAMILIES.find((f) => f.slug === sectorFamilySlug(profile.sectors[0]))?.label ?? sectorLabel(profile.sectors[0], sectorLabels)}
+                </span>
+              )}
+            </div>
+            <div className="p-5 pt-0 sm:p-8 sm:pt-0">
+            <header className="flex flex-col gap-4 sm:flex-row sm:items-end">
+              <div className="-mt-12 w-fit shrink-0 rounded-3xl bg-white p-2 shadow-xl ring-1 ring-slate-200 sm:-mt-14">
+                <CompanyLogo name={c.name} path={c.logo_path} size={96} sector={profile?.sectors?.[0]} />
+              </div>
+              <div className="min-w-0 sm:pt-4">
                 <h1 className="flex flex-wrap items-center gap-2 text-2xl font-bold sm:text-3xl">
                   {c.name}
                   {c.verified_at && <BadgeCheck className="size-6 text-teal-600" aria-label="Entreprise vérifiée" />}
@@ -151,6 +172,16 @@ export default async function CompanyPage(props: PageProps<"/entreprises/[slug]"
                   {c.verified_at ? <Badge tone="teal">Entreprise vérifiée</Badge> : <Badge tone="outline">Non vérifiée</Badge>}
                   {c.is_demo && <DemoBadge />}
                 </div>
+                {!isMember && profile?.is_public && (
+                  <div className="mt-4">
+                    <FollowButton companyId={c.id} initial={Boolean(followRow?.data)} signedIn={Boolean(session)} followers={Number(followers ?? 0)} />
+                  </div>
+                )}
+                {isMember && Number(followers ?? 0) > 0 && (
+                  <p className="mt-3 text-sm text-slate-500">
+                    <strong className="text-navy">{Number(followers)}</strong> entreprise{Number(followers) > 1 ? "s suivent" : " suit"} votre entreprise.
+                  </p>
+                )}
               </div>
             </header>
 
@@ -244,6 +275,7 @@ export default async function CompanyPage(props: PageProps<"/entreprises/[slug]"
             </section>
             <div className="mt-8 border-t border-slate-100 pt-4 text-right">
               <ReportButton targetType="COMPANY" targetId={c.id} signedIn={Boolean(session)} label="Signaler cette entreprise" />
+            </div>
             </div>
           </article>
 

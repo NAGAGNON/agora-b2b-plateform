@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { Bell as PageIcon } from "lucide-react";
+import { DashboardPageHeader } from "@/components/dashboard/page-header";
 import { Bell } from "lucide-react";
 import { requireSession } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -17,16 +19,21 @@ export default async function NotificationsPage() {
   const unread = (data ?? []).filter((n) => !n.read_at).length;
   return (
     <div>
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold">Notifications</h1>
-        {unread > 0 && (
-          <form action={markAllNotificationsRead}>
-            <Button type="submit" variant="outline" size="sm">
-              Tout marquer comme lu ({unread})
-            </Button>
-          </form>
-        )}
-      </div>
+      <DashboardPageHeader
+        icon={<PageIcon />}
+        image="/images/illustrations/equipe.webp"
+        title="Notifications"
+        description="Réponses, messages, décisions, alertes et nouveaux besoins des entreprises que vous suivez."
+        action={
+          unread > 0 ? (
+            <form action={markAllNotificationsRead}>
+              <Button type="submit" variant="outline" size="sm">
+                Tout marquer comme lu ({unread})
+              </Button>
+            </form>
+          ) : undefined
+        }
+      />
       {!data?.length ? (
         <EmptyState icon={<Bell className="size-6" aria-hidden />} title="Aucune notification" description="Vous serez notifié des réponses, messages, décisions et alertes." />
       ) : (

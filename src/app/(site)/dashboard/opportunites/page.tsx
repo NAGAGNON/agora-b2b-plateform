@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { FileStack as PageIcon } from "lucide-react";
+import { DashboardPageHeader } from "@/components/dashboard/page-header";
 import { FileStack, PlusCircle, Send } from "lucide-react";
 import { requireCompany } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -46,12 +48,17 @@ export default async function MyOpportunitiesPage(props: PageProps<"/dashboard/o
 
   return (
     <div>
-      <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
-        <h1 className="text-2xl font-bold">Mes opportunités</h1>
-        <ButtonLink href="/publier">
-          <PlusCircle className="size-4" aria-hidden /> Publier un besoin
-        </ButtonLink>
-      </div>
+      <DashboardPageHeader
+        icon={<PageIcon />}
+        image="/images/illustrations/ordinateurs.webp"
+        title="Mes opportunités"
+        description="Vos besoins publiés, et les opportunités auxquelles vous avez répondu."
+        action={
+          <ButtonLink href="/publier">
+            <PlusCircle className="size-4" aria-hidden /> Publier un besoin
+          </ButtonLink>
+        }
+      />
       {sp.supprime && <Notice tone="success" className="mb-4">Brouillon supprimé.</Notice>}
       <LinkTabs
         active={tab}

@@ -116,10 +116,11 @@ export function activeFilterCount(f: OpportunityFilters): number {
     (f.types.length ? 1 : 0) + (f.skills.length ? 1 : 0) + (f.status !== "OPEN" ? 1 : 0);
 }
 
-export type CompanyFilters = { q?: string; sector?: string; department?: string; kind?: CompanyKind; size?: CompanySize; skills: string[]; page: number };
+export type CompanyFilters = { q?: string; sector?: string; family?: string; department?: string; kind?: CompanyKind; size?: CompanySize; skills: string[]; page: number };
 
 export function parseCompanyFilters(sp: RawSearchParams): CompanyFilters {
   const sector = first(sp.secteur);
+  const family = first(sp.domaine);
   const department = first(sp.departement);
   const kind = first(sp.type);
   const size = first(sp.taille);
@@ -127,6 +128,7 @@ export function parseCompanyFilters(sp: RawSearchParams): CompanyFilters {
   return {
     q: first(sp.q)?.slice(0, 200),
     sector: sector && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(sector) && sector.length <= 60 ? sector : undefined,
+    family: family && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(family) && family.length <= 40 ? family : undefined,
     department: department && /^(\d{2,3}|2[AB])$/.test(department) ? department : undefined,
     kind: kind === "SUPPLIER" || kind === "BUYER" || kind === "BOTH" ? kind : undefined,
     size: SIZES.includes(size as CompanySize) ? (size as CompanySize) : undefined,

@@ -1,4 +1,6 @@
 import { BellRing } from "lucide-react";
+import { BellRing as PageIcon } from "lucide-react";
+import { DashboardPageHeader } from "@/components/dashboard/page-header";
 import { requireSession } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { getDepartments, getPlaces, getSectors, getSectorLabels } from "@/lib/queries/platform";
@@ -26,13 +28,17 @@ export default async function AlertsPage(props: PageProps<"/dashboard/alertes">)
   const str = (v: unknown) => (typeof v === "string" ? v : undefined);
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Alertes</h1>
-        <p className="mt-1 text-slate-600">
-          Recevez une notification (et un e-mail si activé dans vos paramètres) lorsqu&apos;une opportunité correspond à vos critères.
-          {!session.profile.notify_email && " Les e-mails sont actuellement désactivés dans vos paramètres."}
-        </p>
-      </div>
+      <DashboardPageHeader
+        icon={<PageIcon />}
+        image="/images/illustrations/tableau-de-bord.webp"
+        title="Alertes"
+        description={
+          <>
+            Recevez une notification (et un e-mail si activé dans vos paramètres) lorsqu&apos;une opportunité correspond à vos critères.
+            {!session.profile.notify_email && " Les e-mails sont actuellement désactivés dans vos paramètres."}
+          </>
+        }
+      />
       <Card>
         <CardHeader title="Nouvelle alerte" />
         <div className="p-5">

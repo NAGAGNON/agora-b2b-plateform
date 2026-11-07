@@ -9,7 +9,7 @@ test("recherche nationale : France entière par défaut, filtre région, pages S
   await expect(region.locator("option:checked")).toHaveText("France entière");
   await expect(region.locator("option")).toHaveCount(19);
   await region.selectOption("bretagne");
-  await page.locator("aside").getByRole("button", { name: "Appliquer" }).click();
+  await page.locator("aside").getByRole("button", { name: "Afficher les résultats" }).click();
   await expect(page).toHaveURL(/region=bretagne/);
 
   await page.goto("/opportunites/france");

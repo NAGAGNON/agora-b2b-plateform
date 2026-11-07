@@ -1,4 +1,6 @@
 import { getSectorLabels } from "@/lib/queries/platform";
+import { Heart as PageIcon } from "lucide-react";
+import { DashboardPageHeader } from "@/components/dashboard/page-header";
 import Link from "next/link";
 import { Heart, Search } from "lucide-react";
 import { requireSession } from "@/lib/auth";
@@ -41,7 +43,7 @@ export default async function FavoritesPage() {
   const companies = (favs ?? []).map((f) => one(f.company)).filter(Boolean) as { id: string; slug: string; name: string; city: string | null; is_demo: boolean }[];
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Favoris</h1>
+      <DashboardPageHeader icon={<PageIcon />} image="/images/illustrations/poignee-de-main.webp" title="Favoris" description="Les opportunités et les entreprises que vous avez mises de côté." />
       <Card>
         <CardHeader title={<span className="flex items-center gap-2"><Heart className="size-5 text-teal-600" aria-hidden /> Opportunités</span>} description={`${opps.length} enregistrée(s)`} />
         {opps.length === 0 ? (

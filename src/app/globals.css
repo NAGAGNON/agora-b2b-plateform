@@ -266,3 +266,132 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Monogramme des entreprises sans logo : dégradé vivant qui tourne lentement, initiales nacrées */
+.monogram {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background:
+    radial-gradient(120% 90% at 15% 10%, var(--m1) 0%, transparent 60%),
+    radial-gradient(110% 100% at 90% 95%, var(--m2) 0%, transparent 55%),
+    #081429;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.25), inset 0 -10px 24px rgb(5 13 29 / 0.45);
+}
+.monogram::before {
+  content: "";
+  position: absolute;
+  inset: -50%;
+  z-index: -1;
+  background: conic-gradient(from 0deg, transparent 0 25%, var(--m1) 35%, transparent 50% 75%, var(--m2) 85%, transparent);
+  opacity: 0.55;
+  filter: blur(10px);
+  animation: monogram-spin 14s linear infinite;
+}
+.monogram::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-image: radial-gradient(rgb(255 255 255 / 0.18) 1px, transparent 1.2px);
+  background-size: 7px 7px;
+  mask-image: linear-gradient(135deg, black, transparent 70%);
+}
+.monogram-text {
+  background: linear-gradient(110deg, #ffffff 20%, var(--m3) 40%, #ffffff 55%, #e0fbff 80%);
+  background-size: 220% auto;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 2px 6px rgb(5 13 29 / 0.45));
+  animation: shimmer 5s linear infinite;
+  letter-spacing: -0.02em;
+}
+.group:hover .monogram::before {
+  animation-duration: 4s;
+}
+@keyframes monogram-spin {
+  to {
+    transform: rotate(1turn);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .monogram::before,
+  .monogram-text {
+    animation: none;
+  }
+}
+.monogram-ring {
+  animation: monogram-spin 9s linear infinite;
+  filter: drop-shadow(0 0 3px rgb(255 255 255 / 0.5));
+}
+.monogram-sweep {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 30%, rgb(255 255 255 / 0.28) 45%, transparent 60%);
+  background-size: 250% 100%;
+  animation: monogram-sweep 4.5s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes monogram-sweep {
+  0%,
+  55% {
+    background-position: 130% 0;
+  }
+  100% {
+    background-position: -40% 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .monogram-ring,
+  .monogram-sweep {
+    animation: none;
+  }
+}
+/* Emblème : cœur vitré qui respire, icône du métier qui flotte */
+.monogram-core {
+  background: radial-gradient(circle at 30% 25%, rgb(255 255 255 / 0.35), rgb(255 255 255 / 0.06) 60%);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.45),
+    0 0 18px -2px var(--m1);
+  backdrop-filter: blur(2px);
+  animation: monogram-breathe 4s ease-in-out infinite;
+}
+.monogram-icon {
+  filter: drop-shadow(0 0 6px var(--m3));
+  animation: monogram-float 5s ease-in-out infinite;
+}
+.group:hover .monogram-icon,
+.group\/mono:hover .monogram-icon {
+  animation-duration: 1.6s;
+}
+@keyframes monogram-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.45),
+      0 0 14px -4px var(--m1);
+  }
+  50% {
+    transform: scale(1.07);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.45),
+      0 0 26px 0 var(--m1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .monogram-core,
+  .monogram-icon {
+    animation: none;
+  }
+}
+@keyframes monogram-float {
+  0%,
+  100% {
+    transform: translateY(6%) rotate(-4deg);
+  }
+  50% {
+    transform: translateY(-6%) rotate(4deg);
+  }
+}

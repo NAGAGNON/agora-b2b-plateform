@@ -13,6 +13,8 @@ import { track } from "@/lib/analytics";
 import { getPlatformStats } from "@/lib/queries/platform";
 import { FreshnessBar } from "@/components/opportunities/freshness";
 import { PageHero } from "@/components/layout/page-hero";
+import { OpportunitySearch } from "@/components/opportunities/opportunity-search";
+import { Suspense } from "react";
 import { UpgradeGate } from "@/components/billing/upsell";
 import { createClient } from "@/lib/supabase/server";
 import { getSession } from "@/lib/auth";
@@ -68,7 +70,10 @@ export default async function OpportunitiesPage(props: PageProps<"/opportunites"
           </>
         }
       >
-        <FreshnessBar stats={await getPlatformStats()} />
+        <Suspense fallback={null}>
+          <OpportunitySearch initial={filters.q ?? ""} />
+        </Suspense>
+        <FreshnessBar stats={await getPlatformStats()} className="mt-5" />
       </PageHero>
       <div className="container-page py-8 sm:py-10">
       {filters.page === 1 && !filters.q && filters.origin !== "EXTERNAL" && (

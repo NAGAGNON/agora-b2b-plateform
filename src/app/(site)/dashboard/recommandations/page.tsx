@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { Sparkles as PageIcon } from "lucide-react";
+import { DashboardPageHeader } from "@/components/dashboard/page-header";
 import { Lock, Sparkles } from "lucide-react";
 import { requireSession } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -48,12 +50,16 @@ export default async function RecommendationsPage(props: PageProps<"/dashboard/r
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Recommandations</h1>
-        <p className="mt-1 text-slate-600">
-          Opportunités ouvertes classées selon le profil de <strong>{company.name}</strong>. Chaque proposition est expliquée.
-        </p>
-      </div>
+      <DashboardPageHeader
+        icon={<PageIcon />}
+        image="/images/illustrations/accord.webp"
+        title="Recommandations"
+        description={
+          <>
+            Opportunités ouvertes classées selon le profil de <strong>{company.name}</strong>. Chaque proposition est expliquée.
+          </>
+        }
+      />
       {sp.bienvenue === "1" && (
         <Notice tone="success" title="Votre profil est prêt">
           Voici les offres ouvertes qui correspondent à votre entreprise, avec la raison de chaque recommandation. Une alerte e-mail est activée pour les
