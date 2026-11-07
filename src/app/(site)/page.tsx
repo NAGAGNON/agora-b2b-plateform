@@ -43,6 +43,7 @@ import { groupSectors } from "@/lib/sector-families";
 import { StatsTicker } from "@/components/home/stats-ticker";
 import { SectorVisual } from "@/components/opportunities/sector-visual";
 import { HeroVideo } from "@/components/home/hero-video";
+import { DirectoryShowcase } from "@/components/home/directory-showcase";
 
 export const metadata = pageMetadata({
   title: "LinkProB2B — Appels d'offres et opportunités B2B en France",
@@ -297,6 +298,8 @@ export default async function HomePage(props: PageProps<"/">) {
           </ul>
         </section>
       )}
+
+      <DirectoryShowcase />
 
       {/* Les trois usages de LinkProB2B */}
       <section className="container-page py-12 sm:py-16" aria-labelledby="usages">

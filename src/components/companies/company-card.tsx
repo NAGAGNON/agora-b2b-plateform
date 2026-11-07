@@ -57,8 +57,8 @@ export async function CompanyCard({ c }: { c: CompanyCardData }) {
           {family?.label ?? "Entreprise"}
         </span>
         {c.verified && (
-          <span className="absolute top-3 right-3 inline-flex items-center gap-1 rounded-full bg-teal px-2.5 py-1 text-[11px] font-bold text-navy shadow">
-            <BadgeCheck className="size-3.5" aria-hidden /> Vérifiée
+          <span role="img" aria-label="Entreprise vérifiée" className="absolute top-3 right-3 inline-flex items-center gap-1 rounded-full bg-teal px-2.5 py-1 text-[11px] font-bold text-navy shadow">
+            <BadgeCheck className="size-3.5" aria-hidden /> <span>Vérifiée</span>
           </span>
         )}
       </div>
@@ -70,7 +70,6 @@ export async function CompanyCard({ c }: { c: CompanyCardData }) {
           <Link href={`/entreprises/${c.slug}`} className="after:absolute after:inset-0 group-hover:text-teal-700">
             {c.name}
           </Link>
-          {c.verified && <BadgeCheck className="size-5 shrink-0 text-teal-600" aria-label="Entreprise vérifiée" />}
         </h3>
         <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
           <span className="inline-flex items-center gap-1">
