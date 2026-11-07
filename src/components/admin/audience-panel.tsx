@@ -22,7 +22,10 @@ export type AudienceStats = {
   devices: Partial<Record<"mobile" | "tablet" | "desktop", number>>;
 };
 
-export const PERIODS = [7, 30, 90] as const;
+export const PERIODS = [1, 7, 30, 90] as const;
+/** Libellé d'une période : « 24 h » pour la journée (vue par défaut), sinon en jours. */
+export const periodLabel = (p: number) => (p === 1 ? "24 h" : `${p} j`);
+export const periodText = (p: number) => (p === 1 ? "dernières 24 h" : `${p} derniers jours`);
 
 const nf = new Intl.NumberFormat("fr-FR");
 const dayFmt = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "short", timeZone: "UTC" });
@@ -106,7 +109,7 @@ export function AudiencePanel({ stats: a, period }: { stats: AudienceStats; peri
               aria-current={p === period ? "page" : undefined}
               className={cn("rounded-md px-3 py-1 font-semibold", p === period ? "bg-navy text-white" : "text-slate-600 hover:bg-sky")}
             >
-              {p} j
+              {periodLabel(p)}
             </Link>
           ))}
         </nav>
@@ -122,7 +125,7 @@ export function AudiencePanel({ stats: a, period }: { stats: AudienceStats; peri
       </div>
 
       <Card>
-        <CardHeader title={`Visites par jour (${period} derniers jours)`} />
+        <CardHeader title={`Visites par jour (${periodText(period)})`} />
         <div className="p-5">
           {a.visits > 0 ? <DailyChart data={a.daily} /> : <p className="text-sm text-slate-600">Aucune visite enregistrée sur la période.</p>}
         </div>

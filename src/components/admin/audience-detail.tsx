@@ -1,3 +1,4 @@
+import { periodText } from "@/components/admin/audience-panel";
 import Link from "next/link";
 import { Card, CardHeader } from "@/components/ui/card";
 
@@ -102,7 +103,7 @@ export function AudienceDetailPanel({ d, period }: { d: AudienceDetail; period: 
     <section aria-labelledby="detail-titre" className="space-y-3">
       <div>
         <h2 id="detail-titre" className="text-lg font-bold">
-          Audience détaillée ({period} derniers jours)
+          Audience détaillée ({periodText(period)})
         </h2>
         <p className="text-sm text-slate-600">Jours et heures de Paris. Canal « Outreach » : visites arrivées par une sélection envoyée par e-mail.</p>
       </div>
