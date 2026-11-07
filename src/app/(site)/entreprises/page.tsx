@@ -34,21 +34,25 @@ export default async function DirectoryPage(props: PageProps<"/entreprises">) {
         </p>
       </PageHero>
       <div className="container-page py-8 sm:py-10">
-      <div className="mt-4 mb-6 flex flex-col gap-3 rounded-2xl border border-teal/40 bg-teal-50 p-4 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm text-navy">
-          <strong>Vous êtes fournisseur ou prestataire ?</strong> Référencez gratuitement votre entreprise pour être trouvé par les acheteurs et recevoir
-          les opportunités de votre secteur.
-        </p>
-        <div className="flex shrink-0 flex-wrap gap-2">
-          <ButtonLink href="/inscription" size="sm">
-            Créer mon profil
-          </ButtonLink>
-          <ButtonLink href="/publier" size="sm" variant="outline">
-            Publier un besoin
-          </ButtonLink>
-        </div>
-      </div>
       <Directory filters={parseCompanyFilters(sp)} rawParams={sp} basePath="/entreprises" />
+      <section aria-label="Référencer votre entreprise" className="relative mt-12 overflow-hidden rounded-3xl bg-navy p-6 text-white shadow-xl sm:p-8">
+        <div aria-hidden className="pointer-events-none absolute -top-20 -right-10 size-64 animate-aurora rounded-full bg-teal/30 blur-3xl" />
+        <div aria-hidden className="pointer-events-none absolute -bottom-24 left-10 size-64 animate-aurora rounded-full bg-violet/25 blur-3xl [animation-delay:-7s]" />
+        <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-xl font-bold">Vous êtes fournisseur ou prestataire ?</p>
+            <p className="mt-1 max-w-2xl text-sm text-white/75">
+              Référencez gratuitement votre entreprise : les acheteurs vous trouvent ici, et vous recevez les opportunités de votre secteur.
+            </p>
+          </div>
+          <div className="flex shrink-0 flex-wrap gap-2">
+            <ButtonLink href="/inscription">Créer mon profil</ButtonLink>
+            <ButtonLink href="/publier" variant="outline" className="border-white/30 bg-white/5 text-white hover:bg-white/10">
+              Publier un besoin
+            </ButtonLink>
+          </div>
+        </div>
+      </section>
       </div>
     </>
   );

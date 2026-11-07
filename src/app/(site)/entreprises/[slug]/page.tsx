@@ -1,4 +1,7 @@
 import Link from "next/link";
+import Image from "next/image";
+import { familyPhoto, sectorFamilySlug } from "@/components/opportunities/sector-visual";
+import { SECTOR_FAMILIES } from "@/lib/sector-families";
 import { companyPhotoUrl } from "@/lib/storage-urls";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
@@ -136,10 +139,22 @@ export default async function CompanyPage(props: PageProps<"/entreprises/[slug]"
           </Notice>
         )}
         <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
-          <article className="min-w-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8">
-            <header className="flex flex-col gap-4 sm:flex-row sm:items-center">
-              <CompanyLogo name={c.name} path={c.logo_path} size={80} />
-              <div className="min-w-0">
+          <article className="min-w-0 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+            <div aria-hidden className="relative h-40 bg-navy sm:h-52">
+              <Image src={familyPhoto(sectorFamilySlug(profile?.sectors?.[0]))} alt="" fill unoptimized priority sizes="(min-width: 1024px) 60vw, 100vw" className="object-cover" />
+              <div className="absolute inset-0 bg-gradient-to-t from-navy/80 via-navy/25 to-transparent" />
+              {profile?.sectors?.[0] && (
+                <span className="absolute top-4 left-4 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold tracking-wide text-white uppercase ring-1 ring-white/25 backdrop-blur">
+                  {SECTOR_FAMILIES.find((f) => f.slug === sectorFamilySlug(profile.sectors[0]))?.label ?? sectorLabel(profile.sectors[0], sectorLabels)}
+                </span>
+              )}
+            </div>
+            <div className="p-5 pt-0 sm:p-8 sm:pt-0">
+            <header className="flex flex-col gap-4 sm:flex-row sm:items-end">
+              <div className="-mt-12 w-fit shrink-0 rounded-3xl bg-white p-2 shadow-xl ring-1 ring-slate-200 sm:-mt-14">
+                <CompanyLogo name={c.name} path={c.logo_path} size={96} />
+              </div>
+              <div className="min-w-0 sm:pt-4">
                 <h1 className="flex flex-wrap items-center gap-2 text-2xl font-bold sm:text-3xl">
                   {c.name}
                   {c.verified_at && <BadgeCheck className="size-6 text-teal-600" aria-label="Entreprise vérifiée" />}
@@ -244,6 +259,7 @@ export default async function CompanyPage(props: PageProps<"/entreprises/[slug]"
             </section>
             <div className="mt-8 border-t border-slate-100 pt-4 text-right">
               <ReportButton targetType="COMPANY" targetId={c.id} signedIn={Boolean(session)} label="Signaler cette entreprise" />
+            </div>
             </div>
           </article>
 

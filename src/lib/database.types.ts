@@ -1845,8 +1845,13 @@ isOneToOne: false
 "save_proposal_evaluation":
 { Args: { "p_note": string,"p_proposal_id": string,"p_score": number }; Returns: undefined
                            },
+"directory_family_counts":
+{ Args: { "p_families": Json,"p_include_demo"?: boolean }; Returns: {
+              "companies": number,"family": string
+            }[]
+                           },
 "search_companies":
-{ Args: { "p_department"?: string,"p_include_demo"?: boolean,"p_kind"?: Database["public"]['Enums']["company_kind"],"p_limit"?: number,"p_offset"?: number,"p_q"?: string,"p_sector"?: string,"p_size"?: Database["public"]['Enums']["company_size"],"p_skills"?: (string)[] }; Returns: {
+{ Args: { "p_department"?: string,"p_include_demo"?: boolean,"p_kind"?: Database["public"]['Enums']["company_kind"],"p_limit"?: number,"p_offset"?: number,"p_q"?: string,"p_sector"?: string,"p_size"?: Database["public"]['Enums']["company_size"],"p_sectors"?: (string)[],"p_skills"?: (string)[] }; Returns: {
               "city": string,"department_code": string,"id": string,"is_demo": boolean,"kind": Database["public"]['Enums']["company_kind"],"logo_path": string,"name": string,"sectors": (string)[],"size": Database["public"]['Enums']["company_size"],"skills": (string)[],"slug": string,"tagline": string,"total_count": number,"verified": boolean
             }[]
                            },
