@@ -190,7 +190,7 @@ export default async function HomePage(props: PageProps<"/">) {
 
       {/* Besoins publiés directement par des entreprises inscrites : mis en avant */}
       {clientNeeds.length > 0 && (
-        <section className="container-page pt-12 sm:pt-16" aria-labelledby="besoins-clients" data-testid="home-client-needs">
+        <section className="cv-auto container-page pt-12 sm:pt-16" aria-labelledby="besoins-clients" data-testid="home-client-needs">
           <div className="rounded-3xl border-2 border-teal-200 bg-gradient-to-br from-teal-50 via-white to-sky p-5 shadow-sm sm:p-8">
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div>
@@ -246,7 +246,7 @@ export default async function HomePage(props: PageProps<"/">) {
 
       {/* Aperçu réel : les trois dernières opportunités publiées */}
       {preview.length > 0 && (
-        <section className="container-page pt-12 sm:pt-16" aria-labelledby="apercu">
+        <section className="cv-auto container-page pt-12 sm:pt-16" aria-labelledby="apercu">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
               <p className="flex items-center gap-2 text-sm font-semibold tracking-wide text-teal-700 uppercase">
@@ -302,7 +302,7 @@ export default async function HomePage(props: PageProps<"/">) {
       <DirectoryShowcase />
 
       {/* Les trois usages de LinkProB2B */}
-      <section className="container-page py-12 sm:py-16" aria-labelledby="usages">
+      <section className="cv-auto container-page py-12 sm:py-16" aria-labelledby="usages">
         <h2 id="usages" className="reveal max-w-3xl text-3xl font-extrabold sm:text-4xl">
           Ce que vous pouvez faire dès maintenant
         </h2>
@@ -350,7 +350,7 @@ export default async function HomePage(props: PageProps<"/">) {
       </section>
 
       {/* Familles de métiers : chaque famille mène aux secteurs, puis aux opportunités */}
-      <section className="bg-canvas py-12 sm:py-16" aria-labelledby="familles">
+      <section className="cv-auto bg-canvas py-12 sm:py-16" aria-labelledby="familles">
         <div className="container-page">
           <p className="reveal text-sm font-semibold tracking-wide text-teal-700 uppercase">Par métier</p>
           <h2 id="familles" className="reveal mt-2 text-3xl font-extrabold sm:text-4xl">
@@ -387,7 +387,7 @@ export default async function HomePage(props: PageProps<"/">) {
       </section>
 
       {/* Ce qui différencie LinkProB2B d'une simple liste d'annonces */}
-      <section className="relative isolate overflow-hidden bg-navy-900 py-14 text-white sm:py-20" aria-labelledby="benefices">
+      <section className="cv-auto relative isolate overflow-hidden bg-navy-900 py-14 text-white sm:py-20" aria-labelledby="benefices">
         <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
           <div className="bg-tech-grid absolute inset-0" />
           <div className="absolute -top-32 left-1/4 size-96 animate-aurora rounded-full bg-electric/20 blur-3xl" />
@@ -459,7 +459,7 @@ export default async function HomePage(props: PageProps<"/">) {
       </section>
 
       {/* Besoins des entreprises : publier et consulter */}
-      <section className="container-page py-14 sm:py-20" aria-labelledby="besoins">
+      <section className="cv-auto container-page py-14 sm:py-20" aria-labelledby="besoins">
         <div className="grid items-center gap-12 lg:grid-cols-2">
           <div className="reveal relative">
             <div aria-hidden className="absolute -inset-3 -rotate-2 rounded-[2rem] bg-gradient-to-br from-teal/30 via-glow/20 to-electric/20 blur-xl" />
@@ -498,7 +498,7 @@ export default async function HomePage(props: PageProps<"/">) {
       </section>
 
       {/* Comment ça marche */}
-      <section className="bg-canvas py-14 sm:py-20" aria-labelledby="fonctionnement">
+      <section className="cv-auto bg-canvas py-14 sm:py-20" aria-labelledby="fonctionnement">
         <div className="container-page">
           <p className="reveal text-sm font-semibold tracking-wide text-teal-700 uppercase">En trois étapes</p>
           <h2 id="fonctionnement" className="reveal mt-2 text-3xl font-extrabold sm:text-5xl">
@@ -527,7 +527,7 @@ export default async function HomePage(props: PageProps<"/">) {
 
       {/* Dernières analyses de marché */}
       {analyses && analyses.length > 0 && (
-        <section className="container-page py-16 sm:py-24" aria-labelledby="analyses">
+        <section className="cv-auto container-page py-16 sm:py-24" aria-labelledby="analyses">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
               <h2 id="analyses" className="text-3xl font-extrabold">
@@ -559,7 +559,7 @@ export default async function HomePage(props: PageProps<"/">) {
       )}
 
       {/* Appel à l'inscription */}
-      <section className="container-page py-14 sm:py-20">
+      <section className="cv-auto container-page py-14 sm:py-20">
         <div className="reveal relative isolate overflow-hidden rounded-3xl bg-navy-900 px-6 py-14 text-white shadow-2xl sm:px-12 sm:py-20">
           <Image src="/images/illustrations/gratte-ciel.webp" alt="" fill unoptimized sizes="100vw" className="-z-20 object-cover" />
           <div aria-hidden className="absolute inset-0 -z-10 bg-gradient-to-r from-navy-900 via-navy-900/90 to-navy-900/50" />

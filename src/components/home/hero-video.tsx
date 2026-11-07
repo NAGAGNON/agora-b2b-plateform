@@ -59,6 +59,22 @@ export function HeroVideo({ className = "" }: { className?: string }) {
     return () => events.forEach((e) => window.removeEventListener(e, onGesture));
   }, [load]);
 
+  // Vidéo hors de l'écran : mise en pause (le décodage continu saccade le défilement sur téléphone),
+  // reprise automatique en revenant dessus sauf si le visiteur l'a mise en pause lui-même
+  useEffect(() => {
+    const v = ref.current;
+    if (!v || !load || typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting) v.pause();
+        else if (!userPaused.current && v.paused) v.play().catch(() => {});
+      },
+      { threshold: 0.15 },
+    );
+    io.observe(v);
+    return () => io.disconnect();
+  }, [load]);
+
   const toggleSound = () => {
     const v = ref.current;
     if (!v) return;

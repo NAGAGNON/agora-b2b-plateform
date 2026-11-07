@@ -241,12 +241,10 @@
 }
 @keyframes reveal-up {
   from {
-    transform: translateY(48px) scale(0.96);
-    filter: blur(6px);
+    transform: translateY(40px) scale(0.97);
   }
   to {
     transform: none;
-    filter: none;
   }
 }
 @keyframes draw-line {
@@ -284,8 +282,8 @@
   inset: -50%;
   z-index: -1;
   background: conic-gradient(from 0deg, transparent 0 25%, var(--m1) 35%, transparent 50% 75%, var(--m2) 85%, transparent);
-  opacity: 0.55;
-  filter: blur(10px);
+  opacity: 0.45;
+  will-change: transform;
   animation: monogram-spin 14s linear infinite;
 }
 .monogram::after {
@@ -323,23 +321,24 @@
 }
 .monogram-ring {
   animation: monogram-spin 9s linear infinite;
-  filter: drop-shadow(0 0 3px rgb(255 255 255 / 0.5));
+  will-change: transform;
 }
 .monogram-sweep {
   position: absolute;
-  inset: 0;
-  background: linear-gradient(115deg, transparent 30%, rgb(255 255 255 / 0.28) 45%, transparent 60%);
-  background-size: 250% 100%;
+  inset: 0 auto 0 -60%;
+  width: 60%;
+  background: linear-gradient(115deg, transparent, rgb(255 255 255 / 0.3), transparent);
   animation: monogram-sweep 4.5s ease-in-out infinite;
+  will-change: transform;
   pointer-events: none;
 }
 @keyframes monogram-sweep {
   0%,
   55% {
-    background-position: 130% 0;
+    transform: translateX(0);
   }
   100% {
-    background-position: -40% 0;
+    transform: translateX(380%);
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -353,8 +352,7 @@
   background: radial-gradient(circle at 30% 25%, rgb(255 255 255 / 0.35), rgb(255 255 255 / 0.06) 60%);
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / 0.45),
-    0 0 18px -2px var(--m1);
-  backdrop-filter: blur(2px);
+    0 0 20px -2px var(--m1);
   animation: monogram-breathe 4s ease-in-out infinite;
 }
 .monogram-icon {
@@ -369,15 +367,9 @@
   0%,
   100% {
     transform: scale(1);
-    box-shadow:
-      inset 0 1px 0 rgb(255 255 255 / 0.45),
-      0 0 14px -4px var(--m1);
   }
   50% {
     transform: scale(1.07);
-    box-shadow:
-      inset 0 1px 0 rgb(255 255 255 / 0.45),
-      0 0 26px 0 var(--m1);
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -393,5 +385,29 @@
   }
   50% {
     transform: translateY(-6%) rotate(4deg);
+  }
+}
+
+/* Fluidité : halos animés sur leur propre couche ; sur téléphone, décor fixe et sans flou d'arrière-plan
+   (le flou recalculé à chaque image est ce qui saccade le défilement sur mobile) */
+.animate-aurora {
+  will-change: transform;
+}
+/* Sections hors de l'écran : ni calculées ni dessinées (animations comprises) tant qu'on n'y arrive pas */
+.cv-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 900px;
+}
+/* Flou d'arrière-plan recalculé à chaque image pendant le défilement : réservé à l'en-tête */
+[class*="backdrop-blur"]:not(header) {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+@media (max-width: 768px) {
+  .animate-aurora {
+    animation: none;
+  }
+  .text-gradient {
+    animation: none;
   }
 }
