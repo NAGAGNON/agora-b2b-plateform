@@ -23,9 +23,9 @@ export type AudienceStats = {
 };
 
 export const PERIODS = [1, 7, 30, 90] as const;
-/** Libellé d'une période : « 24 h » pour la journée (vue par défaut), sinon en jours. */
-export const periodLabel = (p: number) => (p === 1 ? "24 h" : `${p} j`);
-export const periodText = (p: number) => (p === 1 ? "dernières 24 h" : `${p} derniers jours`);
+/** Libellé d'une période : « Aujourd'hui » (depuis minuit, vue par défaut), sinon en jours. */
+export const periodLabel = (p: number) => (p === 1 ? "Aujourd'hui" : `${p} j`);
+export const periodText = (p: number) => (p === 1 ? "aujourd'hui, depuis minuit" : `${p} derniers jours`);
 
 const nf = new Intl.NumberFormat("fr-FR");
 const dayFmt = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "short", timeZone: "UTC" });

@@ -86,6 +86,6 @@ test("tableau de bord administrateur : bilan du jour et audience détaillée ; b
   const moderator = await newPage(browser);
   await login(moderator, "moderateur@demo.linkprob2b.test");
   await moderator.goto("/admin");
-  await expect(moderator.getByRole("heading", { name: "Audience détaillée (dernières 24 h)" })).toBeVisible();
+  await expect(moderator.getByRole("heading", { name: "Audience détaillée (aujourd'hui, depuis minuit)" })).toBeVisible();
   await expect(moderator.getByRole("heading", { name: "Bilan du jour" })).toHaveCount(0);
 });
