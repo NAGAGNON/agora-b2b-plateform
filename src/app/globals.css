@@ -242,11 +242,9 @@
 @keyframes reveal-up {
   from {
     transform: translateY(40px) scale(0.97);
-    opacity: 0.35;
   }
   to {
     transform: none;
-    opacity: 1;
   }
 }
 @keyframes draw-line {
@@ -395,15 +393,21 @@
 .animate-aurora {
   will-change: transform;
 }
+/* Sections hors de l'écran : ni calculées ni dessinées (animations comprises) tant qu'on n'y arrive pas */
+.cv-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 900px;
+}
+/* Flou d'arrière-plan recalculé à chaque image pendant le défilement : réservé à l'en-tête */
+[class*="backdrop-blur"]:not(header) {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
 @media (max-width: 768px) {
   .animate-aurora {
     animation: none;
   }
   .text-gradient {
     animation: none;
-  }
-  [class*="backdrop-blur"]:not(header) {
-    -webkit-backdrop-filter: none !important;
-    backdrop-filter: none !important;
   }
 }

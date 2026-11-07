@@ -24,7 +24,7 @@ export async function DirectoryShowcase() {
   // Entreprises ayant mis leur logo : bandeau défilant (leur choix d'apparaître dans l'annuaire)
   const withLogo = rows.filter((c) => c.logo_path).map((c) => ({ name: c.name, slug: c.slug, logo_path: c.logo_path, city: c.city, region: null }));
   return (
-    <section aria-labelledby="annuaire" className="relative isolate mt-12 overflow-hidden bg-navy-900 py-14 text-white sm:mt-16 sm:py-20">
+    <section aria-labelledby="annuaire" className="cv-auto relative isolate mt-12 overflow-hidden bg-navy-900 py-14 text-white sm:mt-16 sm:py-20">
       <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
         <div className="bg-tech-grid absolute inset-0 opacity-50" />
         <div className="absolute -top-32 right-1/4 size-96 animate-aurora rounded-full bg-teal/20 blur-3xl" />
