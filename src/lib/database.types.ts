@@ -407,6 +407,31 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"company_follows": {
+                  Row: {
+                    "created_at": string,"created_by": string | null,"followed_company_id": string,"follower_company_id": string
+                  }
+                  Insert: {
+                    "created_at"?: string,"created_by"?: string | null,"followed_company_id": string,"follower_company_id": string
+                  }
+                  Update: {
+                    "created_at"?: string,"created_by"?: string | null,"followed_company_id"?: string,"follower_company_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "company_follows_followed_company_id_fkey"
+      columns: ["followed_company_id"]
+isOneToOne: false
+      referencedRelation: "companies"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "company_follows_follower_company_id_fkey"
+      columns: ["follower_company_id"]
+isOneToOne: false
+      referencedRelation: "companies"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"favorites": {
                   Row: {
                     "company_id": string | null,"created_at": string,"id": string,"opportunity_id": string | null,"user_id": string
@@ -1455,7 +1480,10 @@ isOneToOne: false
             [_ in never]: never
           }
           Functions: {
-            "accept_pending_invitations":
+            "company_followers_count":
+{ Args: { "p_company_id": string }; Returns: number
+                           },
+"accept_pending_invitations":
 { Args: Record<PropertyKey, never>; Returns: number
                            },
 "admin_audience_detail":

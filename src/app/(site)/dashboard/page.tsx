@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, BellRing, FileStack, Handshake, Heart, Inbox, PlusCircle, Send, Sparkles, Users } from "lucide-react";
+import { ArrowRight, BellRing, Briefcase, Megaphone, FileStack, Handshake, Heart, Inbox, PlusCircle, Send, Sparkles, Users } from "lucide-react";
 import { requireSession } from "@/lib/auth";
 import { MemberProofCompact } from "@/components/home/member-proof";
 import { createClient } from "@/lib/supabase/server";
@@ -12,6 +12,8 @@ import { RecommendationList } from "@/components/dashboard/recommendations";
 import { GettingStarted } from "@/components/dashboard/getting-started";
 import { NextActions } from "@/components/dashboard/next-actions";
 import { SinceLastVisit } from "@/components/dashboard/since-last-visit";
+import { DashboardHero } from "@/components/dashboard/dashboard-hero";
+import { QuickTiles } from "@/components/dashboard/quick-tiles";
 import { getMemberCompanies, getPlatformStats, getSectorLabels, liveStats, showDemoData } from "@/lib/queries/platform";
 import { PIPELINE_STAGES, type PipelineStage } from "@/lib/constants";
 import { formatMoney, relativeTime } from "@/lib/format";
@@ -119,20 +121,27 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
       )}
       {sp.refus === "admin" && <Notice tone="error">Accès refusé : cet espace est réservé à l&apos;administration.</Notice>}
 
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold sm:text-3xl">Tableau de bord</h1>
-          <p className="mt-1 text-slate-600">{company.name}</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <ButtonLink href="/opportunites" variant="outline">
-            Explorer les opportunités
-          </ButtonLink>
-          <ButtonLink href="/publier">
-            <PlusCircle className="size-4" aria-hidden /> Publier un besoin
-          </ButtonLink>
-        </div>
-      </div>
+      <DashboardHero
+        firstName={(session.profile.full_name ?? "").trim().split(/\s+/)[0] ?? ""}
+        company={{ name: company.name, logo_path: company.logo_path ?? null }}
+        sector={prof?.sectors?.[0] ?? null}
+        now={nowMs()}
+        chips={[
+          ...(supplier && (recommended?.data?.length ?? 0) > 0 ? [{ label: "Des offres correspondent à votre activité", href: "/dashboard/recommandations" }] : []),
+          ...((pipeline.data?.length ?? 0) > 0 ? [{ label: `${pipeline.data!.length} opportunité${pipeline.data!.length > 1 ? "s" : ""} dans votre pipeline`, href: "/dashboard/pipeline" }] : []),
+          ...(veilleOn ? [{ label: "Veille par e-mail active", href: "/dashboard/veille" }] : []),
+        ]}
+      />
+      <QuickTiles
+        tiles={[
+          supplier
+            ? { href: "/dashboard/recommandations", title: "Offres pour vous", text: "Triées selon votre métier et votre zone.", image: "/images/illustrations/ordinateurs.webp" }
+            : { href: "/opportunites", title: "Opportunités", text: "Appels d'offres et besoins en cours.", image: "/images/illustrations/ordinateurs.webp" },
+          { href: "/publier", title: "Publier un besoin", text: "Recevez des réponses de prestataires.", image: "/images/illustrations/reunion.webp" },
+          { href: "/entreprises", title: "Annuaire", text: "Trouvez et suivez des entreprises.", image: "/images/illustrations/poignee-de-main.webp" },
+          { href: "/dashboard/pipeline", title: "Mon pipeline", text: "Suivez vos réponses étape par étape.", image: "/images/illustrations/tableau-de-bord.webp" },
+        ]}
+      />
 
       <SinceLastVisit userId={session.userId} companyId={cid} supplier={supplier} since={previousVisit(session.profile, nowMs())} now={nowMs()} includeDemo={await showDemoData()} />
       <NextActions companyId={cid} userId={session.userId} buyer={buyer} supplier={supplier} now={nowMs()} />
@@ -148,14 +157,17 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
 
       {supplier && (
         <section aria-labelledby="fournisseur" className="space-y-5">
-          <h2 id="fournisseur" className="text-xl font-bold">
+          <h2 id="fournisseur" className="flex items-center gap-3 text-xl font-bold">
+            <span className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-navy to-navy-900 text-teal-300 shadow-md" aria-hidden>
+              <Briefcase className="size-4" />
+            </span>
             Espace fournisseur
           </h2>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            <DashboardCard label="Favoris" value={favs.count ?? 0} href="/dashboard/favoris" icon={<Heart className="size-5" aria-hidden />} />
-            <DashboardCard label="Alertes actives" value={alerts.count ?? 0} href="/dashboard/alertes" icon={<BellRing className="size-5" aria-hidden />} />
-            <DashboardCard label="Intérêts manifestés" value={interests.count ?? 0} href="/dashboard/opportunites?onglet=reponses" icon={<Handshake className="size-5" aria-hidden />} />
-            <DashboardCard label="Réponses envoyées" value={proposals.count ?? 0} href="/dashboard/opportunites?onglet=reponses" icon={<Send className="size-5" aria-hidden />} />
+            <DashboardCard animate label="Favoris" value={favs.count ?? 0} href="/dashboard/favoris" icon={<Heart className="size-5" aria-hidden />} />
+            <DashboardCard animate label="Alertes actives" value={alerts.count ?? 0} href="/dashboard/alertes" icon={<BellRing className="size-5" aria-hidden />} />
+            <DashboardCard animate label="Intérêts manifestés" value={interests.count ?? 0} href="/dashboard/opportunites?onglet=reponses" icon={<Handshake className="size-5" aria-hidden />} />
+            <DashboardCard animate label="Réponses envoyées" value={proposals.count ?? 0} href="/dashboard/opportunites?onglet=reponses" icon={<Send className="size-5" aria-hidden />} />
           </div>
 
           <Card>
@@ -168,14 +180,21 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
                 </Link>
               }
             />
-            <ul className="grid grid-cols-2 gap-px bg-slate-100 sm:grid-cols-3 lg:grid-cols-5">
-              {PIPELINE_STAGES.filter((s) => !["INTERESTED", "RESPONSE_SENT", "DISCUSSION", "LOST"].includes(s.stage)).map((s) => (
-                <li key={s.stage} className="bg-white p-4">
-                  <p className="font-heading text-2xl font-bold text-navy tabular-nums">{stageCounts[s.stage]}</p>
-                  <p className="text-sm text-slate-600">{s.label}</p>
-                </li>
-              ))}
-            </ul>
+            <ol className="grid grid-cols-2 gap-3 p-5 sm:grid-cols-3 lg:grid-cols-5">
+              {PIPELINE_STAGES.filter((s) => !["INTERESTED", "RESPONSE_SENT", "DISCUSSION", "LOST"].includes(s.stage)).map((s, i, all) => {
+                const max = Math.max(1, ...all.map((x) => stageCounts[x.stage]));
+                return (
+                  <li key={s.stage} className="relative rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-100">
+                    <span className="text-[11px] font-bold tracking-wide text-slate-500 uppercase">Étape {i + 1}</span>
+                    <p className="font-heading text-2xl font-extrabold text-navy tabular-nums">{stageCounts[s.stage]}</p>
+                    <p className="text-sm text-slate-600">{s.label}</p>
+                    <span className="mt-3 block h-1.5 overflow-hidden rounded-full bg-slate-200" aria-hidden>
+                      <span className="block h-full rounded-full bg-gradient-to-r from-teal to-electric transition-all duration-1000" style={{ width: `${(stageCounts[s.stage] / max) * 100}%` }} />
+                    </span>
+                  </li>
+                );
+              })}
+            </ol>
           </Card>
 
           <Card>
@@ -215,15 +234,18 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
 
       {buyer && (
         <section aria-labelledby="demandeur" className="space-y-5">
-          <h2 id="demandeur" className="text-xl font-bold">
+          <h2 id="demandeur" className="flex items-center gap-3 text-xl font-bold">
+            <span className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-navy to-navy-900 text-teal-300 shadow-md" aria-hidden>
+              <Megaphone className="size-4" />
+            </span>
             Espace demandeur
           </h2>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-            <DashboardCard label="Besoins actifs" value={active.length} href="/dashboard/opportunites" icon={<FileStack className="size-5" aria-hidden />} />
-            <DashboardCard label="Consultations en cours" value={consultations.length} href="/dashboard/opportunites" />
-            <DashboardCard label="Fournisseurs intéressés" value={receivedInterests?.count ?? 0} icon={<Users className="size-5" aria-hidden />} />
-            <DashboardCard label="Réponses reçues" value={receivedProposals?.count ?? 0} icon={<Inbox className="size-5" aria-hidden />} />
-            <DashboardCard label="Terminées" value={finished.length} href="/dashboard/opportunites?statut=terminees" />
+            <DashboardCard animate label="Besoins actifs" value={active.length} href="/dashboard/opportunites" icon={<FileStack className="size-5" aria-hidden />} />
+            <DashboardCard animate label="Consultations en cours" value={consultations.length} href="/dashboard/opportunites" />
+            <DashboardCard animate label="Fournisseurs intéressés" value={receivedInterests?.count ?? 0} icon={<Users className="size-5" aria-hidden />} />
+            <DashboardCard animate label="Réponses reçues" value={receivedProposals?.count ?? 0} icon={<Inbox className="size-5" aria-hidden />} />
+            <DashboardCard animate label="Terminées" value={finished.length} href="/dashboard/opportunites?statut=terminees" />
           </div>
           {pending.length > 0 && (
             <Notice tone="info">

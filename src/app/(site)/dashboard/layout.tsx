@@ -39,10 +39,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
   // Sans fiche entreprise, le site ne peut rien trier pour le membre : bandeau sur toutes les pages de l'espace
   const openCount = session.activeCompany ? 0 : ((await getPlatformStats().catch(() => null))?.active ?? 0);
   return (
+    <div className="relative isolate">
+    <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[40rem] bg-gradient-to-b from-sky/70 via-slate-50/60 to-transparent" />
     <div className="container-page py-6 sm:py-8">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-slate-500">
-          Bonjour <strong className="text-navy">{session.profile.full_name || session.email}</strong>
+          Espace de <strong className="text-navy">{session.profile.full_name || session.email}</strong>
           {session.activeCompany && (
             <>
               {" "}
@@ -63,6 +65,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         <DashboardNav unreadMessages={count ?? 0} />
         <div className="min-w-0">{children}</div>
       </div>
+    </div>
     </div>
   );
 }

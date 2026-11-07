@@ -10,6 +10,7 @@ import { Directory } from "@/components/companies/directory";
 import { CompanyLogo } from "@/components/companies/company-card";
 import { OpportunityCard } from "@/components/opportunities/opportunity-card";
 import { FavoriteButton } from "@/components/opportunities/favorite-button";
+import { FollowButton } from "@/components/companies/follow-button";
 import { ReportButton } from "@/components/report-button";
 import { Badge } from "@/components/ui/badge";
 import { Notice } from "@/components/ui/notice";
@@ -86,7 +87,8 @@ export default async function CompanyPage(props: PageProps<"/entreprises/[slug]"
   void track("view_company", { company_id: c.id });
 
   const supabase = await createClient();
-  const [{ data: opps }, fav, { data: photos }] = await Promise.all([
+  const myCompany = session?.activeCompany?.company.id;
+  const [{ data: opps }, fav, { data: photos }, followRow, { data: followers }] = await Promise.all([
     supabase
       .from("opportunities")
       .select("id, title, summary, type, origin, status, sector_slug, city, department_code, budget_min, budget_max, budget_visible, response_deadline, published_at, is_demo")
@@ -96,6 +98,10 @@ export default async function CompanyPage(props: PageProps<"/entreprises/[slug]"
       .limit(6),
     session ? supabase.from("favorites").select("id").eq("user_id", session.userId).eq("company_id", c.id).maybeSingle() : null,
     supabase.from("company_photos").select("id, storage_path, caption").eq("company_id", c.id).order("position").order("created_at").limit(8),
+    myCompany && myCompany !== c.id
+      ? supabase.from("company_follows").select("followed_company_id").eq("follower_company_id", myCompany).eq("followed_company_id", c.id).maybeSingle()
+      : null,
+    supabase.rpc("company_followers_count", { p_company_id: c.id }),
   ]);
 
   return (
@@ -166,6 +172,16 @@ export default async function CompanyPage(props: PageProps<"/entreprises/[slug]"
                   {c.verified_at ? <Badge tone="teal">Entreprise vérifiée</Badge> : <Badge tone="outline">Non vérifiée</Badge>}
                   {c.is_demo && <DemoBadge />}
                 </div>
+                {!isMember && profile?.is_public && (
+                  <div className="mt-4">
+                    <FollowButton companyId={c.id} initial={Boolean(followRow?.data)} signedIn={Boolean(session)} followers={Number(followers ?? 0)} />
+                  </div>
+                )}
+                {isMember && Number(followers ?? 0) > 0 && (
+                  <p className="mt-3 text-sm text-slate-500">
+                    <strong className="text-navy">{Number(followers)}</strong> entreprise{Number(followers) > 1 ? "s suivent" : " suit"} votre entreprise.
+                  </p>
+                )}
               </div>
             </header>
 

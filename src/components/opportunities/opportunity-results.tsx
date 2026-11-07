@@ -8,19 +8,45 @@ import { Pagination } from "@/components/ui/pagination";
 import { EmptyState, ErrorState } from "@/components/ui/states";
 import { ButtonLink } from "@/components/ui/button";
 import { searchOpportunities } from "@/lib/queries/opportunities";
-import { getDepartments, getPlaces } from "@/lib/queries/platform";
+import { getDepartments, getPlaces, getSectorLabels } from "@/lib/queries/platform";
+import { ActiveFilters, FilterHeader, FilterSubmit, withoutParam, type ActiveFilter } from "@/components/ui/filters";
+import { REGIONS } from "@/lib/geo";
 import { activeFilterCount, type OpportunityFilters, type RawSearchParams } from "@/lib/search-params";
 import { getSession } from "@/lib/auth";
-import { PAGE_SIZE } from "@/lib/constants";
+import { COMPANY_SIZE_LABELS, OPPORTUNITY_TYPE_LABELS, PAGE_SIZE, sectorLabel } from "@/lib/constants";
 
 /** Liste de résultats + filtres, partagée par /opportunites et les pages secteur / département. */
 export async function OpportunityResults({ filters, rawParams, basePath }: { filters: OpportunityFilters; rawParams: RawSearchParams; basePath: string }) {
-  const [{ rows, total, error }, departments, places, session] = await Promise.all([
+  const [{ rows, total, error }, departments, places, session, labels] = await Promise.all([
     searchOpportunities(filters),
     getDepartments(),
     getPlaces(),
     getSession(),
+    getSectorLabels(),
   ]);
+  // Filtres présents dans l'adresse, en pastilles retirables (le secteur d'une page secteur n'en fait pas partie)
+  const has = (k: string) => rawParams[k] !== undefined && rawParams[k] !== "";
+  const off = (k: string, v?: string) => withoutParam(basePath, rawParams, k, v);
+  const active: ActiveFilter[] = [
+    ...(has("q") && filters.q ? [{ key: "q", label: `« ${filters.q} »`, href: off("q") }] : []),
+    ...(has("secteur") && filters.sector ? [{ key: "secteur", label: sectorLabel(filters.sector, labels), href: off("secteur") }] : []),
+    ...filters.types.map((t) => ({ key: `type-${t}`, label: OPPORTUNITY_TYPE_LABELS[t], href: off("type", t) })),
+    ...(has("origine") && filters.origin ? [{ key: "origine", label: filters.origin === "INTERNAL" ? "Besoins d'entreprises" : "Marchés publics et externes", href: off("origine") }] : []),
+    ...(has("region") && filters.region ? [{ key: "region", label: REGIONS.find((r) => r.slug === filters.region)?.name ?? filters.region, href: off("region") }] : []),
+    ...(has("departement") && filters.department
+      ? [{ key: "departement", label: `${departments.find((d) => d.code === filters.department)?.name ?? "Département"} (${filters.department})`, href: off("departement") }]
+      : []),
+    ...(has("ville") && filters.city ? [{ key: "ville", label: filters.city, href: off("ville") }] : []),
+    ...(has("lieu") && filters.place
+      ? [{ key: "lieu", label: `${places.find((p) => p.slug === filters.place)?.name ?? filters.place} · ${filters.radius ?? 50} km`, href: withoutParam(basePath, Object.fromEntries(Object.entries(rawParams).filter(([k]) => k !== "rayon")), "lieu") }]
+      : []),
+    ...(filters.status !== "OPEN" ? [{ key: "statut", label: filters.status === "CLOSED" ? "Clôturées" : "Ouvertes et clôturées", href: off("statut") }] : []),
+    ...(filters.publishedWithin ? [{ key: "publiee", label: `Publiées depuis ${filters.publishedWithin} jours`, href: off("publiee") }] : []),
+    ...(filters.deadlineBefore ? [{ key: "echeance", label: `Échéance avant le ${filters.deadlineBefore.split("-").reverse().join("/")}`, href: off("echeance") }] : []),
+    ...(filters.size ? [{ key: "taille", label: COMPANY_SIZE_LABELS[filters.size].replace(/\s*\(.*\)$/, ""), href: off("taille") }] : []),
+    ...(filters.skills.length ? [{ key: "competences", label: filters.skills.join(", "), href: off("competences") }] : []),
+    ...(has("source") && filters.source ? [{ key: "source", label: `Source : ${filters.source}`, href: off("source") }] : []),
+  ];
   const pageCount = Math.ceil(total / PAGE_SIZE);
   const query = new URLSearchParams(
     Object.entries(rawParams).flatMap(([k, v]) => (v === undefined ? [] : (Array.isArray(v) ? v : [v]).map((x) => [k, x] as [string, string]))),
@@ -41,20 +67,14 @@ export async function OpportunityResults({ filters, rawParams, basePath }: { fil
   return (
     <div className="grid gap-8 lg:grid-cols-[18rem_1fr]">
       <aside className="hidden lg:block" aria-label="Filtres">
-        <form action={basePath} method="get" className="sticky top-20 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <form action={basePath} method="get" className="sticky top-20 max-h-[calc(100dvh-6rem)] overflow-y-auto overscroll-contain rounded-3xl border border-slate-200 bg-white p-5 shadow-sm [scrollbar-width:thin]">
+          <FilterHeader count={count} resetHref={basePath} />
           <FilterFields f={filters} departments={departments} places={places} idPrefix="d" />
-          <div className="mt-6 flex gap-2">
-            <a href={basePath} className="flex h-11 flex-1 items-center justify-center rounded-lg border border-slate-300 text-sm font-semibold text-navy hover:bg-sky">
-              Effacer
-            </a>
-            <button type="submit" className="h-11 flex-[2] rounded-lg bg-teal text-sm font-semibold text-navy hover:bg-teal-400">
-              Appliquer
-            </button>
-          </div>
+          <FilterSubmit />
         </form>
       </aside>
       <div className="min-w-0">
-        <MobileFilters count={count} action={basePath}>
+        <MobileFilters count={count} action={basePath} title="Filtrer les opportunités">
           <FilterFields f={filters} departments={departments} places={places} idPrefix="m" />
         </MobileFilters>
         <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between lg:mt-0">
@@ -69,6 +89,11 @@ export async function OpportunityResults({ filters, rawParams, basePath }: { fil
           </p>
           <SortSelect value={filters.sort} hasQuery={Boolean(filters.q)} hasPlace={Boolean(filters.place)} />
         </div>
+        {active.length > 0 && (
+          <div className="mt-3">
+            <ActiveFilters items={active} resetHref={basePath} />
+          </div>
+        )}
         <div className="mt-3">
           <SearchActions query={query.toString()} signedIn={Boolean(session)} alertHref={`/dashboard/alertes?${alertParams.toString()}`} />
         </div>
