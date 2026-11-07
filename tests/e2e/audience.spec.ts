@@ -14,7 +14,7 @@ test("mesure d'audience : visites et temps de lecture visibles dans l'administra
   expect((await recorded).status()).toBe(200);
   // Navigation interne : une deuxième page vue, puis envoi du temps de lecture de la première
   const timing = visitor.waitForRequest((r) => r.url().endsWith("/api/audience") && (r.postData() ?? "").includes('"t":"time"'));
-  await visitor.waitForTimeout(1200);
+  await visitor.waitForTimeout(1500);
   await visitor.getByRole("link", { name: "Explorer les opportunités" }).first().click();
   await timing;
   await visitor.close();

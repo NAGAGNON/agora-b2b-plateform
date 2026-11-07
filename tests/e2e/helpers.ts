@@ -8,6 +8,8 @@ export const RUN = randomUUID().slice(0, 6);
 export async function newPage(browser: Browser, viewport = { width: 1280, height: 900 }): Promise<Page> {
   const ip = `10.${Math.floor(Math.random() * 250)}.${Math.floor(Math.random() * 250)}.${Math.floor(Math.random() * 250)}`;
   const ctx = await browser.newContext({ viewport, extraHTTPHeaders: { "x-forwarded-for": ip }, locale: "fr-FR" });
+  // Visiteur simulé comme une personne : la mesure d'audience ignore les navigateurs pilotés (navigator.webdriver)
+  await ctx.addInitScript(() => Object.defineProperty(navigator, "webdriver", { get: () => false }));
   return ctx.newPage();
 }
 

@@ -29,7 +29,8 @@ export default async function AdminHome(props: PageProps<"/admin">) {
   const sp = await props.searchParams;
   // Statistiques calculées sur toute la base : plus longues qu'une page publique
   const supabase = await createClient({ timeoutMs: 25_000 });
-  const period = PERIODS.find((p) => String(p) === sp.periode) ?? 30;
+  // Vue par défaut : la journée (dernières 24 h) ; 7, 30 ou 90 jours au choix
+  const period = PERIODS.find((p) => String(p) === sp.periode) ?? 1;
   const [{ data, error: statsError }, { data: audience }, { data: billing }, { data: detail }, { data: reports }, { data: seo }, socialPost] = await Promise.all([
     supabase.rpc("admin_stats"),
     supabase.rpc("admin_audience_stats", { p_days: period }),
