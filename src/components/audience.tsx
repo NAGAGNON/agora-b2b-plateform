@@ -37,6 +37,8 @@ export function AudienceTracker() {
   useEffect(() => {
     const nav = navigator as Navigator & { globalPrivacyControl?: boolean };
     if (nav.doNotTrack === "1" || nav.globalPrivacyControl) return;
+    // Navigateur piloté par un programme (robots d'exploration qui exécutent les pages) : pas une visite
+    if (nav.webdriver) return;
     const sid = sessionId();
     if (!sid) return;
 
@@ -67,24 +69,40 @@ export function AudienceTracker() {
     let cancelled = false;
     const firstView = sessionStorage.getItem("lp-visite-ref") === null;
     const referrer = firstView ? document.referrer : "";
-    try {
-      sessionStorage.setItem("lp-visite-ref", "1");
-    } catch {}
-    void fetch("/api/audience", {
+    // Page vue comptée après 2 secondes de présence, onglet visible : les robots qui affichent une page
+    // et repartent aussitôt (par paquets, sans provenance) ne sont plus comptés comme des visites
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const send = () => fetch("/api/audience", {
       method: "POST",
       // Étiquette de provenance des liens du site (e-mails de prospection, veille, suivi) : première page de la visite
       body: JSON.stringify({ t: "view", sid, path: pathname, ref: referrer || undefined, src: firstView ? sourceTag() : undefined, w: window.innerWidth }),
     })
       .then((r) => (r.ok ? r.json() : null))
       .then((d: { id?: number } | null) => {
-        if (!cancelled && d?.id) current.current = { id: d.id, sid, visibleMs: 0, since: document.visibilityState === "visible" ? Date.now() : null };
+        if (!cancelled && d?.id) current.current = { id: d.id, sid, visibleMs: 2000, since: document.visibilityState === "visible" ? Date.now() : null };
       })
       .catch(() => {});
+    const record = () => {
+      if (cancelled) return;
+      try {
+        sessionStorage.setItem("lp-visite-ref", "1");
+      } catch {}
+      void send();
+    };
+    const arm = () => {
+      if (timer || document.visibilityState !== "visible") return;
+      timer = setTimeout(record, 2000);
+    };
+    arm();
+    const onShow = () => arm();
 
+    document.addEventListener("visibilitychange", onShow);
     document.addEventListener("visibilitychange", onVisibility);
     window.addEventListener("pagehide", flush);
     return () => {
       cancelled = true;
+      if (timer) clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onShow);
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("pagehide", flush);
       flush();
