@@ -95,9 +95,16 @@ export type PlatformStats = {
   registered_companies?: number;
 };
 
-/** Chiffres initiaux des compteurs en direct (null sans inscrit : rien n'est affiché). */
+/**
+ * Compteurs de membres et bande des entreprises (accueil, inscription, publication, acheteurs,
+ * espace membre) : masqués pour l'instant, chiffres jugés encore trop petits (décision du 7 novembre).
+ * Passer à true pour les réafficher partout.
+ */
+export const SHOW_MEMBER_PROOF = false;
+
+/** Chiffres initiaux des compteurs en direct (null sans inscrit ou si masqués : rien n'est affiché). */
 export function liveStats(s: PlatformStats | null) {
-  if (!s?.members) return null;
+  if (!SHOW_MEMBER_PROOF || !s?.members) return null;
   return { members: s.members, members_7d: s.members_7d ?? 0, members_30d: s.members_30d ?? 0, companies: s.registered_companies ?? 0, active: s.active };
 }
 
@@ -105,6 +112,7 @@ export type MemberCompany = { name: string; slug: string; logo_path: string | nu
 
 /** Entreprises affichées dans l'annuaire public (choix de chaque entreprise), les plus grandes d'abord. */
 export const getMemberCompanies = cache(async (limit = 16): Promise<MemberCompany[]> => {
+  if (!SHOW_MEMBER_PROOF) return [];
   const { data } = await visitorRpc("public_member_companies", { p_limit: limit }, { always: true });
   return (data ?? []) as MemberCompany[];
 });
