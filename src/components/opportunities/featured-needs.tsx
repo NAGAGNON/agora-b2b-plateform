@@ -34,12 +34,13 @@ export async function FeaturedNeeds({ sector, department, region }: { sector?: s
         <Building2 className="size-5 text-teal-700" aria-hidden /> Besoins publiés par des entreprises
       </h2>
       <p className="mt-1 text-sm text-slate-600">Des entreprises cherchent un prestataire : écrivez-leur directement.</p>
-      <ul className="mt-3 grid gap-3 md:grid-cols-3">
+      {/* Téléphone : cartes en défilement horizontal, les résultats restent juste en dessous */}
+      <ul className="-mx-4 mt-3 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 md:grid md:grid-cols-3 md:overflow-visible md:px-0 [&::-webkit-scrollbar]:hidden">
         {data.map((o) => {
           const c = Array.isArray(o.company) ? o.company[0] : o.company;
           const deadline = deadlineLabel(o.response_deadline);
           return (
-            <li key={o.id} className="flex flex-col rounded-xl border border-slate-200 bg-white p-4">
+            <li key={o.id} className="flex w-[78vw] max-w-xs shrink-0 snap-start flex-col rounded-xl border border-slate-200 bg-white p-4 md:w-auto md:max-w-none">
               <Link href={`/opportunites/${o.id}`} className="font-semibold leading-snug text-navy hover:text-teal-700 [overflow-wrap:anywhere]">
                 {o.title}
               </Link>

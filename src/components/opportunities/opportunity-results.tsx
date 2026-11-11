@@ -2,6 +2,8 @@ import { SearchX } from "lucide-react";
 import { OpportunityCard } from "@/components/opportunities/opportunity-card";
 import { FilterFields } from "@/components/opportunities/filter-panel";
 import { MobileFilters } from "@/components/opportunities/mobile-filters";
+import { QuickFilters, type QuickFilter } from "@/components/opportunities/quick-filters";
+import { createClient } from "@/lib/supabase/server";
 import { SortSelect } from "@/components/opportunities/sort-select";
 import { SearchActions } from "@/components/opportunities/save-search";
 import { Pagination } from "@/components/ui/pagination";
@@ -14,6 +16,9 @@ import { REGIONS } from "@/lib/geo";
 import { activeFilterCount, type OpportunityFilters, type RawSearchParams } from "@/lib/search-params";
 import { getSession } from "@/lib/auth";
 import { COMPANY_SIZE_LABELS, OPPORTUNITY_TYPE_LABELS, PAGE_SIZE, sectorLabel } from "@/lib/constants";
+
+/** Date (AAAA-MM-JJ) dans `n` jours (hors rendu pur). */
+const dateInDays = (n: number) => new Date(Date.now() + n * 86_400_000).toISOString().slice(0, 10);
 
 /** Liste de résultats + filtres, partagée par /opportunites et les pages secteur / département. */
 export async function OpportunityResults({ filters, rawParams, basePath }: { filters: OpportunityFilters; rawParams: RawSearchParams; basePath: string }) {
@@ -48,6 +53,7 @@ export async function OpportunityResults({ filters, rawParams, basePath }: { fil
     ...(has("source") && filters.source ? [{ key: "source", label: `Source : ${filters.source}`, href: off("source") }] : []),
   ];
   const pageCount = Math.ceil(total / PAGE_SIZE);
+  const supabase = await createClient();
   const query = new URLSearchParams(
     Object.entries(rawParams).flatMap(([k, v]) => (v === undefined ? [] : (Array.isArray(v) ? v : [v]).map((x) => [k, x] as [string, string]))),
   );
@@ -63,6 +69,25 @@ export async function OpportunityResults({ filters, rawParams, basePath }: { fil
     if (filters.radius) alertParams.set("rayon", String(filters.radius));
   }
   const count = activeFilterCount(filters);
+  // Raccourcis : métier et département de l'entreprise du membre, puis les filtres les plus utilisés
+  const company = session?.activeCompany?.company.id;
+  const [{ data: myProfile }, { data: myCompany }] = company
+    ? await Promise.all([
+        supabase.from("company_profiles").select("sectors").eq("company_id", company).maybeSingle(),
+        supabase.from("companies").select("department_code").eq("id", company).maybeSingle(),
+      ])
+    : [{ data: null }, { data: null }];
+  const mySector = myProfile?.sectors?.[0];
+  const myDept = myCompany?.department_code;
+  const in15 = dateInDays(15);
+  const quick: QuickFilter[] = [
+    ...(mySector && !basePath.includes(mySector) ? [{ key: "metier", label: `Mon métier · ${sectorLabel(mySector, labels)}`, icon: "metier" as const, set: { secteur: mySector } }] : []),
+    ...(myDept ? [{ key: "zone", label: `Mon département · ${departments.find((d) => d.code === myDept)?.name ?? myDept}`, icon: "zone" as const, set: { departement: myDept } }] : []),
+    { key: "nouveau", label: "Nouvelles (7 jours)", icon: "nouveau", set: { publiee: "7" } },
+    { key: "echeance", label: "Clôture sous 15 jours", icon: "echeance", set: { echeance: in15 } },
+    { key: "besoins", label: "Besoins d'entreprises", icon: "besoins", set: { origine: "INTERNAL" } },
+    { key: "publics", label: "Marchés publics", icon: "publics", set: { origine: "EXTERNAL" } },
+  ];
 
   return (
     <div className="grid gap-8 lg:grid-cols-[18rem_1fr]">
@@ -77,7 +102,10 @@ export async function OpportunityResults({ filters, rawParams, basePath }: { fil
         <MobileFilters count={count} action={basePath} title="Filtrer les opportunités">
           <FilterFields f={filters} departments={departments} places={places} idPrefix="m" />
         </MobileFilters>
-        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between lg:mt-0">
+        <div className="mt-4 lg:mt-0">
+          <QuickFilters items={quick} basePath={basePath} raw={rawParams} />
+        </div>
+        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-slate-600" aria-live="polite">
             <strong className="text-navy">{total}</strong> opportunité{total > 1 ? "s" : ""}
             {filters.q ? (
