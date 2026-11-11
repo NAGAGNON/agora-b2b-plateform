@@ -31,8 +31,9 @@ import { TrackedButtonLink, TrackedLink } from "@/components/ui/tracked-link";
 import { Notice } from "@/components/ui/notice";
 import { searchOpportunities } from "@/lib/queries/opportunities";
 import { parseOpportunityFilters } from "@/lib/search-params";
-import { getMemberCompanies, getPlatformStats, getSectorLabels, getSectors, liveStats } from "@/lib/queries/platform";
+import { getMemberCompanies, getPlatformStats, getPublicActivity, getSectorLabels, getSectors, liveStats } from "@/lib/queries/platform";
 import { MemberProof } from "@/components/home/member-proof";
+import { PlatformProof } from "@/components/home/platform-proof";
 import { pageMetadata } from "@/lib/seo";
 import { createClient } from "@/lib/supabase/server";
 import { deadlineLabel, formatDate } from "@/lib/format";
@@ -66,7 +67,7 @@ export default async function HomePage(props: PageProps<"/">) {
   const supabase = await createClient();
   // Base lente ou indisponible : chaque bloc a sa valeur de repli, la page s'affiche toujours
   const safe = <T, F = T>(p: PromiseLike<T>, fallback: F): Promise<T | F> => Promise.resolve(p).catch(() => fallback);
-  const [sectors, { data: analyses }, latest, stats, { data: growth }, labels, { total: needsTotal, rows: needsRows }, memberCompanies] = await Promise.all([
+  const [sectors, { data: analyses }, latest, stats, { data: growth }, labels, { total: needsTotal, rows: needsRows }, memberCompanies, activity] = await Promise.all([
     safe(getSectors(), []),
     safe(supabase.from("articles").select("slug, title, description, published_at").eq("status", "PUBLISHED").order("published_at", { ascending: false }).limit(3), { data: null }),
     // Même calcul que la page « Explorer les opportunités » (opportunités ouvertes), trois plus récentes en aperçu
@@ -79,6 +80,8 @@ export default async function HomePage(props: PageProps<"/">) {
     safe(searchOpportunities(parseOpportunityFilters({ origine: "INTERNAL", tri: "recent" }), 6), { rows: [], total: 0, error: true as const }),
     // Entreprises de l'annuaire public (choix de chaque entreprise) : bande défilante des membres
     safe(getMemberCompanies(), []),
+    // Preuve sociale : acheteurs publics actifs et activité récente des entreprises inscrites
+    safe(getPublicActivity(), null),
   ]);
   const live = liveStats(stats);
   const hasNeeds = Number(needsTotal) > 0;
@@ -186,7 +189,7 @@ export default async function HomePage(props: PageProps<"/">) {
       </section>
 
       {/* Compteurs en direct (chiffres réels) et entreprises membres de l'annuaire */}
-      {live && <MemberProof initial={live} companies={memberCompanies} />}
+      {live ? <MemberProof initial={live} companies={memberCompanies} /> : <PlatformProof stats={stats} activity={activity} />}
 
       {/* Besoins publiés directement par des entreprises inscrites : mis en avant */}
       {clientNeeds.length > 0 && (

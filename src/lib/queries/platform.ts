@@ -124,6 +124,19 @@ export const getPlatformStats = cache(async (): Promise<PlatformStats | null> =>
   return data as unknown as PlatformStats;
 });
 
+export type PublicActivity = {
+  buyers: number;
+  needs: { id: string; title: string; city: string | null; company: string; at: string }[];
+  joined: { name: string; slug: string; logo_path: string | null; city: string | null; at: string }[];
+};
+
+/** Preuve sociale de l'accueil : acheteurs publics actifs, derniers besoins publiés, dernières entreprises de l'annuaire. */
+export const getPublicActivity = cache(async (): Promise<PublicActivity | null> => {
+  const { data, error } = await visitorRpc("public_activity", { p_limit: 6 }, { always: true });
+  if (error || !data) return null;
+  return data as unknown as PublicActivity;
+});
+
 /** Opportunités ouvertes par dimension (région, département, secteur, couples) : pages d'atterrissage et liens internes. */
 export const getOpenCounts = cache(async () => {
   // Plus de 2 000 lignes (couples département × métier) : lecture complète par tranches de 1 000
