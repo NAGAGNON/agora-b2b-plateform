@@ -27,7 +27,7 @@ export async function submitTestimonial(_prev: ActionResult | null, fd: FormData
     author_name: d.authorName,
     author_role: d.authorRole ?? null,
     company_name: d.companyName ?? session.activeCompany?.company.name ?? null,
-    quote: d.quote,
+    quote: d.quote ?? null,
     rating: d.rating ? Number(d.rating) : null,
     consent_publish: d.consent === "on",
     status: "PENDING",

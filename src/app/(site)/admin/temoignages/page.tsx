@@ -43,9 +43,10 @@ export default async function TestimonialsAdminPage() {
               </p>
               <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-700">{STATUS[t.status] ?? t.status}</span>
             </div>
-            <blockquote className="mt-3 border-l-4 border-teal pl-4 text-slate-800">« {t.quote} »</blockquote>
+            {t.rating && <p className="mt-3 text-lg tracking-wider text-teal-700" aria-label={`Note : ${t.rating} sur 5`}>{"★".repeat(t.rating)}<span className="text-slate-300">{"★".repeat(5 - t.rating)}</span></p>}
+            {t.quote ? <blockquote className="mt-3 border-l-4 border-teal pl-4 text-slate-800">« {t.quote} »</blockquote> : <p className="mt-2 text-sm text-slate-500">Note en étoiles seulement, sans texte.</p>}
             <p className="mt-2 text-xs text-slate-500">
-              {t.rating ? `Note : ${t.rating}/5 · ` : ""}
+              
               {t.consent_publish ? "Accord de publication donné" : "Avis privé (pas d'accord de publication)"} · {formatDateTime(t.created_at)}
             </p>
             <div className="mt-3 flex flex-wrap gap-2">

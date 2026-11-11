@@ -13,7 +13,7 @@ export default async function TestimonialPage() {
     <div className="container-page max-w-2xl py-10 sm:py-14">
       <h1 className="text-3xl font-extrabold text-navy">Votre avis sur LinkProB2B</h1>
       <p className="mt-3 text-slate-600">
-        Deux minutes suffisent. Votre retour nous aide à améliorer le site. S&apos;il peut aider d&apos;autres entreprises à nous découvrir, vous pouvez accepter qu&apos;il soit
+        Une minute suffit : une note en étoiles, et un mot si vous le souhaitez. Votre retour nous aide à améliorer le site. S&apos;il peut aider d&apos;autres entreprises à nous découvrir, vous pouvez accepter qu&apos;il soit
         affiché : il sera relu avant publication et vous pouvez demander son retrait à tout moment.
       </p>
       {t?.status === "APPROVED" && <p className="mt-4 rounded-xl bg-teal-50 p-4 text-sm text-teal-900">Votre avis est publié sur le site. Merci !</p>}

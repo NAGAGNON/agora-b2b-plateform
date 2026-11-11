@@ -11,8 +11,9 @@ export const MIN_TESTIMONIALS = 2;
  * affiché tant qu'il y a moins de MIN_TESTIMONIALS avis publiés (jamais d'avis inventé).
  */
 export async function Testimonials() {
-  const { data } = await visitorRpc("public_testimonials", { p_limit: 6 }, { always: true });
+  const [{ data }, { data: rating }] = await Promise.all([visitorRpc("public_testimonials", { p_limit: 6 }, { always: true }), visitorRpc("public_rating", undefined as never, { always: true })]);
   const list = data ?? [];
+  const score = rating?.[0] && Number(rating[0].count) >= MIN_TESTIMONIALS && rating[0].average ? { avg: Number(rating[0].average), n: Number(rating[0].count) } : null;
   if (list.length < MIN_TESTIMONIALS) return null;
   return (
     <section aria-labelledby="temoignages" className="cv-auto container-page py-12 sm:py-16">
@@ -20,6 +21,16 @@ export async function Testimonials() {
       <h2 id="temoignages" className="mt-1 text-2xl font-extrabold text-navy sm:text-3xl">
         Ce qu&apos;en disent nos membres
       </h2>
+      {score && (
+        <p className="mt-2 flex items-center gap-2 text-sm text-slate-600">
+          <span className="flex gap-0.5" role="img" aria-label={`Note moyenne : ${score.avg.toLocaleString("fr-FR")} sur 5`}>
+            {Array.from({ length: 5 }, (_, i) => (
+              <Star key={i} className={`size-4 ${i < Math.round(score.avg) ? "fill-teal text-teal" : "text-slate-300"}`} aria-hidden />
+            ))}
+          </span>
+          <strong className="text-navy">{score.avg.toLocaleString("fr-FR")}/5</strong> · {score.n} avis de membres
+        </p>
+      )}
       <ul className="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {list.map((t) => (
           <li key={t.id} className="flex flex-col rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">

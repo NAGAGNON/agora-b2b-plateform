@@ -375,7 +375,7 @@ export const testimonialSchema = z.object({
   authorName: requiredText(2, 120, "Le nom"),
   authorRole: optionalText(120),
   companyName: optionalText(160),
-  quote: requiredText(20, 600, "Votre avis"),
+  quote: optionalText(600),
   rating: z.enum(["1", "2", "3", "4", "5"]).optional(),
   consent: z.literal("on").optional(),
-});
+}).refine((d) => Boolean(d.rating || d.quote), { path: ["rating"], message: "Choisissez une note en étoiles (le texte est facultatif)" });

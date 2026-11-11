@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
+import { Star } from "lucide-react";
 import { submitTestimonial } from "@/app/actions/testimonials";
 import type { ActionResult } from "@/lib/validation";
 import { Checkbox, Field, FieldError, Input, Textarea } from "@/components/ui/form";
@@ -12,6 +13,9 @@ type Initial = { authorName: string; authorRole: string; companyName: string; qu
 /** Formulaire d'avis : publication seulement si la case (non cochée par défaut) est cochée. */
 export function TestimonialForm({ initial }: { initial: Initial }) {
   const [state, action] = useActionState<ActionResult | null, FormData>(submitTestimonial, null);
+  const [rating, setRating] = useState(initial.rating ?? 0);
+  const [hover, setHover] = useState(0);
+  const shown = hover || rating;
   const fe = state && !state.ok ? state.fieldErrors : undefined;
   if (state?.ok)
     return (
@@ -21,22 +25,22 @@ export function TestimonialForm({ initial }: { initial: Initial }) {
     );
   return (
     <form action={action} className="space-y-5" noValidate>
-      <Field label="Votre avis" name="quote" error={fe?.quote} required hint="En une ou deux phrases : ce que LinkProB2B vous apporte, ou ce qui vous manque.">
-        {(f) => <Textarea {...f} rows={5} minLength={20} maxLength={600} defaultValue={initial.quote} />}
-      </Field>
       <fieldset>
-        <legend className="mb-2 text-sm font-medium text-navy">Votre note (facultatif)</legend>
-        <div className="flex gap-2">
+        <legend className="mb-2 text-sm font-medium text-navy">Votre note</legend>
+        <div className="flex items-center gap-1" onMouseLeave={() => setHover(0)}>
           {[1, 2, 3, 4, 5].map((n) => (
-            <label key={n} className="cursor-pointer">
-              <input type="radio" name="rating" value={n} defaultChecked={initial.rating === n} className="peer sr-only" />
-              <span className="flex size-10 items-center justify-center rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 transition peer-checked:border-navy peer-checked:bg-navy peer-checked:text-white peer-focus-visible:ring-4 peer-focus-visible:ring-teal/30">
-                {n}
-              </span>
+            <label key={n} className="cursor-pointer p-0.5" onMouseEnter={() => setHover(n)}>
+              <input type="radio" name="rating" value={n} checked={rating === n} onChange={() => setRating(n)} className="peer sr-only" aria-label={`${n} étoile${n > 1 ? "s" : ""} sur 5`} />
+              <Star className={`size-9 transition peer-focus-visible:rounded peer-focus-visible:ring-4 peer-focus-visible:ring-teal/30 ${n <= shown ? "fill-teal text-teal" : "text-slate-300"}`} aria-hidden />
             </label>
           ))}
+          {shown > 0 && <span className="ml-2 text-sm font-semibold text-slate-600">{["", "Décevant", "Moyen", "Bien", "Très bien", "Excellent"][shown]}</span>}
         </div>
+        <FieldError message={fe?.rating} />
       </fieldset>
+      <Field label="Votre avis (facultatif)" name="quote" error={fe?.quote} hint="En une ou deux phrases : ce que LinkProB2B vous apporte, ou ce qui vous manque.">
+        {(f) => <Textarea {...f} rows={4} maxLength={600} defaultValue={initial.quote} />}
+      </Field>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Nom et prénom" name="authorName" error={fe?.authorName} required>
           {(f) => <Input {...f} autoComplete="name" maxLength={120} defaultValue={initial.authorName} />}

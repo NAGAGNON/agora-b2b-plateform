@@ -711,24 +711,24 @@ isOneToOne: false
                   Relationships: []
                 },"testimonials": {
                   Row: {
-                    "author_name": string,"author_role": string | null,"company_id": string | null,"company_name": string | null,"consent_publish": boolean,"created_at": string,"id": string,"quote": string,"rating": number | null,"reviewed_at": string | null,"reviewed_by": string | null,"status": string,"updated_at": string,"user_id": string
+                    "author_name": string,"author_role": string | null,"company_id": string | null,"company_name": string | null,"consent_publish": boolean,"created_at": string,"id": string,"quote": string | null,"rating": number | null,"reviewed_at": string | null,"reviewed_by": string | null,"status": string,"updated_at": string,"user_id": string
                   }
                   Insert: {
-                    "author_name": string,"author_role"?: string | null,"company_id"?: string | null,"company_name"?: string | null,"consent_publish"?: boolean,"created_at"?: string,"id"?: string,"quote": string,"rating"?: number | null,"reviewed_at"?: string | null,"reviewed_by"?: string | null,"status"?: string,"updated_at"?: string,"user_id": string
+                    "author_name": string,"author_role"?: string | null,"company_id"?: string | null,"company_name"?: string | null,"consent_publish"?: boolean,"created_at"?: string,"id"?: string,"quote"?: string | null,"rating"?: number | null,"reviewed_at"?: string | null,"reviewed_by"?: string | null,"status"?: string,"updated_at"?: string,"user_id": string
                   }
                   Update: {
-                    "author_name"?: string,"author_role"?: string | null,"company_id"?: string | null,"company_name"?: string | null,"consent_publish"?: boolean,"created_at"?: string,"id"?: string,"quote"?: string,"rating"?: number | null,"reviewed_at"?: string | null,"reviewed_by"?: string | null,"status"?: string,"updated_at"?: string,"user_id"?: string
+                    "author_name"?: string,"author_role"?: string | null,"company_id"?: string | null,"company_name"?: string | null,"consent_publish"?: boolean,"created_at"?: string,"id"?: string,"quote"?: string | null,"rating"?: number | null,"reviewed_at"?: string | null,"reviewed_by"?: string | null,"status"?: string,"updated_at"?: string,"user_id"?: string
                   }
                   Relationships: []
                 },"testimonial_requests": {
                   Row: {
-                    "sent_at": string,"user_id": string
+                    "sends": number,"sent_at": string,"user_id": string
                   }
                   Insert: {
-                    "sent_at"?: string,"user_id": string
+                    "sends"?: number,"sent_at"?: string,"user_id": string
                   }
                   Update: {
-                    "sent_at"?: string,"user_id"?: string
+                    "sends"?: number,"sent_at"?: string,"user_id"?: string
                   }
                   Relationships: []
                 },"need_reminders": {
@@ -1798,6 +1798,9 @@ isOneToOne: false
 { Args: { "p_limit"?: number }; Returns: {
               "id": string,"author_name": string,"author_role": string | null,"company_name": string | null,"company_slug": string | null,"logo_path": string | null,"quote": string,"rating": number | null,"created_at": string
             }[]
+                           },
+"public_rating":
+{ Args: Record<PropertyKey, never>; Returns: { "average": number | null,"count": number }[]
                            },
 "process_testimonial_requests":
 { Args: { "p_limit"?: number }; Returns: number
