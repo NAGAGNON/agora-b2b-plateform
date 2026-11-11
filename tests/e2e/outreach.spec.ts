@@ -54,7 +54,8 @@ test("tableau de bord, prévisualisation de campagne et paramètres", async ({ b
   // Campagne supplémentaire du jour sans administrateur (complémentaire automatique) : comptée dans les chiffres de la journée
   const { data: manual } = await db
     .from("outreach_campaigns")
-    .insert({ campaign_date: new Date().toISOString().slice(0, 10), kind: "MANUAL", status: "SENT", min_score: 70, subject_template: "s", intro_template: "i" })
+    // Date du jour à Paris, comme la page (sinon le test échoue entre minuit et 1 h, heure de Paris)
+    .insert({ campaign_date: new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris" }).format(new Date()), kind: "MANUAL", status: "SENT", min_score: 70, subject_template: "s", intro_template: "i" })
     .select("id")
     .single();
   manualId = manual!.id;
