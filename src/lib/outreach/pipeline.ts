@@ -834,7 +834,12 @@ export async function enrichProspects(db: Db, { campaignId = null, deadline = Da
     limit_reached: false,
     already_searched: 0,
   };
-  if (!settings.enrichment_enabled || searchers.length === 0) return result;
+  // Besoin publié par une entreprise inscrite : recherche des adresses toujours active pour ses
+  // destinataires, même quand la recherche de la prospection générale est désactivée
+  const needCampaign = campaignId
+    ? (await db.from("outreach_campaigns").select("kind").eq("id", campaignId).maybeSingle()).data?.kind === "NEED"
+    : false;
+  if ((!settings.enrichment_enabled && !needCampaign) || searchers.length === 0) return result;
   const { count: today } = await db.from("outreach_prospects").select("id", { count: "exact", head: true }).gte("enriched_at", startOfParisDay());
   const budget = Math.max(0, settings.enrichment_daily_limit - (today ?? 0));
   if (!budget) return { ...result, limit_reached: true };
@@ -882,7 +887,8 @@ export async function enrichProspects(db: Db, { campaignId = null, deadline = Da
   result.already_searched = rows.length - queue.length;
   // Hors campagne : d'abord les entreprises avec salariés, puis les autres
   for (const withStaff of [true, false]) {
-    if (queue.length >= budget) break;
+    // Recherche générale désactivée : seules les entreprises du besoin publié sont cherchées
+    if (queue.length >= budget || !settings.enrichment_enabled) break;
     let q = db
       .from("outreach_prospects")
       .select(ENRICH_FIELDS)
@@ -1108,12 +1114,27 @@ export async function runSendPass(db: Db, { budgetMs = 270_000 }: { budgetMs?: n
   return processSendQueue(db, { deadline: Date.now() + budgetMs });
 }
 
+/**
+ * Prospection générale en pause (aucun envoi automatique autorisé par jour) : inutile de préparer
+ * chaque jour des milliers de destinataires qui ne partiront pas (charge de la base, temps de calcul).
+ * Les campagnes des besoins publiés ont leur propre quota et continuent normalement.
+ */
+export function generalProspectingPaused(settings: Pick<OutreachSettings, "daily_send_cap">) {
+  return settings.daily_send_cap <= 0;
+}
+
 /** Tâche quotidienne complète (appelée par /api/cron/outreach). */
 export async function runOutreachDaily(db: Db, { budgetMs = 240_000 }: { budgetMs?: number } = {}) {
   const deadline = Date.now() + budgetMs;
   const ramp = await applySendRamp(db).catch((e) => (logServerError("outreach ramp", e), null));
   const settings = await loadSettings(db);
   const sync = await syncOpportunityStates(db, settings);
+  if (generalProspectingPaused(settings)) {
+    // Seuls les e-mails déjà en file (besoins publiés) partent
+    const send = await processSendQueue(db, { deadline });
+    const conversions = await updateConversions(db).catch((e) => (logServerError("outreach conversions", e), { converted: 0 }));
+    return { ramp, sync, build: { campaignId: null, skipped: "Prospection générale en pause" }, enrichment: null, send, conversions };
+  }
   const build = await buildDailyCampaign(db, { deadline: deadline - 120_000 });
   const enrichment = await enrichProspects(db, { campaignId: build.campaignId, deadline: deadline - 45_000 }).catch((e) => (logServerError("outreach enrichment", e), null));
   if (build.campaignId && enrichment) {
@@ -1135,6 +1156,9 @@ export async function runOutreachDaily(db: Db, { budgetMs = 240_000 }: { budgetM
  * recherche d'adresses continue et les e-mails devenus possibles partent aussitôt.
  */
 export async function runOutreachFollowUp(db: Db, { budgetMs = 270_000 }: { budgetMs?: number } = {}) {
+  if (generalProspectingPaused(await loadSettings(db))) {
+    return { mode: "paused" as const, skipped: "Prospection générale en pause", send: await processSendQueue(db, { deadline: Date.now() + budgetMs }) };
+  }
   const { data: campaign } = await db.from("outreach_campaigns").select("id, status, updated_at").eq("campaign_date", today_()).eq("kind", "AUTO").maybeSingle();
   // Préparation interrompue (tâche arrêtée en cours de route) : reprise après 10 minutes sans progrès.
   const stalled = campaign?.status === "BUILDING" && Date.now() - new Date(campaign.updated_at).getTime() > 10 * 60_000;
