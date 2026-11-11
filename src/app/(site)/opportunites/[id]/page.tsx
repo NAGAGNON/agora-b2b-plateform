@@ -1,3 +1,4 @@
+import { primaryOf } from "@/lib/duplicates";
 import Link from "next/link";
 import { SectorVisual } from "@/components/opportunities/sector-visual";
 import { JsonLd, breadcrumbLd } from "@/components/json-ld";
@@ -91,10 +92,25 @@ export async function generateMetadata(props: PageProps<"/opportunites/[id]">): 
       : "Détail réservé aux membres — inscription gratuite";
   // Titre distinctif : beaucoup d'annonces ont des intitulés génériques (« Travaux de voirie »)
   const qualifier = location ?? (o.origin === "EXTERNAL" ? o.external_buyer_name : null);
+  // Même appel d'offres publié plusieurs fois : une seule page indexable, les autres y renvoient
+  let canonicalId = o.id;
+  if (indexable && o.origin === "EXTERNAL" && o.external_buyer_name) {
+    const { data: siblings } = await createAdminClient()
+      .from("opportunities")
+      .select("id, title, external_buyer_name, published_at")
+      .eq("external_buyer_name", o.external_buyer_name)
+      .eq("status", "PUBLISHED")
+      .eq("visibility", "PUBLIC")
+      .eq("is_demo", false)
+      .or(`response_deadline.is.null,response_deadline.gt.${new Date().toISOString()}`)
+      .neq("id", o.id)
+      .limit(300);
+    canonicalId = primaryOf(o, siblings ?? []);
+  }
   return pageMetadata({
     title: qualifier && !o.title.toLowerCase().includes(qualifier.toLowerCase()) ? `${clip(o.title, 62 - Math.min(qualifier.length, 28) - 3)} – ${clip(qualifier, 28)}` : clip(o.title, 62),
     description: clip([intro, ...details].filter(Boolean).join(" · "), 160),
-    path: `/opportunites/${o.id}`,
+    path: `/opportunites/${canonicalId}`,
     noindex: !indexable,
   });
 }

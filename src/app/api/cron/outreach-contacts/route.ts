@@ -6,7 +6,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { env } from "@/lib/env";
 import { logServerError } from "@/lib/errors";
 import { enrichNeedCampaigns } from "@/lib/needs";
-import { runManualCampaign, runOutreachFollowUp, runSendPass } from "@/lib/outreach/pipeline";
+import { generalProspectingPaused, runManualCampaign, runOutreachFollowUp, runSendPass } from "@/lib/outreach/pipeline";
+import { loadSettings } from "@/lib/outreach/data";
 import { cronCpuBudgetReached } from "@/lib/cron-usage";
 import { parisToday } from "@/lib/daily-report";
 import { importRgeCompanies, importRgeContacts } from "@/lib/outreach/rge-import";
@@ -53,7 +54,10 @@ async function run(req: Request) {
     const rgeCompanies = await importRgeCompanies(db, { deadline: Date.now() + 30_000 }).catch((e) => (logServerError("rge companies import", e), { error: e instanceof Error ? e.message : String(e) }));
     // Besoins publiés d'abord : recherche d'adresses et envoi (quota séparé), puis la prospection habituelle
     const needs = await enrichNeedCampaigns(db, { deadline: Date.now() + 90_000 }).catch((e) => ({ error: e instanceof Error ? e.message : String(e) }));
-    const report = complement ? { mode: "complement" as const, ...(await runManualCampaign(db, { userId: null, budgetMs: 180_000 })) } : await runOutreachFollowUp(db, { budgetMs: 180_000 });
+    // Prospection générale en pause : pas de campagne complémentaire (les besoins publiés sont traités ci-dessus)
+    const paused = generalProspectingPaused(await loadSettings(db));
+    const report =
+      complement && !paused ? { mode: "complement" as const, ...(await runManualCampaign(db, { userId: null, budgetMs: 180_000 })) } : await runOutreachFollowUp(db, { budgetMs: 180_000 });
     return NextResponse.json({ ok: true, rge, rgeCompanies, needs, ...report });
   } catch (e) {
     logServerError("cron outreach-contacts", e);
