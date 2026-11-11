@@ -102,6 +102,12 @@ async function run(req: Request) {
     if (error) throw error;
     return data;
   });
+  // Demande d'avis, une seule fois, aux membres les plus actifs (témoignages relus avant publication)
+  await step("demandes-avis", async () => {
+    const { data, error } = await createAdminClient().rpc("process_testimonial_requests", { p_limit: 20 });
+    if (error) throw error;
+    return { demandes: data ?? 0 };
+  });
   // Pipeline : rappel le jour de la relance prévue
   await step("rappels-pipeline", async () => {
     const { data, error } = await createAdminClient().rpc("process_pipeline_reminders", { p_limit: 200 });

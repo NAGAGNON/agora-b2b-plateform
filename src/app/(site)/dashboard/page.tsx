@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowRight, BellRing, Briefcase, Megaphone, FileStack, Handshake, Heart, Inbox, Send, Sparkles, Users } from "lucide-react";
 import { requireSession } from "@/lib/auth";
 import { MemberProofCompact } from "@/components/home/member-proof";
+import { FeedbackPrompt } from "@/components/dashboard/feedback-prompt";
 import { createClient } from "@/lib/supabase/server";
 import { DashboardCard, Card, CardHeader } from "@/components/ui/card";
 import { ButtonLink } from "@/components/ui/button";
@@ -298,6 +299,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
           <MemberProofCompact initial={live} companies={memberCompanies} />
         </section>
       )}
+      <FeedbackPrompt userId={session.userId} createdAt={session.profile.created_at} now={nowMs()} />
     </div>
   );
 }

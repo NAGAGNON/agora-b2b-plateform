@@ -1022,10 +1022,13 @@ export function enrichmentReport(r: Awaited<ReturnType<typeof enrichProspects>>)
 export async function enrichCampaignAndSend(db: Db, { campaignId, deadline = Date.now() + 240_000 }: { campaignId: string; deadline?: number }) {
   const settings = await loadSettings(db);
   const enrichment = await enrichProspects(db, { campaignId, deadline: deadline - 30_000 });
-  const { data: c } = await db.from("outreach_campaigns").select("status, report").eq("id", campaignId).single();
+  const { data: c } = await db.from("outreach_campaigns").select("status, report, kind").eq("id", campaignId).single();
   const line = `${new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" })} — ${enrichmentReport(enrichment)}`;
   const patch: { report: string; status?: string; validated_at?: string } = { report: [c?.report, line].filter(Boolean).join("\n") };
-  if (!settings.require_validation && c) {
+  // Besoins d'entreprises inscrites : toujours automatiques (jamais de validation manuelle), même si
+  // la prospection habituelle exige une validation ; sinon les adresses trouvées après le premier
+  // envoi restaient en file sans jamais partir.
+  if (c && (!settings.require_validation || c.kind === "NEED")) {
     // Fonctionnement automatique : une campagne préparée part sans validation, et une campagne
     // déjà envoyée repart dès que de nouvelles adresses sont prêtes.
     if (c.status === "READY") Object.assign(patch, { status: "VALIDATED", validated_at: new Date().toISOString() });

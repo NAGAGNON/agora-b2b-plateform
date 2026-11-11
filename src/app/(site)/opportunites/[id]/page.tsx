@@ -191,6 +191,18 @@ async function briefContext(id: string) {
   };
 }
 
+/**
+ * Informations publiques de l'avis pour un visiteur sans compte (et les moteurs de recherche) :
+ * numéro officiel (BOAMP, TED) et résumé en une phrase de ce que veut l'acheteur, s'il est déjà prêt.
+ */
+async function publicNotice(id: string) {
+  const db = createAdminClient();
+  const [{ data: sources }, brief] = await Promise.all([db.from("opportunity_sources").select("original_url").eq("opportunity_id", id), storedBrief(id, db).catch(() => null)]);
+  const idweb = (sources ?? []).map((x) => boampId(x.original_url)).find(Boolean);
+  const ted = idweb ? null : (sources ?? []).map((x) => tedId(x.original_url)).find(Boolean);
+  return { reference: idweb ? `BOAMP n° ${idweb}` : ted ? `TED n° ${ted}` : null, summary: brief?.summary ?? null };
+}
+
 /** Fil d'Ariane géographique et métier : région › département › métier dans le département (pages d'atterrissage). */
 async function offerCrumbs(o: { sector_slug: string | null; department_code: string | null; region: string | null }) {
   const crumbSector = o.sector_slug ? sectorLabel(o.sector_slug, await getSectorLabels()) : null;
@@ -250,7 +262,7 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
     const buyerPath = buyerName ? buyerSlug(buyerName) : null;
     // Ce que l'inscription apporte : offres ouvertes réelles du même métier, près de l'offre puis en France
     const sector = o.sector_slug ? sectorLabel(o.sector_slug, await getSectorLabels()) : null;
-    const [count, departments] = await Promise.all([getOpenCounts(), getDepartments()]);
+    const [count, departments, notice] = await Promise.all([getOpenCounts(), getDepartments(), o.origin === "EXTERNAL" ? publicNotice(o.id) : null]);
     const dep = departments.find((d) => d.code === o.department_code) ?? null;
     const gains = o.sector_slug
       ? {
@@ -280,6 +292,9 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
             budget: o.budget_visible ? formatBudget(o.budget_min, o.budget_max) : null,
             // Avis public collecté (BOAMP, TED…) : début du descriptif en aperçu ; besoin d'entreprise : son résumé
             excerpt: o.origin === "EXTERNAL" ? gateExcerpt(o.description) : needOpen ? o.summary : null,
+            summary: notice?.summary ?? null,
+            reference: notice?.reference ?? null,
+            cpv: o.origin === "EXTERNAL" ? (o.cpv_codes ?? []).slice(0, 4) : [],
           }}
           contact={needOpen ? <NeedContactForm opportunityId={o.id} /> : undefined}
         >

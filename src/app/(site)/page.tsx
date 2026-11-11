@@ -34,6 +34,7 @@ import { parseOpportunityFilters } from "@/lib/search-params";
 import { getMemberCompanies, getPlatformStats, getPublicActivity, getSectorLabels, getSectors, liveStats } from "@/lib/queries/platform";
 import { MemberProof } from "@/components/home/member-proof";
 import { PlatformProof } from "@/components/home/platform-proof";
+import { Testimonials } from "@/components/home/testimonials";
 import { pageMetadata } from "@/lib/seo";
 import { createClient } from "@/lib/supabase/server";
 import { deadlineLabel, formatDate } from "@/lib/format";
@@ -190,6 +191,9 @@ export default async function HomePage(props: PageProps<"/">) {
 
       {/* Compteurs en direct (chiffres réels) et entreprises membres de l'annuaire */}
       {live ? <MemberProof initial={live} companies={memberCompanies} /> : <PlatformProof stats={stats} activity={activity} />}
+
+      {/* Avis réels de membres (affichés à partir de 2 avis publiés, relus, avec accord) */}
+      <Testimonials />
 
       {/* Besoins publiés directement par des entreprises inscrites : mis en avant */}
       {clientNeeds.length > 0 && (
