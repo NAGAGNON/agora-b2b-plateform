@@ -709,6 +709,28 @@ isOneToOne: false
                     "days_before"?: number,"opportunity_id"?: string,"sent_at"?: string,"user_id"?: string
                   }
                   Relationships: []
+                },"testimonials": {
+                  Row: {
+                    "author_name": string,"author_role": string | null,"company_id": string | null,"company_name": string | null,"consent_publish": boolean,"created_at": string,"id": string,"quote": string,"rating": number | null,"reviewed_at": string | null,"reviewed_by": string | null,"status": string,"updated_at": string,"user_id": string
+                  }
+                  Insert: {
+                    "author_name": string,"author_role"?: string | null,"company_id"?: string | null,"company_name"?: string | null,"consent_publish"?: boolean,"created_at"?: string,"id"?: string,"quote": string,"rating"?: number | null,"reviewed_at"?: string | null,"reviewed_by"?: string | null,"status"?: string,"updated_at"?: string,"user_id": string
+                  }
+                  Update: {
+                    "author_name"?: string,"author_role"?: string | null,"company_id"?: string | null,"company_name"?: string | null,"consent_publish"?: boolean,"created_at"?: string,"id"?: string,"quote"?: string,"rating"?: number | null,"reviewed_at"?: string | null,"reviewed_by"?: string | null,"status"?: string,"updated_at"?: string,"user_id"?: string
+                  }
+                  Relationships: []
+                },"testimonial_requests": {
+                  Row: {
+                    "sent_at": string,"user_id": string
+                  }
+                  Insert: {
+                    "sent_at"?: string,"user_id": string
+                  }
+                  Update: {
+                    "sent_at"?: string,"user_id"?: string
+                  }
+                  Relationships: []
                 },"need_reminders": {
                   Row: {
                     "kind": string,"opportunity_id": string,"sent_at": string
@@ -1368,13 +1390,13 @@ isOneToOne: false
                   ]
                 },"users": {
                   Row: {
-                    "created_at": string,"email": string,"full_name": string,"id": string,"is_demo": boolean,"job_title": string | null,"last_seen_at": string | null,"marketing_consent": boolean,"notify_email": boolean,"notify_prefs": Json,"phone": string | null,"signup_visit": string | null,"previous_visit_at": string | null,"avatar_path": string | null,"platform_role": Database["public"]['Enums']["platform_role"],"status": Database["public"]['Enums']["account_status"],"terms_accepted_at": string | null,"updated_at": string
+                    "created_at": string,"email": string,"full_name": string,"id": string,"is_internal": boolean,"is_demo": boolean,"job_title": string | null,"last_seen_at": string | null,"marketing_consent": boolean,"notify_email": boolean,"notify_prefs": Json,"phone": string | null,"signup_visit": string | null,"previous_visit_at": string | null,"avatar_path": string | null,"platform_role": Database["public"]['Enums']["platform_role"],"status": Database["public"]['Enums']["account_status"],"terms_accepted_at": string | null,"updated_at": string
                   }
                   Insert: {
                     "created_at"?: string,"email": string,"full_name"?: string,"id": string,"is_demo"?: boolean,"job_title"?: string | null,"last_seen_at"?: string | null,"marketing_consent"?: boolean,"notify_email"?: boolean,"notify_prefs"?: Json,"phone"?: string | null,"signup_visit"?: string | null,"previous_visit_at"?: string | null,"avatar_path"?: string | null,"platform_role"?: Database["public"]['Enums']["platform_role"],"status"?: Database["public"]['Enums']["account_status"],"terms_accepted_at"?: string | null,"updated_at"?: string
                   }
                   Update: {
-                    "created_at"?: string,"email"?: string,"full_name"?: string,"id"?: string,"is_demo"?: boolean,"job_title"?: string | null,"last_seen_at"?: string | null,"marketing_consent"?: boolean,"notify_email"?: boolean,"notify_prefs"?: Json,"phone"?: string | null,"signup_visit"?: string | null,"previous_visit_at"?: string | null,"avatar_path"?: string | null,"platform_role"?: Database["public"]['Enums']["platform_role"],"status"?: Database["public"]['Enums']["account_status"],"terms_accepted_at"?: string | null,"updated_at"?: string
+                    "created_at"?: string,"email"?: string,"full_name"?: string,"id"?: string,"is_internal"?: boolean,"is_demo"?: boolean,"job_title"?: string | null,"last_seen_at"?: string | null,"marketing_consent"?: boolean,"notify_email"?: boolean,"notify_prefs"?: Json,"phone"?: string | null,"signup_visit"?: string | null,"previous_visit_at"?: string | null,"avatar_path"?: string | null,"platform_role"?: Database["public"]['Enums']["platform_role"],"status"?: Database["public"]['Enums']["account_status"],"terms_accepted_at"?: string | null,"updated_at"?: string
                   }
                   Relationships: [
                     
@@ -1771,6 +1793,14 @@ isOneToOne: false
                            },
 "public_platform_stats":
 { Args: Record<PropertyKey, never>; Returns: Json
+                           },
+"public_testimonials":
+{ Args: { "p_limit"?: number }; Returns: {
+              "id": string,"author_name": string,"author_role": string | null,"company_name": string | null,"company_slug": string | null,"logo_path": string | null,"quote": string,"rating": number | null,"created_at": string
+            }[]
+                           },
+"process_testimonial_requests":
+{ Args: { "p_limit"?: number }; Returns: number
                            },
 "public_activity":
 { Args: { "p_limit"?: number }; Returns: Json

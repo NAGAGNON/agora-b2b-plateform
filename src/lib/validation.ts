@@ -369,3 +369,13 @@ export function parseForm<S extends z.ZodType>(
     result: { ok: false, error: "Certains champs sont invalides.", fieldErrors: zodFieldErrors(parsed.error) },
   };
 }
+
+/** Avis d'un membre (témoignage) : publication seulement avec son accord explicite. */
+export const testimonialSchema = z.object({
+  authorName: requiredText(2, 120, "Le nom"),
+  authorRole: optionalText(120),
+  companyName: optionalText(160),
+  quote: requiredText(20, 600, "Votre avis"),
+  rating: z.enum(["1", "2", "3", "4", "5"]).optional(),
+  consent: z.literal("on").optional(),
+});
