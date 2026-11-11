@@ -121,7 +121,8 @@ export async function ensureBrief(opportunityId: string, { db = createAdminClien
     const ai = client ?? new Anthropic({ timeout: 60_000, maxRetries: 1 });
     const response = await ai.beta.messages.parse({
       model: REPORT_MODEL,
-      max_tokens: 2000,
+      // Fiche complète : 2 000 jetons coupaient la réponse en plein milieu sur les avis longs (JSON tronqué)
+      max_tokens: 8000,
       output_config: { format: betaZodOutputFormat(BriefSchema) },
       system: SYSTEM,
       messages: [{ role: "user", content: `Avis ${ref} :\n\n${text}` }],
