@@ -82,7 +82,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       return { data: rows };
     })(),
   ]);
-  // Acheteurs publics avec au moins un appel d'offres ouvert
+  // Acheteurs publics avec au moins un appel d'offres ouvert, ou un historique de 2 annonces ou plus
   // Par pages de 1000 (limite de réponse de la base)
   const buyers: { slug: string; last_published_at: string | null }[] = [];
   for (let page = 0; page < 20; page++) {

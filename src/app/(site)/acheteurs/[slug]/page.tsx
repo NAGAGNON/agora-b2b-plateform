@@ -74,11 +74,12 @@ export async function generateMetadata(props: PageProps<"/acheteurs/[slug]">) {
           `Appels d'offres ${b.name} : ${nf.format(n)} ouvert${n > 1 ? "s" : ""}`,
           62,
         )
-      : clip(`Appels d'offres ${b.name}`, 62),
+      : clip(`Appels d'offres ${b.name} : historique`, 62),
     description: `${n ? `${nf.format(n)} appel${n > 1 ? "s" : ""} d'offres ouvert${n > 1 ? "s" : ""}` : "Aucun appel d'offres ouvert actuellement"} de ${b.name} : objet, lieu, date limite et fiche synthèse, d'après les annonces officielles (BOAMP, TED). Suivez ses nouveaux marchés par e-mail, gratuitement.`,
     path: `/acheteurs/${slug}`,
-    // Indexée seulement avec au moins un appel d'offres ouvert (pas de page vide)
-    noindex: n === 0,
+    // Indexée avec au moins un appel d'offres ouvert, ou un historique réel (2 annonces ou plus) :
+    // une page bien classée ne disparaît plus de Google dès que les marchés de l'acheteur se terminent
+    noindex: n === 0 && b.all.length < 2,
   });
 }
 
