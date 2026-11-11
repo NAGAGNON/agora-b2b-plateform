@@ -43,3 +43,6 @@ language sql stable security definer set search_path = '' as $$
   order by count(*) filter (where is_open) desc, max(published_at) desc nulls last
   limit greatest(1, least(coalesce(p_limit, 5000), 20000)) offset greatest(0, coalesce(p_offset, 0));
 $$;
+
+-- Doublons d'appels d'offres (même intitulé, même acheteur) : recherche des pages sœurs par acheteur
+create index if not exists opportunities_buyer_name_idx on public.opportunities (external_buyer_name) where external_buyer_name is not null;

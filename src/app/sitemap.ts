@@ -1,3 +1,4 @@
+import { duplicateKey, primaryByKey } from "@/lib/duplicates";
 import type { MetadataRoute } from "next";
 import { FREELANCE_TRADES } from "@/lib/freelance";
 import { createClient } from "@supabase/supabase-js";
@@ -56,7 +57,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const [{ data: opps }, { data: companies }, { data: sectorRows }, { data: deptRows }, { data: articles }, { data: counts }] = await Promise.all([
     paged(
       (from, to) =>
-        db.from("opportunities").select("id, updated_at").eq("status", "PUBLISHED").eq("visibility", "PUBLIC").eq("is_demo", false)
+        db.from("opportunities").select("id, updated_at, title, external_buyer_name, published_at").eq("status", "PUBLISHED").eq("visibility", "PUBLIC").eq("is_demo", false)
           .or(`response_deadline.is.null,response_deadline.gt.${nowIso}`)
           .order("published_at", { ascending: false }).range(from, to),
       40,
@@ -95,7 +96,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const landing = (path: string) => entries.push({ url: `${base}${path}`, changeFrequency: "daily", priority: 0.6 });
   const SECTORS = sectorRows ?? [];
   const DEPARTMENTS = deptRows ?? [];
-  for (const o of opps ?? []) entries.push({ url: `${base}/opportunites/${o.id}`, lastModified: new Date(o.updated_at), changeFrequency: "weekly", priority: 0.7 });
+  // Doublons (même intitulé, même acheteur) : seule la page principale figure au plan du site
+  const primaries = primaryByKey(opps ?? []);
+  for (const o of opps ?? []) {
+    const k = duplicateKey(o);
+    if (k && primaries.get(k)?.id !== o.id) continue;
+    entries.push({ url: `${base}/opportunites/${o.id}`, lastModified: new Date(o.updated_at), changeFrequency: "weekly", priority: 0.7 });
+  }
   for (const a of articles ?? []) entries.push({ url: `${base}/analyses/${a.slug}`, lastModified: new Date(a.updated_at), changeFrequency: "monthly", priority: 0.6 });
   for (const c of companies ?? []) entries.push({ url: `${base}/entreprises/${c.slug}`, lastModified: new Date(c.updated_at), changeFrequency: "monthly", priority: 0.5 });
 
