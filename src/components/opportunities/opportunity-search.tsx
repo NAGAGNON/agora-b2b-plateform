@@ -66,9 +66,11 @@ export function OpportunitySearch({ initial = "" }: { initial?: string }) {
             const v = e.target.value;
             setQ(v);
             if (timer.current) clearTimeout(timer.current);
-            timer.current = setTimeout(() => go(v), 450);
+            // Recherche après une courte pause, dès 3 lettres (ou champ vidé) : pas de « 0 résultat » à chaque lettre
+            const t = v.trim();
+            if (t.length === 0 || t.length >= 3) timer.current = setTimeout(() => go(v), 700);
           }}
-          placeholder="Tapez ce qui vous intéresse : maintenance, nettoyage, Lyon…"
+          placeholder="Métier, mot-clé, ville…"
           className="h-12 min-w-0 flex-1 bg-transparent text-base text-navy placeholder:text-slate-400 focus:outline-none"
         />
         {q && (
