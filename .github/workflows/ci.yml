@@ -59,14 +59,12 @@ jobs:
           DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
       - run: npm run test:integration
       - run: npm run build:app
-      # Miroirs Ubuntu parfois injoignables depuis les runners : jusqu'à 3 essais avant d'échouer
+      # Les images GitHub ont déjà les bibliothèques de Chrome : le navigateur seul suffit.
+      # Les dépendances système (miroirs Ubuntu parfois injoignables) ne bloquent plus les tests.
       - name: Navigateur des tests E2E
         run: |
-          for i in 1 2 3; do
-            npx playwright install --with-deps chromium && exit 0
-            echo "Essai $i échoué, nouvelle tentative dans 30 s"; sleep 30; sudo apt-get update -qq || true
-          done
-          exit 1
+          npx playwright install chromium
+          timeout 240 npx playwright install-deps chromium || echo "Dépendances système non installées (miroir injoignable), on continue"
       - run: npm run test:e2e
         env:
           CI: "true"
