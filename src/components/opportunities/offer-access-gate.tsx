@@ -31,6 +31,12 @@ export function OfferAccessGate({
     publishedAt?: string | null;
     budget: string | null;
     excerpt?: string | null;
+    /** Ce que veut l'acheteur, en une phrase (fiche synthèse déjà préparée) */
+    summary?: string | null;
+    /** Numéro officiel de l'avis (BOAMP, TED) */
+    reference?: string | null;
+    /** Codes CPV de l'avis */
+    cpv?: string[];
   };
   /** Fil d'Ariane (région, département, métier) : liens vers les pages de la zone et du métier */
   crumbs?: { name: string; path: string }[];
@@ -118,6 +124,22 @@ export function OfferAccessGate({
                 </li>
               )}
             </ul>
+            {offer.summary && (
+              <p className="mt-4 rounded-lg bg-white p-3 text-sm leading-relaxed text-slate-800 ring-1 ring-slate-200">
+                <strong className="font-semibold text-navy">En bref : </strong>
+                {offer.summary}
+              </p>
+            )}
+            {(offer.reference || (offer.cpv?.length ?? 0) > 0) && (
+              <p className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600">
+                {offer.reference && (
+                  <span className="inline-flex items-center gap-1.5">
+                    <FileText className="size-3.5 text-teal-700" aria-hidden /> Avis officiel {offer.reference}
+                  </span>
+                )}
+                {offer.cpv && offer.cpv.length > 0 && <span>Codes CPV : {offer.cpv.join(", ")}</span>}
+              </p>
+            )}
             {offer.excerpt && (
               <div className="relative mt-4 border-t border-slate-200 pt-4">
                 <p className="text-sm leading-relaxed text-slate-700">{offer.excerpt}</p>
