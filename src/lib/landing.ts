@@ -13,7 +13,7 @@ import type { RawSearchParams } from "@/lib/search-params";
 export const MIN_INDEXABLE = 3;
 
 export type Landing = {
-  kind: "france" | "region" | "department" | "sector" | "region-sector" | "department-sector";
+  kind: "france" | "region" | "department" | "sector" | "region-sector" | "department-sector" | "specialty";
   /** Filtres imposés par la page (paramètres d'URL de la recherche) */
   fixed: RawSearchParams;
   title: string;
@@ -28,6 +28,41 @@ export type Landing = {
   /** Second bloc de liens (pages voisines) */
   related?: { label: string; links: { name: string; path: string }[] };
 };
+
+/**
+ * Spécialités de l'informatique (secteur le plus recherché par les membres) : une page par métier,
+ * /opportunites/informatique/<spécialité>, appels d'offres du secteur filtrés par mots-clés.
+ */
+export const IT_SPECIALTIES = [
+  { slug: "developpement-web", label: "Développement web et sites internet", q: '"site internet" OR "site web" OR "application web" OR "développement web"', what: "création et refonte de sites internet, applications web, portails et maintenance de sites" },
+  { slug: "logiciel", label: "Logiciels et progiciels", q: "logiciel OR progiciel", what: "édition, intégration, maintenance et évolution de logiciels métier et de progiciels" },
+  { slug: "infogerance", label: "Infogérance et maintenance informatique", q: 'infogérance OR "maintenance informatique" OR "support informatique" OR "assistance informatique"', what: "infogérance, support utilisateurs, maintenance du parc et assistance informatique" },
+  { slug: "materiel-informatique", label: "Matériel informatique et serveurs", q: '"matériel informatique" OR ordinateurs OR "postes de travail" OR serveurs', what: "fourniture d'ordinateurs, postes de travail, serveurs et équipements informatiques" },
+  { slug: "cloud-hebergement", label: "Cloud et hébergement", q: "cloud OR hébergement OR datacenter", what: "hébergement d'applications et de sites, cloud, centres de données" },
+  { slug: "reseaux-telecoms", label: "Réseaux et télécoms", q: "réseau OR télécommunications OR téléphonie OR wifi", what: "réseaux informatiques, téléphonie, accès internet, Wi-Fi et télécommunications" },
+  { slug: "donnees-ia", label: "Données et intelligence artificielle", q: '"intelligence artificielle" OR données OR data OR décisionnel', what: "systèmes d'information, données, décisionnel et intelligence artificielle" },
+  { slug: "licences-logiciels", label: "Licences logicielles", q: 'licences OR "Microsoft 365" OR "Office 365"', what: "acquisition et renouvellement de licences logicielles et d'abonnements bureautiques" },
+] as const;
+
+function specialtyLanding(slug: string): Landing | null {
+  const sp = IT_SPECIALTIES.find((x) => x.slug === slug);
+  if (!sp) return null;
+  const label = sp.label.toLowerCase();
+  return {
+    kind: "specialty",
+    fixed: { secteur: "informatique", q: sp.q },
+    title: `Appels d'offres ${label}`,
+    heading: `Appels d'offres — ${sp.label}`,
+    intro: `Marchés publics et besoins d'entreprises en ${sp.what}, partout en France, mis à jour chaque jour à partir des annonces officielles. Activez une alerte pour recevoir les nouveaux marchés dès leur publication.`,
+    description: `Appels d'offres ${label} ouverts en France : ${sp.what}. Acheteurs, échéances et alerte gratuite, mis à jour chaque jour.`,
+    crumbs: [
+      { name: "Informatique", path: "/opportunites/informatique" },
+      { name: sp.label, path: `/opportunites/informatique/${sp.slug}` },
+    ],
+    childrenLabel: "Autres spécialités de l'informatique",
+    children: IT_SPECIALTIES.filter((x) => x.slug !== sp.slug).map((x) => ({ name: x.label, path: `/opportunites/informatique/${x.slug}` })),
+  };
+}
 
 /** « dans le Finistère (29) », « en Gironde (33) »… : forme simple et neutre « dans le département X (code) ». */
 const inDep = (d: { name: string; code: string }) => `${d.name} (${d.code})`;
@@ -64,6 +99,8 @@ export async function resolveLanding(slug: string, sub?: string, third?: string)
     };
   }
   if (sub) {
+    // Spécialité de l'informatique : /opportunites/informatique/<spécialité>
+    if (slug === "informatique") return specialtyLanding(sub);
     if (!region) return null;
     const dep = departments.find((d) => d.slug === sub && d.region === region.name);
     if (dep) return departmentLanding(dep, region.slug, sectors, count);
@@ -118,6 +155,9 @@ export async function resolveLanding(slug: string, sub?: string, third?: string)
       description: `Besoins d'entreprises, appels d'offres et consultations en ${sector.label.toLowerCase()} partout en France, par région et département.`,
       crumbs: [{ name: sector.label, path: `/opportunites/${sector.slug}` }],
       children: REGIONS.map((r) => ({ name: r.name, path: `/opportunites/${r.slug}/${sector.slug}` })),
+      ...(sector.slug === "informatique"
+        ? { related: { label: "Par spécialité", links: IT_SPECIALTIES.map((x) => ({ name: x.label, path: `/opportunites/informatique/${x.slug}` })) } }
+        : {}),
     };
   }
   const dep = departments.find((d) => d.slug === slug);

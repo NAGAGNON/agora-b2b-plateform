@@ -709,6 +709,17 @@ isOneToOne: false
                     "days_before"?: number,"opportunity_id"?: string,"sent_at"?: string,"user_id"?: string
                   }
                   Relationships: []
+                },"pioneer_rewards": {
+                  Row: {
+                    "applied_company_id": string | null,"granted_at": string,"pro_until": string,"reason": string | null,"user_id": string
+                  }
+                  Insert: {
+                    "applied_company_id"?: string | null,"granted_at"?: string,"pro_until": string,"reason"?: string | null,"user_id": string
+                  }
+                  Update: {
+                    "applied_company_id"?: string | null,"granted_at"?: string,"pro_until"?: string,"reason"?: string | null,"user_id"?: string
+                  }
+                  Relationships: []
                 },"testimonials": {
                   Row: {
                     "author_name": string,"author_role": string | null,"company_id": string | null,"company_name": string | null,"consent_publish": boolean,"created_at": string,"id": string,"quote": string | null,"rating": number | null,"reviewed_at": string | null,"reviewed_by": string | null,"status": string,"updated_at": string,"user_id": string
@@ -1801,6 +1812,9 @@ isOneToOne: false
                            },
 "public_rating":
 { Args: Record<PropertyKey, never>; Returns: { "average": number | null,"count": number }[]
+                           },
+"process_pioneer_rewards":
+{ Args: { "p_limit"?: number }; Returns: Json
                            },
 "process_testimonial_requests":
 { Args: { "p_limit"?: number }; Returns: number
