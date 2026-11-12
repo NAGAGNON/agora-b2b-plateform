@@ -57,3 +57,24 @@ describe("offre de lancement", () => {
     expect(founderEmail("FIN_ESSAI", ctx({ seatsLeft: 1 })).price.detail).toBe("à vie · 1 place restante");
   });
 });
+
+describe("e-mails de lancement personnalisés", () => {
+  const profile = { level: "CHAUD" as const, views: 141, sources: 22, favorites: 2, sector: "Informatique", openInSector: 602 };
+  it("reprend l'activité réelle du membre et son métier", () => {
+    const m = founderEmail("ANNONCE", ctx({ profile }));
+    expect(m.subject).toContain("602 marchés informatique");
+    expect(m.kicker).toContain("plus actifs");
+    expect(m.intro).toContain("consulté 141 marchés informatique, ouvert 22 avis officiels et mis 2 offres de côté");
+    expect(m.benefits.some((b) => b.includes("2 offres repérées"))).toBe(true);
+    expect(m.benefits.length).toBeLessThanOrEqual(4);
+  });
+  it("membre pionnier : tarif fondateur réservé, pas de nouvel essai annoncé", () => {
+    const m = founderEmail("ANNONCE", ctx({ profile: { ...profile, pioneerUntil: new Date(Date.now() + 60 * 86_400_000).toISOString() } }));
+    expect(m.title).toContain("réservé");
+    expect(m.intro).toContain("Pro offert continue");
+  });
+  it("membre inactif : e-mail standard", () => {
+    const m = founderEmail("ANNONCE", ctx({ profile: null }));
+    expect(m.intro).not.toContain("Depuis votre inscription");
+  });
+});
