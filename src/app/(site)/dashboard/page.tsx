@@ -3,6 +3,7 @@ import { ArrowRight, BellRing, Briefcase, Megaphone, FileStack, Handshake, Heart
 import { requireSession } from "@/lib/auth";
 import { MemberProofCompact } from "@/components/home/member-proof";
 import { FeedbackPrompt } from "@/components/dashboard/feedback-prompt";
+import { PioneerBadge } from "@/components/dashboard/pioneer-badge";
 import { createClient } from "@/lib/supabase/server";
 import { DashboardCard, Card, CardHeader } from "@/components/ui/card";
 import { ButtonLink } from "@/components/ui/button";
@@ -144,6 +145,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
         ]}
       />
 
+      <PioneerBadge userId={session.userId} now={nowMs()} />
       <SinceLastVisit userId={session.userId} companyId={cid} supplier={supplier} since={previousVisit(session.profile, nowMs())} now={nowMs()} includeDemo={await showDemoData()} />
       <NextActions companyId={cid} userId={session.userId} buyer={buyer} supplier={supplier} now={nowMs()} />
       <GettingStarted

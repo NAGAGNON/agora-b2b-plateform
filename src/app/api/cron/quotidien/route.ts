@@ -108,6 +108,12 @@ async function run(req: Request) {
     if (error) throw error;
     return { demandes: data ?? 0 };
   });
+  // Membres pionniers (revenus au moins 3 jours) : 3 mois de Pro offerts, une seule fois
+  await step("membres-pionniers", async () => {
+    const { data, error } = await createAdminClient().rpc("process_pioneer_rewards", { p_limit: 20 });
+    if (error) throw error;
+    return data;
+  });
   // Pipeline : rappel le jour de la relance prévue
   await step("rappels-pipeline", async () => {
     const { data, error } = await createAdminClient().rpc("process_pipeline_reminders", { p_limit: 200 });
