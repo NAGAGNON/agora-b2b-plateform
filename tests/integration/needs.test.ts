@@ -78,6 +78,9 @@ beforeAll(async () => {
   await member("match2");
   await member("busy");
   await member("other", "BOTH", { sectors: ["informatique"], skills: ["java"] });
+  // Autre métier, ailleurs : seul le marqueur du test (RUN, jusqu'à 2 mots) reste commun avec le besoin,
+  // sous le seuil de 3 mots du rapprochement par vocabulaire (« Brest » en ferait un 3e selon le RUN)
+  await admin.from("companies").update({ city: "Lyon", department_code: "69" }).eq("id", C.other);
   await member("buyerOnly", "BUYER");
   // « busy » a reçu un autre besoin hier : pas de nouvelle proposition avant 2 jours
   const other = await need("Autre besoin déjà proposé");
