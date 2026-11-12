@@ -3,6 +3,12 @@ import { loadBuyerProfiles } from "@/lib/buyer-profiles";
 import { CRITERIA } from "@/lib/buying-score";
 import { DashboardCard } from "@/components/ui/card";
 import { formatDate } from "@/lib/format";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { relaunchAllInactive, relaunchUser } from "@/app/actions/reengagement";
+import { INACTIVE_DAYS, RELAUNCH_GAP_DAYS } from "@/lib/reengagement";
+
+const DAY = 86_400_000;
+const now = () => Date.now();
 
 export const metadata = { title: "Clients potentiels" };
 export const dynamic = "force-dynamic";
@@ -29,6 +35,18 @@ function advice(p: Awaited<ReturnType<typeof loadBuyerProfiles>>[number]) {
 export default async function ProspectsPage() {
   await requireAdmin();
   const list = await loadBuyerProfiles();
+  const t = now();
+  const { data: sends } = await createAdminClient().from("reengagement_sends").select("user_id, sent_at").order("sent_at", { ascending: false }).limit(5000);
+  const lastRelaunch = new Map<string, string>();
+  for (const r of sends ?? []) if (!lastRelaunch.has(r.user_id)) lastRelaunch.set(r.user_id, r.sent_at);
+  const idleDays = (p: (typeof list)[number]) => Math.floor((t - new Date(p.lastSeenAt ?? p.createdAt).getTime()) / DAY);
+  const inactive = list.filter((p) => idleDays(p) >= INACTIVE_DAYS).sort((a, b) => b.score - a.score);
+  const canRelaunch = (id: string) => {
+    const last = lastRelaunch.get(id);
+    return !last || t - new Date(last).getTime() >= RELAUNCH_GAP_DAYS * DAY;
+  };
+  const eligible = inactive.filter((p) => canRelaunch(p.userId));
+  const isNew = (p: (typeof list)[number]) => t - new Date(p.createdAt).getTime() < 7 * DAY;
   const hot = list.filter((p) => p.level === "CHAUD");
   const warm = list.filter((p) => p.level === "TIEDE");
   return (
@@ -63,7 +81,10 @@ export default async function ProspectsPage() {
               <tr key={p.userId} className="border-b border-slate-100 align-top last:border-0">
                 <td className="px-4 py-3 text-slate-500">{i + 1}</td>
                 <td className="px-4 py-3">
-                  <p className="font-semibold text-navy">{p.name || "Sans nom"}</p>
+                  <p className="font-semibold text-navy">
+                    {p.name || "Sans nom"}
+                    {isNew(p) && <span className="ml-2 rounded-full bg-teal-100 px-2 py-0.5 text-[11px] font-semibold text-teal-900">Nouveau</span>}
+                  </p>
                   <p className="text-xs text-slate-500">{p.company ?? "Pas d'entreprise"}</p>
                   <p className="text-xs text-slate-500">{p.email}</p>
                 </td>
@@ -100,6 +121,49 @@ export default async function ProspectsPage() {
           </tbody>
         </table>
       </div>
+
+      <section aria-labelledby="inactifs" className="space-y-3">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 id="inactifs" className="text-xl font-bold text-navy">
+              Inactifs à relancer ({inactive.length})
+            </h2>
+            <p className="text-sm text-slate-600">
+              Aucune visite depuis {INACTIVE_DAYS} jours ou plus, classés par score. L&apos;e-mail est personnel : nouveaux marchés de leur métier depuis leur dernière visite,
+              favoris en attente. Au plus une relance tous les {RELAUNCH_GAP_DAYS} jours par membre, seulement s&apos;il accepte les e-mails.
+            </p>
+          </div>
+          {eligible.length > 0 && (
+            <form action={relaunchAllInactive}>
+              <input type="hidden" name="userIds" value={eligible.map((p) => p.userId).join(",")} />
+              <button className="rounded-xl bg-navy px-4 py-2 text-sm font-semibold text-white">Relancer les {eligible.length} éligibles</button>
+            </form>
+          )}
+        </div>
+        <ul className="divide-y divide-slate-100 rounded-2xl bg-white shadow-sm ring-1 ring-slate-200">
+          {inactive.map((p) => (
+            <li key={p.userId} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm">
+              <div className="min-w-0">
+                <p className="font-semibold text-navy">
+                  {p.name || "Sans nom"} <span className="font-normal text-slate-500">· {p.company ?? "pas d'entreprise"} · score {p.score}</span>
+                </p>
+                <p className="text-xs text-slate-500">
+                  Inactif depuis {idleDays(p)} jours{p.topSector ? ` · regardait : ${p.topSector}` : ""}
+                  {lastRelaunch.has(p.userId) ? ` · relancé le ${formatDate(lastRelaunch.get(p.userId)!)}` : ""}
+                </p>
+              </div>
+              {canRelaunch(p.userId) ? (
+                <form action={relaunchUser}>
+                  <input type="hidden" name="userId" value={p.userId} />
+                  <button className="rounded-lg px-3 py-1.5 text-sm font-semibold text-teal-700 ring-1 ring-teal/40 hover:bg-teal-50">Relancer</button>
+                </form>
+              ) : (
+                <span className="text-xs text-slate-500">Déjà relancé récemment</span>
+              )}
+            </li>
+          ))}
+        </ul>
+      </section>
     </div>
   );
 }
