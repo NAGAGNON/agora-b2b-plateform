@@ -1821,6 +1821,9 @@ isOneToOne: false
               "id": string,"author_name": string,"author_role": string | null,"company_name": string | null,"company_slug": string | null,"logo_path": string | null,"quote": string,"rating": number | null,"created_at": string
             }[]
                            },
+"public_need_proof":
+{ Args: Record<PropertyKey, never>; Returns: Json
+                           },
 "public_rating":
 { Args: Record<PropertyKey, never>; Returns: { "average": number | null,"count": number }[]
                            },

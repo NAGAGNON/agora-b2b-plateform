@@ -6,7 +6,7 @@ import type { Database } from "@/lib/database.types";
 import { STATIC_PATHS, siteUrl } from "@/lib/seo";
 import { GUIDES } from "@/content/guides";
 import { REGIONS } from "@/lib/geo";
-import { IT_SPECIALTIES } from "@/lib/landing";
+import { SPECIALTIES } from "@/lib/landing";
 
 const MIN_INDEXABLE = 3;
 
@@ -120,8 +120,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     for (const s of SECTORS) if (n("region_sector", `${r.name}|${s.slug}`) >= MIN_INDEXABLE) landing(`/opportunites/${r.slug}/${s.slug}`);
   }
   for (const s of SECTORS) if (n("sector", s.slug) >= MIN_INDEXABLE) landing(`/opportunites/${s.slug}`);
-  // Spécialités de l'informatique (secteur le plus recherché) : pages par métier
-  for (const x of IT_SPECIALTIES) landing(`/opportunites/informatique/${x.slug}`);
+  // Spécialités par métier (recherches réelles relevées dans Google)
+  for (const [sector, list] of Object.entries(SPECIALTIES)) for (const x of list) landing(`/opportunites/${sector}/${x.slug}`);
   for (const s of SECTORS) {
     const inSector = (companies ?? []).filter((c) => {
       const prof = c.company_profiles as unknown as { sectors: string[] } | { sectors: string[] }[];

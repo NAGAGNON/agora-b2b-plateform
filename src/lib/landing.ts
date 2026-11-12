@@ -29,38 +29,72 @@ export type Landing = {
   related?: { label: string; links: { name: string; path: string }[] };
 };
 
-/**
- * Spécialités de l'informatique (secteur le plus recherché par les membres) : une page par métier,
- * /opportunites/informatique/<spécialité>, appels d'offres du secteur filtrés par mots-clés.
- */
-export const IT_SPECIALTIES = [
-  { slug: "developpement-web", label: "Développement web et sites internet", q: '"site internet" OR "site web" OR "application web" OR "développement web"', what: "création et refonte de sites internet, applications web, portails et maintenance de sites" },
-  { slug: "logiciel", label: "Logiciels et progiciels", q: "logiciel OR progiciel", what: "édition, intégration, maintenance et évolution de logiciels métier et de progiciels" },
-  { slug: "infogerance", label: "Infogérance et maintenance informatique", q: 'infogérance OR "maintenance informatique" OR "support informatique" OR "assistance informatique"', what: "infogérance, support utilisateurs, maintenance du parc et assistance informatique" },
-  { slug: "materiel-informatique", label: "Matériel informatique et serveurs", q: '"matériel informatique" OR ordinateurs OR "postes de travail" OR serveurs', what: "fourniture d'ordinateurs, postes de travail, serveurs et équipements informatiques" },
-  { slug: "cloud-hebergement", label: "Cloud et hébergement", q: "cloud OR hébergement OR datacenter", what: "hébergement d'applications et de sites, cloud, centres de données" },
-  { slug: "reseaux-telecoms", label: "Réseaux et télécoms", q: "réseau OR télécommunications OR téléphonie OR wifi", what: "réseaux informatiques, téléphonie, accès internet, Wi-Fi et télécommunications" },
-  { slug: "donnees-ia", label: "Données et intelligence artificielle", q: '"intelligence artificielle" OR données OR data OR décisionnel', what: "systèmes d'information, données, décisionnel et intelligence artificielle" },
-  { slug: "licences-logiciels", label: "Licences logicielles", q: 'licences OR "Microsoft 365" OR "Office 365"', what: "acquisition et renouvellement de licences logicielles et d'abonnements bureautiques" },
-] as const;
+type Specialty = { slug: string; label: string; q: string; what: string };
 
-function specialtyLanding(slug: string): Landing | null {
-  const sp = IT_SPECIALTIES.find((x) => x.slug === slug);
-  if (!sp) return null;
+/**
+ * Spécialités par métier : une page par spécialité, /opportunites/<secteur>/<spécialité>, appels
+ * d'offres du secteur filtrés par mots-clés (recherches réelles relevées dans Google). Chaque
+ * spécialité a été vérifiée sur les marchés ouverts (assez d'offres, mots-clés sans faux positifs).
+ */
+export const SPECIALTIES: Record<string, readonly Specialty[]> = {
+  informatique: [
+    { slug: "developpement-web", label: "Développement web et sites internet", q: '"site internet" OR "site web" OR "application web" OR "développement web"', what: "création et refonte de sites internet, applications web, portails et maintenance de sites" },
+    { slug: "logiciel", label: "Logiciels et progiciels", q: "logiciel OR progiciel", what: "édition, intégration, maintenance et évolution de logiciels métier et de progiciels" },
+    { slug: "infogerance", label: "Infogérance et maintenance informatique", q: 'infogérance OR "maintenance informatique" OR "support informatique" OR "assistance informatique"', what: "infogérance, support utilisateurs, maintenance du parc et assistance informatique" },
+    { slug: "materiel-informatique", label: "Matériel informatique et serveurs", q: '"matériel informatique" OR ordinateurs OR "postes de travail" OR serveurs', what: "fourniture d'ordinateurs, postes de travail, serveurs et équipements informatiques" },
+    { slug: "cloud-hebergement", label: "Cloud et hébergement", q: "cloud OR hébergement OR datacenter", what: "hébergement d'applications et de sites, cloud, centres de données" },
+    { slug: "reseaux-telecoms", label: "Réseaux et télécoms", q: "réseau OR télécommunications OR téléphonie OR wifi", what: "réseaux informatiques, téléphonie, accès internet, Wi-Fi et télécommunications" },
+    { slug: "donnees-ia", label: "Données et intelligence artificielle", q: '"intelligence artificielle" OR données OR data OR décisionnel', what: "systèmes d'information, données, décisionnel et intelligence artificielle" },
+    { slug: "licences-logiciels", label: "Licences logicielles", q: 'licences OR "Microsoft 365" OR "Office 365"', what: "acquisition et renouvellement de licences logicielles et d'abonnements bureautiques" },
+  ],
+  "travaux-btp": [
+    { slug: "voirie-reseaux", label: "Voirie et réseaux divers", q: 'voirie OR "réseaux divers" OR VRD OR chaussée', what: "travaux de voirie, réseaux divers (VRD), chaussées et aménagements de surface" },
+    { slug: "desamiantage-demolition", label: "Désamiantage et démolition", q: "désamiantage OR démolition OR curage", what: "désamiantage, démolition, curage et déconstruction de bâtiments" },
+    { slug: "toiture-couverture", label: "Toiture, couverture et étanchéité", q: "toiture OR couverture OR étanchéité", what: "réfection de toitures, couverture, zinguerie et étanchéité" },
+    { slug: "peinture-revetements", label: "Peinture et revêtements", q: 'peinture OR "revêtements de sols" OR revêtements', what: "travaux de peinture, revêtements de sols et muraux" },
+    { slug: "menuiserie", label: "Menuiserie", q: "menuiserie OR menuiseries", what: "menuiseries intérieures et extérieures, portes, fenêtres et agencement" },
+  ],
+  "nettoyage-proprete": [
+    { slug: "nettoyage-locaux", label: "Nettoyage de locaux", q: '"nettoyage des locaux" OR "entretien des locaux" OR "nettoyage de bureaux"', what: "nettoyage et entretien de locaux, bureaux et bâtiments publics" },
+    { slug: "vitrerie", label: "Vitrerie", q: "vitrerie OR vitres", what: "nettoyage de vitres et de surfaces vitrées" },
+    { slug: "deratisation-desinsectisation", label: "Dératisation et désinsectisation", q: "dératisation OR désinsectisation OR nuisibles OR frelons", what: "dératisation, désinsectisation, lutte contre les nuisibles et les frelons" },
+  ],
+  "restauration-alimentation": [
+    { slug: "restauration-collective", label: "Restauration collective", q: '"restauration collective" OR cantine OR repas', what: "restauration collective, cantines scolaires et fourniture de repas" },
+    { slug: "traiteur", label: "Traiteur", q: "traiteur OR cocktail OR buffet", what: "prestations de traiteur, cocktails, buffets et réceptions" },
+  ],
+  "securite-surete": [
+    { slug: "gardiennage", label: "Gardiennage et surveillance", q: 'gardiennage OR surveillance OR "agents de sécurité" OR sûreté', what: "gardiennage, surveillance de sites, agents de sécurité et sûreté" },
+    { slug: "videoprotection", label: "Vidéoprotection et contrôle d'accès", q: "vidéoprotection OR vidéosurveillance OR \"contrôle d'accès\"", what: "vidéoprotection, vidéosurveillance et contrôle d'accès" },
+  ],
+  "transport-logistique": [
+    { slug: "transport-personnes", label: "Transport de personnes", q: '"transport de personnes" OR "transport scolaire" OR "transport de voyageurs"', what: "transport de personnes, transport scolaire et de voyageurs" },
+    { slug: "demenagement", label: "Déménagement", q: 'déménagement OR "transfert de mobilier"', what: "déménagements de bureaux, transferts de mobilier et d'archives" },
+    { slug: "marchandises-logistique", label: "Transport de marchandises et logistique", q: 'stockage OR entreposage OR "plateforme logistique" OR "prestations logistiques" OR "transport de marchandises" OR fret OR messagerie OR affrètement OR "transport routier"', what: "transport de marchandises, messagerie, affrètement, stockage et prestations logistiques" },
+  ],
+};
+
+/** Compatibilité : spécialités de l'informatique */
+export const IT_SPECIALTIES = SPECIALTIES.informatique;
+
+function specialtyLanding(sector: { slug: string; label: string }, slug: string): Landing | null {
+  const list = SPECIALTIES[sector.slug];
+  const sp = list?.find((x) => x.slug === slug);
+  if (!list || !sp) return null;
   const label = sp.label.toLowerCase();
   return {
     kind: "specialty",
-    fixed: { secteur: "informatique", q: sp.q },
+    fixed: { secteur: sector.slug, q: sp.q },
     title: `Appels d'offres ${label}`,
     heading: `Appels d'offres — ${sp.label}`,
     intro: `Marchés publics et besoins d'entreprises en ${sp.what}, partout en France, mis à jour chaque jour à partir des annonces officielles. Activez une alerte pour recevoir les nouveaux marchés dès leur publication.`,
     description: `Appels d'offres ${label} ouverts en France : ${sp.what}. Acheteurs, échéances et alerte gratuite, mis à jour chaque jour.`,
     crumbs: [
-      { name: "Informatique", path: "/opportunites/informatique" },
-      { name: sp.label, path: `/opportunites/informatique/${sp.slug}` },
+      { name: sector.label, path: `/opportunites/${sector.slug}` },
+      { name: sp.label, path: `/opportunites/${sector.slug}/${sp.slug}` },
     ],
-    childrenLabel: "Autres spécialités de l'informatique",
-    children: IT_SPECIALTIES.filter((x) => x.slug !== sp.slug).map((x) => ({ name: x.label, path: `/opportunites/informatique/${x.slug}` })),
+    childrenLabel: `Autres spécialités — ${sector.label}`,
+    children: list.filter((x) => x.slug !== sp.slug).map((x) => ({ name: x.label, path: `/opportunites/${sector.slug}/${x.slug}` })),
   };
 }
 
@@ -99,8 +133,11 @@ export async function resolveLanding(slug: string, sub?: string, third?: string)
     };
   }
   if (sub) {
-    // Spécialité de l'informatique : /opportunites/informatique/<spécialité>
-    if (slug === "informatique") return specialtyLanding(sub);
+    // Spécialité d'un métier : /opportunites/<secteur>/<spécialité>
+    if (SPECIALTIES[slug]) {
+      const sector = sectors.find((x) => x.slug === slug);
+      return sector ? specialtyLanding(sector, sub) : null;
+    }
     if (!region) return null;
     const dep = departments.find((d) => d.slug === sub && d.region === region.name);
     if (dep) return departmentLanding(dep, region.slug, sectors, count);
@@ -155,8 +192,8 @@ export async function resolveLanding(slug: string, sub?: string, third?: string)
       description: `Besoins d'entreprises, appels d'offres et consultations en ${sector.label.toLowerCase()} partout en France, par région et département.`,
       crumbs: [{ name: sector.label, path: `/opportunites/${sector.slug}` }],
       children: REGIONS.map((r) => ({ name: r.name, path: `/opportunites/${r.slug}/${sector.slug}` })),
-      ...(sector.slug === "informatique"
-        ? { related: { label: "Par spécialité", links: IT_SPECIALTIES.map((x) => ({ name: x.label, path: `/opportunites/informatique/${x.slug}` })) } }
+      ...(SPECIALTIES[sector.slug]
+        ? { related: { label: "Par spécialité", links: SPECIALTIES[sector.slug].map((x) => ({ name: x.label, path: `/opportunites/${sector.slug}/${x.slug}` })) } }
         : {}),
     };
   }

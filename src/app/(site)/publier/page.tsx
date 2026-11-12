@@ -4,6 +4,7 @@ import { PublishWizard, type WizardValues } from "@/components/opportunities/pub
 import { createClient } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/format";
 import { NeedDraftForm } from "@/components/opportunities/need-draft-form";
+import { NeedProof } from "@/components/opportunities/need-proof";
 import { ButtonLink } from "@/components/ui/button";
 import { Notice } from "@/components/ui/notice";
 import { getSession } from "@/lib/auth";
@@ -62,6 +63,7 @@ export default async function PublishPage(props: { searchParams: Promise<{ parte
       <div className="container-page py-10 sm:py-14">
         <div className="grid gap-10 lg:grid-cols-2">
           <div>
+            <NeedProof />
             <ul className="space-y-4">
               {[
                 { icon: CheckCircle2, t: "Quatre formats", d: "Besoin simple, demande de devis, consultation privée ou appel d'offres privé." },
