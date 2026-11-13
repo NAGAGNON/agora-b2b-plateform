@@ -25,7 +25,7 @@ export function boostPrice(daily: Daily, featured: Featured, duration: Duration)
 export const totalPresentations = (daily: Daily, duration: Duration) => daily * duration;
 
 export const BOOST_STATUS_LABEL: Record<string, string> = {
-  PENDING: "En attente de validation",
+  PENDING: "En attente",
   ACTIVE: "En cours",
   ENDED: "Terminée",
   REJECTED: "Non retenue",

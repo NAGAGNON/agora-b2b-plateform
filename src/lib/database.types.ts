@@ -1861,6 +1861,9 @@ isOneToOne: false
 "cancel_visibility_boost":
 { Args: { "p_id": string }; Returns: undefined
                            },
+"stop_visibility_boost":
+{ Args: { "p_id": string; "p_note"?: string | null }; Returns: undefined
+                           },
 "review_visibility_boost":
 { Args: { "p_id": string; "p_approve": boolean; "p_note"?: string | null }; Returns: undefined
                            },

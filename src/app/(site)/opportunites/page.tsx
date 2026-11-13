@@ -46,7 +46,7 @@ export default async function OpportunitiesPage(props: PageProps<"/opportunites"
   }
   const searching = Boolean(filters.q) || Object.keys(sp).some((k) => k !== "page");
   if (searching) {
-    void track("search_opportunities", { has_query: Boolean(filters.q), sector: filters.sector ?? null, department: filters.department ?? null });
+    void track("search_opportunities", { has_query: Boolean(filters.q), sector: filters.sector ?? null, region: filters.region ?? null, department: filters.department ?? null });
   }
   // Offre Gratuite (après la phase de lancement) : nombre de recherches par semaine limité ; au-delà,
   // l'essai Pro ou l'offre de lancement est proposé à la place des résultats

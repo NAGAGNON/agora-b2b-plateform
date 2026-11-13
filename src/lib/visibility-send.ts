@@ -12,7 +12,7 @@ const parisDay = (d = new Date()) => d.toLocaleDateString("sv-SE", { timeZone: "
  * entreprises inscrites par des e-mails aux entreprises de la base de prospection qui correspondent au
  * ciblage, jusqu'au nombre quotidien choisi. Les e-mails passent par la file d'envoi de l'Outreach
  * (désinscription, liste d'opposition, délai entre deux contacts, limites d'envoi, pause du week-end) ;
- * rien ne part pour une offre qui n'a pas été validée par l'équipe.
+ * rien ne part pour une offre qui n'est pas en cours (arrêtée ou terminée).
  */
 export async function queueBoostPresentations(db: Db = createAdminClient()) {
   const settings = await loadSettings(db);

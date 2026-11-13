@@ -23,6 +23,7 @@ import { JsonLd, breadcrumbLd } from "@/components/json-ld";
 import { buttonClasses } from "@/components/ui/button";
 import { getLocationLabel, getSectorLabels } from "@/lib/queries/platform";
 import { cache } from "react";
+import { unstable_cache } from "next/cache";
 import { getSession } from "@/lib/auth";
 import { UpgradeGate } from "@/components/billing/upsell";
 import { GoogleButton } from "@/components/auth/google-button";
@@ -53,6 +54,31 @@ const getBuyer = cache(async (slug: string) => {
   };
 });
 
+/** Familles d'acheteurs (d'après le nom officiel) : pour proposer des acheteurs du même type. */
+const BUYER_FAMILIES: { label: string; re: RegExp }[] = [
+  { label: "Bailleurs sociaux", re: /habitat|logement|\bhlm\b|office public|\bopac?\b|\bsa d'hlm\b/i },
+  { label: "Établissements de santé", re: /centre hospitalier|\bchu\b|\bchr\b|h[ôo]pita|\bghu?\b|\behpad\b|groupement hospitalier/i },
+  { label: "Intercommunalités", re: /m[ée]tropole|communaut[ée] (d'agglom[ée]ration|de communes|urbaine)|agglo|syndicat intercommunal|\bsivo?m?\b/i },
+  { label: "Départements", re: /d[ée]partement|conseil d[ée]partemental/i },
+  { label: "Régions", re: /\br[ée]gion\b|conseil r[ée]gional|collectivit[ée] territoriale/i },
+  { label: "Communes", re: /\bcommune\b|\bmairie\b|\bville de\b/i },
+  { label: "Enseignement supérieur et recherche", re: /universit|\bcnrs\b|\binrae?\b|\binserm\b|[ée]cole (nationale|sup[ée]rieure)/i },
+  { label: "Services d'incendie et de secours", re: /\bsdis\b|incendie et de secours/i },
+  { label: "Énergie, transports et réseaux", re: /\bsncf\b|\bratp\b|\bedf\b|\brte\b|enedis|grdf|[ée]lectricit[ée]|\bgaz\b|transport/i },
+];
+const familyOf = (name: string) => BUYER_FAMILIES.find((f) => f.re.test(name)) ?? null;
+
+/** Tous les acheteurs publics référencés (nom, région, marchés ouverts), en cache 30 minutes. */
+const allBuyers = unstable_cache(
+  async () => {
+    const { data, error } = await createAdminClient().rpc("public_buyers", { p_limit: 10000, p_offset: 0 });
+    if (error) throw error;
+    return (data ?? []).map((x) => ({ name: x.name, slug: x.slug, region: x.region, open: Number(x.open_count), total: Number(x.total_count) }));
+  },
+  ["public-buyers-all-v1"],
+  { revalidate: 1800 },
+);
+
 /** Les valeurs les plus fréquentes d'une liste (métiers, départements de l'acheteur). */
 function top(values: (string | null)[], n: number) {
   const m = new Map<string, number>();
@@ -68,14 +94,14 @@ export async function generateMetadata(props: PageProps<"/acheteurs/[slug]">) {
   const b = await getBuyer(slug);
   if (!b) return { title: "Acheteur introuvable", robots: { index: false } };
   const n = b.open.length;
+  const year = new Date().getFullYear();
+  const total = b.all.length;
   return pageMetadata({
+    // Formulation des recherches réelles (« [acheteur] appel d'offre »), année pour la fraîcheur
     title: n
-      ? clip(
-          `Appels d'offres ${b.name} : ${nf.format(n)} ouvert${n > 1 ? "s" : ""}`,
-          62,
-        )
-      : clip(`Appels d'offres ${b.name} : historique`, 62),
-    description: `${n ? `${nf.format(n)} appel${n > 1 ? "s" : ""} d'offres ouvert${n > 1 ? "s" : ""}` : "Aucun appel d'offres ouvert actuellement"} de ${b.name} : objet, lieu, date limite et fiche synthèse, d'après les annonces officielles (BOAMP, TED). Suivez ses nouveaux marchés par e-mail, gratuitement.`,
+      ? clip(`Appels d'offres ${b.name} ${year} : ${nf.format(n)} en cours`, 64)
+      : clip(`Appels d'offres ${b.name} : historique ${year}`, 64),
+    description: `${n ? `${nf.format(n)} appel${n > 1 ? "s" : ""} d'offres en cours` : "Aucun appel d'offres en cours"} et historique de ${nf.format(total)} annonce${total > 1 ? "s" : ""} de ${b.name} : objet, lieu, date limite, délai pour répondre, d'après les annonces officielles (BOAMP, TED). Alerte e-mail gratuite à chaque nouveau marché.`,
     path: `/acheteurs/${slug}`,
     // Indexée avec au moins un appel d'offres ouvert, ou un historique réel (2 annonces ou plus) :
     // une page bien classée ne disparaît plus de Google dès que les marchés de l'acheteur se terminent
@@ -131,7 +157,7 @@ export default async function BuyerPage(props: PageProps<"/acheteurs/[slug]">) {
   // compteurs en direct : de quoi donner envie d'aller plus loin
   const [briefRows, buyersRows, platform, memberCompanies, departments] = await Promise.all([
     b.open.length ? admin.from("tender_briefs").select("opportunity_id, content").in("opportunity_id", b.open.map((o) => o.id)) : Promise.resolve({ data: [] as { opportunity_id: string; content: unknown }[] }),
-    admin.rpc("public_buyers", { p_limit: 400, p_offset: 0 }),
+    allBuyers().catch(() => []),
     session ? Promise.resolve(null) : getPlatformStats().catch(() => null),
     session ? Promise.resolve([]) : getMemberCompanies(12).catch(() => []),
     getDepartments().catch(() => []),
@@ -143,7 +169,17 @@ export default async function BuyerPage(props: PageProps<"/acheteurs/[slug]">) {
   }
   const mainRegion = top(b.all.map((o) => o.region), 1)[0] ?? null;
   const mainDept = top(b.all.map((o) => o.department_code), 1)[0] ?? null;
-  const nearby = (buyersRows.data ?? []).filter((x) => x.slug !== slug && x.region === mainRegion && x.open_count > 0).slice(0, 6);
+  const others = buyersRows.filter((x) => x.slug !== slug);
+  const nearby = others.filter((x) => x.region === mainRegion && x.open > 0).slice(0, 6);
+  // Acheteurs du même type (bailleurs, hôpitaux, communes…) : même région d'abord, puis ceux qui publient le plus
+  const family = familyOf(b.name);
+  const nearbySlugs = new Set(nearby.map((x) => x.slug));
+  const similar = family
+    ? others
+        .filter((x) => !nearbySlugs.has(x.slug) && x.total >= 2 && family.re.test(x.name))
+        .sort((x, y) => Number(y.region === mainRegion) - Number(x.region === mainRegion) || y.open - x.open || y.total - x.total)
+        .slice(0, 8)
+    : [];
   const live = liveStats(platform);
   const dep = departments.find((d) => d.code === mainDept) ?? null;
   const reg = regionByName(mainRegion);
@@ -172,6 +208,25 @@ export default async function BuyerPage(props: PageProps<"/acheteurs/[slug]">) {
       .join("") || "A";
 
   const { nextDeadline, avgWindow } = buyerInsights(b.all, b.open);
+  // Questions fréquentes : réponses calculées uniquement à partir des annonces enregistrées
+  const totalCount = Math.max(b.all.length, buyersRows.find((x) => x.slug === slug)?.total ?? 0);
+  const sectorList = mainSectors.map((k) => sectors[k].toLowerCase()).join(", ");
+  const faq: { q: string; a: string }[] = [
+    {
+      q: `Combien d'appels d'offres ${b.name} a-t-il publiés ?`,
+      a: `${nf.format(totalCount)} annonce${totalCount > 1 ? "s" : ""} de ${b.name} ${totalCount > 1 ? "sont référencées" : "est référencée"} sur LinkProB2B${firstSeen ? ` depuis le ${formatDate(firstSeen)}` : ""}, dont ${nf.format(b.open.length)} ${b.open.length > 1 ? "encore ouvertes" : "encore ouverte"} aujourd'hui.`,
+    },
+    ...(sectorList
+      ? [{ q: `Dans quels domaines ${b.name} achète-t-il ?`, a: `D'après ses annonces, ${b.name} publie surtout des marchés en ${sectorList}${mainPlaces.length ? `, principalement à ${mainPlaces.join(" et ")}` : ""}.` }]
+      : []),
+    ...(avgWindow
+      ? [{ q: `Combien de temps faut-il pour répondre à ${b.name} ?`, a: `En moyenne, ${b.name} laisse ${avgWindow} jours entre la publication de l'annonce et la date limite de réponse.${nextDeadline ? ` La prochaine date limite est le ${formatDate(nextDeadline)}.` : ""}` }]
+      : []),
+    {
+      q: `Comment être prévenu des prochains appels d'offres de ${b.name} ?`,
+      a: `Créez un compte gratuit sur LinkProB2B et suivez ${b.name} : vous recevez un e-mail dès qu'une nouvelle annonce est publiée, avec l'objet, le lieu et la date limite.`,
+    },
+  ];
   const stats = [
     {
       label: "Appels d'offres ouverts",
@@ -599,7 +654,7 @@ export default async function BuyerPage(props: PageProps<"/acheteurs/[slug]">) {
                           <span className="min-w-0">
                             <span className="block truncate font-semibold text-navy group-hover:underline">{x.name}</span>
                             <span className="text-sm text-slate-500">
-                              {nf.format(x.open_count)} appel{x.open_count > 1 ? "s" : ""} d&apos;offres ouvert{x.open_count > 1 ? "s" : ""}
+                              {nf.format(x.open)} appel{x.open > 1 ? "s" : ""} d&apos;offres ouvert{x.open > 1 ? "s" : ""}
                             </span>
                           </span>
                           <ArrowRight className="size-4 shrink-0 text-teal-700 transition group-hover:translate-x-0.5" aria-hidden />
@@ -611,6 +666,53 @@ export default async function BuyerPage(props: PageProps<"/acheteurs/[slug]">) {
               )}
             </section>
           )}
+          {similar.length > 0 && family && (
+            <section aria-labelledby="similaires" className="mt-12">
+              <h2 id="similaires" className="text-xl font-bold text-navy">
+                {family.label} : autres acheteurs
+              </h2>
+              <ul className="mt-4 grid gap-3 sm:grid-cols-2">
+                {similar.map((x) => (
+                  <li key={x.slug}>
+                    <Link
+                      href={`/acheteurs/${x.slug}`}
+                      className="group flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-px hover:border-teal hover:shadow-md"
+                    >
+                      <span className="min-w-0">
+                        <span className="block truncate font-semibold text-navy group-hover:underline">{x.name}</span>
+                        <span className="text-sm text-slate-500">
+                          {x.open > 0 ? `${nf.format(x.open)} ouvert${x.open > 1 ? "s" : ""} · ` : ""}
+                          {nf.format(x.total)} annonce{x.total > 1 ? "s" : ""}
+                          {x.region ? ` · ${x.region}` : ""}
+                        </span>
+                      </span>
+                      <ArrowRight className="size-4 shrink-0 text-teal-700 transition group-hover:translate-x-0.5" aria-hidden />
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+          <section aria-labelledby="faq-acheteur" className="mt-12">
+            <JsonLd
+              data={{
+                "@context": "https://schema.org",
+                "@type": "FAQPage",
+                mainEntity: faq.map((f) => ({ "@type": "Question", name: f.q, acceptedAnswer: { "@type": "Answer", text: f.a } })),
+              }}
+            />
+            <h2 id="faq-acheteur" className="text-xl font-bold text-navy">
+              Questions fréquentes sur {b.name}
+            </h2>
+            <div className="mt-4 space-y-3">
+              {faq.map((f) => (
+                <details key={f.q} className="faq-item group rounded-2xl border border-slate-200 bg-white p-4 shadow-sm open:shadow-md">
+                  <summary className="cursor-pointer list-none font-semibold text-navy marker:hidden">{f.q}</summary>
+                  <p className="mt-2 text-sm leading-relaxed text-slate-600">{f.a}</p>
+                </details>
+              ))}
+            </div>
+          </section>
         </div>
         <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
           <BuyerOfficial

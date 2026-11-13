@@ -24,7 +24,7 @@ import { companyProfileSchema, companySchema, emailSchema, parseForm, userProfil
 const safeNext = (v: FormDataEntryValue | null, fallback: string) => safeInternalPath(v, fallback);
 
 
-/** Offre « Visibilité » cochée à la création de l'entreprise : demande enregistrée (validée ensuite par l'équipe). */
+/** Offre « Visibilité » cochée à la création de l'entreprise : démarrage immédiat pendant la phase gratuite. */
 async function requestStarterBoost(fd: FormData, companyId: string) {
   if (fd.get("visibility") !== "1") return;
   const { error } = await (await createClient()).rpc("request_visibility_boost", {

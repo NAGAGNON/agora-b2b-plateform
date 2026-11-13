@@ -5,7 +5,7 @@ import { visitorRpc } from "@/lib/queries/public-cache";
 
 /**
  * « À la une » : entreprises (annuaire) ou besoins (opportunités) dont la mise en avant est en cours
- * (offre « Visibilité » validée par l'équipe). Rien n'est affiché quand il n'y en a pas.
+ * (offre « Visibilité » en cours). Rien n'est affiché quand il n'y en a pas.
  */
 export async function FeaturedStrip({ kind }: { kind: "COMPANY" | "NEED" }) {
   const { data } = await visitorRpc("public_featured", { p_kind: kind, p_limit: 3 }, { always: true });

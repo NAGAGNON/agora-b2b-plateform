@@ -115,7 +115,7 @@ async function run(req: Request) {
     if (error) throw error;
     return data;
   });
-  // Offre « Visibilité » (validée par l'équipe) : fins d'offre et présentations du jour
+  // Offre « Visibilité » (démarrage automatique) : fins d'offre et présentations du jour
   await step("visibilite", async () => {
     const { data, error } = await createAdminClient().rpc("process_visibility_boosts", { p_limit: 50 });
     if (error) throw error;

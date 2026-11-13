@@ -2,6 +2,7 @@ import { FeaturedStrip } from "@/components/featured-strip";
 import { requireAccount } from "@/lib/members-only";
 import { Directory } from "@/components/companies/directory";
 import { parseCompanyFilters } from "@/lib/search-params";
+import { track } from "@/lib/analytics";
 import { listingIndexing, pageMetadata } from "@/lib/seo";
 import { ButtonLink } from "@/components/ui/button";
 import Image from "next/image";
@@ -24,6 +25,9 @@ export default async function DirectoryPage(props: PageProps<"/entreprises">) {
   const sp = await props.searchParams;
   // Recherche réservée aux membres : sans compte, inscription puis retour ici
   await requireAccount("/entreprises", sp);
+  const cf = parseCompanyFilters(sp);
+  if (cf.page === 1 && (cf.q || cf.sector || cf.family || cf.department || cf.kind || cf.size || cf.skills.length))
+    void track("search_companies", { has_query: Boolean(cf.q), sector: cf.sector ?? cf.family ?? null, department: cf.department ?? null });
   return (
     <>
       <section className="relative isolate overflow-hidden bg-navy-900 text-white">
@@ -71,7 +75,7 @@ export default async function DirectoryPage(props: PageProps<"/entreprises">) {
       </section>
       <div className="container-page py-8 sm:py-10">
       <FeaturedStrip kind="COMPANY" />
-      <Directory filters={parseCompanyFilters(sp)} rawParams={sp} basePath="/entreprises" />
+      <Directory filters={cf} rawParams={sp} basePath="/entreprises" />
       <section aria-label="Référencer votre entreprise" className="relative mt-12 overflow-hidden rounded-3xl bg-navy p-6 text-white shadow-xl sm:p-8">
         <div aria-hidden className="pointer-events-none absolute -top-20 -right-10 size-64 animate-aurora rounded-full bg-teal/30 blur-3xl" />
         <div aria-hidden className="pointer-events-none absolute -bottom-24 left-10 size-64 animate-aurora rounded-full bg-violet/25 blur-3xl [animation-delay:-7s]" />

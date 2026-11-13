@@ -1,6 +1,6 @@
 import { requireAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { ReviewBoostButtons } from "@/components/dashboard/boost-actions";
+import { ReviewBoostButtons, StopBoostButton } from "@/components/dashboard/boost-actions";
 import { BOOST_STATUS_LABEL } from "@/lib/visibility";
 import { formatDateTime } from "@/lib/format";
 import { formatEuros } from "@/lib/billing/plans";
@@ -8,7 +8,7 @@ import { formatEuros } from "@/lib/billing/plans";
 export const metadata = { title: "Visibilité — demandes" };
 export const dynamic = "force-dynamic";
 
-/** Demandes de visibilité : rien ne démarre avant validation de l'équipe. */
+/** Offres de visibilité : démarrage automatique ; l'équipe peut arrêter une offre en cas de souci. */
 export default async function VisibilityAdminPage() {
   await requireAdmin();
   const db = createAdminClient();
@@ -29,8 +29,8 @@ export default async function VisibilityAdminPage() {
       <div>
         <h1 className="text-2xl font-bold text-navy">Visibilité — demandes</h1>
         <p className="mt-1 text-sm text-slate-600">
-          {pending.length} demande(s) à valider. Une demande validée démarre aussitôt : présentation quotidienne dans l&apos;espace des entreprises ciblées (entreprise) ou
-          quota quotidien de la mise en relation (besoin), et affichage « À la une ».
+          Les offres démarrent automatiquement, sans validation. En cas de souci, cliquez sur « Arrêter » : plus aucune présentation ni mise en avant.
+          {pending.length > 0 && ` ${pending.length} demande(s) en attente.`}
         </p>
       </div>
       <div className="overflow-x-auto rounded-2xl bg-white ring-1 ring-slate-200">
@@ -68,7 +68,16 @@ export default async function VisibilityAdminPage() {
                   </td>
                   <td className="px-4 py-3">{b.free_launch ? "Gratuit (lancement)" : `${formatEuros(Number(b.price_ht))} HT`}</td>
                   <td className="px-4 py-3">{BOOST_STATUS_LABEL[b.status] ?? b.status}</td>
-                  <td className="px-4 py-3">{b.status === "PENDING" ? <ReviewBoostButtons id={b.id} /> : b.note ? <span className="text-slate-500">{b.note}</span> : null}</td>
+                  <td className="px-4 py-3">
+                    {b.status === "PENDING" ? (
+                      <ReviewBoostButtons id={b.id} />
+                    ) : (
+                      <div className="space-y-1">
+                        {b.status === "ACTIVE" && <StopBoostButton id={b.id} />}
+                        {b.note && <p className="text-slate-500">{b.note}</p>}
+                      </div>
+                    )}
+                  </td>
                 </tr>
               );
             })}

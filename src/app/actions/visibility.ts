@@ -46,7 +46,7 @@ export async function boostAudience(targeting: { sectors?: string[]; regions?: s
   return { members: Number(d.members ?? 0), prospects: Number(d.prospects ?? 0) };
 }
 
-/** Demande de visibilité (administrateur de l'entreprise), validée ensuite par l'équipe avant tout démarrage. */
+/** Demande de visibilité (administrateur de l'entreprise) : démarre aussitôt pendant la phase gratuite. */
 export async function requestBoost(_prev: ActionResult | null, fd: FormData): Promise<ActionResult> {
   const parsed = schema.safeParse({ target: fd.get("target"), daily: fd.get("daily"), featured: fd.get("featured"), duration: fd.get("duration") });
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Choix invalide." };
@@ -78,7 +78,7 @@ export async function requestBoost(_prev: ActionResult | null, fd: FormData): Pr
   }
   if (boostId && covered) await createAdminClient().from("visibility_boosts").update({ included_presentations: covered }).eq("id", boostId);
   revalidatePath("/dashboard/visibilite");
-  return { ok: true, message: "Demande envoyée : l'équipe la valide sous 24 h ouvrées, puis elle démarre automatiquement." };
+  return { ok: true, message: "C'est parti : votre offre de visibilité a démarré. Suivez-la jour après jour ci-dessous." };
 }
 
 export async function cancelBoost(id: string): Promise<ActionResult> {
@@ -96,4 +96,13 @@ export async function reviewBoost(id: string, approve: boolean, note?: string): 
   if (error) return { ok: false, error: error.code === "P0001" || error.code === "42501" ? error.message : "Action impossible pour le moment." };
   revalidatePath("/admin/visibilite");
   return { ok: true, message: approve ? "Offre démarrée." : "Demande refusée." };
+}
+
+/** Arrêt d'une offre en cours par l'équipe (en cas de souci). */
+export async function stopBoost(id: string, note?: string): Promise<ActionResult> {
+  await requireStaff();
+  const { error } = await (await createClient()).rpc("stop_visibility_boost", { p_id: id, p_note: note?.trim() || null });
+  if (error) return { ok: false, error: error.code === "P0001" || error.code === "42501" ? error.message : "Action impossible pour le moment." };
+  revalidatePath("/admin/visibilite");
+  return { ok: true, message: "Offre arrêtée." };
 }
