@@ -50,6 +50,13 @@ async function notify(companyId: string, type: string, title: string, body: stri
 
 const LABEL: Record<string, string> = { FREE: "Gratuit", PRO: "Pro", BUSINESS: "Business" };
 
+/** Équipe LinkProB2B (administrateurs) : notification et e-mail pour chaque étape de paiement. */
+async function notifyAdmins(type: string, title: string, body: string, link = "/admin/revenus") {
+  const db = createAdminClient();
+  const { data: admins } = await db.from("users").select("id").in("platform_role", ["ADMIN", "SUPER_ADMIN"]).eq("status", "ACTIVE");
+  await Promise.all((admins ?? []).map((a) => db.rpc("notify_user", { p_user_id: a.id, p_type: type, p_title: title, p_body: body, p_link: link, p_send_email: true })));
+}
+
 /**
  * Recalcule l'offre de l'entreprise à partir de ses abonnements : la meilleure offre
  * parmi les abonnements donnant droit (actif, essai, relance de paiement), sinon Gratuit.
@@ -97,6 +104,7 @@ export async function syncSubscription(sub: Stripe.Subscription, hintCompanyId?:
   }
   const customerId = idOf(sub.customer)!;
   const { data: prev } = await db.from("subscriptions").select("status, cancel_at_period_end").eq("stripe_subscription_id", sub.id).maybeSingle();
+  const { data: co } = await db.from("companies").select("name").eq("id", companyId).maybeSingle();
   const row = {
     company_id: companyId,
     stripe_subscription_id: sub.id,
@@ -115,6 +123,9 @@ export async function syncSubscription(sub: Stripe.Subscription, hintCompanyId?:
     started_at: ts(sub.start_date),
     canceled_at: ts(sub.canceled_at),
     ended_at: ts(sub.ended_at),
+    trial_end: ts(sub.trial_end),
+    cancel_reason: sub.cancellation_details?.reason ?? null,
+    cancel_feedback: sub.cancellation_details?.feedback ?? sub.cancellation_details?.comment ?? null,
     latest_invoice_id: idOf(sub.latest_invoice as string | { id: string } | null),
   };
   const { error } = await db.from("subscriptions").upsert(row, { onConflict: "stripe_subscription_id" });
@@ -123,6 +134,16 @@ export async function syncSubscription(sub: Stripe.Subscription, hintCompanyId?:
   await db.from("companies").update({ stripe_customer_id: customerId }).eq("id", companyId).is("stripe_customer_id", null);
 
   const plan2 = await recomputeCompanyPlan(companyId);
+  // Équipe prévenue de chaque étape (essai, abonnement, résiliation, fin) : notification + e-mail
+  const who = co?.name ?? "Une entreprise";
+  const formula = `${LABEL[plan]} ${row.billing_interval === "year" ? "annuel" : "mensuel"}${row.unit_amount_cents ? ` (${euros(row.unit_amount_cents, row.currency ?? "eur")} HT)` : ""}`;
+  if (!prev && sub.status === "trialing")
+    await notifyAdmins("admin_billing", `Nouvel essai : ${who}`, `${who} a démarré un essai ${formula}${row.trial_end ? `, premier paiement prévu le ${new Date(row.trial_end).toLocaleDateString("fr-FR", { timeZone: "Europe/Paris" })}` : ""}.`);
+  else if (!prev && sub.status === "active") await notifyAdmins("admin_billing", `Nouvel abonnement : ${who}`, `${who} a souscrit l'offre ${formula}.`);
+  if (prev?.status === "trialing" && sub.status === "active") await notifyAdmins("admin_billing", `Essai converti : ${who}`, `L'essai de ${who} s'est transformé en abonnement ${formula}.`);
+  if (row.cancel_at_period_end && prev && !prev.cancel_at_period_end)
+    await notifyAdmins("admin_billing", `Résiliation programmée : ${who}`, `${who} a résilié l'offre ${formula}${row.cancel_reason ? ` (motif : ${row.cancel_reason})` : ""}${row.cancel_feedback ? ` — « ${row.cancel_feedback} »` : ""}.`);
+  if (sub.status === "canceled" && prev && prev.status !== "canceled") await notifyAdmins("admin_billing", `Abonnement terminé : ${who}`, `L'abonnement ${formula} de ${who} est terminé.`);
   // Résiliation programmée (fin de période) : information, sans perte d'accès immédiate
   if (row.cancel_at_period_end && prev && !prev.cancel_at_period_end && ["active", "trialing", "past_due"].includes(sub.status)) {
     const end = row.current_period_end ? new Date(row.current_period_end).toLocaleDateString("fr-FR", { timeZone: "Europe/Paris" }) : "la fin de la période en cours";
@@ -199,12 +220,34 @@ export async function handleStripeEvent(event: Stripe.Event): Promise<boolean> {
       companyId = r?.companyId ?? null;
       break;
     }
+    case "customer.subscription.trial_will_end": {
+      // Stripe prévient 3 jours avant la fin de l'essai : rappel au client (e-mail + notification)
+      const sub = event.data.object;
+      const r = await syncSubscription(sub);
+      companyId = r?.companyId ?? null;
+      if (companyId && sub.trial_end && sub.status === "trialing" && !sub.cancel_at_period_end) {
+        const item = sub.items.data[0];
+        const amount = item?.price?.unit_amount ? ` (${euros(item.price.unit_amount, item.price.currency)} HT)` : "";
+        const date = new Date(sub.trial_end * 1000).toLocaleDateString("fr-FR", { day: "numeric", month: "long", timeZone: "Europe/Paris" });
+        await notify(
+          companyId,
+          "trial_ending",
+          `Votre essai se termine le ${date}`,
+          `Votre essai gratuit se termine le ${date} : votre abonnement démarrera alors automatiquement${amount}. Rien à faire pour continuer. Pour ne pas être débité, résiliez avant cette date depuis « Mon abonnement ».`,
+        );
+      }
+      break;
+    }
     case "invoice.paid": {
       const inv = event.data.object;
       const r = await recordInvoice(inv);
       companyId = r?.companyId ?? null;
       if (r?.subscriptionId) await refreshSubscription(r.subscriptionId, companyId);
       // Renouvellement (hors première facture, déjà couverte par « abonnement activé »)
+      if (companyId && inv.amount_paid > 0) {
+        const { data: c } = await db.from("companies").select("name").eq("id", companyId).maybeSingle();
+        await notifyAdmins("admin_billing", `Paiement reçu : ${euros(inv.amount_paid, inv.currency)}`, `${c?.name ?? "Une entreprise"} a payé ${euros(inv.amount_paid, inv.currency)} TTC (facture ${inv.number ?? inv.id}).`);
+      }
       if (companyId && inv.billing_reason === "subscription_cycle" && inv.amount_paid > 0)
         await notify(companyId, "payment_succeeded", "Paiement reçu — abonnement renouvelé", `Votre paiement de ${euros(inv.amount_paid, inv.currency)} a bien été reçu. Merci !`);
       break;
@@ -214,6 +257,10 @@ export async function handleStripeEvent(event: Stripe.Event): Promise<boolean> {
       const r = await recordInvoice(inv);
       companyId = r?.companyId ?? null;
       if (r?.subscriptionId) await refreshSubscription(r.subscriptionId, companyId);
+      if (companyId) {
+        const { data: c } = await db.from("companies").select("name").eq("id", companyId).maybeSingle();
+        await notifyAdmins("admin_billing", `Paiement échoué : ${c?.name ?? "une entreprise"}`, `Le paiement de ${euros(inv.amount_due, inv.currency)} a échoué. Stripe relance automatiquement.`);
+      }
       if (companyId)
         await notify(
           companyId,

@@ -1,5 +1,6 @@
 "use client";
 
+import { SelectMenu } from "@/components/ui/select-menu";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
 export function SortSelect({ value, hasQuery, hasPlace }: { value: string; hasQuery: boolean; hasPlace: boolean }) {
@@ -9,7 +10,7 @@ export function SortSelect({ value, hasQuery, hasPlace }: { value: string; hasQu
   return (
     <label className="flex items-center gap-2 text-sm text-slate-600">
       <span className="whitespace-nowrap">Trier par</span>
-      <select
+      <SelectMenu
         value={value}
         onChange={(e) => {
           const next = new URLSearchParams(sp.toString());
@@ -17,13 +18,13 @@ export function SortSelect({ value, hasQuery, hasPlace }: { value: string; hasQu
           next.delete("page");
           router.push(`${pathname}?${next.toString()}`);
         }}
-        className="h-10 rounded-lg border border-slate-300 bg-white px-2 text-sm font-semibold text-navy"
+        className="h-10 rounded-lg border border-slate-300 bg-white pl-3 text-sm font-semibold text-navy"
       >
         <option value="recent">Plus récentes</option>
         <option value="deadline">Échéance la plus proche</option>
         {hasQuery && <option value="relevance">Pertinence</option>}
         {hasPlace && <option value="distance">Distance</option>}
-      </select>
+      </SelectMenu>
     </label>
   );
 }

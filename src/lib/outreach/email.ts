@@ -187,3 +187,67 @@ ${facts(pairs)}
   ].join("\n");
   return { subject: i.subject, html, text };
 }
+
+export type CompanyPresentationInput = {
+  companyName: string;
+  subject: string;
+  presented: { name: string; tagline: string | null; city: string | null; activities: string[]; description: string | null; url: string; sectorSlug: string | null };
+  unsubscribeUrl: string;
+  pixelUrl?: string;
+  siteUrl: string;
+  reason: string;
+  dataSource: string;
+  sender: string[];
+};
+
+/**
+ * Offre « Visibilité » : présentation d'UNE entreprise inscrite sur LinkProB2B (demande validée par
+ * l'équipe) à une entreprise ciblée. Court, factuel, une seule action : « Découvrir l'entreprise ».
+ */
+export function renderCompanyPresentationEmail(i: CompanyPresentationInput): { subject: string; html: string; text: string } {
+  const p = i.presented;
+  const intro = `${p.name}, entreprise inscrite sur LinkProB2B${p.city ? ` (${p.city})` : ""}, souhaite se faire connaître auprès d'entreprises comme ${i.companyName}.`;
+  const pairs = [p.activities.length ? ["Activité", p.activities.join(", ")] : null, p.city ? ["Localisation", p.city] : null].filter((x): x is [string, string] => Boolean(x));
+  const card = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:4px 0 18px;border:1px solid ${C.border};border-left:4px solid ${C.teal};border-radius:12px;background:${C.soft}"><tr><td style="padding:18px 20px">
+<p style="margin:0 0 6px;font-size:18px;line-height:24px;font-weight:800;color:${C.navy}">${escapeHtml(p.name)}</p>
+${p.tagline ? `<p style="margin:0 0 8px;font-size:14px;line-height:21px;color:${C.slate}">${escapeHtml(p.tagline)}</p>` : ""}
+${p.description ? `<p style="margin:0;font-size:14px;line-height:22px;color:${C.slate}">${escapeHtml(p.description)}</p>` : ""}
+${facts(pairs)}
+</td></tr></table>`;
+  const html = shell({
+    base: i.siteUrl,
+    subject: i.subject,
+    preheader: `${p.name} se présente`,
+    kicker: "Entreprise à découvrir",
+    title: `Découvrez ${p.name}`,
+    heroImage: sectorBannerUrl(i.siteUrl, p.sectorSlug),
+    body:
+      paragraph("Bonjour,") +
+      paragraph(intro) +
+      card +
+      button("DÉCOUVRIR L'ENTREPRISE", p.url) +
+      `<p style="margin:0 0 18px;clear:both;font-size:13px;line-height:19px;color:${C.muted}">Sa fiche présente ses services, ses références et un moyen de la contacter directement.</p>`,
+    notes: footerNotes(i, "Ne plus recevoir de messages de LinkProB2B"),
+    pixelUrl: i.pixelUrl,
+  });
+  const text = [
+    "Bonjour,",
+    "",
+    intro,
+    "",
+    `• ${p.name}`,
+    ...(p.tagline ? [`  ${p.tagline}`] : []),
+    ...(p.description ? [`  ${p.description}`] : []),
+    ...pairs.map(([k, v]) => `  ${k} : ${v}`),
+    "",
+    `DÉCOUVRIR L'ENTREPRISE : ${p.url}`,
+    "",
+    "L'équipe LinkProB2B",
+    "",
+    i.reason,
+    i.dataSource,
+    ...i.sender,
+    `Ne plus recevoir de messages de LinkProB2B : ${i.unsubscribeUrl}`,
+  ].join("\n");
+  return { subject: i.subject, html, text };
+}

@@ -13,8 +13,8 @@ import { env } from "@/lib/env";
  *  - STRIPE_PRO_PRICE_ID       price_… (LinkProB2B Pro, mensuel)
  *  - STRIPE_BUSINESS_PRICE_ID  price_… (LinkProB2B Business, mensuel)
  *  - STRIPE_TAX_RATE_ID        txr_… (TVA 20 %, exclusive) — facultatif
- *  - STRIPE_PRO_YEARLY_PRICE_ID       price_… (LinkProB2B Pro, annuel 590 € HT) — facultatif
- *  - STRIPE_BUSINESS_YEARLY_PRICE_ID  price_… (LinkProB2B Business, annuel 990 € HT) — facultatif
+ *  - STRIPE_PRO_YEARLY_PRICE_ID       price_… (LinkProB2B Pro, annuel 290 € HT) — facultatif
+ *  - STRIPE_BUSINESS_YEARLY_PRICE_ID  price_… (LinkProB2B Business, annuel 590 € HT) — facultatif
  *  Sans prix annuel configuré, seul l'abonnement mensuel est proposé.
  */
 

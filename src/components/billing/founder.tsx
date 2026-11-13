@@ -18,7 +18,7 @@ const COMPARE: [string, string | boolean, string | boolean][] = [
   ["Proposé en premier aux clients", false, true],
   ["Alertes par e-mail", "1 alerte, 3 offres", "Illimitées"],
   ["Recherches", "15 par semaine", "Illimitées"],
-  ["Historique des acheteurs", "5 annonces", "Complet"],
+  ["Historique des acheteurs", "3 annonces", "Complet"],
 ];
 
 const FAQ: [string, string][] = [

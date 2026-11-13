@@ -1,3 +1,4 @@
+import { FeaturedStrip } from "@/components/featured-strip";
 import Link from "next/link";
 import { requireAccount } from "@/lib/members-only";
 import { notFound } from "next/navigation";
@@ -76,6 +77,7 @@ export default async function OpportunitiesPage(props: PageProps<"/opportunites"
         <FreshnessBar stats={await getPlatformStats()} className="mt-5" />
       </PageHero>
       <div className="container-page py-8 sm:py-10">
+      {filters.page === 1 && filters.origin !== "EXTERNAL" && <FeaturedStrip kind="NEED" />}
       {filters.page === 1 && !filters.q && filters.origin !== "EXTERNAL" && (
         <FeaturedNeeds sector={filters.sector} department={filters.department} region={filters.region ? (regionBySlug(filters.region)?.name ?? null) : null} />
       )}
@@ -85,7 +87,7 @@ export default async function OpportunitiesPage(props: PageProps<"/opportunites"
         <UpgradeGate
           session={await getSession()}
           testId="search-limit"
-          title="Vos 15 recherches gratuites de la semaine sont utilisées"
+          title="Vos 5 recherches gratuites du jour sont utilisées"
           reason="Avec Pro, vos recherches sont illimitées."
           suite={`/opportunites?${new URLSearchParams(Object.entries(sp).flatMap(([k, v]) => (typeof v === "string" ? [[k, v]] : [])))}`}
         />

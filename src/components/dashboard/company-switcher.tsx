@@ -1,5 +1,7 @@
 "use client";
 
+import { SelectMenu } from "@/components/ui/select-menu";
+
 import { useTransition } from "react";
 import { switchCompany } from "@/app/actions/company";
 
@@ -9,7 +11,7 @@ export function CompanySwitcher({ companies, activeId }: { companies: { id: stri
   return (
     <label className="flex items-center gap-2 text-sm">
       <span className="text-slate-500">Entreprise :</span>
-      <select
+      <SelectMenu
         disabled={pending}
         value={activeId ?? ""}
         onChange={(e) => start(() => switchCompany(e.target.value))}
@@ -20,7 +22,7 @@ export function CompanySwitcher({ companies, activeId }: { companies: { id: stri
             {c.name}
           </option>
         ))}
-      </select>
+      </SelectMenu>
     </label>
   );
 }

@@ -1,3 +1,4 @@
+import { queueBoostPresentations } from "@/lib/visibility-send";
 import { cronPausedResponse } from "@/lib/cron-usage";
 import { NextResponse } from "next/server";
 import { startCronMeter } from "@/lib/cron-usage";
@@ -111,6 +112,19 @@ async function run(req: Request) {
   // Membres pionniers (revenus au moins 3 jours) : 3 mois de Pro offerts, une seule fois
   await step("membres-pionniers", async () => {
     const { data, error } = await createAdminClient().rpc("process_pioneer_rewards", { p_limit: 20 });
+    if (error) throw error;
+    return data;
+  });
+  // Offre « Visibilité » (validée par l'équipe) : fins d'offre et présentations du jour
+  await step("visibilite", async () => {
+    const { data, error } = await createAdminClient().rpc("process_visibility_boosts", { p_limit: 50 });
+    if (error) throw error;
+    // Puis présentations par e-mail aux entreprises de la base (file d'envoi de l'Outreach)
+    return { ...(data as object), ...(await queueBoostPresentations()) };
+  });
+  // Annonce du service « Visibilité » (inactive tant que le propriétaire ne l'a pas validée ; le mardi)
+  await step("annonce-visibilite", async () => {
+    const { data, error } = await createAdminClient().rpc("process_visibility_announce", { p_limit: 30 });
     if (error) throw error;
     return data;
   });

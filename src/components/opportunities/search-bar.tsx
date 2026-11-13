@@ -1,4 +1,5 @@
 import { Search } from "lucide-react";
+import { SelectMenu } from "@/components/ui/select-menu";
 import { getSectors } from "@/lib/queries/platform";
 import { OPPORTUNITY_TYPE_LABELS, type OpportunityType } from "@/lib/constants";
 import { REGIONS } from "@/lib/geo";
@@ -23,7 +24,7 @@ export async function SearchBar({ defaults = {} }: { defaults?: { q?: string; se
           <label htmlFor="hero-secteur" className="sr-only">
             Secteur d&apos;activité
           </label>
-          <select id="hero-secteur" name="secteur" defaultValue={defaults.secteur ?? ""} className={field}>
+          <SelectMenu id="hero-secteur" name="secteur" defaultValue={defaults.secteur ?? ""} className={field}>
             <option value="">Secteur d&apos;activité : tous</option>
             {groupSectors(await getSectors()).map(({ family, sectors }) => (
               <optgroup key={family.slug} label={family.label}>
@@ -34,33 +35,33 @@ export async function SearchBar({ defaults = {} }: { defaults?: { q?: string; se
                 ))}
               </optgroup>
             ))}
-          </select>
+          </SelectMenu>
         </div>
         <div>
           <label htmlFor="hero-dep" className="sr-only">
             Localisation
           </label>
-          <select id="hero-dep" name="region" defaultValue={defaults.region ?? ""} className={field}>
+          <SelectMenu id="hero-dep" name="region" defaultValue={defaults.region ?? ""} className={field}>
             <option value="">France entière</option>
             {REGIONS.map((r) => (
               <option key={r.slug} value={r.slug}>
                 {r.name}
               </option>
             ))}
-          </select>
+          </SelectMenu>
         </div>
         <div>
           <label htmlFor="hero-type" className="sr-only">
             Type d&apos;opportunité
           </label>
-          <select id="hero-type" name="type" defaultValue={defaults.type ?? ""} className={field}>
+          <SelectMenu id="hero-type" name="type" defaultValue={defaults.type ?? ""} className={field}>
             <option value="">Type d&apos;opportunité : tous</option>
             {(Object.keys(OPPORTUNITY_TYPE_LABELS) as OpportunityType[]).map((t) => (
               <option key={t} value={t}>
                 {OPPORTUNITY_TYPE_LABELS[t]}
               </option>
             ))}
-          </select>
+          </SelectMenu>
         </div>
         <button type="submit" className="btn-shine flex h-12 items-center justify-center gap-2 rounded-xl bg-teal px-6 font-semibold text-navy transition hover:bg-teal-400 hover:shadow-lg hover:shadow-teal/30">
           <Search className="size-5" aria-hidden /> Rechercher

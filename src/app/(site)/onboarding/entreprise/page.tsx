@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { freeLaunch } from "@/lib/billing/entitlements";
+import { baseReachLabel } from "@/lib/visibility-credit";
 import { CompanyForm } from "@/components/companies/company-form";
 import { ExpressCompanyForm } from "@/components/companies/express-form";
 import { CheckCircle2 } from "lucide-react";
@@ -44,7 +46,7 @@ export default async function OnboardingCompanyPage(props: PageProps<"/onboardin
           </Notice>
         )}
         <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8">
-          <ExpressCompanyForm sectors={sectors} places={places} next={next} />
+          <ExpressCompanyForm sectors={sectors} places={places} next={next} freeLaunch={await freeLaunch()} baseLabel={await baseReachLabel()} />
         </div>
         <p className="mt-6 text-center text-sm text-slate-600">
           SIREN, présentation, références : vous les ajouterez quand vous voudrez.{" "}
@@ -68,7 +70,7 @@ export default async function OnboardingCompanyPage(props: PageProps<"/onboardin
         </Notice>
       )}
       <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8">
-        <CompanyForm mode="create" places={places} departments={departments} sectors={sectors} next={next} />
+        <CompanyForm mode="create" places={places} departments={departments} sectors={sectors} next={next} freeLaunch={await freeLaunch()} baseLabel={await baseReachLabel()} />
       </div>
     </div>
   );

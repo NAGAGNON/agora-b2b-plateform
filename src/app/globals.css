@@ -393,13 +393,28 @@
 .animate-aurora {
   will-change: transform;
 }
+/* Halos : un dégradé radial donne le même rendu doux qu'un flou de 64 px, sans le recalcul du flou
+   à chaque image (c'est ce qui faisait « traîner » l'accueil au défilement sur ordinateur) */
+.animate-aurora,
+[class*="blur-3xl"],
+[class*="blur-2xl"] {
+  filter: none !important;
+  -webkit-mask-image: radial-gradient(closest-side, #000 15%, rgb(0 0 0 / 0.5) 55%, transparent 100%);
+  mask-image: radial-gradient(closest-side, #000 15%, rgb(0 0 0 / 0.5) 55%, transparent 100%);
+}
+/* Dégradés de titres : figés (l'animation du fond redessinait le texte à chaque image) */
+.text-gradient,
+.text-gradient-dark,
+.monogram-text {
+  animation: none !important;
+}
 /* Sections hors de l'écran : ni calculées ni dessinées (animations comprises) tant qu'on n'y arrive pas */
 .cv-auto {
   content-visibility: auto;
   contain-intrinsic-size: auto 900px;
 }
 /* Flou d'arrière-plan recalculé à chaque image pendant le défilement : réservé à l'en-tête */
-[class*="backdrop-blur"]:not(header) {
+[class*="backdrop-blur"] {
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
 }
@@ -408,6 +423,85 @@
     animation: none;
   }
   .text-gradient {
+    animation: none;
+  }
+}
+
+/* Listes déroulantes modernes : ouverture en douceur */
+.select-menu {
+  animation: select-menu-in 0.16s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@keyframes select-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .select-menu {
+    animation: none;
+  }
+}
+
+/* Tarifs : cartes en cascade, liseré lumineux de l'offre recommandée, prix qui s'anime au changement */
+.plan-in {
+  animation: plan-in 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@keyframes plan-in {
+  from {
+    transform: translateY(28px) scale(0.98);
+  }
+  to {
+    transform: none;
+  }
+}
+.plan-glow {
+  overflow: hidden;
+  isolation: isolate;
+  background: linear-gradient(135deg, var(--color-teal), var(--color-electric));
+}
+.plan-glow::before {
+  content: "";
+  position: absolute;
+  inset: -60%;
+  z-index: -1;
+  background: conic-gradient(from 0deg, var(--color-teal), #7dd3fc, var(--color-electric), #a78bfa, var(--color-teal));
+  animation: monogram-spin 6s linear infinite;
+  will-change: transform;
+}
+.price-pop {
+  display: inline-block;
+  animation: price-pop 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@keyframes price-pop {
+  from {
+    transform: translateY(10px) scale(0.92);
+  }
+  to {
+    transform: none;
+  }
+}
+/* FAQ en accordéon : ouverture en douceur */
+.faq-item[open] .faq-body {
+  animation: faq-open 0.3s ease-out;
+}
+@keyframes faq-open {
+  from {
+    transform: translateY(-6px);
+  }
+  to {
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .plan-in,
+  .plan-glow::before,
+  .price-pop,
+  .faq-item[open] .faq-body {
     animation: none;
   }
 }

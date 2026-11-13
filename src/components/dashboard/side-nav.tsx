@@ -18,6 +18,7 @@ import {
   CreditCard,
   Mail,
   Users,
+  Megaphone,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 
@@ -45,6 +46,7 @@ const GROUPS = [
     links: [
       { href: "/dashboard/alertes", label: "Alertes", icon: BellRing },
       { href: "/dashboard/veille", label: "Veille par e-mail", icon: Mail },
+      { href: "/dashboard/visibilite", label: "Visibilité", icon: Megaphone },
     ],
   },
   {

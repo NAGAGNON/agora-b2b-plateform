@@ -1,5 +1,7 @@
 "use client";
 
+import { SelectMenu } from "@/components/ui/select-menu";
+
 import { useActionState, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Archive, Check, Edit3, HelpCircle, Lock, MessageSquare, Pause, Play, RotateCcw, Send, Star, Trash2, X } from "lucide-react";
@@ -222,14 +224,14 @@ export function EvaluationForm({ proposalId, opportunityId, score, note }: { pro
       <input type="hidden" name="opportunityId" value={opportunityId} />
       <label className="text-xs font-semibold text-slate-600">
         Note /5
-        <select name="score" defaultValue={score ?? ""} className="mt-1 h-9 w-full rounded-lg border border-slate-300 bg-white px-2 text-sm">
+        <SelectMenu name="score" defaultValue={score ?? ""} className="mt-1 h-9 w-full rounded-lg border border-slate-300 bg-white px-2 text-sm">
           <option value="">—</option>
           {[0, 1, 2, 3, 4, 5].map((n) => (
             <option key={n} value={n}>
               {n}
             </option>
           ))}
-        </select>
+        </SelectMenu>
       </label>
       <label className="text-xs font-semibold text-slate-600">
         Évaluation interne (non visible du fournisseur)

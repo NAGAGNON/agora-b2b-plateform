@@ -1,3 +1,4 @@
+import { VisibilityPrompt } from "@/components/dashboard/visibility-prompt";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ExternalLink, FileText, Users, Inbox, Star, Scale } from "lucide-react";
@@ -119,6 +120,7 @@ export default async function ManageOpportunityPage(props: PageProps<"/dashboard
         </div>
       </div>
 
+      {metrics && o.status === "PUBLISHED" && o.company_id && <VisibilityPrompt companyId={o.company_id} opportunityId={o.id} />}
       {metrics && <NeedVisibility id={o.id} title={o.title} url={`${siteUrl()}/opportunites/${o.id}`} m={metrics} analyzed={analyzed} />}
       {o.status === "PAUSED" && (
         <Notice tone="warning" title="Besoin en pause">

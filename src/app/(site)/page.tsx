@@ -34,6 +34,8 @@ import { parseOpportunityFilters } from "@/lib/search-params";
 import { getMemberCompanies, getPlatformStats, getPublicActivity, getSectorLabels, getSectors, liveStats } from "@/lib/queries/platform";
 import { MemberProof } from "@/components/home/member-proof";
 import { PlatformProof } from "@/components/home/platform-proof";
+import { PricingPlans } from "@/components/billing/pricing-plans";
+import { cardTrial } from "@/lib/billing/card-trial";
 import { Testimonials } from "@/components/home/testimonials";
 import { pageMetadata } from "@/lib/seo";
 import { createClient } from "@/lib/supabase/server";
@@ -68,6 +70,7 @@ export default async function HomePage(props: PageProps<"/">) {
   const supabase = await createClient();
   // Base lente ou indisponible : chaque bloc a sa valeur de repli, la page s'affiche toujours
   const safe = <T, F = T>(p: PromiseLike<T>, fallback: F): Promise<T | F> => Promise.resolve(p).catch(() => fallback);
+  const trial = await cardTrial().catch(() => ({ enabled: false, days: 7 }));
   const [sectors, { data: analyses }, latest, stats, { data: growth }, labels, { total: needsTotal, rows: needsRows }, memberCompanies, activity] = await Promise.all([
     safe(getSectors(), []),
     safe(supabase.from("articles").select("slug, title, description, published_at").eq("status", "PUBLISHED").order("published_at", { ascending: false }).limit(3), { data: null }),
@@ -194,6 +197,23 @@ export default async function HomePage(props: PageProps<"/">) {
 
       {/* Avis réels de membres (affichés à partir de 2 avis publiés, relus, avec accord) */}
       <Testimonials />
+
+      {/* Lancement payant ouvert : les offres apparaissent sur l'accueil */}
+      {trial.enabled && (
+        <section aria-labelledby="offres" className="cv-auto container-page py-12 sm:py-16" data-testid="home-pricing">
+          <p className="text-sm font-semibold tracking-wide text-teal-700 uppercase">Nos offres</p>
+          <h2 id="offres" className="mt-1 text-2xl font-extrabold text-navy sm:text-3xl">
+            {trial.days} jours pour l&apos;essayer, sans engagement
+          </h2>
+          <p className="mt-2 max-w-2xl text-slate-600">Rien n&apos;est débité avant la fin de l&apos;essai. Résiliable à tout moment depuis votre espace.</p>
+          <PricingPlans launch={false} paidOpen trialDays={trial.days} className="mt-8" />
+          <p className="mt-6 text-center text-sm">
+            <Link href="/tarifs" className="font-semibold text-teal-700 hover:underline">
+              Comparer les offres en détail
+            </Link>
+          </p>
+        </section>
+      )}
 
       {/* Besoins publiés directement par des entreprises inscrites : mis en avant */}
       {clientNeeds.length > 0 && (

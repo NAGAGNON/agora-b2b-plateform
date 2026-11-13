@@ -28,13 +28,13 @@ export const PLANS: PlanInfo[] = [
     tagline: "Pour découvrir LinkProB2B et publier un premier besoin.",
     highlights: [
       "Profil entreprise et annuaire",
-      "15 recherches par semaine",
+      "5 recherches par jour",
       "Les 3 meilleures offres recommandées",
-      "1 alerte e-mail (3 offres par envoi)",
+      "1 alerte e-mail (2 offres par envoi)",
       "Fiche synthèse : le résumé de chaque appel d'offres",
       "Besoins des entreprises 48 h après les membres Pro",
-      "Historique de 5 annonces par acheteur",
-      "1 besoin actif · 10 favoris · 5 demandes de contact par mois",
+      "Historique de 3 annonces par acheteur",
+      "1 besoin actif · 3 favoris · 20 demandes de contact par mois",
     ],
     cta: "Créer mon compte gratuitement",
   },
@@ -53,6 +53,7 @@ export const PLANS: PlanInfo[] = [
       "Historique complet des acheteurs",
       "Pipeline commercial, étapes de la fiche à cocher",
       "Besoins actifs et favoris illimités · 100 demandes de contact par mois",
+      "Visibilité : votre entreprise présentée à 100 entreprises ciblées chaque mois",
     ],
     cta: "Passer à Pro",
     popular: true,
@@ -63,7 +64,14 @@ export const PLANS: PlanInfo[] = [
     priceHT: 59,
     yearlyPriceHT: 590,
     tagline: "Pour les équipes commerciales et achats.",
-    highlights: ["Tout Pro, plus :", "Utilisateurs multiples", "300 demandes de contact par mois", "Badge Business sur votre profil", "Statistiques avancées"],
+    highlights: [
+      "Tout Pro, plus :",
+      "Visibilité : présentée à 400 entreprises ciblées chaque mois",
+      "Utilisateurs multiples",
+      "300 demandes de contact par mois",
+      "Badge Business sur votre profil",
+      "Statistiques avancées",
+    ],
     cta: "Passer à Business",
   },
 ];
@@ -87,10 +95,11 @@ export const yearlyMonthlyHT = (p: PlanInfo) => Math.round((p.yearlyPriceHT / 12
 /** Tableau comparatif (true = inclus, false = non inclus, texte = limite). */
 export const COMPARISON: { label: string; values: [string | boolean, string | boolean, string | boolean] }[] = [
   { label: "Profil entreprise et annuaire", values: [true, true, true] },
-  { label: "Recherche d'opportunités (dont marchés publics BOAMP / TED)", values: [true, true, true] },
+  { label: "Recherches d'opportunités", values: ["5 / jour", "Illimitées", "Illimitées"] },
   { label: "Besoins actifs publiés", values: ["1", "Illimités", "Illimités"] },
-  { label: "Demandes de contact (intérêts et réponses)", values: ["5 / mois", "100 / mois", "300 / mois"] },
-  { label: "Favoris", values: ["10", "Illimités", "Illimités"] },
+  { label: "Demandes de contact (intérêts et réponses)", values: ["20 / mois", "100 / mois", "300 / mois"] },
+  { label: "Favoris", values: ["3", "Illimités", "Illimités"] },
+  { label: "Visibilité : entreprises ciblées à qui vous êtes présenté", values: ["Option payante", "100 / mois inclus", "400 / mois inclus"] },
   { label: "Alertes e-mail", values: ["1", "Illimitées", "Illimitées"] },
   { label: "Messagerie avec les entreprises", values: [true, true, true] },
   { label: "Recommandations avec score de pertinence", values: [false, true, true] },
@@ -111,3 +120,6 @@ export const LIMIT_LABEL: Record<string, string> = {
   members: "utilisateurs",
   recommendations: "recommandations",
 };
+
+/** Présentations « Visibilité » incluses chaque mois selon l'offre (au-delà : option payante). */
+export const VISIBILITY_INCLUDED: Record<PlanCode, number> = { FREE: 0, PRO: 100, BUSINESS: 400 };
