@@ -58,6 +58,12 @@ export default async function VisibilityAdminPage() {
                   <td className="px-4 py-3 text-slate-700">
                     {b.daily_presentations > 0 && <p>{b.daily_presentations} / jour × {b.duration_days} j</p>}
                     {b.featured_days > 0 && <p>À la une : {b.featured_days} j</p>}
+                    {(() => {
+                      const t = (b.targeting ?? {}) as { sectors?: string[]; regions?: string[]; sizes?: string[]; kinds?: string[] };
+                      const all = [...(t.regions ?? []), ...(t.sizes ?? []), ...(t.kinds ?? []), ...(t.sectors ?? [])];
+                      return all.length ? <p className="text-xs text-slate-500">Ciblage : {all.join(", ")}</p> : <p className="text-xs text-slate-500">Ciblage : toutes les entreprises</p>;
+                    })()}
+                    {b.included_presentations > 0 && <p className="text-xs text-teal-700">{b.included_presentations} incluses dans l&apos;abonnement</p>}
                     {b.status !== "PENDING" && <p className="text-slate-500">{presented.get(b.id) ?? 0} présentation(s)</p>}
                   </td>
                   <td className="px-4 py-3">{b.free_launch ? "Gratuit (lancement)" : `${formatEuros(Number(b.price_ht))} HT`}</td>

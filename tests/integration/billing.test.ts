@@ -130,12 +130,12 @@ describe("offre Gratuite : limites appliquées côté serveur", () => {
     expect(error?.hint).toBe("PLAN_LIMIT:active_needs");
   });
 
-  it("10 favoris et 1 alerte", async () => {
-    for (const id of opps.slice(0, 7)) expect((await owner.client.from("favorites").insert({ user_id: owner.id, opportunity_id: id })).error).toBeNull();
+  it("5 favoris et 1 alerte", async () => {
+    for (const id of opps.slice(0, 3)) expect((await owner.client.from("favorites").insert({ user_id: owner.id, opportunity_id: id })).error).toBeNull();
     const { data: cos } = await admin.from("companies").select("id").neq("id", coId).limit(4);
-    for (const c of (cos ?? []).slice(0, 3)) await owner.client.from("favorites").insert({ user_id: owner.id, company_id: c.id });
+    for (const c of (cos ?? []).slice(0, 2)) await owner.client.from("favorites").insert({ user_id: owner.id, company_id: c.id });
     const { count } = await admin.from("favorites").select("id", { count: "exact", head: true }).eq("user_id", owner.id);
-    if ((count ?? 0) >= 10) {
+    if ((count ?? 0) >= 5) {
       const extra = (cos ?? [])[3];
       const { error } = await owner.client.from("favorites").insert({ user_id: owner.id, company_id: extra?.id ?? otherCo });
       expect(error?.hint).toBe("PLAN_LIMIT:favorites");
@@ -150,16 +150,16 @@ describe("offre Gratuite : limites appliquées côté serveur", () => {
     expect(error?.hint).toBe("PLAN_LIMIT:pipeline");
   });
 
-  it("5 demandes de contact par mois ; renvoyer une demande existante reste possible", async () => {
-    for (const id of opps.slice(0, 5)) expect((await owner.client.rpc("express_interest", { p_opportunity_id: id, p_company_id: coId })).error).toBeNull();
+  it("3 demandes de contact par mois ; renvoyer une demande existante reste possible", async () => {
+    for (const id of opps.slice(0, 3)) expect((await owner.client.rpc("express_interest", { p_opportunity_id: id, p_company_id: coId })).error).toBeNull();
     expect((await owner.client.rpc("express_interest", { p_opportunity_id: opps[0], p_company_id: coId, p_message: "Précision" })).error).toBeNull();
-    const { error } = await owner.client.rpc("express_interest", { p_opportunity_id: opps[5], p_company_id: coId });
+    const { error } = await owner.client.rpc("express_interest", { p_opportunity_id: opps[3], p_company_id: coId });
     expect(error?.hint).toBe("PLAN_LIMIT:contact_requests_month");
   });
 
   it("expose l'utilisation de l'offre aux seuls membres", async () => {
     const { data } = await owner.client.rpc("company_usage", { p_company_id: coId });
-    expect(data).toMatchObject({ plan: "FREE", active_needs: 1, contact_requests_month: 5, alerts: 1 });
+    expect(data).toMatchObject({ plan: "FREE", active_needs: 1, contact_requests_month: 3, alerts: 1 });
     const { error } = await other.client.rpc("company_usage", { p_company_id: coId });
     expect(error?.code).toBe("42501");
   });

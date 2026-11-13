@@ -5,7 +5,7 @@ import type { Database } from "@/lib/database.types";
 import { siteUrl } from "@/lib/seo";
 import { LEGAL } from "@/lib/legal";
 import { clip, formatDate } from "@/lib/format";
-import { fillTemplate, renderNeedEmail, renderOutreachEmail, type EmailOpportunity } from "@/lib/outreach/email";
+import { fillTemplate, renderCompanyPresentationEmail, renderNeedEmail, renderOutreachEmail, type EmailOpportunity } from "@/lib/outreach/email";
 import { recipientToken } from "@/lib/outreach/token";
 
 export type Db = SupabaseClient<Database>;
@@ -214,6 +214,7 @@ export function templateVars(b: RecipientBundle, ref: Referentials, opps: Recipi
 /** E-mail complet d'un destinataire (aperçu ou envoi). */
 export function buildEmail(b: RecipientBundle, ref: Referentials, { withPixel = true }: { withPixel?: boolean } = {}) {
   if (b.campaign.kind === "NEED") return buildNeedEmail(b, ref, { withPixel });
+  if (b.campaign.kind === "BOOST") return buildPresentationEmail(b, { withPixel });
   const urls = outreachUrls(b.recipient.id);
   const opps = b.opportunities.filter((o) => !o.excluded);
   const vars = templateVars(b, ref, opps);
@@ -258,6 +259,33 @@ export function windowStart(days: number): Date {
   const d = new Date(Date.now() - (days - 1) * 86_400_000);
   d.setUTCHours(0, 0, 0, 0);
   return d;
+}
+
+/** Fiche de l'entreprise présentée (offre « Visibilité »), enregistrée sur la campagne au moment de sa création. */
+export type PresentedCompany = { name: string; slug: string; tagline: string | null; city: string | null; activities: string[]; description: string | null; sectorSlug: string | null };
+
+/** E-mail de présentation d'une entreprise inscrite (offre « Visibilité » validée par l'équipe). */
+function buildPresentationEmail(b: RecipientBundle, { withPixel }: { withPixel: boolean }) {
+  const urls = outreachUrls(b.recipient.id);
+  let p: PresentedCompany;
+  try {
+    p = JSON.parse(b.campaign.intro_template) as PresentedCompany;
+  } catch {
+    p = { name: "Une entreprise", slug: "", tagline: null, city: null, activities: [], description: null, sectorSlug: null };
+  }
+  const activity = b.prospect.naf_label ?? (b.prospect.naf_code ? `code NAF ${b.prospect.naf_code}` : "votre activité");
+  const email = renderCompanyPresentationEmail({
+    companyName: b.prospect.name,
+    subject: b.recipient.subject ?? `${p.name} souhaite se présenter à ${b.prospect.name}`,
+    presented: { ...p, url: `${siteUrl()}/entreprises/${p.slug}?utm_source=linkprob2b&utm_medium=email&utm_campaign=visibilite`, description: p.description ? clip(p.description, 260) : null },
+    unsubscribeUrl: urls.unsubscribePage,
+    pixelUrl: withPixel ? urls.pixel : undefined,
+    siteUrl: siteUrl(),
+    reason: `Vous recevez ce message car l'activité de ${b.prospect.name} (${activity})${b.prospect.department_code ? ` et sa localisation (${b.prospect.department_code})` : ""} correspondent aux entreprises que ${p.name} souhaite rencontrer. Il s'agit d'un message ponctuel : nous limitons volontairement la fréquence de ces envois.`,
+    dataSource: `Coordonnées professionnelles de votre entreprise : ${b.prospect.source}${b.prospect.email_source ? ` ; adresse e-mail : ${b.prospect.email_source}` : ""}.`,
+    sender: senderLines(),
+  });
+  return { ...email, urls, opportunities: [] as EmailOpportunity[] };
 }
 
 /** E-mail d'une campagne dédiée à un besoin (une seule annonce, action « Envoyer un message »). */

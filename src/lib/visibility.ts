@@ -34,3 +34,15 @@ export const BOOST_STATUS_LABEL: Record<string, string> = {
 
 /** Offre proposée à la création de l'entreprise (cochée par la personne, jamais d'office). */
 export const STARTER_BOOST: { daily: Daily; featured: Featured; duration: Duration } = { daily: 10, featured: 7, duration: 14 };
+
+/**
+ * Prix après déduction des présentations incluses dans l'abonnement (Pro / Business) : les présentations
+ * couvertes ne sont pas facturées ; la mise en avant « À la une » reste au prix normal.
+ */
+export function boostPriceWithIncluded(daily: Daily, featured: Featured, duration: Duration, includedLeft: number) {
+  const total = totalPresentations(daily, duration);
+  const covered = Math.max(0, Math.min(includedLeft, total));
+  const perPresentation = daily ? PRESENTATION_DAY_PRICE[daily] / daily : 0;
+  const price = Math.max(0, Math.round((boostPrice(daily, featured, duration) - covered * perPresentation) * 100) / 100);
+  return { price, covered };
+}

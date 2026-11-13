@@ -733,24 +733,24 @@ isOneToOne: false
                   Relationships: []
                 },"visibility_boosts": {
                   Row: {
-                    "id": string,"company_id": string,"target": string,"opportunity_id": string | null,"daily_presentations": number,"featured_days": number,"duration_days": number,"price_ht": number,"free_launch": boolean,"status": string,"starts_at": string | null,"ends_at": string | null,"featured_until": string | null,"requested_by": string | null,"reviewed_by": string | null,"reviewed_at": string | null,"note": string | null,"created_at": string
+                    "id": string,"company_id": string,"target": string,"opportunity_id": string | null,"daily_presentations": number,"featured_days": number,"duration_days": number,"price_ht": number,"free_launch": boolean,"status": string,"starts_at": string | null,"ends_at": string | null,"featured_until": string | null,"requested_by": string | null,"reviewed_by": string | null,"reviewed_at": string | null,"note": string | null,"created_at": string,"targeting": Json,"included_presentations": number
                   }
                   Insert: {
-                    "id"?: string,"company_id": string,"target": string,"opportunity_id"?: string | null,"daily_presentations"?: number,"featured_days"?: number,"duration_days"?: number,"price_ht"?: number,"free_launch"?: boolean,"status"?: string,"starts_at"?: string | null,"ends_at"?: string | null,"featured_until"?: string | null,"requested_by"?: string | null,"reviewed_by"?: string | null,"reviewed_at"?: string | null,"note"?: string | null,"created_at"?: string
+                    "id"?: string,"company_id": string,"target": string,"opportunity_id"?: string | null,"daily_presentations"?: number,"featured_days"?: number,"duration_days"?: number,"price_ht"?: number,"free_launch"?: boolean,"status"?: string,"starts_at"?: string | null,"ends_at"?: string | null,"featured_until"?: string | null,"requested_by"?: string | null,"reviewed_by"?: string | null,"reviewed_at"?: string | null,"note"?: string | null,"created_at"?: string,"targeting"?: Json,"included_presentations"?: number
                   }
                   Update: {
-                    "id"?: string,"company_id"?: string,"target"?: string,"opportunity_id"?: string | null,"daily_presentations"?: number,"featured_days"?: number,"duration_days"?: number,"price_ht"?: number,"free_launch"?: boolean,"status"?: string,"starts_at"?: string | null,"ends_at"?: string | null,"featured_until"?: string | null,"requested_by"?: string | null,"reviewed_by"?: string | null,"reviewed_at"?: string | null,"note"?: string | null,"created_at"?: string
+                    "id"?: string,"company_id"?: string,"target"?: string,"opportunity_id"?: string | null,"daily_presentations"?: number,"featured_days"?: number,"duration_days"?: number,"price_ht"?: number,"free_launch"?: boolean,"status"?: string,"starts_at"?: string | null,"ends_at"?: string | null,"featured_until"?: string | null,"requested_by"?: string | null,"reviewed_by"?: string | null,"reviewed_at"?: string | null,"note"?: string | null,"created_at"?: string,"targeting"?: Json,"included_presentations"?: number
                   }
                   Relationships: []
                 },"boost_presentations": {
                   Row: {
-                    "id": string,"boost_id": string,"presented_to": string,"channel": string,"created_at": string
+                    "id": string,"boost_id": string,"presented_to": string | null,"prospect_id": string | null,"channel": string,"created_at": string
                   }
                   Insert: {
-                    "id"?: string,"boost_id": string,"presented_to": string,"channel"?: string,"created_at"?: string
+                    "id"?: string,"boost_id": string,"presented_to"?: string | null,"prospect_id"?: string | null,"channel"?: string,"created_at"?: string
                   }
                   Update: {
-                    "id"?: string,"boost_id"?: string,"presented_to"?: string,"channel"?: string,"created_at"?: string
+                    "id"?: string,"boost_id"?: string,"presented_to"?: string | null,"prospect_id"?: string | null,"channel"?: string,"created_at"?: string
                   }
                   Relationships: []
                 },"testimonials": {
@@ -931,13 +931,13 @@ isOneToOne: false
                   ]
                 },"outreach_campaigns": {
                   Row: {
-                    "campaign_date": string,"created_at": string,"dry_run": boolean,"error": string | null,"id": string,"intro_template": string,"kind": string,"launched_by": string | null,"min_score": number,"opportunity_id": string | null,"report": string | null,"sent_at": string | null,"stats": NonNullable<Json>,"status": string,"subject_template": string,"updated_at": string,"validated_at": string | null,"validated_by": string | null
+                    "campaign_date": string,"boost_id": string | null,"created_at": string,"dry_run": boolean,"error": string | null,"id": string,"intro_template": string,"kind": string,"launched_by": string | null,"min_score": number,"opportunity_id": string | null,"report": string | null,"sent_at": string | null,"stats": NonNullable<Json>,"status": string,"subject_template": string,"updated_at": string,"validated_at": string | null,"validated_by": string | null
                   }
                   Insert: {
-                    "campaign_date": string,"created_at"?: string,"dry_run"?: boolean,"error"?: string | null,"id"?: string,"intro_template": string,"kind"?: string,"launched_by"?: string | null,"min_score": number,"opportunity_id"?: string | null,"report"?: string | null,"sent_at"?: string | null,"stats"?: NonNullable<Json>,"status"?: string,"subject_template": string,"updated_at"?: string,"validated_at"?: string | null,"validated_by"?: string | null
+                    "campaign_date": string,"boost_id"?: string | null,"created_at"?: string,"dry_run"?: boolean,"error"?: string | null,"id"?: string,"intro_template": string,"kind"?: string,"launched_by"?: string | null,"min_score": number,"opportunity_id"?: string | null,"report"?: string | null,"sent_at"?: string | null,"stats"?: NonNullable<Json>,"status"?: string,"subject_template": string,"updated_at"?: string,"validated_at"?: string | null,"validated_by"?: string | null
                   }
                   Update: {
-                    "campaign_date"?: string,"created_at"?: string,"dry_run"?: boolean,"error"?: string | null,"id"?: string,"intro_template"?: string,"kind"?: string,"launched_by"?: string | null,"min_score"?: number,"opportunity_id"?: string | null,"report"?: string | null,"sent_at"?: string | null,"stats"?: NonNullable<Json>,"status"?: string,"subject_template"?: string,"updated_at"?: string,"validated_at"?: string | null,"validated_by"?: string | null
+                    "campaign_date"?: string,"boost_id"?: string | null,"created_at"?: string,"dry_run"?: boolean,"error"?: string | null,"id"?: string,"intro_template"?: string,"kind"?: string,"launched_by"?: string | null,"min_score"?: number,"opportunity_id"?: string | null,"report"?: string | null,"sent_at"?: string | null,"stats"?: NonNullable<Json>,"status"?: string,"subject_template"?: string,"updated_at"?: string,"validated_at"?: string | null,"validated_by"?: string | null
                   }
                   Relationships: [
                     {
@@ -1856,13 +1856,25 @@ isOneToOne: false
 { Args: { "p_limit"?: number }; Returns: Json
                            },
 "request_visibility_boost":
-{ Args: { "p_company_id": string; "p_target": string; "p_opportunity_id": string | null; "p_daily": number; "p_featured_days": number; "p_duration_days": number; "p_price_ht": number }; Returns: string
+{ Args: { "p_company_id": string; "p_target": string; "p_opportunity_id": string | null; "p_daily": number; "p_featured_days": number; "p_duration_days": number; "p_price_ht": number; "p_targeting"?: Json }; Returns: string
                            },
 "cancel_visibility_boost":
 { Args: { "p_id": string }; Returns: undefined
                            },
 "review_visibility_boost":
 { Args: { "p_id": string; "p_approve": boolean; "p_note"?: string | null }; Returns: undefined
+                           },
+"boost_audience":
+{ Args: { "p_company_id": string; "p_targeting"?: Json }; Returns: Json
+                           },
+"boost_audience_count":
+{ Args: { "p_company_id": string; "p_targeting"?: Json }; Returns: number
+                           },
+"boost_pick_prospects":
+{ Args: { "p_boost_id": string; "p_limit": number; "p_min_days"?: number }; Returns: { "id": string,"email": string }[]
+                           },
+"process_visibility_announce":
+{ Args: { "p_limit"?: number }; Returns: Json
                            },
 "process_visibility_boosts":
 { Args: { "p_limit"?: number }; Returns: Json

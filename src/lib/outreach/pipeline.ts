@@ -638,10 +638,11 @@ async function sendQueue(db: Db, deadline: number, sleep: (ms: number) => Promis
   let needHourRemaining = Math.max(0, settings.hourly_send_cap - needLastHour);
   const result = { sent: 0, simulated: 0, failed: 0, skipped: 0, remaining_cap: Math.min(totalRemaining, hourRemaining) + Math.min(needRemaining, needHourRemaining), stopped: null as string | null };
 
-  const { data: listed } = await db.from("outreach_campaigns").select("id, dry_run, kind").in("status", ["VALIDATED", "SENDING"]).order("campaign_date");
+  const { data: listed } = await db.from("outreach_campaigns").select("id, dry_run, kind, boost_id").in("status", ["VALIDATED", "SENDING"]).order("campaign_date");
   if (!listed?.length) return result;
   // Besoins publiés par des entreprises inscrites d'abord (mise en relation attendue)
-  const campaigns = [...listed.filter((c) => c.kind === "NEED"), ...listed.filter((c) => c.kind !== "NEED")];
+  // puis présentations d'entreprises (offre « Visibilité » validée), puis prospection habituelle
+  const campaigns = [...listed.filter((c) => c.kind === "NEED"), ...listed.filter((c) => c.kind === "BOOST"), ...listed.filter((c) => c.kind !== "NEED" && c.kind !== "BOOST")];
   const ref = await loadReferentials(db);
   const blockers = realSendBlockers(settings);
   const supp = await loadSuppressions(db);
@@ -660,7 +661,9 @@ async function sendQueue(db: Db, deadline: number, sleep: (ms: number) => Promis
       result.stopped = `envoi réel suspendu : ${blockers[0]}`;
       continue;
     }
-    const need = c.kind === "NEED";
+    // Présentations « Visibilité » : même quota que les besoins publiés (service rendu à une entreprise inscrite)
+    const need = c.kind === "NEED" || c.kind === "BOOST";
+    const boost = c.kind === "BOOST";
     const capped = c.kind === "AUTO";
     // Besoins : quota quotidien propre à chaque besoin (chaque besoin publié reçoit sa part, chaque jour)
     if (need && !simulate) {
@@ -693,8 +696,8 @@ async function sendQueue(db: Db, deadline: number, sleep: (ms: number) => Promis
         // ---- Contrôles avant CHAQUE envoi
         const email = b.recipient.email?.trim().toLowerCase() ?? null;
         const opps = b.opportunities.filter((o) => !o.excluded && o.status === "PUBLISHED" && (!o.response_deadline || new Date(o.response_deadline).getTime() > Date.now()));
-        if (!email || opps.length === 0) {
-          await skip("EXCLUDED", "Plus aucune opportunité ouverte");
+        if (!email || (!boost && opps.length === 0)) {
+          await skip("EXCLUDED", boost ? "Adresse e-mail manquante" : "Plus aucune opportunité ouverte");
           continue;
         }
         const domain = email.split("@")[1] ?? "";
@@ -757,6 +760,9 @@ async function sendQueue(db: Db, deadline: number, sleep: (ms: number) => Promis
           await db.from("outreach_recipients").update({ status: "SENT", sent_at: done, provider_id: r.id ?? null, error: null, ...trace }).eq("id", rid);
           await db.from("outreach_prospects").update({ last_contacted_at: done, contacts_count: b.prospect.contacts_count + 1, updated_at: done }).eq("id", b.prospect.id);
           await db.from("outreach_events").insert({ recipient_id: rid, campaign_id: c.id, type: "SENT", meta: { transport: r.transport ?? null } });
+          // Offre « Visibilité » : présentation comptée dans le suivi de l'entreprise
+          if (boost && c.boost_id)
+            await db.from("boost_presentations").upsert({ boost_id: c.boost_id, prospect_id: b.prospect.id, channel: "PROSPECT" }, { onConflict: "boost_id,prospect_id", ignoreDuplicates: true });
           result.sent++;
           if (need) {
             needRemaining--;
