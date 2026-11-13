@@ -8,6 +8,7 @@ import { logServerError } from "@/lib/errors";
 import { rateLimit } from "@/lib/rate-limit";
 import { DAILY_OPTIONS, DURATION_OPTIONS, FEATURED_OPTIONS, boostPriceWithIncluded, type Daily, type Duration, type Featured } from "@/lib/visibility";
 import { includedPresentationsLeft } from "@/lib/visibility-credit";
+import { SECTOR_PROFILES } from "@/lib/outreach/profiles";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { ActionResult } from "@/lib/validation";
 
@@ -23,8 +24,11 @@ const schema = z
 /** Ciblage choisi (métiers, régions, tailles, types d'entreprise), valeurs limitées et contrôlées. */
 function readTargeting(fd: FormData) {
   const list = (k: string, re: RegExp, max = 40) => [...new Set(fd.getAll(k).map(String).filter((v) => re.test(v)))].slice(0, max);
+  const sectors = list("t_sector", /^[a-z0-9-]{2,60}$/);
   return {
-    sectors: list("t_sector", /^[a-z0-9-]{2,60}$/),
+    sectors,
+    // Codes NAF de ces métiers : la plupart des entreprises de la base ont un code NAF, pas de métier enregistré
+    nafs: [...new Set(sectors.flatMap((s) => SECTOR_PROFILES[s]?.naf ?? []))],
     regions: list("t_region", /^[\p{L} '-]{2,60}$/u),
     sizes: list("t_size", /^(INDEPENDANT|TPE|PME|ETI|GE)$/),
     kinds: list("t_kind", /^(SUPPLIER|BUYER|BOTH)$/),

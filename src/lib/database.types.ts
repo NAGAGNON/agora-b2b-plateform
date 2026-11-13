@@ -1876,6 +1876,9 @@ isOneToOne: false
 "process_visibility_announce":
 { Args: { "p_limit"?: number }; Returns: Json
                            },
+"public_prospect_reach":
+{ Args: Record<PropertyKey, never>; Returns: Json
+                           },
 "process_visibility_boosts":
 { Args: { "p_limit"?: number }; Returns: Json
                            },

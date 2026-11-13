@@ -11,7 +11,7 @@ import { STARTER_BOOST, boostPrice } from "@/lib/visibility";
  * chaque jour + « À la une » de l'annuaire). Jamais activée d'office ; offerte pendant la phase de
  * lancement, payante ensuite. La demande est validée par l'équipe avant de démarrer.
  */
-export function VisibilityOptIn({ freeLaunch }: { freeLaunch: boolean }) {
+export function VisibilityOptIn({ freeLaunch, baseLabel }: { freeLaunch: boolean; baseLabel?: string | null }) {
   const [on, setOn] = useState(false);
   const price = boostPrice(STARTER_BOOST.daily, STARTER_BOOST.featured, STARTER_BOOST.duration);
   const total = STARTER_BOOST.daily * STARTER_BOOST.duration;
@@ -19,7 +19,7 @@ export function VisibilityOptIn({ freeLaunch }: { freeLaunch: boolean }) {
     <div className={cn("relative rounded-3xl p-[2px] transition-all duration-500", on ? "plan-glow shadow-xl shadow-teal/25" : "bg-slate-200")} data-testid="visibility-opt-in">
       <label className={cn("relative block cursor-pointer overflow-hidden rounded-[1.4rem] p-5 transition-colors duration-500", on ? "bg-navy text-white" : "bg-white text-navy")}>
         <div aria-hidden className={cn("pointer-events-none absolute -top-16 -right-16 size-48 rounded-full bg-teal/30 blur-3xl transition-opacity duration-500", on ? "opacity-100" : "opacity-0")} />
-        <input type="checkbox" name="visibility" value="1" checked={on} onChange={(e) => setOn(e.target.checked)} className="peer sr-only" />
+        <input type="checkbox" name="visibility" value="1" aria-label="Faire connaître mon entreprise" checked={on} onChange={(e) => setOn(e.target.checked)} className="peer sr-only" />
         <div className="relative flex items-start gap-4">
           <span className={cn("flex size-12 shrink-0 items-center justify-center rounded-2xl transition-all duration-500", on ? "rotate-[-8deg] bg-teal text-navy" : "bg-teal-50 text-teal-700")}>
             <Megaphone className="size-6" aria-hidden />
@@ -33,6 +33,7 @@ export function VisibilityOptIn({ freeLaunch }: { freeLaunch: boolean }) {
             </span>
             <span className={cn("mt-1 block text-sm", on ? "text-slate-300" : "text-slate-600")}>
               Nous présentons votre entreprise aux entreprises de votre métier et de votre région, dès que l&apos;équipe a validé la demande.
+              {baseLabel && <span className={cn("mt-1 block font-semibold", on ? "text-teal" : "text-teal-700")}>{baseLabel}.</span>}
             </span>
           </span>
           {/* Interrupteur */}

@@ -36,7 +36,7 @@ export type CompanyFormValues = {
 type Place = { name: string; postal_code: string; department_code: string };
 type Dept = { code: string; name: string };
 
-export function CompanyForm({ mode, values = {}, places, departments, sectors, next, freeLaunch = true }: { mode: "create" | "edit"; values?: CompanyFormValues; places: Place[]; departments: Dept[]; sectors: SectorOption[]; next?: string; freeLaunch?: boolean }) {
+export function CompanyForm({ mode, values = {}, places, departments, sectors, next, freeLaunch = true, baseLabel }: { mode: "create" | "edit"; values?: CompanyFormValues; places: Place[]; departments: Dept[]; sectors: SectorOption[]; next?: string; freeLaunch?: boolean; baseLabel?: string | null }) {
   const [state, action] = useActionState(mode === "create" ? createCompany : updateCompanyProfile, null);
   const fe = state && !state.ok ? state.fieldErrors : undefined;
   const full = mode === "edit";
@@ -181,7 +181,7 @@ export function CompanyForm({ mode, values = {}, places, departments, sectors, n
       )}
       {state && !state.ok && <Notice tone="error">{state.error}</Notice>}
       {state?.ok && <Notice tone="success">{state.message}</Notice>}
-      {mode === "create" && <VisibilityOptIn freeLaunch={freeLaunch} />}
+      {mode === "create" && <VisibilityOptIn freeLaunch={freeLaunch} baseLabel={baseLabel} />}
       <SubmitButton size="lg" className="w-full sm:w-auto" pendingLabel="Enregistrement…">
         {mode === "create" ? "Créer mon entreprise" : "Enregistrer le profil"}
       </SubmitButton>

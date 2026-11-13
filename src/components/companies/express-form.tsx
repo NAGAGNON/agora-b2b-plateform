@@ -12,7 +12,7 @@ import { SKILL_CATALOG } from "@/lib/skill-catalog";
 type Place = { name: string; postal_code: string };
 
 /** Profil express : 4 informations pour recevoir les offres qui vous correspondent (le reste se complète plus tard). */
-export function ExpressCompanyForm({ sectors, places, next, defaultName, freeLaunch = true }: { sectors: SectorOption[]; places: Place[]; next?: string; defaultName?: string; freeLaunch?: boolean }) {
+export function ExpressCompanyForm({ sectors, places, next, defaultName, freeLaunch = true, baseLabel }: { sectors: SectorOption[]; places: Place[]; next?: string; defaultName?: string; freeLaunch?: boolean; baseLabel?: string | null }) {
   // React vide le formulaire après chaque envoi : on garde la saisie pour la réafficher en cas d'erreur
   const [last, setLast] = useState<{ n: number; v: Record<string, string>; skills: string[] }>({ n: 0, v: {}, skills: [] });
   const [sector, setSector] = useState("");
@@ -99,7 +99,7 @@ export function ExpressCompanyForm({ sectors, places, next, defaultName, freeLau
         </Field>
       </div>
       {state && !state.ok && <Notice tone="error">{state.error}</Notice>}
-      <VisibilityOptIn freeLaunch={freeLaunch} />
+      <VisibilityOptIn freeLaunch={freeLaunch} baseLabel={baseLabel} />
       <SubmitButton size="lg" full pendingLabel="Création…">
         Voir les offres pour mon entreprise
       </SubmitButton>

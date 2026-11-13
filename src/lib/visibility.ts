@@ -46,3 +46,11 @@ export function boostPriceWithIncluded(daily: Daily, featured: Featured, duratio
   const price = Math.max(0, Math.round((boostPrice(daily, featured, duration) - covered * perPresentation) * 100) / 100);
   return { price, covered };
 }
+
+/** Argument commercial honnête : taille réelle de la base (arrondie vers le bas, jamais gonflée). */
+export function reachLabel(reach: { total: number; reachable: number } | null): string | null {
+  if (!reach || !reach.total) return null;
+  const down = (n: number) => (n >= 100_000 ? Math.floor(n / 10_000) * 10_000 : n >= 10_000 ? Math.floor(n / 1_000) * 1_000 : n);
+  const nf = (n: number) => n.toLocaleString("fr-FR");
+  return `Plus de ${nf(down(reach.total))} entreprises françaises référencées, dont ${nf(down(reach.reachable))} joignables par e-mail`;
+}

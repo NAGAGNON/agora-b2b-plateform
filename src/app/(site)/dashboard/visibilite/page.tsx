@@ -9,7 +9,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { freeLaunch } from "@/lib/billing/entitlements";
 import { PLAN_LABEL, type PlanCode } from "@/lib/billing/plans";
-import { BOOST_STATUS_LABEL, totalPresentations, type Daily, type Duration } from "@/lib/visibility";
+import { BOOST_STATUS_LABEL, reachLabel, totalPresentations, type Daily, type Duration } from "@/lib/visibility";
 import { includedPresentationsLeft } from "@/lib/visibility-credit";
 import { formatDate } from "@/lib/format";
 import { getSectors } from "@/lib/queries/platform";
@@ -41,14 +41,16 @@ export default async function VisibilityPage(props: PageProps<"/dashboard/visibi
   const company = session.activeCompany.company;
   const supabase = await createClient();
   const admin = createAdminClient();
-  const [{ data: needs }, { data: boosts }, free, sectors, audienceRaw, credit] = await Promise.all([
+  const [{ data: needs }, { data: boosts }, free, sectors, audienceRaw, credit, { data: reachRaw }] = await Promise.all([
     supabase.from("opportunities").select("id, title").eq("company_id", company.id).eq("origin", "INTERNAL").eq("status", "PUBLISHED").order("created_at", { ascending: false }).limit(20),
     supabase.from("visibility_boosts").select("*").eq("company_id", company.id).order("created_at", { ascending: false }).limit(20),
     freeLaunch(),
     getSectors(),
     supabase.rpc("boost_audience", { p_company_id: company.id, p_targeting: {} }),
     includedPresentationsLeft(company.id),
+    supabase.rpc("public_prospect_reach"),
   ]);
+  const reach = reachRaw as { total?: number; reachable?: number } | null;
   const aud = (audienceRaw.data ?? {}) as { members?: number; prospects?: number };
   const titles = new Map((needs ?? []).map((n) => [n.id, n.title]));
   const sectorLabel = new Map(sectors.map((s) => [s.slug, s.label]));
@@ -113,6 +115,7 @@ export default async function VisibilityPage(props: PageProps<"/dashboard/visibi
           includedLeft={free ? 0 : credit.left}
           includedPlan={PLAN_LABEL[credit.plan as PlanCode] ?? credit.plan}
           options={options}
+          baseLabel={reachLabel(reach ? { total: Number(reach.total ?? 0), reachable: Number(reach.reachable ?? 0) } : null)}
           defaultTarget={typeof sp.cible === "string" ? sp.cible : undefined}
         />
       ) : (

@@ -30,7 +30,7 @@ export default function SuppliersPage() {
       </ul>
       <h2>Tarif</h2>
       <p>
-        Consultation et recherche gratuites, sans carte bancaire. L&apos;offre Gratuite inclut votre profil, 3 demandes de contact par mois, 5 favoris et
+        Consultation et recherche gratuites, sans carte bancaire. L&apos;offre Gratuite inclut votre profil, 20 demandes de contact par mois, 3 favoris et
         1 alerte ; les offres Pro et Business ajoutent les recommandations complètes, les alertes illimitées et le pipeline. Voir les{" "}
         <Link href="/tarifs">tarifs</Link>.
       </p>

@@ -1,9 +1,9 @@
--- Annonce du service « Visibilité » aux membres qui n'ont pas encore créé leur entreprise ou publié de
--- besoin. INACTIVE tant que le propriétaire n'a pas validé l'e-mail (réglage visibility_announce.enabled).
+-- Annonce du service « Visibilité » (validée par le propriétaire) : membres sans entreprise → créer leur
+-- entreprise et la faire connaître ; entreprise sans besoin publié → publier un besoin gratuitement.
 -- Au plus une annonce tous les 14 jours, deux au total par personne, le mardi seulement ; jamais après
 -- que la personne a créé son entreprise ET publié un besoin, ni après une demande de visibilité.
 insert into public.platform_settings (key, value, description)
-values ('visibility_announce', '{"enabled": false}'::jsonb, 'Annonce du service Visibilité aux membres sans entreprise ou sans besoin publié : inactive tant que le propriétaire ne l''a pas validée')
+values ('visibility_announce', '{"enabled": true}'::jsonb, 'Annonce du service Visibilité aux membres sans entreprise ou sans besoin publié (validée par le propriétaire)')
 on conflict (key) do nothing;
 
 create table if not exists public.visibility_announce_sends (
@@ -55,10 +55,10 @@ begin
     v_first := nullif(split_part(trim(u.full_name), ' ', 1), '');
     insert into public.email_outbox (user_id, to_email, template, subject, payload)
     values (u.id, u.email, 'visibility_announce',
-      case when u.variant = 'NO_COMPANY' then 'Nouveau : faites connaître votre entreprise' else 'Nouveau : votre entreprise présentée à des entreprises ciblées' end,
+      case when u.variant = 'NO_COMPANY' then 'Nouveau : faites connaître votre entreprise, gratuitement' else 'Publiez votre besoin : nous le présentons aux bonnes entreprises' end,
       jsonb_build_object(
         'type', 'visibility_announce',
-        'title', case when u.variant = 'NO_COMPANY' then 'Faites connaître votre entreprise' else 'Votre entreprise présentée aux bonnes entreprises' end,
+        'title', case when u.variant = 'NO_COMPANY' then 'Faites connaître votre entreprise' else 'Trouvez votre prestataire en publiant un besoin' end,
         'paragraphs', case when u.variant = 'NO_COMPANY' then jsonb_build_array(
             'Bonjour' || coalesce(' ' || v_first, '') || ',',
             'Nouveau sur LinkProB2B : nous présentons votre entreprise chaque jour à des entreprises de votre métier et de votre région, inscrites sur la plateforme et de notre base.',
@@ -66,10 +66,11 @@ begin
             'Vous choisissez à qui vous êtes présenté, et vous suivez les résultats jour après jour dans votre espace.')
           else jsonb_build_array(
             'Bonjour' || coalesce(' ' || v_first, '') || ',',
-            'Nouveau sur LinkProB2B : choisissez les entreprises à qui vous voulez être présenté (métier, région, taille), et nous présentons votre entreprise chaque jour.',
-            'Vous cherchez un prestataire ? Publiez votre besoin : nous le présentons aux entreprises du métier, et vous recevez leurs réponses.',
-            'C''est offert pendant la phase de lancement. Les résultats se suivent jour après jour dans votre espace.') end,
-        'link', case when u.variant = 'NO_COMPANY' then '/onboarding/entreprise' else '/dashboard/visibilite' end));
+            'Vous cherchez un prestataire, un fournisseur ou un sous-traitant ? Publiez votre besoin sur LinkProB2B : c''est gratuit et cela prend 2 minutes.',
+            'Nous le présentons ensuite aux entreprises du métier et de votre région, inscrites sur la plateforme et de notre base, et vous recevez leurs réponses directement.',
+            'Vous suivez jour après jour combien d''entreprises l''ont vu et vous ont répondu.') end,
+        'link', case when u.variant = 'NO_COMPANY' then '/onboarding/entreprise' else '/publier' end,
+        'cta', case when u.variant = 'NO_COMPANY' then 'Créer ma fiche entreprise' else 'Publier mon besoin gratuitement' end));
     insert into public.visibility_announce_sends (user_id, variant) values (u.id, u.variant);
     n := n + 1;
   end loop;

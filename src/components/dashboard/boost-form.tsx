@@ -87,6 +87,7 @@ export function BoostForm({
   includedLeft,
   includedPlan,
   options,
+  baseLabel,
 }: {
   targets: Target[];
   freeLaunch: boolean;
@@ -95,6 +96,7 @@ export function BoostForm({
   includedLeft: number;
   includedPlan: string;
   options: TargetingOptions;
+  baseLabel?: string | null;
 }) {
   const [state, action] = useActionState(requestBoost, null);
   const [target, setTarget] = useState(defaultTarget && targets.some((t) => t.value === defaultTarget) ? defaultTarget : (targets[0]?.value ?? "COMPANY"));
@@ -139,6 +141,14 @@ export function BoostForm({
       <input type="hidden" name="featured" value={featured} />
       <input type="hidden" name="duration" value={duration} />
       <div className="space-y-5">
+        {baseLabel && (
+          <p className="plan-in flex items-center gap-3 rounded-3xl bg-gradient-to-r from-navy to-teal-800 p-4 text-sm font-semibold text-white shadow-lg">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-white/15">
+              <Mail className="size-5 text-teal" aria-hidden />
+            </span>
+            {baseLabel}, en plus des entreprises inscrites sur LinkProB2B.
+          </p>
+        )}
         <Step n={1} icon={Building2} title="Que voulez-vous faire connaître ?">
           <label htmlFor="boost-target" className="sr-only">
             Cible
