@@ -1,5 +1,7 @@
 "use client";
 
+import { SelectMenu } from "@/components/ui/select-menu";
+
 import { useActionState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { deleteAccount, inviteMember, removeMember, setMemberRole, updateUserProfile } from "@/app/actions/company";
@@ -83,7 +85,7 @@ export function MemberControls({ memberId, role, isSelf, canManage }: { memberId
   return (
     <div className="flex flex-wrap items-center gap-2">
       {canManage ? (
-        <select
+        <SelectMenu
           value={role}
           disabled={pending}
           aria-label="Rôle"
@@ -98,7 +100,7 @@ export function MemberControls({ memberId, role, isSelf, canManage }: { memberId
         >
           <option value="COMPANY_MEMBER">Membre</option>
           <option value="COMPANY_ADMIN">Administrateur</option>
-        </select>
+        </SelectMenu>
       ) : (
         <span className="text-sm text-slate-600">{COMPANY_ROLE_LABELS[role]}</span>
       )}

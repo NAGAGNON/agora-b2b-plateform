@@ -1,5 +1,6 @@
 import type { ComponentProps, ReactNode } from "react";
 import { cn } from "@/lib/cn";
+import { SelectMenu } from "@/components/ui/select-menu";
 
 const control =
   "block w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-[15px] text-navy placeholder:text-slate-500 shadow-sm transition focus:border-teal focus:outline-none focus:ring-2 focus:ring-teal/30 disabled:bg-slate-50 aria-[invalid=true]:border-red-500";
@@ -18,9 +19,9 @@ export function Textarea({ className, rows = 4, ...props }: ComponentProps<"text
 
 export function Select({ className, children, ...props }: ComponentProps<"select">) {
   return (
-    <select className={cn(control, "h-11 pr-8", className)} {...props}>
+    <SelectMenu className={cn(control, "h-11 pr-9", className)} {...props}>
       {children}
-    </select>
+    </SelectMenu>
   );
 }
 

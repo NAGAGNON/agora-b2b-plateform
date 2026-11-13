@@ -1,5 +1,7 @@
 "use client";
 
+import { SelectMenu } from "@/components/ui/select-menu";
+
 import { useActionState, useEffect, useOptimistic, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -121,7 +123,7 @@ export function PipelineBoard({ items }: { items: PipelineCard[] }) {
                         <label className="sr-only" htmlFor={`stage-${c.id}`}>
                           Étape
                         </label>
-                        <select
+                        <SelectMenu
                           id={`stage-${c.id}`}
                           value={c.stage}
                           onChange={(e) => move(c.id, e.target.value as PipelineStage)}
@@ -132,7 +134,7 @@ export function PipelineBoard({ items }: { items: PipelineCard[] }) {
                               {x.label}
                             </option>
                           ))}
-                        </select>
+                        </SelectMenu>
                         <button type="button" onClick={() => setEditing(c)} className="rounded p-1.5 text-slate-500 hover:bg-sky hover:text-navy" aria-label="Notes et prochaine action">
                           <NotebookPen className="size-4" aria-hidden />
                         </button>
