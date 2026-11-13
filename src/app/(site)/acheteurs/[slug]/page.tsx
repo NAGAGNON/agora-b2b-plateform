@@ -93,9 +93,11 @@ export async function generateMetadata(props: PageProps<"/acheteurs/[slug]">) {
   const { slug } = await props.params;
   const b = await getBuyer(slug);
   if (!b) return { title: "Acheteur introuvable", robots: { index: false } };
-  const n = b.open.length;
+  // Compteurs réels (la liste chargée est limitée à 100 annonces)
+  const real = (await allBuyers().catch(() => [])).find((x) => x.slug === slug);
+  const n = Math.max(b.open.length, real?.open ?? 0);
   const year = new Date().getFullYear();
-  const total = b.all.length;
+  const total = Math.max(b.all.length, real?.total ?? 0);
   return pageMetadata({
     // Formulation des recherches réelles (« [acheteur] appel d'offre »), année pour la fraîcheur
     title: n
@@ -209,12 +211,14 @@ export default async function BuyerPage(props: PageProps<"/acheteurs/[slug]">) {
 
   const { nextDeadline, avgWindow } = buyerInsights(b.all, b.open);
   // Questions fréquentes : réponses calculées uniquement à partir des annonces enregistrées
-  const totalCount = Math.max(b.all.length, buyersRows.find((x) => x.slug === slug)?.total ?? 0);
+  const realCounts = buyersRows.find((x) => x.slug === slug);
+  const totalCount = Math.max(b.all.length, realCounts?.total ?? 0);
+  const openCount = Math.max(b.open.length, realCounts?.open ?? 0);
   const sectorList = mainSectors.map((k) => sectors[k].toLowerCase()).join(", ");
   const faq: { q: string; a: string }[] = [
     {
       q: `Combien d'appels d'offres ${b.name} a-t-il publiés ?`,
-      a: `${nf.format(totalCount)} annonce${totalCount > 1 ? "s" : ""} de ${b.name} ${totalCount > 1 ? "sont référencées" : "est référencée"} sur LinkProB2B${firstSeen ? ` depuis le ${formatDate(firstSeen)}` : ""}, dont ${nf.format(b.open.length)} ${b.open.length > 1 ? "encore ouvertes" : "encore ouverte"} aujourd'hui.`,
+      a: `${nf.format(totalCount)} annonce${totalCount > 1 ? "s" : ""} de ${b.name} ${totalCount > 1 ? "sont référencées" : "est référencée"} sur LinkProB2B${firstSeen ? ` depuis le ${formatDate(firstSeen)}` : ""}, dont ${nf.format(openCount)} ${openCount > 1 ? "encore ouvertes" : "encore ouverte"} aujourd'hui.`,
     },
     ...(sectorList
       ? [{ q: `Dans quels domaines ${b.name} achète-t-il ?`, a: `D'après ses annonces, ${b.name} publie surtout des marchés en ${sectorList}${mainPlaces.length ? `, principalement à ${mainPlaces.join(" et ")}` : ""}.` }]
