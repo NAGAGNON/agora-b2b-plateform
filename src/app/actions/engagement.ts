@@ -85,9 +85,18 @@ export async function createAlert(_prev: ActionResult | null, fd: FormData): Pro
     skills: d.skills,
     company_size: d.companySize ?? null,
     include_external: d.includeExternal,
+    extra_sectors: d.extraSectors.filter((x) => x !== d.sector),
+    extra_departments: d.extraDepartments.filter((x) => x !== d.departmentCode),
+    exclude_keywords: d.excludeKeywords ?? null,
+    buyer_terms: d.buyerTerms,
+    min_budget: d.minBudget ?? null,
+    min_days_left: d.minDaysLeft ?? null,
+    cpv_prefixes: d.cpvPrefixes,
   });
   if (error) return actionError(error);
-  await supabase.rpc("track_event", { p_event_name: "create_alert", p_properties: { frequency: d.frequency } });
+  const precise =
+    d.extraSectors.length + d.extraDepartments.length + d.buyerTerms.length + d.cpvPrefixes.length > 0 || Boolean(d.excludeKeywords || d.minBudget || d.minDaysLeft);
+  await supabase.rpc("track_event", { p_event_name: "create_alert", p_properties: { frequency: d.frequency, precise } });
   revalidatePath("/dashboard/alertes");
   return { ok: true, message: "Alerte créée." };
 }
