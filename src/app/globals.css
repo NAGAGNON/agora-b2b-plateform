@@ -446,3 +446,62 @@
     animation: none;
   }
 }
+
+/* Tarifs : cartes en cascade, liseré lumineux de l'offre recommandée, prix qui s'anime au changement */
+.plan-in {
+  animation: plan-in 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@keyframes plan-in {
+  from {
+    transform: translateY(28px) scale(0.98);
+  }
+  to {
+    transform: none;
+  }
+}
+.plan-glow {
+  overflow: hidden;
+  isolation: isolate;
+  background: linear-gradient(135deg, var(--color-teal), var(--color-electric));
+}
+.plan-glow::before {
+  content: "";
+  position: absolute;
+  inset: -60%;
+  z-index: -1;
+  background: conic-gradient(from 0deg, var(--color-teal), #7dd3fc, var(--color-electric), #a78bfa, var(--color-teal));
+  animation: monogram-spin 6s linear infinite;
+  will-change: transform;
+}
+.price-pop {
+  display: inline-block;
+  animation: price-pop 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@keyframes price-pop {
+  from {
+    transform: translateY(10px) scale(0.92);
+  }
+  to {
+    transform: none;
+  }
+}
+/* FAQ en accordéon : ouverture en douceur */
+.faq-item[open] .faq-body {
+  animation: faq-open 0.3s ease-out;
+}
+@keyframes faq-open {
+  from {
+    transform: translateY(-6px);
+  }
+  to {
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .plan-in,
+  .plan-glow::before,
+  .price-pop,
+  .faq-item[open] .faq-body {
+    animation: none;
+  }
+}

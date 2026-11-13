@@ -34,7 +34,7 @@ import { parseOpportunityFilters } from "@/lib/search-params";
 import { getMemberCompanies, getPlatformStats, getPublicActivity, getSectorLabels, getSectors, liveStats } from "@/lib/queries/platform";
 import { MemberProof } from "@/components/home/member-proof";
 import { PlatformProof } from "@/components/home/platform-proof";
-import { PricingCards } from "@/components/billing/pricing-cards";
+import { PricingPlans } from "@/components/billing/pricing-plans";
 import { cardTrial } from "@/lib/billing/card-trial";
 import { Testimonials } from "@/components/home/testimonials";
 import { pageMetadata } from "@/lib/seo";
@@ -206,7 +206,7 @@ export default async function HomePage(props: PageProps<"/">) {
             {trial.days} jours pour l&apos;essayer, sans engagement
           </h2>
           <p className="mt-2 max-w-2xl text-slate-600">Rien n&apos;est débité avant la fin de l&apos;essai. Résiliable à tout moment depuis votre espace.</p>
-          <PricingCards launch={false} paidOpen trialDays={trial.days} className="mt-8" />
+          <PricingPlans launch={false} paidOpen trialDays={trial.days} className="mt-8" />
           <p className="mt-6 text-center text-sm">
             <Link href="/tarifs" className="font-semibold text-teal-700 hover:underline">
               Comparer les offres en détail
