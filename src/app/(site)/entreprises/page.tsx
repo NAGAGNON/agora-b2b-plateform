@@ -1,3 +1,4 @@
+import { FeaturedStrip } from "@/components/featured-strip";
 import { requireAccount } from "@/lib/members-only";
 import { Directory } from "@/components/companies/directory";
 import { parseCompanyFilters } from "@/lib/search-params";
@@ -69,6 +70,7 @@ export default async function DirectoryPage(props: PageProps<"/entreprises">) {
         </div>
       </section>
       <div className="container-page py-8 sm:py-10">
+      <FeaturedStrip kind="COMPANY" />
       <Directory filters={parseCompanyFilters(sp)} rawParams={sp} basePath="/entreprises" />
       <section aria-label="Référencer votre entreprise" className="relative mt-12 overflow-hidden rounded-3xl bg-navy p-6 text-white shadow-xl sm:p-8">
         <div aria-hidden className="pointer-events-none absolute -top-20 -right-10 size-64 animate-aurora rounded-full bg-teal/30 blur-3xl" />

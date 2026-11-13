@@ -731,6 +731,28 @@ isOneToOne: false
                     "id"?: string,"sent_at"?: string,"sent_by"?: string | null,"user_id"?: string
                   }
                   Relationships: []
+                },"visibility_boosts": {
+                  Row: {
+                    "id": string,"company_id": string,"target": string,"opportunity_id": string | null,"daily_presentations": number,"featured_days": number,"duration_days": number,"price_ht": number,"free_launch": boolean,"status": string,"starts_at": string | null,"ends_at": string | null,"featured_until": string | null,"requested_by": string | null,"reviewed_by": string | null,"reviewed_at": string | null,"note": string | null,"created_at": string
+                  }
+                  Insert: {
+                    "id"?: string,"company_id": string,"target": string,"opportunity_id"?: string | null,"daily_presentations"?: number,"featured_days"?: number,"duration_days"?: number,"price_ht"?: number,"free_launch"?: boolean,"status"?: string,"starts_at"?: string | null,"ends_at"?: string | null,"featured_until"?: string | null,"requested_by"?: string | null,"reviewed_by"?: string | null,"reviewed_at"?: string | null,"note"?: string | null,"created_at"?: string
+                  }
+                  Update: {
+                    "id"?: string,"company_id"?: string,"target"?: string,"opportunity_id"?: string | null,"daily_presentations"?: number,"featured_days"?: number,"duration_days"?: number,"price_ht"?: number,"free_launch"?: boolean,"status"?: string,"starts_at"?: string | null,"ends_at"?: string | null,"featured_until"?: string | null,"requested_by"?: string | null,"reviewed_by"?: string | null,"reviewed_at"?: string | null,"note"?: string | null,"created_at"?: string
+                  }
+                  Relationships: []
+                },"boost_presentations": {
+                  Row: {
+                    "id": string,"boost_id": string,"presented_to": string,"channel": string,"created_at": string
+                  }
+                  Insert: {
+                    "id"?: string,"boost_id": string,"presented_to": string,"channel"?: string,"created_at"?: string
+                  }
+                  Update: {
+                    "id"?: string,"boost_id"?: string,"presented_to"?: string,"channel"?: string,"created_at"?: string
+                  }
+                  Relationships: []
                 },"testimonials": {
                   Row: {
                     "author_name": string,"author_role": string | null,"company_id": string | null,"company_name": string | null,"consent_publish": boolean,"created_at": string,"id": string,"quote": string | null,"rating": number | null,"reviewed_at": string | null,"reviewed_by": string | null,"status": string,"updated_at": string,"user_id": string
@@ -1832,6 +1854,21 @@ isOneToOne: false
                            },
 "process_pioneer_rewards":
 { Args: { "p_limit"?: number }; Returns: Json
+                           },
+"request_visibility_boost":
+{ Args: { "p_company_id": string; "p_target": string; "p_opportunity_id": string | null; "p_daily": number; "p_featured_days": number; "p_duration_days": number; "p_price_ht": number }; Returns: string
+                           },
+"cancel_visibility_boost":
+{ Args: { "p_id": string }; Returns: undefined
+                           },
+"review_visibility_boost":
+{ Args: { "p_id": string; "p_approve": boolean; "p_note"?: string | null }; Returns: undefined
+                           },
+"process_visibility_boosts":
+{ Args: { "p_limit"?: number }; Returns: Json
+                           },
+"public_featured":
+{ Args: { "p_kind"?: string; "p_limit"?: number }; Returns: { "id": string,"name": string,"slug": string,"logo_path": string | null,"city": string | null,"title": string | null,"opportunity_id": string | null }[]
                            },
 "process_testimonial_requests":
 { Args: { "p_limit"?: number }; Returns: number

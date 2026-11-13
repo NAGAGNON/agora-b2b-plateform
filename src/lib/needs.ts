@@ -249,7 +249,15 @@ export async function runNeedCampaign(db: DB, opportunityId: string, { now = new
     const day = parisToday(now);
     if (prospects && existing?.prospects_added_on === day) outreach = { campaignId: existing.outreach_campaign_id, identified: 0, relevant: 0, skipped: "Entreprises du jour déjà ajoutées" };
     else if (prospects && Date.now() < deadline - 20_000) {
-      const r = await buildNeedOutreachCampaign(db, opportunityId, { deadline: deadline - 15_000 });
+      // Offre « Visibilité » validée sur ce besoin : le nombre d'entreprises présentées chaque jour choisi par le demandeur
+      const { data: boost } = await db
+        .from("visibility_boosts")
+        .select("daily_presentations")
+        .eq("opportunity_id", opportunityId)
+        .eq("status", "ACTIVE")
+        .gt("daily_presentations", 0)
+        .maybeSingle();
+      const r = await buildNeedOutreachCampaign(db, opportunityId, { deadline: deadline - 15_000, maxRecipients: boost?.daily_presentations ?? undefined });
       outreach = { campaignId: r.campaignId, identified: r.identified ?? 0, relevant: r.relevant ?? 0, skipped: r.skipped };
       if (r.campaignId && !r.skipped) await db.from("need_campaigns").update({ prospects_added_on: day }).eq("id", nc.id);
       // Adresses manquantes recherchées, puis premiers envois si la campagne est validée (limites de l'Outreach)
