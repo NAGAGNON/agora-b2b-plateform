@@ -32,7 +32,7 @@ function parisMidnight(now: number) {
 
 const timeFr = (iso: string) => new Date(iso).toLocaleTimeString("fr-FR", { timeZone: "Europe/Paris", hour: "2-digit", minute: "2-digit" });
 
-type SearchProps = { q?: string | null; sector?: string | null; region?: string | null; department?: string | null };
+type SearchProps = { has_query?: boolean | null; sector?: string | null; region?: string | null; department?: string | null };
 
 function median(values: number[]) {
   if (!values.length) return null;
@@ -83,7 +83,7 @@ export default async function RetentionPage() {
     else {
       const p = (e.properties ?? {}) as SearchProps;
       const parts = [
-        p.q ? `« ${p.q} »` : null,
+        p.has_query ? "avec mots-clés" : null,
         p.sector ? (sectorLabels[p.sector] ?? p.sector) : null,
         p.region ? (regionBySlug(p.region)?.name ?? p.region) : null,
         p.department ? `dép. ${p.department}` : null,

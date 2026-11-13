@@ -22,7 +22,7 @@ export type AnalyticsEvent =
   | "cta_click";
 
 /**
- * Enregistre un événement produit (sans IP ni e-mail ; pour une recherche, les mots recherchés).
+ * Enregistre un événement produit (sans IP, sans e-mail, sans contenu saisi).
  * Ne bloque jamais le rendu en cas d'échec.
  */
 export async function track(event: AnalyticsEvent, properties: Record<string, string | number | boolean | null> = {}) {

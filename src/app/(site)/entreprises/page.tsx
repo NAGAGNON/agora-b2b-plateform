@@ -27,7 +27,7 @@ export default async function DirectoryPage(props: PageProps<"/entreprises">) {
   await requireAccount("/entreprises", sp);
   const cf = parseCompanyFilters(sp);
   if (cf.page === 1 && (cf.q || cf.sector || cf.family || cf.department || cf.kind || cf.size || cf.skills.length))
-    void track("search_companies", { q: cf.q?.trim().slice(0, 80) || null, sector: cf.sector ?? cf.family ?? null, department: cf.department ?? null });
+    void track("search_companies", { has_query: Boolean(cf.q), sector: cf.sector ?? cf.family ?? null, department: cf.department ?? null });
   return (
     <>
       <section className="relative isolate overflow-hidden bg-navy-900 text-white">

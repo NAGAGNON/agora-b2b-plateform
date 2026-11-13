@@ -79,7 +79,7 @@ const TREATMENTS: Row[] = [
   },
   {
     purpose: "Statistiques d'usage et mesure d'audience",
-    data: "Mesure interne sans cookie : page consultée, site d'origine, type d'appareil, durée de lecture, identifiant aléatoire de visite (sans IP ni compte). Événements d'usage (ex. recherche effectuée et mots recherchés) liés au compte. Vercel Web Analytics : statistiques agrégées sans cookie.",
+    data: "Mesure interne sans cookie : page consultée, site d'origine, type d'appareil, durée de lecture, identifiant aléatoire de visite (sans IP ni compte). Événements d'usage (ex. recherche effectuée) liés au compte. Vercel Web Analytics : statistiques agrégées sans cookie.",
     basis: "Intérêt légitime (amélioration du service)",
     retention: <>Mesure de fréquentation : 13 mois ; événements d&apos;usage : <T label="durée des événements d'usage" /></>,
     recipients: "Équipe LinkProB2B ; Vercel",
