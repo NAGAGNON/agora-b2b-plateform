@@ -85,7 +85,7 @@ export default async function SignUpPage(props: PageProps<"/inscription">) {
           <h1 className="font-heading text-3xl leading-tight font-extrabold text-navy sm:text-4xl">
             {forOffer ? (
               <>
-                Créez votre compte <span className="block text-teal-700">pour accéder à cette offre.</span>
+                Créez votre compte <span className="block text-teal-700">pour accéder à cette offre</span>
               </>
             ) : (
               <>
