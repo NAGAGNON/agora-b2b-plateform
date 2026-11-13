@@ -1,6 +1,7 @@
 "use server";
 
 import { cardTrial } from "@/lib/billing/card-trial";
+import { STARTER_BOOST, boostPrice } from "@/lib/visibility";
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { cookies } from "next/headers";
@@ -21,6 +22,22 @@ import { ALLOWED_LOGO_TYPES, MAX_LOGO_BYTES } from "@/lib/constants";
 import { companyProfileSchema, companySchema, emailSchema, parseForm, userProfileSchema, type ActionResult } from "@/lib/validation";
 
 const safeNext = (v: FormDataEntryValue | null, fallback: string) => safeInternalPath(v, fallback);
+
+
+/** Offre « Visibilité » cochée à la création de l'entreprise : demande enregistrée (validée ensuite par l'équipe). */
+async function requestStarterBoost(fd: FormData, companyId: string) {
+  if (fd.get("visibility") !== "1") return;
+  const { error } = await (await createClient()).rpc("request_visibility_boost", {
+    p_company_id: companyId,
+    p_target: "COMPANY",
+    p_opportunity_id: null,
+    p_daily: STARTER_BOOST.daily,
+    p_featured_days: STARTER_BOOST.featured,
+    p_duration_days: STARTER_BOOST.duration,
+    p_price_ht: boostPrice(STARTER_BOOST.daily, STARTER_BOOST.featured, STARTER_BOOST.duration),
+  });
+  if (error) logServerError("starter visibility", error);
+}
 
 export async function createCompany(_prev: ActionResult | null, fd: FormData): Promise<ActionResult> {
   const parsed = parseForm(companySchema, fd);
@@ -46,6 +63,7 @@ export async function createCompany(_prev: ActionResult | null, fd: FormData): P
   fetchLogoAfterResponse(companyId);
   after(() => notifyAdminsOfCompany(session.userId, companyId));
   if (d.siren) after(() => autoVerifyCompany(createAdminClient(), companyId));
+  await requestStarterBoost(fd, companyId);
   (await cookies()).set(ACTIVE_COMPANY_COOKIE, companyId, { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/" });
   revalidatePath("/", "layout");
   // Lancement payant ouvert : la création de l'entreprise mène à l'essai de 7 jours (sinon tableau de bord)
@@ -99,6 +117,7 @@ export async function createCompanyExpress(_prev: ActionResult | null, fd: FormD
   if (error || !companyId) return actionError(error);
   fetchLogoAfterResponse(companyId);
   after(() => notifyAdminsOfCompany(session.userId, companyId));
+  await requestStarterBoost(fd, companyId);
   (await cookies()).set(ACTIVE_COMPANY_COOKIE, companyId, { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/" });
   // Alerte de départ sur ce métier et ce département, si la personne n'en a pas encore
   const { data: co } = await createAdminClient().from("companies").select("department_code").eq("id", companyId).maybeSingle();

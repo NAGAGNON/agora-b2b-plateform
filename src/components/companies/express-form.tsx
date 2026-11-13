@@ -4,6 +4,7 @@ import { useActionState, useState } from "react";
 import { createCompanyExpress } from "@/app/actions/company";
 import { Field, Input, Select } from "@/components/ui/form";
 import { SubmitButton } from "@/components/ui/submit-button";
+import { VisibilityOptIn } from "@/components/companies/visibility-opt-in";
 import { Notice } from "@/components/ui/notice";
 import { COMPANY_SIZE_LABELS, type CompanySize, type SectorOption } from "@/lib/constants";
 import { SKILL_CATALOG } from "@/lib/skill-catalog";
@@ -11,7 +12,7 @@ import { SKILL_CATALOG } from "@/lib/skill-catalog";
 type Place = { name: string; postal_code: string };
 
 /** Profil express : 4 informations pour recevoir les offres qui vous correspondent (le reste se complète plus tard). */
-export function ExpressCompanyForm({ sectors, places, next, defaultName }: { sectors: SectorOption[]; places: Place[]; next?: string; defaultName?: string }) {
+export function ExpressCompanyForm({ sectors, places, next, defaultName, freeLaunch = true }: { sectors: SectorOption[]; places: Place[]; next?: string; defaultName?: string; freeLaunch?: boolean }) {
   // React vide le formulaire après chaque envoi : on garde la saisie pour la réafficher en cas d'erreur
   const [last, setLast] = useState<{ n: number; v: Record<string, string>; skills: string[] }>({ n: 0, v: {}, skills: [] });
   const [sector, setSector] = useState("");
@@ -98,6 +99,7 @@ export function ExpressCompanyForm({ sectors, places, next, defaultName }: { sec
         </Field>
       </div>
       {state && !state.ok && <Notice tone="error">{state.error}</Notice>}
+      <VisibilityOptIn freeLaunch={freeLaunch} />
       <SubmitButton size="lg" full pendingLabel="Création…">
         Voir les offres pour mon entreprise
       </SubmitButton>

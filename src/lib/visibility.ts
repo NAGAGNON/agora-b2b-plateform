@@ -31,3 +31,6 @@ export const BOOST_STATUS_LABEL: Record<string, string> = {
   REJECTED: "Non retenue",
   CANCELLED: "Annulée",
 };
+
+/** Offre proposée à la création de l'entreprise (cochée par la personne, jamais d'office). */
+export const STARTER_BOOST: { daily: Daily; featured: Featured; duration: Duration } = { daily: 10, featured: 7, duration: 14 };
