@@ -252,6 +252,17 @@ export const alertSchema = z.object({
   skills: listField(10),
   companySize: z.preprocess((v) => (v === "" ? undefined : v), z.enum(["INDEPENDANT", "TPE", "PME", "ETI", "GE"]).optional()),
   includeExternal: z.preprocess((v) => v === "on" || v === "true", z.boolean()),
+  // Alerte précise (facultatif)
+  extraSectors: z.preprocess((v) => (Array.isArray(v) ? v : v ? [v] : []), z.array(z.string().regex(/^[a-z0-9-]{1,60}$/)).max(10)),
+  extraDepartments: z.preprocess(
+    (v) => splitList(String(v ?? ""), 20).map((x) => x.toUpperCase().replace(/^(\d)$/, "0$1")),
+    z.array(z.string().regex(/^(\d{2}|2A|2B|97\d)$/, { error: "Départements : codes séparés par des virgules, ex. 69, 38, 42" })).max(20),
+  ),
+  excludeKeywords: optionalText(200),
+  buyerTerms: listField(10),
+  minBudget: z.preprocess((v) => (v === "" || v == null ? undefined : String(v).replace(/[\s€]/g, "")), z.coerce.number().int().min(0).max(1_000_000_000).optional()),
+  minDaysLeft: z.preprocess((v) => (v === "" || v == null ? undefined : v), z.coerce.number().int().min(0).max(120).optional()),
+  cpvPrefixes: z.preprocess((v) => splitList(String(v ?? ""), 10).map((x) => x.replace(/\D/g, "")).filter(Boolean), z.array(z.string().regex(/^\d{2,8}$/, { error: "Codes CPV : chiffres seulement, ex. 72, 4521" })).max(10)),
 });
 
 export const messageSchema = z.object({

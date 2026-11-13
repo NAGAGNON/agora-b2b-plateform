@@ -4,6 +4,7 @@ import { requireSession } from "@/lib/auth";
 import { MemberProofCompact } from "@/components/home/member-proof";
 import { FeedbackPrompt } from "@/components/dashboard/feedback-prompt";
 import { PioneerBadge } from "@/components/dashboard/pioneer-badge";
+import { PreciseAlertPrompt } from "@/components/dashboard/precise-alert-prompt";
 import { createClient } from "@/lib/supabase/server";
 import { DashboardCard, Card, CardHeader } from "@/components/ui/card";
 import { ButtonLink } from "@/components/ui/button";
@@ -148,6 +149,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
       <PioneerBadge userId={session.userId} now={nowMs()} />
       <SinceLastVisit userId={session.userId} companyId={cid} supplier={supplier} since={previousVisit(session.profile, nowMs())} now={nowMs()} includeDemo={await showDemoData()} />
       <NextActions companyId={cid} userId={session.userId} buyer={buyer} supplier={supplier} now={nowMs()} />
+      {supplier && <PreciseAlertPrompt userId={session.userId} />}
       <GettingStarted
         steps={[
           { done: missing.length === 0, label: "Compléter le profil de l'entreprise", hint: "Secteurs, zone, compétences : la base de vos recommandations.", href: "/dashboard/entreprise", cta: "Compléter le profil" },

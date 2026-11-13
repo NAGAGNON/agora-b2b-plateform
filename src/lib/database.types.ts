@@ -44,13 +44,13 @@ isOneToOne: false
                   ]
                 },"alerts": {
                   Row: {
-                    "company_size": Database["public"]['Enums']["company_size"] | null,"created_at": string,"department_code": string | null,"frequency": Database["public"]['Enums']["alert_frequency"],"id": string,"include_external": boolean,"is_active": boolean,"keywords": string | null,"last_sent_at": string | null,"match_terms": string[],"name": string,"place_slug": string | null,"radius_km": number | null,"region": string | null,"sector_slug": string | null,"skills": (string)[],"type": Database["public"]['Enums']["opportunity_type"] | null,"unsubscribe_token": string,"user_id": string,"widen_region": string | null
+                    "buyer_terms": string[],"cpv_prefixes": string[],"exclude_keywords": string | null,"extra_departments": string[],"extra_sectors": string[],"min_budget": number | null,"min_days_left": number | null,"company_size": Database["public"]['Enums']["company_size"] | null,"created_at": string,"department_code": string | null,"frequency": Database["public"]['Enums']["alert_frequency"],"id": string,"include_external": boolean,"is_active": boolean,"keywords": string | null,"last_sent_at": string | null,"match_terms": string[],"name": string,"place_slug": string | null,"radius_km": number | null,"region": string | null,"sector_slug": string | null,"skills": (string)[],"type": Database["public"]['Enums']["opportunity_type"] | null,"unsubscribe_token": string,"user_id": string,"widen_region": string | null
                   }
                   Insert: {
-                    "company_size"?: Database["public"]['Enums']["company_size"] | null,"created_at"?: string,"department_code"?: string | null,"frequency"?: Database["public"]['Enums']["alert_frequency"],"id"?: string,"include_external"?: boolean,"is_active"?: boolean,"keywords"?: string | null,"last_sent_at"?: string | null,"match_terms"?: string[],"name": string,"place_slug"?: string | null,"radius_km"?: number | null,"region"?: string | null,"sector_slug"?: string | null,"skills"?: (string)[],"type"?: Database["public"]['Enums']["opportunity_type"] | null,"unsubscribe_token"?: string,"user_id": string,"widen_region"?: string | null
+                    "buyer_terms"?: string[],"cpv_prefixes"?: string[],"exclude_keywords"?: string | null,"extra_departments"?: string[],"extra_sectors"?: string[],"min_budget"?: number | null,"min_days_left"?: number | null,"company_size"?: Database["public"]['Enums']["company_size"] | null,"created_at"?: string,"department_code"?: string | null,"frequency"?: Database["public"]['Enums']["alert_frequency"],"id"?: string,"include_external"?: boolean,"is_active"?: boolean,"keywords"?: string | null,"last_sent_at"?: string | null,"match_terms"?: string[],"name": string,"place_slug"?: string | null,"radius_km"?: number | null,"region"?: string | null,"sector_slug"?: string | null,"skills"?: (string)[],"type"?: Database["public"]['Enums']["opportunity_type"] | null,"unsubscribe_token"?: string,"user_id": string,"widen_region"?: string | null
                   }
                   Update: {
-                    "company_size"?: Database["public"]['Enums']["company_size"] | null,"created_at"?: string,"department_code"?: string | null,"frequency"?: Database["public"]['Enums']["alert_frequency"],"id"?: string,"include_external"?: boolean,"is_active"?: boolean,"keywords"?: string | null,"last_sent_at"?: string | null,"match_terms"?: string[],"name"?: string,"place_slug"?: string | null,"radius_km"?: number | null,"region"?: string | null,"sector_slug"?: string | null,"skills"?: (string)[],"type"?: Database["public"]['Enums']["opportunity_type"] | null,"unsubscribe_token"?: string,"user_id"?: string,"widen_region"?: string | null
+                    "buyer_terms"?: string[],"cpv_prefixes"?: string[],"exclude_keywords"?: string | null,"extra_departments"?: string[],"extra_sectors"?: string[],"min_budget"?: number | null,"min_days_left"?: number | null,"company_size"?: Database["public"]['Enums']["company_size"] | null,"created_at"?: string,"department_code"?: string | null,"frequency"?: Database["public"]['Enums']["alert_frequency"],"id"?: string,"include_external"?: boolean,"is_active"?: boolean,"keywords"?: string | null,"last_sent_at"?: string | null,"match_terms"?: string[],"name"?: string,"place_slug"?: string | null,"radius_km"?: number | null,"region"?: string | null,"sector_slug"?: string | null,"skills"?: (string)[],"type"?: Database["public"]['Enums']["opportunity_type"] | null,"unsubscribe_token"?: string,"user_id"?: string,"widen_region"?: string | null
                   }
                   Relationships: [
                     {
@@ -1820,6 +1820,9 @@ isOneToOne: false
 { Args: { "p_limit"?: number }; Returns: {
               "id": string,"author_name": string,"author_role": string | null,"company_name": string | null,"company_slug": string | null,"logo_path": string | null,"quote": string,"rating": number | null,"created_at": string
             }[]
+                           },
+"alert_open_matches":
+{ Args: { "p_alert_id": string }; Returns: number
                            },
 "public_need_proof":
 { Args: Record<PropertyKey, never>; Returns: Json
