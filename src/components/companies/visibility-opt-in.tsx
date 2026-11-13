@@ -66,7 +66,7 @@ export function VisibilityOptIn({ freeLaunch, baseLabel }: { freeLaunch: boolean
         </span>
         <span className={cn("relative mt-3 flex items-center gap-1.5 text-xs", on ? "text-teal-100" : "text-slate-500")}>
           <Sparkles className="size-3.5 shrink-0" aria-hidden />
-          {freeLaunch ? `Valeur ${formatEuros(price)} HT, offerte pendant la phase de lancement. Suivi jour après jour dans « Visibilité ».` : "Paiement unique, sans abonnement. Suivi jour après jour dans « Visibilité »."}
+          {freeLaunch ? "Offert pendant la phase de lancement. Suivi jour après jour dans « Visibilité »." : "Paiement unique, sans abonnement. Suivi jour après jour dans « Visibilité »."}
         </span>
       </label>
     </div>

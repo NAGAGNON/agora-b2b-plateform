@@ -258,7 +258,7 @@ export function BoostForm({
                 >
                   {intense && <span className="absolute -top-2 right-2 rounded-full bg-gradient-to-r from-teal to-electric px-2 py-0.5 text-[10px] font-bold text-white shadow">Intensif</span>}
                   <span className="block font-heading text-xl font-extrabold">{o === 0 ? "Aucune" : o}</span>
-                  <span className={cn("text-xs", on ? "text-slate-300" : "text-slate-500")}>{o === 0 ? "seulement « À la une »" : `par jour · ${formatEuros(PRESENTATION_DAY_PRICE[o])} / j`}</span>
+                  <span className={cn("text-xs", on ? "text-slate-300" : "text-slate-500")}>{o === 0 ? "seulement « À la une »" : freeLaunch ? "par jour" : `par jour · ${formatEuros(PRESENTATION_DAY_PRICE[o])} / j`}</span>
                 </button>
               );
             })}
@@ -285,7 +285,8 @@ export function BoostForm({
             ))}
           </div>
           <p className="mt-5 mb-2 flex items-center gap-1.5 text-[11px] font-bold tracking-wider text-slate-500 uppercase">
-            <Crown className="size-3.5 text-teal-700" aria-hidden /> « À la une » {need ? "des opportunités" : "de l'annuaire"} · 1 € / jour
+            <Crown className="size-3.5 text-teal-700" aria-hidden /> « À la une » {need ? "des opportunités" : "de l'annuaire"}
+            {!freeLaunch && " · 1 € / jour"}
           </p>
           <div role="radiogroup" aria-label="Mise en avant" className="flex flex-wrap gap-2">
             {FEATURED_OPTIONS.map((o) => (
@@ -346,7 +347,6 @@ export function BoostForm({
             <div className="mt-5 border-t border-white/10 pt-5">
               {freeLaunch ? (
                 <>
-                  <p className="text-sm text-slate-400 line-through">{formatEuros(fullPrice)} HT</p>
                   <p className="font-heading text-4xl font-extrabold">Offert</p>
                   <p className="text-xs text-slate-400">pendant la phase de lancement</p>
                 </>
