@@ -9,7 +9,7 @@ import { STARTER_BOOST, boostPrice } from "@/lib/visibility";
 /**
  * Création d'entreprise : proposition de l'offre « Visibilité » (présentation à des entreprises ciblées
  * chaque jour + « À la une » de l'annuaire). Jamais activée d'office ; offerte pendant la phase de
- * lancement, payante ensuite. La demande est validée par l'équipe avant de démarrer.
+ * lancement, payante ensuite. Démarre dès la création de l'entreprise.
  */
 export function VisibilityOptIn({ freeLaunch, baseLabel }: { freeLaunch: boolean; baseLabel?: string | null }) {
   const [on, setOn] = useState(false);
@@ -32,7 +32,7 @@ export function VisibilityOptIn({ freeLaunch, baseLabel }: { freeLaunch: boolean
               </span>
             </span>
             <span className={cn("mt-1 block text-sm", on ? "text-slate-300" : "text-slate-600")}>
-              Nous présentons votre entreprise aux entreprises de votre métier et de votre région, dès que l&apos;équipe a validé la demande.
+              Nous présentons votre entreprise aux entreprises de votre métier et de votre région, dès la création de votre fiche.
               {baseLabel && <span className={cn("mt-1 block font-semibold", on ? "text-teal" : "text-teal-700")}>{baseLabel}.</span>}
             </span>
           </span>

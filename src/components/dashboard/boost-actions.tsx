@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { cancelBoost, reviewBoost } from "@/app/actions/visibility";
+import { cancelBoost, reviewBoost, stopBoost } from "@/app/actions/visibility";
 
 export function CancelBoostButton({ id }: { id: string }) {
   const [pending, start] = useTransition();
@@ -45,5 +45,28 @@ export function ReviewBoostButtons({ id }: { id: string }) {
         Refuser
       </button>
     </div>
+  );
+}
+
+/** Arrêt d'une offre en cours (administration), avec confirmation. */
+export function StopBoostButton({ id }: { id: string }) {
+  const [pending, start] = useTransition();
+  const [msg, setMsg] = useState<string | null>(null);
+  if (msg) return <p className="text-sm font-semibold text-navy">{msg}</p>;
+  return (
+    <button
+      type="button"
+      disabled={pending}
+      onClick={() => {
+        if (!window.confirm("Arrêter cette offre de visibilité ? Plus aucune présentation ne sera envoyée.")) return;
+        start(async () => {
+          const r = await stopBoost(id);
+          setMsg(r.ok ? (r.message ?? "Fait") : r.error);
+        });
+      }}
+      className="h-9 rounded-lg border border-red-200 px-3 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
+    >
+      {pending ? "Arrêt…" : "Arrêter"}
+    </button>
   );
 }

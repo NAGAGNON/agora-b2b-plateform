@@ -32,7 +32,7 @@ const STATUS_STYLE: Record<string, string> = {
 };
 
 /**
- * Offre « Visibilité » : demande (validée par l'équipe) et suivi réel jour après jour : présentations
+ * Offre « Visibilité » : demande (démarrage immédiat) et suivi réel jour après jour : présentations
  * réalisées (espace des entreprises inscrites et e-mails), vues de la fiche ou du besoin, mise en avant.
  */
 export default async function VisibilityPage(props: PageProps<"/dashboard/visibilite">) {
@@ -180,7 +180,7 @@ export default async function VisibilityPage(props: PageProps<"/dashboard/visibi
                       </div>
                     )}
                     {b.status === "REJECTED" && b.note && <p className="text-sm text-slate-600">Motif : {b.note}</p>}
-                    {b.status === "PENDING" && <p className="text-sm text-slate-600">En attente de validation par l&apos;équipe (sous 24 h ouvrées). Le suivi apparaîtra ici dès le démarrage.</p>}
+                    {b.status === "PENDING" && <p className="text-sm text-slate-600">En attente de démarrage. Le suivi apparaîtra ici dès le démarrage.</p>}
                     {s && (
                       <>
                         <div className="grid gap-3 sm:grid-cols-4">

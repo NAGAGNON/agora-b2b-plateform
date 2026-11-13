@@ -368,7 +368,7 @@ export function BoostForm({
             <SubmitButton full size="lg" className="btn-shine mt-5" pendingLabel="Envoi…">
               Lancer ma visibilité
             </SubmitButton>
-            <p className="mt-3 text-center text-xs text-slate-400">Vérifiée par l&apos;équipe avant de démarrer (sous 24 h ouvrées).</p>
+            <p className="mt-3 text-center text-xs text-slate-400">Démarre tout de suite. Suivi jour après jour ici même.</p>
           </div>
         </div>
       </aside>
