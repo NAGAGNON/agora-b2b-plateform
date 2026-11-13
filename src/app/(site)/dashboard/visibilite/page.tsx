@@ -29,6 +29,8 @@ export default async function VisibilityPage(props: PageProps<"/dashboard/visibi
     supabase.from("visibility_boosts").select("*").eq("company_id", company.id).order("created_at", { ascending: false }).limit(20),
     freeLaunch(),
   ]);
+  // Entreprises inscrites qui peuvent découvrir l'entreprise (présentation dans leur espace)
+  const { count: members } = await createAdminClient().from("companies").select("id", { count: "exact", head: true }).eq("status", "ACTIVE").eq("is_demo", false).neq("id", company.id);
   const titles = new Map((needs ?? []).map((n) => [n.id, n.title]));
   // Suivi : présentations réalisées et vues depuis le démarrage (chiffres enregistrés uniquement)
   const admin = createAdminClient();
@@ -66,7 +68,7 @@ export default async function VisibilityPage(props: PageProps<"/dashboard/visibi
         <CardHeader title="Nouvelle demande" description="Plus vous choisissez d'entreprises et de jours, plus vous êtes visible. Chaque demande est vérifiée par l'équipe avant de démarrer." />
         <div className="p-5">
           {isAdmin ? (
-            <BoostForm targets={targets} freeLaunch={free} defaultTarget={typeof sp.cible === "string" ? sp.cible : undefined} />
+            <BoostForm targets={targets} freeLaunch={free} memberCapacity={members ?? 0} defaultTarget={typeof sp.cible === "string" ? sp.cible : undefined} />
           ) : (
             <Notice tone="info">Seul un administrateur de l&apos;entreprise peut demander une offre de visibilité.</Notice>
           )}

@@ -16,6 +16,7 @@ const LINKS = [
   { href: "/admin/retours", label: "Inscrits revenus (48 h)", icon: UserCheck, admin: true },
   { href: "/admin/temoignages", label: "Témoignages", icon: MessageSquareQuote, admin: true },
   { href: "/admin/visibilite", label: "Visibilité (demandes)", icon: Megaphone, admin: true },
+  { href: "/admin/revenus", label: "Revenus", icon: TrendingUp, admin: true },
   { href: "/admin/utilisateurs", label: "Utilisateurs", icon: Users, admin: true },
   { href: "/admin/entreprises", label: "Entreprises", icon: Building2 },
   { href: "/admin/signalements", label: "Signalements", icon: Flag, badge: "reports" },

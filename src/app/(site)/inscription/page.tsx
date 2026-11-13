@@ -29,18 +29,18 @@ const latestOpenOffers = unstable_cache(
   async () => {
     const { data, error } = await createAdminClient()
       .from("opportunities")
-      .select("id, title, city, department_code, response_deadline")
+      .select("id, title, city, department_code, response_deadline, buyer_name:external_buyer_name")
       .eq("status", "PUBLISHED")
       .eq("visibility", "PUBLIC")
       .eq("is_demo", false)
       .gt("response_deadline", new Date().toISOString())
       .order("published_at", { ascending: false })
-      .limit(3);
+      .limit(5);
     // Erreur : rien n'est mis en cache, nouvel essai à la visite suivante
     if (error) throw error;
     return data ?? [];
   },
-  ["signup-latest-offers-v1"],
+  ["signup-latest-offers-v2"],
   { revalidate: 600 },
 );
 
@@ -136,7 +136,7 @@ export default async function SignUpPage(props: PageProps<"/inscription">) {
           )}
         </div>
       </div>
-      {!forOffer && <SignupAside total={total} latest={latest ?? []} live={live} companies={memberCompanies} />}
+      {!forOffer && <SignupAside total={total} latest={latest ?? []} live={live} companies={memberCompanies} stats={platform} />}
       {forOffer && <div className="hidden bg-gradient-to-br from-sky via-white to-teal-50 lg:block" aria-hidden />}
     </div>
   );

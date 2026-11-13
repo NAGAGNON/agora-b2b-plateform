@@ -8,7 +8,7 @@ import { Notice } from "@/components/ui/notice";
 import { SelectMenu } from "@/components/ui/select-menu";
 import { cn } from "@/lib/cn";
 import { formatEuros } from "@/lib/billing/plans";
-import { DAILY_OPTIONS, DURATION_OPTIONS, FEATURED_OPTIONS, boostPrice, totalPresentations, type Daily, type Duration, type Featured } from "@/lib/visibility";
+import { INTENSIVE_DAILY, DAILY_OPTIONS, DURATION_OPTIONS, FEATURED_OPTIONS, boostPrice, totalPresentations, type Daily, type Duration, type Featured } from "@/lib/visibility";
 
 type Target = { value: string; label: string };
 
@@ -35,7 +35,7 @@ function Choice<T extends number>({ name, options, value, onChange, render }: { 
 }
 
 /** Choix de l'offre de visibilité : cible, présentations par jour, mise en avant, durée ; prix calculé en direct. */
-export function BoostForm({ targets, freeLaunch, defaultTarget }: { targets: Target[]; freeLaunch: boolean; defaultTarget?: string }) {
+export function BoostForm({ targets, freeLaunch, defaultTarget, memberCapacity }: { targets: Target[]; freeLaunch: boolean; defaultTarget?: string; memberCapacity: number }) {
   const [state, action] = useActionState(requestBoost, null);
   const [target, setTarget] = useState(defaultTarget && targets.some((t) => t.value === defaultTarget) ? defaultTarget : (targets[0]?.value ?? "COMPANY"));
   const [daily, setDaily] = useState<Daily>(10);
@@ -66,7 +66,7 @@ export function BoostForm({ targets, freeLaunch, defaultTarget }: { targets: Tar
           <p className="mb-2 flex items-center gap-2 text-sm font-semibold text-navy">
             <Users className="size-4 text-teal-700" aria-hidden /> {need ? "Entreprises du métier prévenues chaque jour" : "Entreprises à qui vous êtes présenté chaque jour"}
           </p>
-          <Choice name="Présentations par jour" options={DAILY_OPTIONS} value={daily} onChange={setDaily} render={(v) => (v === 0 ? "Aucune" : `${v} / jour`)} />
+          <Choice name="Présentations par jour" options={DAILY_OPTIONS} value={daily} onChange={setDaily} render={(v) => (v === 0 ? "Aucune" : v === INTENSIVE_DAILY ? `${v} / jour · Intensif` : `${v} / jour`)} />
         </div>
         <div>
           <p className="mb-2 flex items-center gap-2 text-sm font-semibold text-navy">
@@ -95,6 +95,13 @@ export function BoostForm({ targets, freeLaunch, defaultTarget }: { targets: Tar
               <strong className="text-white">{featured} jours</strong> « À la une »
             </li>
           )}
+          {daily > 0 && !need && totalPresentations(daily, duration) > memberCapacity && (
+            <li className="rounded-lg bg-white/10 p-2 text-xs text-slate-200">
+              Aujourd&apos;hui, {memberCapacity} entreprises inscrites peuvent vous découvrir : vous serez présenté à chacune au plus une fois. Le nombre grandit avec les
+              nouvelles inscriptions.
+            </li>
+          )}
+          {daily > 0 && need && <li className="text-xs text-slate-400">Entreprises du métier prévenues par e-mail, dans la limite des envois quotidiens de la plateforme.</li>}
           <li>Suivi jour après jour ici même</li>
         </ul>
         <div className="mt-5 border-t border-white/10 pt-4">

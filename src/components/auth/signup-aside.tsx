@@ -1,20 +1,20 @@
-import { CalendarClock, MapPin, Quote, Sparkles, Star } from "lucide-react";
+import { BellRing, CalendarClock, Check, FileText, Landmark, MapPin, Quote, Sparkles, Star } from "lucide-react";
 import { CompanyLogo } from "@/components/companies/company-logo";
 import { MemberProofCompact } from "@/components/home/member-proof";
 import { MIN_TESTIMONIALS } from "@/components/home/testimonials";
 import { formatDate } from "@/lib/format";
 import { visitorRpc } from "@/lib/queries/public-cache";
-import type { MemberCompany } from "@/lib/queries/platform";
+import type { MemberCompany, PlatformStats } from "@/lib/queries/platform";
 import type { LiveStats } from "@/components/home/member-proof";
 
-type Offer = { id: string; title: string; city: string | null; department_code: string | null; response_deadline: string | null };
+type Offer = { id: string; title: string; city: string | null; department_code: string | null; response_deadline: string | null; buyer_name?: string | null };
 
 /**
  * Inscription, panneau de droite : des preuves réelles. Les avis de membres (publiés avec leur accord) dès
  * qu'il y en a au moins MIN_TESTIMONIALS ; sinon, et en plus, l'activité réelle de la plateforme (offres
  * ouvertes, dernières offres, entreprises inscrites). Jamais d'avis ni de chiffre inventé.
  */
-export async function SignupAside({ total, latest, live, companies }: { total: number; latest: Offer[]; live: LiveStats | null; companies: MemberCompany[] }) {
+export async function SignupAside({ total, latest, live, companies, stats }: { total: number; latest: Offer[]; live: LiveStats | null; companies: MemberCompany[]; stats: PlatformStats | null }) {
   const { data } = await visitorRpc("public_testimonials", { p_limit: 3 }, { always: true });
   const reviews = (data ?? []).filter((t) => t.quote);
   const showReviews = reviews.length >= MIN_TESTIMONIALS;
@@ -31,6 +31,22 @@ export async function SignupAside({ total, latest, live, companies }: { total: n
       <p className="mt-4 max-w-lg text-lg text-slate-600">
         {showReviews ? "Ce qu'en disent les entreprises qui l'utilisent." : "Appels d'offres publics et besoins d'entreprises, réunis au même endroit et mis à jour chaque jour."}
       </p>
+
+      {stats && stats.active > 0 && (
+        <dl className="mt-8 grid max-w-xl grid-cols-3 gap-3">
+          {[
+            { v: stats.active, l: "opportunités ouvertes" },
+            { v: stats.new_7d, l: "nouvelles en 7 jours" },
+            { v: stats.departments, l: "départements couverts" },
+          ].map(({ v, l }) => (
+            <div key={l} className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+              <dt className="sr-only">{l}</dt>
+              <dd className="font-heading text-2xl font-extrabold text-navy">{v.toLocaleString("fr-FR")}</dd>
+              <dd className="text-xs text-slate-500">{l}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
 
       {showReviews ? (
         <ul className="mt-8 max-w-xl space-y-4">
@@ -71,6 +87,11 @@ export async function SignupAside({ total, latest, live, companies }: { total: n
               {latest.map((o) => (
                 <li key={o.id} className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
                   <p className="line-clamp-2 font-semibold text-navy">{o.title}</p>
+                  {o.buyer_name && (
+                    <p className="mt-1 flex items-center gap-1 text-sm text-slate-600">
+                      <Landmark className="size-3.5 shrink-0 text-teal-700" aria-hidden /> <span className="truncate">{o.buyer_name}</span>
+                    </p>
+                  )}
                   <p className="mt-1 flex flex-wrap gap-x-4 text-sm text-slate-500">
                     {o.department_code && (
                       <span className="inline-flex items-center gap-1">
@@ -95,6 +116,18 @@ export async function SignupAside({ total, latest, live, companies }: { total: n
           <MemberProofCompact initial={live} companies={companies} />
         </div>
       )}
+
+      <ul className="mt-8 grid max-w-xl gap-3 sm:grid-cols-3">
+        {[
+          { icon: BellRing, t: "Alertes de votre métier par e-mail" },
+          { icon: FileText, t: "Chaque appel d'offres résumé" },
+          { icon: Check, t: "Besoins d'entreprises près de chez vous" },
+        ].map(({ icon: Icon, t }) => (
+          <li key={t} className="flex items-start gap-2 rounded-2xl bg-white/70 p-3 text-sm font-medium text-navy ring-1 ring-slate-200">
+            <Icon className="mt-0.5 size-4 shrink-0 text-teal-700" aria-hidden /> {t}
+          </li>
+        ))}
+      </ul>
 
       <div className="mt-8 flex max-w-xl items-end justify-end gap-3 text-teal-700" aria-hidden>
         <svg viewBox="0 0 60 30" className="mb-1 h-6 w-12 fill-none stroke-current stroke-2">

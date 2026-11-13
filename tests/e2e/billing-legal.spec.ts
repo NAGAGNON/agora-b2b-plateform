@@ -4,12 +4,16 @@ import { login, newPage } from "./helpers";
 test("page Tarifs : trois offres, prix HT, comparatif et appels à l'action", async ({ browser }) => {
   const page = await newPage(browser);
   await page.goto("/tarifs");
-  await expect(page.getByText("Pendant la phase de lancement, toutes les fonctionnalités de LinkProB2B sont gratuites pour les inscrits.")).toBeVisible();
+  await expect(page.getByText("Pendant la phase de lancement, toutes les fonctionnalités sont gratuites pour les inscrits.", { exact: false })).toBeVisible();
   await expect(page.getByText("Offre prévue : pas encore proposée à l'achat.").first()).toBeVisible();
-  for (const name of ["LinkProB2B Gratuit", "LinkProB2B Pro", "LinkProB2B Business"]) await expect(page.getByRole("heading", { name })).toBeVisible();
+  for (const name of ["Gratuit", "Pro", "Business"]) await expect(page.getByRole("heading", { name, exact: true })).toBeVisible();
   await expect(page.getByText("Recommandé", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("Le plus populaire")).toHaveCount(0);
-  await expect(page.getByText("29 € HT / mois").first()).toBeVisible();
+  await expect(page.getByText("29 €", { exact: true }).first()).toBeVisible();
+  // Bascule annuelle : prix ramené au mois
+  await page.getByRole("radio", { name: /Annuel/ }).click();
+  await expect(page.getByText("24,17 €", { exact: true }).first()).toBeVisible();
+  await page.getByRole("radio", { name: "Mensuel" }).click();
   await expect(page.getByTestId("yearly-PRO")).toContainText("290 € HT / an");
   await expect(page.getByTestId("yearly-BUSINESS")).toContainText("590 € HT / an");
   await expect(page.getByRole("link", { name: "Créer mon compte gratuitement" })).toHaveAttribute("href", "/inscription");
@@ -38,7 +42,7 @@ test("page d'accueil : message et appels à l'action", async ({ browser }) => {
   // Clic mesuré puis inscription obligatoire (retour sur les opportunités ensuite)
   await page.getByRole("link", { name: "Découvrir les opportunités" }).first().click();
   await expect(page).toHaveURL(/\/inscription\?suite=%2Fopportunites$/);
-  await expect(page.getByRole("heading", { level: 1, name: "Créer un compte" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: /Créez votre compte/ })).toBeVisible();
   await page.goto("/");
 });
 
