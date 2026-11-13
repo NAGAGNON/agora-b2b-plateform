@@ -3,11 +3,11 @@ import { signInWithGoogle } from "@/app/actions/auth";
 import { VisitField } from "@/components/auth/visit-field";
 
 /** « Continuer avec Google » : affiché seulement quand le fournisseur Google est configuré (AUTH_GOOGLE_ENABLED). */
-export function GoogleButton({ next, referral, divider = true }: { next?: string; referral?: string | null; divider?: boolean }) {
+export function GoogleButton({ next, referral, divider = true, placement = "bottom" }: { next?: string; referral?: string | null; divider?: boolean; placement?: "top" | "bottom" }) {
   if (process.env.AUTH_GOOGLE_ENABLED !== "1") return null;
   return (
     <div className="mt-6">
-      {divider && (
+      {divider && placement === "bottom" && (
         <div className="mb-6 flex items-center gap-3 text-xs text-slate-500" aria-hidden>
           <span className="h-px flex-1 bg-slate-200" /> ou <span className="h-px flex-1 bg-slate-200" />
         </div>
@@ -30,6 +30,11 @@ export function GoogleButton({ next, referral, divider = true }: { next?: string
         En continuant avec Google, vous acceptez les <Link href="/cgu" className="underline">conditions d&apos;utilisation</Link> et la{" "}
         <Link href="/confidentialite" className="underline">politique de confidentialité</Link>.
       </p>
+      {divider && placement === "top" && (
+        <div className="mt-6 flex items-center gap-3 text-xs text-slate-500" aria-hidden>
+          <span className="h-px flex-1 bg-slate-200" /> ou avec votre e-mail <span className="h-px flex-1 bg-slate-200" />
+        </div>
+      )}
     </div>
   );
 }

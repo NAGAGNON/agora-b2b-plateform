@@ -4,6 +4,7 @@ import { requireSession } from "@/lib/auth";
 import { MemberProofCompact } from "@/components/home/member-proof";
 import { FeedbackPrompt } from "@/components/dashboard/feedback-prompt";
 import { PioneerBadge } from "@/components/dashboard/pioneer-badge";
+import { TrialInvite } from "@/components/dashboard/trial-invite";
 import { PreciseAlertPrompt } from "@/components/dashboard/precise-alert-prompt";
 import { createClient } from "@/lib/supabase/server";
 import { DashboardCard, Card, CardHeader } from "@/components/ui/card";
@@ -147,6 +148,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
       />
 
       <PioneerBadge userId={session.userId} now={nowMs()} />
+      <TrialInvite userId={session.userId} companyId={cid} />
       <SinceLastVisit userId={session.userId} companyId={cid} supplier={supplier} since={previousVisit(session.profile, nowMs())} now={nowMs()} includeDemo={await showDemoData()} />
       <NextActions companyId={cid} userId={session.userId} buyer={buyer} supplier={supplier} now={nowMs()} />
       {supplier && <PreciseAlertPrompt userId={session.userId} />}

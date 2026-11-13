@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { freeLaunch } from "@/lib/billing/entitlements";
 import { PageHero } from "@/components/layout/page-hero";
-import { Check } from "lucide-react";
-import { ButtonLink, buttonClasses } from "@/components/ui/button";
+import { buttonClasses } from "@/components/ui/button";
+import { PricingCards } from "@/components/billing/pricing-cards";
+import { cardTrial } from "@/lib/billing/card-trial";
 import { FOUNDER_PRICE_HT, founderOffer, founderOpen, founderSeatsTaken, seatsLeft } from "@/lib/billing/founder";
-import { Badge } from "@/components/ui/badge";
 import { ComparisonTable } from "@/components/billing/comparison-table";
-import { PLANS, formatEuros, priceTTC, yearlyMonthlyHT, yearlySavingHT } from "@/lib/billing/plans";
+import { formatEuros } from "@/lib/billing/plans";
 import { pageMetadata } from "@/lib/seo";
 import { Notice } from "@/components/ui/notice";
 import { stripeMode } from "@/lib/billing/stripe";
@@ -14,25 +14,16 @@ import { env } from "@/lib/env";
 
 export const metadata = pageMetadata({
   title: "Tarifs",
-  description: "LinkProB2B Gratuit, Pro (59 € HT/mois ou 590 € HT/an) et Business (99 € HT/mois ou 990 € HT/an) : sans engagement en mensuel, 2 mois offerts en annuel.",
+  description: "LinkProB2B Gratuit, Pro (29 € HT/mois ou 290 € HT/an) et Business (59 € HT/mois ou 590 € HT/an) : sans engagement en mensuel, 2 mois offerts en annuel.",
   path: "/tarifs",
 });
-
-const LAUNCH_HIGHLIGHTS = [
-  "Profil entreprise et annuaire",
-  "Fiche synthèse de chaque appel d'offres",
-  "Veille chaque matin, du lundi au vendredi",
-  "Recherche d'opportunités et alertes e-mail",
-  "Besoins publiés et réponses reçues, sans limite",
-  "Favoris, recommandations et pipeline commercial",
-  "Messagerie avec les entreprises",
-];
 
 export default async function PricingPage() {
   // Paiement réel seulement en mode LIVE : sinon les offres payantes sont annoncées, pas vendues
   const paidOpen = stripeMode() === "live" || !env.isProduction;
   // Phase de lancement : toutes les fonctionnalités gratuites pour les inscrits ; offres payantes prévues
   const launch = await freeLaunch();
+  const trial = await cardTrial();
   const offer = await founderOffer().catch(() => null);
   const offerOpen = Boolean(offer && founderOpen(offer));
   const offerSeats = offer && offerOpen ? seatsLeft(offer, await founderSeatsTaken()) : 0;
@@ -43,7 +34,9 @@ export default async function PricingPage() {
       image="/images/illustrations/accord.webp"
       title="Tarifs"
       intro={
-        launch
+        trial.enabled
+          ? `Essayez Pro ou Business ${trial.days} jours, sans engagement : rien n'est débité avant la fin de l'essai. L'offre Gratuite reste disponible, avec des limites.`
+          : launch
           ? "Pendant la phase de lancement, toutes les fonctionnalités de LinkProB2B sont gratuites pour les inscrits. Les offres Pro et Business sont prévues pour plus tard."
           : "Commencez gratuitement. Passez à Pro lorsque vous avez besoin de davantage d'opportunités, d'alertes et d'outils commerciaux."
       }
@@ -71,54 +64,7 @@ export default async function PricingPage() {
         </div>
       )}
 
-      <div className="mt-10 grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {PLANS.map((p) => (
-          <div
-            key={p.code}
-            className={`reveal glow-card relative flex flex-col rounded-2xl border bg-white p-6 shadow-sm ${p.popular ? "border-teal ring-2 ring-teal" : "border-slate-200"}`}
-          >
-            {p.popular && (
-              <Badge tone="navy" className="absolute -top-3 left-1/2 -translate-x-1/2 uppercase">
-                Recommandé
-              </Badge>
-            )}
-            <h2 className="text-xl font-bold">LinkProB2B {p.name}</h2>
-            <p className="mt-1 min-h-10 text-sm text-slate-600">{launch && p.code === "FREE" ? "Toutes les fonctionnalités, gratuitement, pendant la phase de lancement." : p.tagline}</p>
-            <p className="mt-4 font-heading text-4xl font-bold text-navy">
-              {formatEuros(p.priceHT)}
-              {p.priceHT > 0 && <span className="text-base font-medium text-slate-500"> HT / mois</span>}
-            </p>
-            <p className="mt-1 text-xs text-slate-500">
-              {p.priceHT > 0 ? `soit ${formatEuros(priceTTC(p.priceHT))} TTC (TVA 20 %) · sans engagement` : "Sans carte bancaire, sans limite de durée"}
-            </p>
-            {p.yearlyPriceHT > 0 && (
-              <p className="mt-3 rounded-lg bg-teal-50 px-3 py-2 text-sm text-teal-800" data-testid={`yearly-${p.code}`}>
-                <strong>Ou {formatEuros(p.yearlyPriceHT)} HT / an</strong> : 2 mois offerts, soit {formatEuros(yearlyMonthlyHT(p))} HT par mois
-                ({formatEuros(yearlySavingHT(p))} HT d&apos;économie)
-              </p>
-            )}
-            {launch && p.code !== "FREE" && (
-              <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-sm font-medium text-amber-800">Offre prévue : pas encore proposée à l&apos;achat.</p>
-            )}
-            <ul className="mt-5 flex-1 space-y-2 text-sm">
-              {(launch && p.code === "FREE" ? LAUNCH_HIGHLIGHTS : p.highlights).map((h) => (
-                <li key={h} className="flex gap-2">
-                  <Check className="mt-0.5 size-4 shrink-0 text-teal-700" aria-hidden />
-                  <span>{h}</span>
-                </li>
-              ))}
-            </ul>
-            <ButtonLink
-              href={p.code === "FREE" || !paidOpen ? "/inscription" : `/dashboard/abonnement?offre=${p.code}`}
-              variant={p.popular ? "primary" : p.code === "FREE" ? "outline" : "secondary"}
-              full
-              className="mt-6 h-auto min-h-11 py-2 text-center whitespace-normal"
-            >
-              {p.code === "FREE" || paidOpen ? p.cta : "Ouverture prochaine — commencer gratuitement"}
-            </ButtonLink>
-          </div>
-        ))}
-      </div>
+      <PricingCards launch={launch} paidOpen={paidOpen} trialDays={trial.enabled ? trial.days : null} className="mt-10" />
 
       <section className="mx-auto mt-14 max-w-4xl" aria-labelledby="compare">
         <h2 id="compare" className="text-2xl font-bold">

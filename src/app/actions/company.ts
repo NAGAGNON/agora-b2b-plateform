@@ -1,5 +1,6 @@
 "use server";
 
+import { cardTrial } from "@/lib/billing/card-trial";
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { cookies } from "next/headers";
@@ -47,7 +48,8 @@ export async function createCompany(_prev: ActionResult | null, fd: FormData): P
   if (d.siren) after(() => autoVerifyCompany(createAdminClient(), companyId));
   (await cookies()).set(ACTIVE_COMPANY_COOKIE, companyId, { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/" });
   revalidatePath("/", "layout");
-  redirect(safeNext(fd.get("suite"), "/dashboard?bienvenue=1"));
+  // Lancement payant ouvert : la création de l'entreprise mène à l'essai de 7 jours (sinon tableau de bord)
+  redirect(safeNext(fd.get("suite"), (await cardTrial()).enabled ? "/essai" : "/dashboard?bienvenue=1"));
 }
 
 const expressSchema = z.object({
@@ -102,7 +104,7 @@ export async function createCompanyExpress(_prev: ActionResult | null, fd: FormD
   const { data: co } = await createAdminClient().from("companies").select("department_code").eq("id", companyId).maybeSingle();
   await createStarterAlert(session.userId, { sector: d.sector, department: co?.department_code ?? null, skills });
   revalidatePath("/", "layout");
-  redirect(safeNext(fd.get("suite"), "/dashboard/recommandations?bienvenue=1"));
+  redirect(safeNext(fd.get("suite"), (await cardTrial()).enabled ? "/essai" : "/dashboard/recommandations?bienvenue=1"));
 }
 
 export async function switchCompany(companyId: string) {

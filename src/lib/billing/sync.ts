@@ -199,6 +199,24 @@ export async function handleStripeEvent(event: Stripe.Event): Promise<boolean> {
       companyId = r?.companyId ?? null;
       break;
     }
+    case "customer.subscription.trial_will_end": {
+      // Stripe prévient 3 jours avant la fin de l'essai : rappel au client (e-mail + notification)
+      const sub = event.data.object;
+      const r = await syncSubscription(sub);
+      companyId = r?.companyId ?? null;
+      if (companyId && sub.trial_end && sub.status === "trialing" && !sub.cancel_at_period_end) {
+        const item = sub.items.data[0];
+        const amount = item?.price?.unit_amount ? ` (${euros(item.price.unit_amount, item.price.currency)} HT)` : "";
+        const date = new Date(sub.trial_end * 1000).toLocaleDateString("fr-FR", { day: "numeric", month: "long", timeZone: "Europe/Paris" });
+        await notify(
+          companyId,
+          "trial_ending",
+          `Votre essai se termine le ${date}`,
+          `Votre essai gratuit se termine le ${date} : votre abonnement démarrera alors automatiquement${amount}. Rien à faire pour continuer. Pour ne pas être débité, résiliez avant cette date depuis « Mon abonnement ».`,
+        );
+      }
+      break;
+    }
     case "invoice.paid": {
       const inv = event.data.object;
       const r = await recordInvoice(inv);

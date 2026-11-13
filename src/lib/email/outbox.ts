@@ -8,6 +8,9 @@ import { familyOf, type Hero } from "@/lib/email/design";
 import { sendEmail } from "@/lib/email/send";
 
 const CTA_LABELS: Record<string, string> = {
+  launch_announce: "Essayer Pro 7 jours",
+  launch_reminder: "Démarrer mon essai",
+  trial_ending: "Gérer mon abonnement",
   new_message: "Lire le message",
   proposal_received: "Voir la réponse",
   proposal_status: "Voir ma réponse",
@@ -67,6 +70,9 @@ const LOOK: Record<string, { kicker: string; hero: Hero }> = {
   invitation: { kicker: "Invitation", hero: "equipe" },
   moderation_pending: { kicker: "Modération", hero: "bureau" },
   subscription_activated: { kicker: "Abonnement", hero: "bureau" },
+  trial_ending: { kicker: "Votre essai", hero: "bureau" },
+  launch_announce: { kicker: "Nouveau sur LinkProB2B", hero: "bureau" },
+  launch_reminder: { kicker: "Votre essai Pro", hero: "tableau-de-bord" },
   subscription_changed: { kicker: "Abonnement", hero: "bureau" },
   payment_succeeded: { kicker: "Abonnement", hero: "bureau" },
   payment_failed: { kicker: "Abonnement", hero: "bureau" },

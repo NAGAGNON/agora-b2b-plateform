@@ -12,6 +12,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { getStripe, priceIdFor, stripeConfigured, paidPlansOpen, stripeMode, taxRateId, type PaidPlan } from "@/lib/billing/stripe";
 import { ENTITLED_STATUSES } from "@/lib/billing/sync";
 import type { ActionResult } from "@/lib/validation";
+import { cardTrial } from "@/lib/billing/card-trial";
 import { FOUNDER_COUPON_ID, FOUNDER_DISCOUNT, founderOffer, founderOpen, founderSeatsTaken, seatsLeft } from "@/lib/billing/founder";
 
 /**
@@ -97,6 +98,73 @@ export async function startCheckout(_prev: ActionResult | null, fd: FormData): P
     await db.from("audit_logs").insert({ actor_user_id: session.userId, action: "billing.checkout_started", entity_type: "company", entity_id: companyId, metadata: { plan, interval, terms_accepted: true } });
   } catch (e) {
     logServerError("stripe checkout", e);
+    return { ok: false, error: "Impossible d'ouvrir la page de paiement pour le moment. Réessayez dans quelques instants." };
+  }
+  if (!url) return { ok: false, error: "Impossible d'ouvrir la page de paiement pour le moment." };
+  redirect(url);
+}
+
+const trialSchema = z.object({
+  plan: z.enum(["PRO", "BUSINESS"]),
+  interval: z.enum(["month", "year"]).default("month"),
+  acceptTerms: z.literal("on", { error: "Veuillez accepter les conditions d'abonnement pour continuer." }),
+});
+
+/**
+ * Essai avec carte (lancement payant) : 0 € aujourd'hui, la carte est enregistrée par Stripe et le premier
+ * paiement a lieu à la fin de l'essai, sauf résiliation avant. Un seul essai par entreprise. Inactif tant
+ * que le propriétaire ne l'a pas validé (seule l'équipe peut alors essayer le parcours, en mode test).
+ */
+export async function startCardTrial(_prev: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  const parsed = trialSchema.safeParse({ plan: fd.get("plan"), interval: fd.get("interval") ?? undefined, acceptTerms: fd.get("acceptTerms") });
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Offre invalide." };
+  const plan = parsed.data.plan as PaidPlan;
+  const interval = parsed.data.interval;
+  const { session, error } = await adminCompany(`/essai?offre=${plan}`);
+  if (error) return { ok: false, error };
+  const trial = await cardTrial();
+  if (!trial.enabled && !session.isStaff) return { ok: false, error: "L'essai n'est pas encore ouvert." };
+  if (!stripeConfigured()) return { ok: false, error: UNAVAILABLE };
+  if (!paidPlansOpen(session.isStaff)) return { ok: false, error: "Les offres payantes ouvrent prochainement : le paiement en ligne est en cours de mise en service." };
+  if (liveBlocked()) return { ok: false, error: "Paiement désactivé : le mode LIVE de Stripe n'est pas encore autorisé." };
+  if (interval === "year" && !priceIdFor(plan, "year")) return { ok: false, error: "L'abonnement annuel n'est pas encore disponible pour cette offre. Choisissez l'abonnement mensuel." };
+  if (!(await rateLimit("billing-checkout", 10, 3600))) return { ok: false, error: "Trop de tentatives. Réessayez dans quelques minutes." };
+
+  const companyId = session.activeCompany.company.id;
+  const db = createAdminClient();
+  const { data: subs } = await db.from("subscriptions").select("id, status").eq("company_id", companyId).limit(20);
+  if ((subs ?? []).some((s) => (ENTITLED_STATUSES as readonly string[]).includes(s.status))) return openBillingPortal();
+  // Un seul essai par entreprise : après un premier abonnement, souscription directe sans essai
+  const trialDays = (subs ?? []).length === 0 ? trial.days : 0;
+
+  let url: string | null = null;
+  try {
+    const customer = await ensureCustomer(companyId, session.activeCompany.company.name, session.email);
+    const tax = taxRateId();
+    const checkout = await getStripe().checkout.sessions.create({
+      mode: "subscription",
+      customer,
+      client_reference_id: companyId,
+      line_items: [{ price: priceIdFor(plan, interval)!, quantity: 1 }],
+      payment_method_collection: "always",
+      subscription_data: {
+        metadata: { company_id: companyId, plan, interval, card_trial: trialDays ? "1" : "0" },
+        ...(trialDays ? { trial_period_days: trialDays, trial_settings: { end_behavior: { missing_payment_method: "cancel" as const } } } : {}),
+        ...(tax ? { default_tax_rates: [tax] } : {}),
+      },
+      metadata: { company_id: companyId, plan, interval, terms_accepted_at: new Date().toISOString(), accepted_by: session.userId, card_trial: trialDays ? "1" : "0" },
+      billing_address_collection: "required",
+      customer_update: { address: "auto", name: "auto" },
+      tax_id_collection: { enabled: true },
+      allow_promotion_codes: true,
+      locale: "fr",
+      success_url: `${env.siteUrl}/dashboard?essai=ok&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${env.siteUrl}/essai?offre=${plan}&paiement=annule`,
+    });
+    url = checkout.url;
+    await db.from("audit_logs").insert({ actor_user_id: session.userId, action: "billing.card_trial_started", entity_type: "company", entity_id: companyId, metadata: { plan, interval, trial_days: trialDays } });
+  } catch (e) {
+    logServerError("stripe card trial", e);
     return { ok: false, error: "Impossible d'ouvrir la page de paiement pour le moment. Réessayez dans quelques instants." };
   }
   if (!url) return { ok: false, error: "Impossible d'ouvrir la page de paiement pour le moment." };

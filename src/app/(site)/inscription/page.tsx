@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { safeInternalPath } from "@/lib/safe-path";
 import { redirect } from "next/navigation";
-import { AuthShell } from "@/components/auth/auth-shell";
+import { SignupAside } from "@/components/auth/signup-aside";
 import { SignUpForm } from "@/components/auth/forms";
 import { GoogleButton } from "@/components/auth/google-button";
 import { Notice } from "@/components/ui/notice";
@@ -13,8 +13,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/errors";
 import { getMemberCompanies, getOpenCounts, getPlatformStats, liveStats } from "@/lib/queries/platform";
 import { MemberProofCompact } from "@/components/home/member-proof";
-import { formatDate } from "@/lib/format";
-import { CalendarClock, Lock, MapPin } from "lucide-react";
+import { Lock } from "lucide-react";
 import { founderOffer, founderOpen } from "@/lib/billing/founder";
 
 export const metadata = pageMetadata({
@@ -78,77 +77,67 @@ export default async function SignUpPage(props: PageProps<"/inscription">) {
   const live = liveStats(platform);
   const launch = founderOpen(await founderOffer().catch(() => ({ enabled: false, launchedAt: null, endsAt: null, seats: 0 })));
   const fromList = next === "/opportunites" || next?.startsWith("/opportunites?") || next === "/entreprises";
+  const signInHref = `/connexion${next ? `?${new URLSearchParams({ suite: next, ...(referral ? { ref: referral } : {}) })}` : ""}`;
   return (
-    <AuthShell
-      aside={false}
-      title={forOffer ? "Créez votre compte pour accéder à cette offre" : "Créer un compte"}
-      subtitle={
-        forOffer
-          ? "Gratuit. Utilisez l'adresse qui a reçu notre e-mail : votre compte est activé immédiatement et l'offre s'ouvre directement."
-          : "Gratuit et sans carte bancaire. Accédez aux opportunités B2B de toute la France."
-      }
-      footer={
-        <>
-          Déjà inscrit ?{" "}
-          <Link
-            href={`/connexion${next ? `?${new URLSearchParams({ suite: next, ...(referral ? { ref: referral } : {}) })}` : ""}`}
-            className="font-semibold text-teal-700 hover:underline"
-          >
-            Se connecter
-          </Link>
-        </>
-      }
-    >
-      {launch && !forOffer && (
-        <div className="mb-6 flex items-center gap-3 rounded-2xl bg-navy p-4 text-white ring-1 ring-white/10" data-testid="signup-trial">
-          <span className="inline-flex size-10 shrink-0 animate-float items-center justify-center rounded-xl bg-gradient-to-br from-teal to-violet text-sm font-bold">14 j</span>
-          <p className="text-sm">
-            <strong>Pro offert 14 jours</strong> : chaque appel d&apos;offres résumé en 30 secondes, besoins en avant-première. Sans carte.
+    <div className="grid min-h-[calc(100vh-4rem)] lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
+      <div className="flex items-start justify-center px-4 py-10 sm:px-8 sm:py-14 lg:py-16">
+        <div className="w-full max-w-md">
+          <h1 className="font-heading text-3xl leading-tight font-extrabold text-navy sm:text-4xl">
+            {forOffer ? (
+              <>
+                Créez votre compte <span className="block text-teal-700">pour accéder à cette offre.</span>
+              </>
+            ) : (
+              <>
+                Créez votre compte <span className="block text-teal-700">et trouvez vos prochains clients.</span>
+              </>
+            )}
+          </h1>
+          <p className="mt-3 text-slate-600">
+            {forOffer
+              ? "Gratuit. Utilisez l'adresse qui a reçu notre e-mail : votre compte est activé immédiatement et l'offre s'ouvre directement."
+              : "Gratuit et sans carte bancaire. Appels d'offres publics et besoins d'entreprises de toute la France, dans votre métier."}
           </p>
-        </div>
-      )}
-      {sp.erreur === "google" && (
-        <Notice tone="warning" title="Connexion Google indisponible" className="mb-6">
-          Réessayez, ou créez votre compte avec votre adresse e-mail.
-        </Notice>
-      )}
-      {!forOffer && total > 0 && latest && latest.length > 0 && (
-        <section aria-label="Aperçu des opportunités" className="mb-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-          <p className="text-sm font-semibold text-navy">
-            {fromList ? "La liste complète est réservée aux membres : " : ""}
-            <span className="text-teal-700">{total.toLocaleString("fr-FR")} appels d&apos;offres et opportunités ouverts</span> en ce moment, dont les plus récents :
+          {launch && !forOffer && (
+            <div className="mt-6 flex items-center gap-3 rounded-2xl bg-navy p-4 text-white ring-1 ring-white/10" data-testid="signup-trial">
+              <span className="inline-flex size-10 shrink-0 animate-float items-center justify-center rounded-xl bg-gradient-to-br from-teal to-violet text-sm font-bold">14 j</span>
+              <p className="text-sm">
+                <strong>Pro offert 14 jours</strong> : chaque appel d&apos;offres résumé en 30 secondes, besoins en avant-première. Sans carte.
+              </p>
+            </div>
+          )}
+          {sp.erreur === "google" && (
+            <Notice tone="warning" title="Connexion Google indisponible" className="mt-6">
+              Réessayez, ou créez votre compte avec votre adresse e-mail.
+            </Notice>
+          )}
+          <GoogleButton next={next} referral={referral} placement="top" />
+          <div className="mt-6">
+            <SignUpForm referral={referral} next={next} defaultEmail={defaultEmail} />
+          </div>
+          <p className="mt-6 text-center text-sm text-slate-600">
+            Vous avez déjà un compte ?{" "}
+            <Link href={signInHref} className="font-semibold text-teal-700 hover:underline">
+              Se connecter
+            </Link>
           </p>
-          <ul className="mt-3 space-y-2">
-            {latest.map((o) => (
-              <li key={o.id} className="rounded-xl bg-white px-3 py-2 text-sm ring-1 ring-slate-200">
-                <p className="line-clamp-1 font-medium text-navy">{o.title}</p>
-                <p className="mt-0.5 flex flex-wrap gap-x-3 text-xs text-slate-500">
-                  {o.department_code && (
-                    <span className="inline-flex items-center gap-1">
-                      <MapPin className="size-3" aria-hidden /> {o.city || o.department_code}
-                    </span>
-                  )}
-                  {o.response_deadline && (
-                    <span className="inline-flex items-center gap-1">
-                      <CalendarClock className="size-3" aria-hidden /> avant le {formatDate(o.response_deadline)}
-                    </span>
-                  )}
+          {/* Téléphone : la preuve d'activité passe sous le formulaire (le panneau de droite est masqué) */}
+          {!forOffer && (
+            <div className="mt-8 space-y-4 lg:hidden">
+              {total > 0 && (
+                <p className="flex items-center gap-1.5 rounded-2xl bg-slate-50 p-4 text-sm text-slate-600 ring-1 ring-slate-200">
+                  <Lock className="size-4 shrink-0 text-teal-700" aria-hidden />
+                  {fromList ? "La liste complète est réservée aux membres : " : ""}
+                  {total.toLocaleString("fr-FR")} appels d&apos;offres et opportunités ouverts en ce moment.
                 </p>
-              </li>
-            ))}
-          </ul>
-          <p className="mt-3 flex items-center gap-1.5 text-xs text-slate-600">
-            <Lock className="size-3.5 text-teal-700" aria-hidden /> Compte gratuit : accès aux offres complètes et alertes de votre métier par e-mail.
-          </p>
-        </section>
-      )}
-      {live && (
-        <div className="mb-6">
-          <MemberProofCompact initial={live} companies={memberCompanies} />
+              )}
+              {live && <MemberProofCompact initial={live} companies={memberCompanies} />}
+            </div>
+          )}
         </div>
-      )}
-      <SignUpForm referral={referral} next={next} defaultEmail={defaultEmail} />
-      <GoogleButton next={next} referral={referral} />
-    </AuthShell>
+      </div>
+      {!forOffer && <SignupAside total={total} latest={latest ?? []} live={live} companies={memberCompanies} />}
+      {forOffer && <div className="hidden bg-gradient-to-br from-sky via-white to-teal-50 lg:block" aria-hidden />}
+    </div>
   );
 }
