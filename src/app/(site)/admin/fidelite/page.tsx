@@ -62,6 +62,12 @@ export default async function RetentionPage() {
   ]);
   const list = users ?? [];
 
+  const firstAction = new Map<string, number>();
+  for (const e of events ?? []) if (e.user_id && !firstAction.has(e.user_id)) firstAction.set(e.user_id, new Date(e.created_at).getTime());
+
+  const seen = (u: (typeof list)[number]) => (u.last_seen_at ? new Date(u.last_seen_at).getTime() : 0);
+  const created = (u: (typeof list)[number]) => new Date(u.created_at).getTime();
+
   // Revenus aujourd'hui (depuis minuit, heure de Paris) et leurs recherches du jour
   const midnight = parisMidnight(now);
   const today = list.filter((u) => seen(u) >= midnight).sort((a, b) => seen(b) - seen(a));
@@ -93,11 +99,6 @@ export default async function RetentionPage() {
     activity.set(e.user_id, a);
   }
   const todaySearches = [...activity.values()].reduce((t, a) => t + a.searches.length, 0);
-  const firstAction = new Map<string, number>();
-  for (const e of events ?? []) if (e.user_id && !firstAction.has(e.user_id)) firstAction.set(e.user_id, new Date(e.created_at).getTime());
-
-  const seen = (u: (typeof list)[number]) => (u.last_seen_at ? new Date(u.last_seen_at).getTime() : 0);
-  const created = (u: (typeof list)[number]) => new Date(u.created_at).getTime();
   const active7 = list.filter((u) => now - seen(u) < 7 * DAY).length;
   const active30 = list.filter((u) => now - seen(u) < 30 * DAY).length;
   const older = list.filter((u) => now - created(u) > 7 * DAY);
