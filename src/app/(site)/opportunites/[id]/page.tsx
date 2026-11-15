@@ -48,7 +48,7 @@ import { ShareLinks } from "@/components/share-links";
 import { cookies, headers } from "next/headers";
 import { OfferAccessGate } from "@/components/opportunities/offer-access-gate";
 import { TenderBriefPanel } from "@/components/opportunities/tender-brief";
-import { boampId, storedBrief, tedId } from "@/lib/tender-brief";
+import { boampId, isFullBrief, storedBrief, tedId } from "@/lib/tender-brief";
 import { founderOffer, founderOpen } from "@/lib/billing/founder";
 import { NeedContactForm } from "@/components/opportunities/need-contact-form";
 import { OUTREACH_COOKIE, outreachVisitor, track as trackOutreach } from "@/lib/outreach/tracking";
@@ -181,7 +181,8 @@ async function briefContext(id: string) {
   const path = `/opportunites/${id}`;
   return {
     allowed,
-    initial: allowed ? stored : null,
+    // Fiche ancienne (sans « Préparer sa réponse ») : préparée à nouveau à l'affichage
+    initial: allowed && isFullBrief(stored) ? stored : null,
     // En une phrase, ce que veut l'acheteur (tiré de l'avis officiel) : visible de tous, utile aussi aux moteurs de recherche
     teaser: allowed ? null : (stored?.summary ?? null),
     source: idweb ? `BOAMP n° ${idweb}` : `TED n° ${ted}`,
@@ -318,11 +319,13 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
 
   const myCompanyId = session?.activeCompany?.company.id ?? null;
   const isOwner = Boolean(o.company_id && session?.memberships.some((m) => m.company.id === o.company_id));
-  const [fav, interest, proposal, pipeline] = await Promise.all([
+  const [fav, interest, proposal, pipeline, myProfile] = await Promise.all([
     session ? supabase.from("favorites").select("id").eq("user_id", session.userId).eq("opportunity_id", o.id).maybeSingle() : null,
     myCompanyId ? supabase.from("interests").select("id, status").eq("opportunity_id", o.id).eq("company_id", myCompanyId).maybeSingle() : null,
     myCompanyId ? supabase.from("proposals").select("id, status").eq("opportunity_id", o.id).eq("company_id", myCompanyId).maybeSingle() : null,
     myCompanyId ? supabase.from("pipeline_items").select("id").eq("opportunity_id", o.id).eq("company_id", myCompanyId).maybeSingle() : null,
+    // Certifications de la fiche entreprise : comparées aux exigences de l'avis
+    myCompanyId && o.origin === "EXTERNAL" ? supabase.from("company_profiles").select("certifications").eq("company_id", myCompanyId).maybeSingle() : null,
   ]);
 
   const external = o.origin === "EXTERNAL";
@@ -509,6 +512,7 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
                 allowed={brief.allowed}
                 teaser={brief.teaser}
                 lockedTitle={brief.lockedTitle}
+                mine={myCompanyId ? (myProfile?.data?.certifications ?? []) : null}
                 upgrade={
                   <Link href={brief.upgradeHref} className={buttonClasses({ full: true, className: "btn-shine" })}>
                     {brief.upgradeLabel}

@@ -1,14 +1,33 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AlertTriangle, CalendarClock, Check, ClipboardCheck, Download, FileText, Hourglass, Layers, Lock, MapPinned, Scale, Sparkles, Tag } from "lucide-react";
+import { AlertTriangle, BadgeCheck, CalendarClock, Check, CircleHelp, ClipboardCheck, Download, ExternalLink, FileText, Hourglass, Layers, Lightbulb, Lock, MapPinned, Scale, Send, ShieldCheck, Sparkles, Tag, Users } from "lucide-react";
+import Link from "next/link";
+import { certStatus } from "@/lib/certification-match";
 import type { TenderBrief } from "@/lib/tender-brief";
 import { briefProgress, loadTenderBrief, toggleBriefStep } from "@/app/actions/tender-brief";
 
 /** Fiche synthèse : l'essentiel de l'avis officiel en 30 secondes. */
 export type BriefSteps = { done: number[]; onToggle: (step: number, done: boolean) => void; pending?: boolean };
 
-export function TenderBriefView({ brief, source, steps }: { brief: TenderBrief; source?: string | null; steps?: BriefSteps }) {
+export function TenderBriefView({
+  brief,
+  source,
+  steps,
+  opportunityId,
+  mine,
+}: {
+  brief: TenderBrief;
+  source?: string | null;
+  steps?: BriefSteps;
+  opportunityId?: string;
+  /** Certifications de la fiche de l'entreprise (null : pas d'entreprise, pas de comparaison) */
+  mine?: string[] | null;
+}) {
+  const certs = (brief.certifications ?? []).map((c) => ({ label: c, status: mine ? certStatus(c, mine) : null }));
+  const missing = certs.some((c) => c.status === "missing");
+  const criteria = (brief.criteria ?? []).filter((c) => c.label.trim());
+  const weighted = criteria.length > 0 && criteria.every((c) => typeof c.weight === "number" && c.weight > 0);
   const keys = [
     { icon: CalendarClock, label: "Remise des offres", value: brief.deadline, hot: true },
     { icon: MapPinned, label: "Visite", value: brief.site_visit, hot: Boolean(brief.site_visit && /obligatoire/i.test(brief.site_visit)) },
@@ -31,6 +50,53 @@ export function TenderBriefView({ brief, source, steps }: { brief: TenderBrief; 
           ))}
         </div>
       )}
+      {(certs.length > 0 || (brief.capacity ?? []).length > 0) && (
+        <BriefBlock icon={ShieldCheck} title="Puis-je répondre ?">
+          {certs.length > 0 && (
+            <ul className="space-y-2">
+              {certs.map((c) => (
+                <li key={c.label} className="flex items-start gap-2.5 rounded-xl bg-slate-50 px-3 py-2 ring-1 ring-slate-200">
+                  {c.status === "ok" ? (
+                    <BadgeCheck className="mt-0.5 size-5 shrink-0 text-teal-700" aria-label="Présente sur votre fiche" />
+                  ) : c.status === "missing" ? (
+                    <AlertTriangle className="mt-0.5 size-5 shrink-0 text-rose-600" aria-label="Absente de votre fiche" />
+                  ) : (
+                    <CircleHelp className="mt-0.5 size-5 shrink-0 text-slate-400" aria-label="À vérifier" />
+                  )}
+                  <span className="min-w-0">
+                    <span className="font-semibold text-navy">{c.label}</span>
+                    <span className="block text-xs text-slate-500">
+                      {c.status === "ok"
+                        ? "Présente sur votre fiche entreprise"
+                        : c.status === "missing"
+                          ? "Absente de votre fiche entreprise"
+                          : c.status === "check"
+                            ? "À vérifier : intitulé ou numéro différent sur votre fiche"
+                            : "Exigée par l'acheteur"}
+                    </span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+          {(brief.capacity ?? []).length > 0 && <List items={brief.capacity ?? []} />}
+          <div className="mt-3 flex flex-wrap gap-2">
+            {mine && mine.length === 0 && certs.length > 0 && (
+              <Link href="/dashboard/entreprise" className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold text-navy ring-1 ring-slate-300 transition hover:bg-slate-50">
+                Ajouter mes certifications pour comparer
+              </Link>
+            )}
+            {missing && opportunityId && (
+              <Link href={`/publier?partenaire=${opportunityId}`} className="inline-flex items-center gap-1.5 rounded-lg bg-navy px-3 py-2 text-sm font-semibold text-white transition hover:bg-navy/90">
+                <Users className="size-4" aria-hidden /> Trouver un partenaire qui l&apos;a
+              </Link>
+            )}
+          </div>
+          {missing && (
+            <p className="mt-2 text-xs text-slate-500">Il vous manque une exigence ? Répondre à plusieurs (groupement ou sous-traitance) permet souvent de candidater quand même.</p>
+          )}
+        </BriefBlock>
+      )}
       {brief.lots.length > 0 && (
         <BriefBlock icon={Layers} title={`${brief.lots.length} lot${brief.lots.length > 1 ? "s" : ""}`}>
           <div className="grid gap-2 sm:grid-cols-2">
@@ -47,9 +113,49 @@ export function TenderBriefView({ brief, source, steps }: { brief: TenderBrief; 
           <List items={brief.documents} />
         </BriefBlock>
       )}
-      <BriefBlock icon={Scale} title="Comment l'offre sera jugée">
-        <p className="text-slate-700">{brief.judging}</p>
+      <BriefBlock icon={Scale} title="Comment l'offre sera notée">
+        {weighted ? (
+          <div className="space-y-2.5">
+            {criteria.map((c) => (
+              <div key={c.label}>
+                <div className="flex items-baseline justify-between gap-3 text-sm">
+                  <span className="text-slate-700">{c.label}</span>
+                  <span className="font-bold text-navy tabular-nums">{c.weight} %</span>
+                </div>
+                <div className="mt-1 h-2 overflow-hidden rounded-full bg-slate-100">
+                  <div className="h-full rounded-full bg-gradient-to-r from-teal to-violet" style={{ width: `${Math.min(100, c.weight ?? 0)}%` }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : criteria.length > 0 ? (
+          <List items={criteria.map((c) => c.label)} />
+        ) : null}
+        <p className={`text-slate-700 ${criteria.length ? "mt-3 text-sm" : ""}`}>{brief.judging}</p>
       </BriefBlock>
+      {(brief.tips ?? []).length > 0 && (
+        <div className="rounded-xl bg-gradient-to-br from-teal-50 to-white p-4 ring-1 ring-teal/30">
+          <p className="flex items-center gap-2 font-bold text-navy">
+            <Lightbulb className="size-4 text-teal-700" aria-hidden /> Conseils pour obtenir la meilleure note
+          </p>
+          <List items={brief.tips ?? []} />
+        </div>
+      )}
+      {(brief.submission || brief.submission_url) && (
+        <BriefBlock icon={Send} title="Où déposer votre offre">
+          {brief.submission && <p className="text-slate-700">{brief.submission}</p>}
+          {brief.submission_url && (
+            <a
+              href={brief.submission_url}
+              target="_blank"
+              rel="noopener noreferrer nofollow"
+              className="mt-2 inline-flex max-w-full items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold text-teal-800 ring-1 ring-teal/40 transition hover:bg-teal-50"
+            >
+              <ExternalLink className="size-4 shrink-0" aria-hidden /> <span className="truncate">Espace de dépôt de l&apos;acheteur</span>
+            </a>
+          )}
+        </BriefBlock>
+      )}
       {brief.todo.length > 0 && (
         <BriefBlock icon={ClipboardCheck} title="Votre « à faire »">
           {steps && (
@@ -131,6 +237,7 @@ export function TenderBriefPanel({
   upgrade,
   teaser = null,
   lockedTitle = "Réservé aux membres Pro",
+  mine = null,
 }: {
   opportunityId: string;
   initial: TenderBrief | null;
@@ -140,6 +247,8 @@ export function TenderBriefPanel({
   /** Résumé en une phrase, montré à ceux qui n'ont pas la fiche complète */
   teaser?: string | null;
   lockedTitle?: string;
+  /** Certifications de la fiche de l'entreprise active (null sans entreprise) */
+  mine?: string[] | null;
 }) {
   const [brief, setBrief] = useState<TenderBrief | null>(initial);
   const [state, setState] = useState<"idle" | "loading" | "none" | "error">(initial ? "idle" : allowed ? "loading" : "idle");
@@ -198,7 +307,7 @@ export function TenderBriefPanel({
           <Sparkles className="size-5 text-teal-700" aria-hidden /> Fiche synthèse
           <span className="rounded-full bg-gradient-to-r from-teal to-violet px-2.5 py-0.5 text-xs font-bold text-white">Pro</span>
         </h2>
-        <p className="mt-1 text-sm text-slate-500">L&apos;essentiel de l&apos;avis officiel en 30 secondes.</p>
+        <p className="mt-1 text-sm text-slate-500">L&apos;essentiel de l&apos;avis officiel en 30 secondes, et comment préparer votre réponse.</p>
         <div className="mt-5">
           {allowed && brief ? (
             <>
@@ -211,7 +320,7 @@ export function TenderBriefPanel({
                 </a>
               </div>
               {notice && <p className="mb-3 rounded-lg bg-teal-50 px-3 py-2 text-sm text-teal-800 ring-1 ring-teal/20">{notice}</p>}
-              <TenderBriefView brief={brief} source={source} steps={{ done, onToggle: toggle, pending }} />
+              <TenderBriefView brief={brief} source={source} steps={{ done, onToggle: toggle, pending }} opportunityId={opportunityId} mine={mine} />
             </>
           ) : allowed && state === "loading" ? (
             <div className="space-y-3" aria-live="polite">
@@ -238,7 +347,7 @@ export function TenderBriefPanel({
                 <div className="max-w-sm rounded-2xl bg-white/95 p-5 text-center shadow-lg ring-1 ring-slate-200">
                   <Lock className="mx-auto size-6 text-teal-700" aria-hidden />
                   <p className="mt-2 font-bold text-navy">{lockedTitle}</p>
-                  <p className="mt-1 text-sm text-slate-600">Dates, pièces à fournir, critères et pièges à éviter, en 30 secondes.</p>
+                  <p className="mt-1 text-sm text-slate-600">Certifications exigées, pièces à fournir, notation, où déposer et conseils pour gagner.</p>
                   <div className="mt-4">{upgrade}</div>
                 </div>
               </div>

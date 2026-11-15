@@ -32,8 +32,11 @@ ${o.buyer ? `<p class="muted">${e(o.buyer)}</p>` : ""}
 <p>${e(b.summary)}</p>
 ${key.length ? `<div class="keys">${key.map(([k, v]) => `<div class="key"><b>${e(k)}</b>${e(v)}</div>`).join("")}</div>` : ""}
 ${b.lots.length ? `<h2>Lots</h2>${list(b.lots)}` : ""}
+${(b.certifications ?? []).length || (b.capacity ?? []).length ? `<h2>Conditions pour candidater</h2>${list([...(b.certifications ?? []), ...(b.capacity ?? [])])}` : ""}
 ${b.documents.length ? `<h2>Pièces à fournir</h2>${list(b.documents)}` : ""}
-<h2>Comment l'offre sera jugée</h2><p>${e(b.judging)}</p>
+<h2>Comment l'offre sera notée</h2>${(b.criteria ?? []).length ? list((b.criteria ?? []).map((c) => (c.weight ? `${c.label} : ${c.weight} %` : c.label))) : ""}<p>${e(b.judging)}</p>
+${(b.tips ?? []).length ? `<h2>Conseils pour obtenir la meilleure note</h2>${list(b.tips ?? [])}` : ""}
+${b.submission || b.submission_url ? `<h2>Où déposer votre offre</h2><p>${e([b.submission, b.submission_url].filter(Boolean).join(" — "))}</p>` : ""}
 ${b.todo.length ? `<h2>À faire</h2><ul class="todo">${b.todo.map((t, i) => `<li>${done.has(i) ? "☑" : "☐"} ${e(t)}</li>`).join("")}</ul>` : ""}
 ${b.warnings.length ? `<h2>Points d'attention</h2><div class="warn">${list(b.warnings)}</div>` : ""}
 <p class="foot">D'après l'avis officiel${o.source ? ` (${e(o.source)})` : ""}. En cas de doute, le dossier de consultation fait foi. Fiche en ligne : ${e(o.url)}</p>

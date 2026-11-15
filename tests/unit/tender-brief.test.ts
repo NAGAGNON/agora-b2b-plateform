@@ -16,3 +16,26 @@ describe("fiche synthèse", () => {
     expect(BriefSchema.safeParse({ summary: "x" }).success).toBe(false);
   });
 });
+
+const { isFullBrief } = await import("@/lib/tender-brief");
+const { certStatus } = await import("@/lib/certification-match");
+
+describe("préparer sa réponse", () => {
+  const base = { summary: "s", deadline: null, site_visit: null, duration: null, pricing: null, lots: [], documents: [], judging: "j", todo: [], warnings: [] };
+
+  it("une fiche ancienne reste lisible mais est reconnue comme incomplète", () => {
+    const old = BriefSchema.parse(base);
+    expect(isFullBrief(old)).toBe(false);
+    const full = BriefSchema.parse({ ...base, certifications: ["RGE"], capacity: [], submission: null, submission_url: null, criteria: [{ label: "Prix", weight: 40 }], tips: [] });
+    expect(isFullBrief(full)).toBe(true);
+  });
+
+  it("certifications : présente, à vérifier ou absente (jamais « oui » par défaut)", () => {
+    expect(certStatus("Qualibat 1311 ou équivalent", ["QUALIBAT 1311"])).toBe("ok");
+    expect(certStatus("Qualibat 1311 ou équivalent", ["Qualibat 1552"])).toBe("check");
+    expect(certStatus("Qualification RGE", ["Qualibat RGE"])).toBe("ok");
+    expect(certStatus("ISO 9001", ["MASE"])).toBe("missing");
+    expect(certStatus("ISO 9001", [])).toBe("missing");
+    expect(certStatus("Habilitation électrique", ["habilitation electrique B2V"])).toBe("ok");
+  });
+});
