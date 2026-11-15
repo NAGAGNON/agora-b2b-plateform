@@ -182,6 +182,16 @@ export async function startDiscovery(opportunityId: string): Promise<Result> {
   return advance(opportunityId, "QUALIFIED");
 }
 
+/** « Oui, je la garde pour plus tard » : enregistrée dans Mes candidatures, sans commencer la préparation. */
+export async function keepForLater(opportunityId: string): Promise<Result> {
+  if (!z.uuid().safeParse(opportunityId).success) return { ok: false, error: "Offre introuvable." };
+  const r = await advance(opportunityId, "INTERESTED");
+  if (!r.ok) return r;
+  const session = await getSession();
+  if (session?.activeCompany) await logJournal(await createClient(), session.activeCompany.company.id, opportunityId, session.userId, "NOTE", "Offre gardée pour plus tard.");
+  return r;
+}
+
 /** « Cette offre ne m'intéresse plus » : retirée de mes candidatures (et du pipeline), plus jamais proposée. */
 export async function withdrawApplication(opportunityId: string): Promise<Result> {
   if (!z.uuid().safeParse(opportunityId).success) return { ok: false, error: "Offre introuvable." };

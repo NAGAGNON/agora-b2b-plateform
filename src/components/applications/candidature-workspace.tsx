@@ -35,6 +35,7 @@ import {
   Route,
   ThumbsUp,
   XCircle,
+  Bookmark,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import type { TenderBrief } from "@/lib/tender-brief";
@@ -42,7 +43,7 @@ import { certStatus } from "@/lib/certification-match";
 import { APPLICATION_GUIDE, LOST_ADVICE, questionTemplate, rejectionTemplate } from "@/lib/application-guide";
 import { applicationPlan } from "@/lib/application-plan";
 import { buildMemoirDraft, type DraftCompany } from "@/lib/memoir-draft";
-import { addJournalNote, answerApplicationResult, deleteJournalNote, markApplicationSent, saveDraft, startApplicationGuide, toggleDocStep, toggleGuideStep, withdrawApplication, type JournalEntry } from "@/app/actions/applications";
+import { addJournalNote, answerApplicationResult, deleteJournalNote, keepForLater, markApplicationSent, saveDraft, startApplicationGuide, toggleDocStep, toggleGuideStep, withdrawApplication, type JournalEntry } from "@/app/actions/applications";
 import { loadTenderBrief } from "@/app/actions/tender-brief";
 import { goBackToSearch } from "@/components/applications/return-point";
 
@@ -104,6 +105,14 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
   // Offre « à l'étude » : la personne découvre avant de décider de répondre
   const discovery = ["DETECTED", "QUALIFIED", "INTERESTED"].includes(stage);
   const prepare = () => act(() => startApplicationGuide(data.id), "RESPONSE_PREPARING");
+  const later = stage === "INTERESTED";
+  const keep = () =>
+    start(async () => {
+      setError(null);
+      const r = await keepForLater(data.id);
+      if (r.ok) goBackToSearch();
+      else setError(r.error ?? "Réessayez.");
+    });
   const withdraw = (confirm: boolean) => {
     if (confirm && !window.confirm("Retirer cette offre de vos candidatures et retourner à vos recherches ?")) return;
     start(async () => {
@@ -221,16 +230,39 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
           <div aria-hidden className="pointer-events-none absolute -top-20 -right-20 size-56 animate-aurora rounded-full bg-teal/15 blur-3xl" />
           <div className="relative flex flex-col gap-5 lg:flex-row lg:items-center">
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-bold tracking-wide text-teal-700 uppercase">À l&apos;étude</p>
-              <h2 className="mt-1 font-heading text-2xl font-extrabold text-navy">Alors, cette offre vous intéresse ?</h2>
-              <p className="mt-1 text-slate-600">Parcourez les conditions, les pièces et la notation ci-dessous. Si c&apos;est pour vous, LinkProB2B vous accompagne étape par étape jusqu&apos;au dépôt.</p>
+              <p className="inline-flex items-center gap-1.5 text-xs font-bold tracking-wide text-teal-700 uppercase">
+                {later ? (
+                  <>
+                    <Bookmark className="size-3.5" aria-hidden /> Gardée pour plus tard
+                  </>
+                ) : (
+                  "À l'étude"
+                )}
+              </p>
+              <h2 className="mt-1 font-heading text-2xl font-extrabold text-navy">{later ? "Prêt à vous lancer sur cette offre ?" : "Alors, cette offre vous intéresse ?"}</h2>
+              <p className="mt-1 text-slate-600">
+                {later
+                  ? "Elle est enregistrée dans vos candidatures. Quand vous êtes prêt, LinkProB2B vous accompagne étape par étape jusqu'au dépôt."
+                  : "Parcourez les conditions, les pièces et la notation ci-dessous. Si c'est pour vous, LinkProB2B vous accompagne étape par étape jusqu'au dépôt."}
+              </p>
             </div>
             <div className="flex flex-col gap-2 sm:flex-row lg:flex-col">
               <button type="button" disabled={pending} onClick={prepare} className="btn-shine inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-teal to-electric px-5 py-3 font-semibold text-navy shadow-lg shadow-teal/25 transition hover:-translate-y-0.5 active:scale-[0.98] disabled:opacity-50">
                 <ThumbsUp className="size-4" aria-hidden /> Oui, je prépare ma candidature
               </button>
-              <button type="button" disabled={pending} onClick={() => withdraw(false)} className="inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 font-semibold text-slate-600 ring-1 ring-slate-300 transition hover:-translate-y-0.5 hover:ring-rose-300 hover:text-rose-700 active:scale-[0.98] disabled:opacity-50">
-                <Search className="size-4" aria-hidden /> Non, retour à mes recherches
+              {!later && (
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={keep}
+                  data-testid="keep-later"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-sky px-5 py-3 font-semibold text-navy ring-1 ring-teal/30 transition hover:-translate-y-0.5 hover:ring-teal active:scale-[0.98] disabled:opacity-50"
+                >
+                  <Bookmark className="size-4" aria-hidden /> Oui, je la garde pour plus tard
+                </button>
+              )}
+              <button type="button" disabled={pending} onClick={() => withdraw(later)} className="inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 font-semibold text-slate-600 ring-1 ring-slate-300 transition hover:-translate-y-0.5 hover:ring-rose-300 hover:text-rose-700 active:scale-[0.98] disabled:opacity-50">
+                <Search className="size-4" aria-hidden /> {later ? "Ne m'intéresse plus" : "Non, retour à mes recherches"}
               </button>
             </div>
           </div>
@@ -476,8 +508,13 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
                 <button type="button" disabled={pending} onClick={prepare} className="inline-flex items-center gap-2 rounded-xl bg-teal px-4 py-2.5 text-sm font-semibold text-navy transition hover:-translate-y-0.5 disabled:opacity-50">
                   <ThumbsUp className="size-4" aria-hidden /> Oui, je prépare ma candidature
                 </button>
-                <button type="button" disabled={pending} onClick={() => withdraw(false)} className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white/80 ring-1 ring-white/20 transition hover:bg-white/10 disabled:opacity-50">
-                  Non, retour à mes recherches
+                {!later && (
+                  <button type="button" disabled={pending} onClick={keep} className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-sm font-semibold text-white ring-1 ring-white/25 transition hover:-translate-y-0.5 hover:bg-white/15 disabled:opacity-50">
+                    <Bookmark className="size-4" aria-hidden /> Je la garde pour plus tard
+                  </button>
+                )}
+                <button type="button" disabled={pending} onClick={() => withdraw(later)} className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white/80 ring-1 ring-white/20 transition hover:bg-white/10 disabled:opacity-50">
+                  {later ? "Ne m'intéresse plus" : "Non, retour à mes recherches"}
                 </button>
               </div>
             )}
