@@ -47,6 +47,7 @@ import { addJournalNote, answerApplicationResult, deleteJournalNote, keepForLate
 import { loadTenderBrief } from "@/app/actions/tender-brief";
 import { goBackToSearch } from "@/components/applications/return-point";
 import { ApplicationAssistant } from "@/components/applications/application-assistant";
+import { StepsProgress } from "@/components/applications/steps-progress";
 import type { AssistantMessage } from "@/app/actions/application-assistant";
 
 export type WorkspaceData = {
@@ -312,6 +313,13 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
             </button>
           </div>
         </section>
+      )}
+
+      {/* Où en est la candidature : visible dès le haut de la page */}
+      {!discovery && (
+        <div className="plan-in">
+          <StepsProgress done={done} sent={sent} />
+        </div>
       )}
 
       {/* L'essentiel */}

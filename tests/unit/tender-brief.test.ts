@@ -69,3 +69,21 @@ describe("planning de candidature", () => {
     expect(plan[1].status).toBe("late");
   });
 });
+
+import { dayLabel, upcomingSteps, applicationPlan as plan2 } from "@/lib/application-plan";
+
+describe("activité de la semaine", () => {
+  it("garde les étapes des 7 prochains jours, les retards ramenés à aujourd'hui", () => {
+    const now = new Date(2026, 10, 16, 10);
+    const p = plan2(new Date(2026, 10, 30).toISOString(), [0], now, new Date(2026, 10, 10).toISOString());
+    const week = upcomingSteps(p, now, 7);
+    expect(week.every((w) => w.offset >= 0 && w.offset <= 7)).toBe(true);
+    expect(week.some((w) => w.step === 0)).toBe(false);
+    expect(week.filter((w) => w.status === "late").every((w) => w.offset === 0)).toBe(true);
+  });
+  it("libellés de jours", () => {
+    expect(dayLabel(0)).toBe("Aujourd'hui");
+    expect(dayLabel(1)).toBe("Demain");
+    expect(dayLabel(3)).toBe("Dans 3 jours");
+  });
+});

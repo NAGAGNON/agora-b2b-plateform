@@ -249,7 +249,11 @@ export default async function AdminApplicationsPage() {
 
       <div className="grid gap-4 lg:grid-cols-2">
         <section className="rounded-2xl border border-slate-200 bg-white p-4">
-          <h2 className="font-semibold text-navy">Du clic au marché gagné</h2>
+          <h2 className="font-semibold text-navy">Taux de transformation des opportunités</h2>
+          <p className="mt-1 text-sm text-slate-600">
+            Sur {funnel[0].value} opportunité(s) consultée(s) : chaque ligne indique le nombre et la part des consultées
+            {funnel[0].value > 0 && funnel[5].value > 0 ? ` · 1 marché gagné pour ${Math.round(funnel[0].value / funnel[5].value)} consultées` : ""}.
+          </p>
           <ol className="mt-4 space-y-3">
             {funnel.map((f, i) => (
               <li key={f.label}>
@@ -257,7 +261,11 @@ export default async function AdminApplicationsPage() {
                   <span className="text-slate-700">{f.label}</span>
                   <span className="font-semibold text-navy tabular-nums">
                     {f.value}
-                    {i > 0 && <span className="ml-2 text-xs font-normal text-slate-500">{pct(f.value, funnel[i - 1].value)}</span>}
+                    {i > 0 && (
+                      <span className="ml-2 text-xs font-normal text-slate-500">
+                        {pct(f.value, funnel[0].value)} des consultées · {pct(f.value, funnel[i - 1].value)} de l&apos;étape précédente
+                      </span>
+                    )}
                   </span>
                 </div>
                 <div className="mt-1 h-2.5 overflow-hidden rounded-full bg-slate-100">

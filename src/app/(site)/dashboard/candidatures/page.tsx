@@ -5,7 +5,8 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { BriefSchema } from "@/lib/tender-brief";
 import { APPLICATION_GUIDE } from "@/lib/application-guide";
-import { applicationPlan, dueToday } from "@/lib/application-plan";
+import { applicationPlan, dayLabel, dueToday, upcomingSteps } from "@/lib/application-plan";
+import { StepsProgress } from "@/components/applications/steps-progress";
 import { cn } from "@/lib/cn";
 
 export const metadata = { title: "Mes candidatures" };
@@ -56,6 +57,8 @@ export default async function ApplicationsPage() {
       study,
       next: r.stage === "INTERESTED" ? "Commencer quand vous êtes prêt" : study ? "Décider si l'offre vous intéresse" : next >= 0 ? APPLICATION_GUIDE[next].title : null,
       due: dueToday(plan),
+      week: upcomingSteps(plan, now, 7),
+      doneSteps: done,
       visit: brief?.site_visit && /obligatoire/i.test(brief.site_visit) ? brief.site_visit : null,
       docs: brief ? { done: (r.docs_done ?? []).length, total: brief.documents.length } : null,
     };
@@ -66,7 +69,12 @@ export default async function ApplicationsPage() {
   const waiting = cards.filter((c) => SENT.includes(c.stage));
   const finished = cards.filter((c) => c.stage === "WON" || c.stage === "LOST");
   const won = cards.filter((c) => c.stage === "WON").length;
-  const today = preparing.flatMap((c) => c.due.map((d) => ({ card: c, task: d })));
+  // Mon activité cette semaine : étapes conseillées des 7 prochains jours + dates limites des offres gardées
+  const weekItems = [
+    ...preparing.flatMap((c) => c.week.map((w) => ({ card: c, offset: w.offset, title: w.step === 2 && c.visit ? "Visite obligatoire du site" : w.step === 5 ? "Dépôt de la candidature" : w.title, late: w.status === "late", step: w.step as number | null }))),
+    ...kept.filter((c) => c.days !== null && c.days >= 0 && c.days <= 7).map((c) => ({ card: c, offset: c.days as number, title: "Date limite : décider si vous répondez", late: false, step: null as number | null })),
+  ].sort((a, b) => a.offset - b.offset);
+  const weekGroups = [...new Set(weekItems.map((w) => w.offset))].map((offset) => ({ offset, items: weekItems.filter((w) => w.offset === offset) }));
   const soon = [...preparing, ...kept].filter((c) => c.days !== null && c.days >= 0 && c.days <= 14).sort((a, b) => (a.days ?? 0) - (b.days ?? 0));
 
   return (
@@ -108,32 +116,44 @@ export default async function ApplicationsPage() {
         </section>
       ) : (
         <>
-          {(today.length > 0 || soon.length > 0) && (
+          {(weekItems.length > 0 || soon.length > 0 || preparing.length > 0) && (
             <div className="grid gap-6 lg:grid-cols-2 [&>*]:min-w-0">
-              <section className="plan-in rounded-3xl bg-navy p-6 text-white shadow-xl sm:p-8">
+              <section className="plan-in rounded-3xl bg-navy p-6 text-white shadow-xl sm:p-8" data-testid="week">
                 <p className="flex items-center gap-2 text-xs font-bold tracking-wide text-teal-200 uppercase">
-                  <CheckCircle2 className="size-4" aria-hidden /> À faire aujourd&apos;hui
+                  <CheckCircle2 className="size-4" aria-hidden /> Mon activité cette semaine
                 </p>
-                {today.length ? (
-                  <ul className="mt-4 space-y-2">
-                    {today.slice(0, 6).map(({ card, task }) => (
-                      <li key={`${card.id}-${task.step}`}>
-                        <Link href={`/dashboard/candidatures/${card.id}#etape-${task.step + 1}`} className="group flex items-start gap-3 rounded-2xl bg-white/5 p-3 ring-1 ring-white/10 transition hover:-translate-y-0.5 hover:bg-white/10">
-                          <span className={cn("mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-bold", task.status === "late" ? "bg-rose-500 text-white" : "bg-teal text-navy")}>{task.step + 1}</span>
-                          <span className="min-w-0 flex-1">
-                            <span className="block font-semibold text-white">{task.title}</span>
-                            <span className="block truncate text-sm text-white/60">
-                              {task.status === "late" ? "En retard · " : ""}
-                              {card.title}
-                            </span>
-                          </span>
-                          <ArrowRight className="mt-1 size-4 shrink-0 text-teal transition group-hover:translate-x-0.5" aria-hidden />
-                        </Link>
-                      </li>
+                {weekGroups.length ? (
+                  <div className="mt-4 space-y-5">
+                    {weekGroups.slice(0, 5).map((g) => (
+                      <div key={g.offset}>
+                        <p className={cn("mb-2 text-sm font-bold", g.offset === 0 ? "text-teal-200" : "text-white/70")}>{dayLabel(g.offset)}</p>
+                        <ul className="space-y-2">
+                          {g.items.slice(0, 4).map((w, i) => (
+                            <li key={`${w.card.id}-${w.step ?? "d"}-${i}`}>
+                              <Link
+                                href={`/dashboard/candidatures/${w.card.id}${w.step !== null ? `#etape-${w.step + 1}` : ""}`}
+                                className="group flex items-start gap-3 rounded-2xl bg-white/5 p-3 ring-1 ring-white/10 transition hover:-translate-y-0.5 hover:bg-white/10"
+                              >
+                                <span className={cn("mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-bold", w.late ? "bg-rose-500 text-white" : w.step === null ? "bg-white/15 text-white" : "bg-teal text-navy")}>
+                                  {w.step !== null ? w.step + 1 : "!"}
+                                </span>
+                                <span className="min-w-0 flex-1">
+                                  <span className="block font-semibold text-white">
+                                    {w.title}
+                                    {w.late && <span className="ml-2 rounded-full bg-rose-500/20 px-2 py-0.5 text-xs text-rose-200">En retard</span>}
+                                  </span>
+                                  <span className="block truncate text-sm text-white/60">{w.card.title}</span>
+                                </span>
+                                <ArrowRight className="mt-1 size-4 shrink-0 text-teal transition group-hover:translate-x-0.5" aria-hidden />
+                              </Link>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
                     ))}
-                  </ul>
+                  </div>
                 ) : (
-                  <p className="mt-4 text-white/70">Rien d&apos;urgent aujourd&apos;hui : vous êtes dans les temps.</p>
+                  <p className="mt-4 text-white/70">Rien de prévu dans les 7 prochains jours : vous êtes dans les temps.</p>
                 )}
               </section>
               <section className="plan-in rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200 [animation-delay:100ms] sm:p-8">
@@ -196,6 +216,11 @@ export default async function ApplicationsPage() {
                           </p>
                         </div>
                       </div>
+                      {!c.study && (
+                        <div className="mt-4">
+                          <StepsProgress done={c.doneSteps} sent={c.sent} compact />
+                        </div>
+                      )}
                       <div className="mt-4 flex flex-wrap gap-2">
                         {c.stage === "WON" ? (
                           <Chip tone="teal" icon={Trophy}>
