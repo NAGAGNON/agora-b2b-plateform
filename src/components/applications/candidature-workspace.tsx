@@ -550,27 +550,6 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
             <p className="flex items-center gap-2 text-xs font-bold tracking-wide text-teal-200 uppercase">
               <Sparkles className="size-4" aria-hidden /> Vous avez tout en main
             </p>
-            {discovery && (
-              <div className="mt-3 mb-6 flex flex-wrap items-center gap-3 rounded-2xl bg-white/5 p-4 ring-1 ring-white/10">
-                <p className="mr-auto font-semibold text-white">Cette offre est pour vous ?</p>
-                <button type="button" disabled={pending} onClick={prepare} className="inline-flex items-center gap-2 rounded-xl bg-teal px-4 py-2.5 text-sm font-semibold text-navy transition hover:-translate-y-0.5 disabled:opacity-50">
-                  <ThumbsUp className="size-4" aria-hidden /> Oui, je prépare ma candidature
-                </button>
-                <button
-                  type="button"
-                  onClick={keep}
-                  role="checkbox"
-                  aria-checked={later}
-                  className={cn("inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold ring-1 transition hover:-translate-y-0.5", later ? "bg-teal/20 text-teal-100 ring-teal" : "bg-white/10 text-white ring-white/25 hover:bg-white/15")}
-                >
-                  <span className={cn("flex size-4 items-center justify-center rounded", later ? "bg-teal text-navy" : "ring-1 ring-white/50")}>{later && <Check className="size-3" aria-hidden />}</span>
-                  {later ? "Gardée pour plus tard" : "Je la garde pour plus tard"}
-                </button>
-                <button type="button" disabled={pending} onClick={() => withdraw(later)} className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white/80 ring-1 ring-white/20 transition hover:bg-white/10 disabled:opacity-50">
-                  {later ? "Ne m'intéresse plus" : "Non, retour à mes recherches"}
-                </button>
-              </div>
-            )}
             <h2 className="mt-2 font-heading text-2xl font-extrabold text-white">Prêt à passer sur l&apos;annonce officielle ?</h2>
             <p className="mt-2 max-w-2xl text-white/75">
               Conditions vérifiées, pièces listées, notation comprise et trame du mémoire préparée : téléchargez maintenant le dossier complet sur le site de l&apos;acheteur.
