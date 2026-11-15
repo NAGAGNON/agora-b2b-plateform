@@ -235,50 +235,70 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
 
       {/* À l'étude : la décision, sans engagement */}
       {discovery && (
-        <section className="plan-in relative overflow-hidden rounded-3xl bg-white p-6 shadow-lg ring-2 ring-teal/40 sm:p-8" data-testid="decision">
-          <div aria-hidden className="pointer-events-none absolute -top-20 -right-20 size-56 animate-aurora rounded-full bg-teal/15 blur-3xl" />
-          <div className="relative flex flex-col gap-5 lg:flex-row lg:items-center">
-            <div className="min-w-0 flex-1">
-              <p className="inline-flex items-center gap-1.5 text-xs font-bold tracking-wide text-teal-700 uppercase">
-                {later ? (
-                  <>
-                    <Bookmark className="size-3.5" aria-hidden /> Gardée pour plus tard
-                  </>
-                ) : (
-                  "À l'étude"
-                )}
-              </p>
-              <h2 className="mt-1 font-heading text-2xl font-extrabold text-navy">Alors, cette offre vous intéresse ?</h2>
-              <p className="mt-1 text-slate-600">
-                {later
-                  ? "Elle est enregistrée dans vos candidatures. Continuez à lire les infos ci-dessous ; quand vous êtes prêt, LinkProB2B vous accompagne étape par étape jusqu'au dépôt."
-                  : "Parcourez les conditions, les pièces et la notation ci-dessous. Si c'est pour vous, LinkProB2B vous accompagne étape par étape jusqu'au dépôt."}
-              </p>
-            </div>
-            <div className="flex flex-col gap-2 sm:flex-row lg:flex-col">
-              <button type="button" disabled={pending} onClick={prepare} className="btn-shine inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-teal to-electric px-5 py-3 font-semibold text-navy shadow-lg shadow-teal/25 transition hover:-translate-y-0.5 active:scale-[0.98] disabled:opacity-50">
-                <ThumbsUp className="size-4" aria-hidden /> Oui, je prépare ma candidature
-              </button>
-              <button
-                type="button"
-                onClick={keep}
-                role="checkbox"
-                aria-checked={later}
-                data-testid="keep-later"
-                className={cn(
-                  "inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 font-semibold transition hover:-translate-y-0.5 active:scale-[0.98]",
-                  later ? "bg-teal-50 text-teal-800 ring-2 ring-teal" : "bg-sky text-navy ring-1 ring-teal/30 hover:ring-teal",
-                )}
-              >
-                <span className={cn("flex size-5 items-center justify-center rounded-md transition", later ? "bg-teal text-white" : "bg-white ring-1 ring-slate-300")}>
-                  {later && <Check className="size-3.5" aria-hidden />}
-                </span>
-                {later ? "Gardée pour plus tard" : "Oui, je la garde pour plus tard"}
-              </button>
-              <button type="button" disabled={pending} onClick={() => withdraw(later)} className="inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 font-semibold text-slate-600 ring-1 ring-slate-300 transition hover:-translate-y-0.5 hover:ring-rose-300 hover:text-rose-700 active:scale-[0.98] disabled:opacity-50">
-                <Search className="size-4" aria-hidden /> {later ? "Ne m'intéresse plus" : "Non, retour à mes recherches"}
-              </button>
-            </div>
+        <section className="plan-in relative overflow-hidden rounded-3xl bg-gradient-to-br from-white via-white to-teal-50/60 p-6 shadow-lg ring-1 ring-teal/30 sm:p-8" data-testid="decision">
+          <div aria-hidden className="pointer-events-none absolute -top-24 -right-16 size-64 animate-aurora rounded-full bg-teal/15 blur-3xl" />
+          <div aria-hidden className="pointer-events-none absolute -bottom-24 -left-10 size-56 animate-aurora rounded-full bg-violet/10 blur-3xl [animation-delay:-4s]" />
+          <div className="relative text-center">
+            <p className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-xs font-bold tracking-wide text-teal-700 uppercase shadow-sm ring-1 ring-teal/20">
+              {later ? (
+                <>
+                  <Bookmark className="size-3.5" aria-hidden /> Gardée pour plus tard
+                </>
+              ) : (
+                <>
+                  <Sparkles className="size-3.5" aria-hidden /> À l&apos;étude
+                </>
+              )}
+            </p>
+            <h2 className="mt-3 font-heading text-2xl font-extrabold text-balance text-navy sm:text-3xl">Alors, cette offre vous intéresse ?</h2>
+            <p className="mx-auto mt-2 max-w-2xl text-balance text-slate-600">
+              {later
+                ? "Elle est enregistrée dans vos candidatures. Continuez à lire les infos ci-dessous ; quand vous êtes prêt, on vous accompagne étape par étape."
+                : "Parcourez les conditions, les pièces et la notation ci-dessous, puis choisissez. Vous pouvez changer d'avis à tout moment."}
+            </p>
+          </div>
+          <div className="relative mt-6 grid gap-3 sm:grid-cols-3">
+            <button
+              type="button"
+              disabled={pending}
+              onClick={prepare}
+              className="btn-shine group flex flex-col items-center gap-2 rounded-2xl bg-gradient-to-br from-teal to-electric p-5 text-center text-navy shadow-lg shadow-teal/25 transition hover:-translate-y-1 hover:shadow-xl active:scale-[0.98] disabled:opacity-50"
+            >
+              <span className="flex size-11 items-center justify-center rounded-full bg-white/30 ring-1 ring-white/50 transition group-hover:scale-110">
+                <ThumbsUp className="size-5" aria-hidden />
+              </span>
+              <span className="font-heading text-base font-bold">Oui, je prépare ma candidature</span>
+              <span className="text-xs text-navy/75">On vous guide jusqu&apos;au dépôt</span>
+            </button>
+            <button
+              type="button"
+              onClick={keep}
+              role="checkbox"
+              aria-checked={later}
+              data-testid="keep-later"
+              className={cn(
+                "group flex flex-col items-center gap-2 rounded-2xl p-5 text-center transition hover:-translate-y-1 hover:shadow-lg active:scale-[0.98]",
+                later ? "bg-teal-50 text-teal-900 shadow-md ring-2 ring-teal" : "bg-white text-navy shadow-sm ring-1 ring-slate-200 hover:ring-teal",
+              )}
+            >
+              <span className={cn("flex size-11 items-center justify-center rounded-full transition group-hover:scale-110", later ? "bg-teal text-white" : "bg-sky text-teal-700 ring-1 ring-teal/30")}>
+                {later ? <Check className="size-5" aria-hidden /> : <Bookmark className="size-5" aria-hidden />}
+              </span>
+              <span className="font-heading text-base font-bold">{later ? "Gardée pour plus tard" : "Oui, je la garde pour plus tard"}</span>
+              <span className="text-xs text-slate-500">{later ? "Cliquez pour décocher" : "Enregistrée dans Mes candidatures"}</span>
+            </button>
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => withdraw(later)}
+              className="group flex flex-col items-center gap-2 rounded-2xl bg-white p-5 text-center text-navy shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-1 hover:shadow-lg hover:ring-rose-300 active:scale-[0.98] disabled:opacity-50"
+            >
+              <span className="flex size-11 items-center justify-center rounded-full bg-slate-100 text-slate-500 transition group-hover:scale-110 group-hover:bg-rose-50 group-hover:text-rose-600">
+                <XCircle className="size-5" aria-hidden />
+              </span>
+              <span className="font-heading text-base font-bold">{later ? "Ne m'intéresse plus" : "Non, pas pour moi"}</span>
+              <span className="text-xs text-slate-500">Retour à vos recherches, au même endroit</span>
+            </button>
           </div>
         </section>
       )}
