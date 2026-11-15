@@ -109,7 +109,7 @@ export default async function ApplicationsPage() {
       ) : (
         <>
           {(today.length > 0 || soon.length > 0) && (
-            <div className="grid gap-6 lg:grid-cols-2">
+            <div className="grid gap-6 lg:grid-cols-2 [&>*]:min-w-0">
               <section className="plan-in rounded-3xl bg-navy p-6 text-white shadow-xl sm:p-8">
                 <p className="flex items-center gap-2 text-xs font-bold tracking-wide text-teal-200 uppercase">
                   <CheckCircle2 className="size-4" aria-hidden /> À faire aujourd&apos;hui
@@ -177,7 +177,7 @@ export default async function ApplicationsPage() {
                 <h2 className="mb-4 font-heading text-xl font-bold text-navy">
                   {s.title} <span className="text-slate-400">({s.list.length})</span>
                 </h2>
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid gap-4 md:grid-cols-2 [&>*]:min-w-0">
                   {s.list.map((c, i) => (
                     <Link
                       key={c.id}

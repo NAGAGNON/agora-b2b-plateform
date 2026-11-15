@@ -149,13 +149,16 @@ export async function NextActions({ companyId, userId, buyer, supplier, now }: {
         {list.length > 0 && <span className="rounded-full bg-navy px-2.5 py-0.5 text-xs font-bold text-white">{list.length}</span>}
       </div>
       {list.length === 0 ? (
-        <p className="relative mt-4 flex items-center gap-2 rounded-2xl bg-teal-50/70 p-4 text-sm text-slate-700">
-          <CheckCircle2 className="size-5 shrink-0 text-teal-600" aria-hidden /> Rien d&apos;urgent pour le moment. {supplier ? "Consultez vos recommandations ou " : ""}
-          <Link href={supplier ? "/dashboard/recommandations" : "/publier"} className="font-semibold text-teal-700 underline">
-            {supplier ? "les opportunités recommandées" : "publiez un besoin"}
-          </Link>
-          .
-        </p>
+        <div className="relative mt-4 flex items-start gap-2 rounded-2xl bg-teal-50/70 p-4 text-sm text-slate-700">
+          <CheckCircle2 className="size-5 shrink-0 text-teal-600" aria-hidden />
+          <p className="min-w-0 flex-1">
+            Rien d&apos;urgent pour le moment. {supplier ? "Consultez vos recommandations ou " : ""}
+            <Link href={supplier ? "/dashboard/recommandations" : "/publier"} className="font-semibold text-teal-700 underline">
+              {supplier ? "les opportunités recommandées" : "publiez un besoin"}
+            </Link>
+            .
+          </p>
+        </div>
       ) : (
         <ul className="relative mt-4 space-y-2">
           {list.map((a, i) => (

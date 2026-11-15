@@ -71,6 +71,7 @@ export async function buildAssistantContext(ctx: AssistantContext): Promise<stri
 }
 
 const STAGE_LABEL: Record<string, string> = {
+  DETECTED: "offre consultée, pas encore enregistrée",
   QUALIFIED: "à l'étude",
   INTERESTED: "gardée pour plus tard",
   RESPONSE_PREPARING: "en préparation",

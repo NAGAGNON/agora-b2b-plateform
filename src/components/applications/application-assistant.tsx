@@ -140,10 +140,10 @@ export function ApplicationAssistant({
                 type="button"
                 onClick={openPanel}
                 data-testid="assistant-fab"
-                className="fixed right-4 bottom-4 z-[60] inline-flex animate-rise items-center gap-2 rounded-full bg-gradient-to-r from-violet to-teal px-5 py-3.5 font-semibold text-white shadow-2xl shadow-violet/30 transition hover:-translate-y-0.5 active:scale-[0.97] sm:right-6 sm:bottom-6"
+                aria-label="Une question sur cet appel d'offres ?"
+                className="fixed right-4 bottom-4 z-[60] inline-flex animate-rise items-center gap-2 rounded-full bg-gradient-to-r from-violet to-teal p-3.5 font-semibold text-white shadow-2xl shadow-violet/30 transition hover:-translate-y-0.5 active:scale-[0.97] sm:right-6 sm:bottom-6 sm:px-5"
               >
-                <MessageCircleQuestion className="size-5" aria-hidden /> Une
-                question ?
+                <MessageCircleQuestion className="size-5" aria-hidden /> <span className="hidden sm:inline">Une question ?</span>
               </button>
             )}
 

@@ -112,12 +112,13 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
   // Cocher « je la garde pour plus tard » : enregistré, la personne reste sur la page et continue de lire
   const keep = () => {
     const value = !later;
-    setStage(value ? "INTERESTED" : "QUALIFIED");
+    const before = stage;
+    setStage(value ? "INTERESTED" : "DETECTED");
     start(async () => {
       setError(null);
       const r = await keepForLater(data.id, value);
       if (!r.ok) {
-        setStage(value ? "QUALIFIED" : "INTERESTED");
+        setStage(before);
         setError(r.error ?? "Réessayez.");
       }
     });
@@ -156,7 +157,11 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
     setDocs(value ? [...docs, i] : docs.filter((x) => x !== i));
     start(async () => {
       const r = await toggleDocStep(data.id, i, value);
-      if (r.ok) setDocs(r.done);
+      if (r.ok) {
+        setDocs(r.done);
+        // Première pièce cochée sur une offre seulement consultée : la candidature commence
+        if (value && stage === "DETECTED") setStage("RESPONSE_PREPARING");
+      }
       else {
         setDocs(before);
         setError(r.error);
@@ -182,7 +187,7 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
   return (
     <div className="space-y-8 pb-16">
       {/* En-tête */}
-      <section className="relative isolate overflow-hidden rounded-[2rem] bg-gradient-to-br from-sky via-white to-teal-50 p-6 shadow-sm ring-1 ring-slate-200 sm:p-10">
+      <section className="relative isolate overflow-hidden rounded-[2rem] bg-gradient-to-br from-sky via-white to-teal-50 p-5 shadow-sm ring-1 ring-slate-200 sm:p-10">
         <div aria-hidden className="bg-tech-grid-light pointer-events-none absolute inset-0 -z-10 opacity-70" />
         <div aria-hidden className="pointer-events-none absolute -top-24 -right-16 -z-10 size-80 animate-aurora rounded-full bg-teal/25 blur-3xl" />
         <div aria-hidden className="pointer-events-none absolute -bottom-32 left-1/3 -z-10 size-80 animate-aurora rounded-full bg-violet/15 blur-3xl [animation-delay:-6s]" />
@@ -191,7 +196,7 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
             <p className="inline-flex animate-rise items-center gap-2 rounded-full bg-white/80 px-3 py-1 text-xs font-bold tracking-wide text-teal-700 uppercase shadow-sm ring-1 ring-teal/20">
               <Sparkles className="size-3.5" aria-hidden /> Ma candidature
             </p>
-            <h1 className="mt-4 animate-rise font-heading text-2xl leading-tight font-extrabold text-navy [animation-delay:80ms] sm:text-4xl">{data.title}</h1>
+            <h1 className="mt-4 animate-rise font-heading text-xl leading-tight font-extrabold text-balance text-navy [animation-delay:80ms] sm:text-4xl">{data.title}</h1>
             <p className="mt-2 animate-rise text-slate-600 [animation-delay:140ms]">
               {data.buyer ?? "Besoin publié sur LinkProB2B"}
               {data.place ? ` · ${data.place}` : ""}
@@ -201,7 +206,7 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
                 {facts.map(({ icon: Icon, label, value, hot }, i) => (
                   <span
                     key={label}
-                    className={cn("plan-in inline-flex items-center gap-2 rounded-full px-3.5 py-2 text-sm shadow-sm ring-1", hot ? "bg-rose-50 text-rose-800 ring-rose-200" : "bg-white text-slate-700 ring-slate-200")}
+                    className={cn("plan-in inline-flex max-w-full items-center gap-1.5 rounded-full px-3 py-1.5 text-xs shadow-sm ring-1 sm:gap-2 sm:px-3.5 sm:py-2 sm:text-sm", hot ? "bg-rose-50 text-rose-800 ring-rose-200" : "bg-white text-slate-700 ring-slate-200")}
                     style={{ animationDelay: `${200 + i * 70}ms` }}
                   >
                     <Icon className="size-4 shrink-0" aria-hidden />
@@ -211,13 +216,16 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
               </div>
             )}
           </div>
-          <ProgressRing value={progress} label={sent ? "Réponse envoyée" : discovery ? "À l'étude" : "Candidature prête"} />
+          {/* Sur téléphone, l'anneau n'apparaît qu'une fois la préparation commencée */}
+          <div className={cn("justify-center", discovery ? "hidden lg:flex" : "flex")}>
+            <ProgressRing value={progress} label={sent ? "Réponse envoyée" : discovery ? "À l'étude" : "Candidature prête"} />
+          </div>
         </div>
-        <div className="mt-8 flex flex-wrap gap-3">
+        <div className="mt-6 flex flex-col gap-2 sm:mt-8 sm:flex-row sm:flex-wrap sm:gap-3">
           <button
             type="button"
             onClick={() => goBackToSearch()}
-            className="btn-shine inline-flex items-center gap-2 rounded-xl bg-navy px-5 py-3 font-semibold text-white shadow-lg shadow-navy/20 transition hover:-translate-y-0.5 active:scale-[0.98]"
+            className="btn-shine inline-flex items-center justify-center gap-2 rounded-xl bg-navy px-5 py-3 font-semibold text-white shadow-lg shadow-navy/20 transition hover:-translate-y-0.5 active:scale-[0.98]"
             data-testid="continue-search"
           >
             <Search className="size-4" aria-hidden /> Continuer mes recherches
@@ -257,18 +265,19 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
                 : "Parcourez les conditions, les pièces et la notation ci-dessous, puis choisissez. Vous pouvez changer d'avis à tout moment."}
             </p>
           </div>
-          <div className="relative mt-6 grid gap-3 sm:grid-cols-3">
+          <div className="relative mt-5 grid gap-2.5 sm:mt-6 sm:grid-cols-3 sm:gap-3">
             <button
               type="button"
               disabled={pending}
               onClick={prepare}
-              className="btn-shine group flex flex-col items-center gap-2 rounded-2xl bg-gradient-to-br from-teal to-electric p-5 text-center text-navy shadow-lg shadow-teal/25 transition hover:-translate-y-1 hover:shadow-xl active:scale-[0.98] disabled:opacity-50"
+              className="btn-shine group flex items-center gap-3 rounded-2xl text-left sm:flex-col sm:gap-2 sm:text-center bg-gradient-to-br from-teal to-electric p-4 sm:p-5 text-navy shadow-lg shadow-teal/25 transition hover:-translate-y-1 hover:shadow-xl active:scale-[0.98] disabled:opacity-50"
             >
-              <span className="flex size-11 items-center justify-center rounded-full bg-white/30 ring-1 ring-white/50 transition group-hover:scale-110">
+              <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-white/30 ring-1 ring-white/50 transition group-hover:scale-110">
                 <ThumbsUp className="size-5" aria-hidden />
               </span>
+              <span className="flex min-w-0 flex-col gap-0.5 sm:items-center">
               <span className="font-heading text-base font-bold">Oui, je prépare ma candidature</span>
-              <span className="text-xs text-navy/75">On vous guide jusqu&apos;au dépôt</span>
+              <span className="text-xs text-navy/75">On vous guide jusqu&apos;au dépôt</span></span>
             </button>
             <button
               type="button"
@@ -277,27 +286,29 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
               aria-checked={later}
               data-testid="keep-later"
               className={cn(
-                "group flex flex-col items-center gap-2 rounded-2xl p-5 text-center transition hover:-translate-y-1 hover:shadow-lg active:scale-[0.98]",
+                "group flex items-center gap-3 rounded-2xl text-left sm:flex-col sm:gap-2 sm:text-center p-4 sm:p-5 transition hover:-translate-y-1 hover:shadow-lg active:scale-[0.98]",
                 later ? "bg-teal-50 text-teal-900 shadow-md ring-2 ring-teal" : "bg-white text-navy shadow-sm ring-1 ring-slate-200 hover:ring-teal",
               )}
             >
-              <span className={cn("flex size-11 items-center justify-center rounded-full transition group-hover:scale-110", later ? "bg-teal text-white" : "bg-sky text-teal-700 ring-1 ring-teal/30")}>
+              <span className={cn("flex size-11 shrink-0 items-center justify-center rounded-full transition group-hover:scale-110", later ? "bg-teal text-white" : "bg-sky text-teal-700 ring-1 ring-teal/30")}>
                 {later ? <Check className="size-5" aria-hidden /> : <Bookmark className="size-5" aria-hidden />}
               </span>
+              <span className="flex min-w-0 flex-col gap-0.5 sm:items-center">
               <span className="font-heading text-base font-bold">{later ? "Gardée pour plus tard" : "Oui, je la garde pour plus tard"}</span>
-              <span className="text-xs text-slate-500">{later ? "Cliquez pour décocher" : "Enregistrée dans Mes candidatures"}</span>
+              <span className="text-xs text-slate-500">{later ? "Cliquez pour décocher" : "Enregistrée dans Mes candidatures"}</span></span>
             </button>
             <button
               type="button"
               disabled={pending}
               onClick={() => withdraw(later)}
-              className="group flex flex-col items-center gap-2 rounded-2xl bg-white p-5 text-center text-navy shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-1 hover:shadow-lg hover:ring-rose-300 active:scale-[0.98] disabled:opacity-50"
+              className="group flex items-center gap-3 rounded-2xl text-left sm:flex-col sm:gap-2 sm:text-center bg-white p-4 sm:p-5 text-navy shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-1 hover:shadow-lg hover:ring-rose-300 active:scale-[0.98] disabled:opacity-50"
             >
-              <span className="flex size-11 items-center justify-center rounded-full bg-slate-100 text-slate-500 transition group-hover:scale-110 group-hover:bg-rose-50 group-hover:text-rose-600">
+              <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500 transition group-hover:scale-110 group-hover:bg-rose-50 group-hover:text-rose-600">
                 <XCircle className="size-5" aria-hidden />
               </span>
+              <span className="flex min-w-0 flex-col gap-0.5 sm:items-center">
               <span className="font-heading text-base font-bold">{later ? "Ne m'intéresse plus" : "Non, pas pour moi"}</span>
-              <span className="text-xs text-slate-500">Retour à vos recherches, au même endroit</span>
+              <span className="text-xs text-slate-500">Retour à vos recherches, au même endroit</span></span>
             </button>
           </div>
         </section>
@@ -527,7 +538,7 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
           </Step>
           {error && <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-800 ring-1 ring-rose-200">{error}</p>}
 
-          <Journal id={data.id} initial={data.journal} />
+          {stage !== "DETECTED" && <Journal id={data.id} initial={data.journal} />}
 
           {/* Une question ? L'assistant répond à partir de l'avis */}
           <ApplicationAssistant id={data.id} initial={data.questions} suggestions={assistantSuggestions(brief, data.mine)} />
@@ -692,8 +703,8 @@ function ProgressRing({ value, label }: { value: number; label: string }) {
 
 function Step({ n, title, subtitle, done, onToggle, pending, children }: { n: number; title: string; subtitle: string; done: boolean; onToggle: (v: boolean) => void; pending: boolean; children: React.ReactNode }) {
   return (
-    <section id={`etape-${n}`} className="plan-in scroll-mt-48 rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200 transition sm:p-8" style={{ animationDelay: `${n * 60}ms` }}>
-      <header className="mb-5 flex flex-wrap items-start gap-4">
+    <section id={`etape-${n}`} className="plan-in scroll-mt-48 rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200 transition sm:p-8" style={{ animationDelay: `${n * 60}ms` }}>
+      <header className="mb-5 grid grid-cols-[auto_minmax(0,1fr)] items-start gap-x-4 gap-y-3 sm:flex">
         <span className={cn("flex size-11 shrink-0 items-center justify-center rounded-2xl font-heading text-lg font-extrabold transition-all duration-300", done ? "bg-gradient-to-br from-teal to-violet text-white" : "bg-navy text-white")}>
           {done ? <Check className="size-5" aria-hidden /> : n}
         </span>
@@ -707,7 +718,7 @@ function Step({ n, title, subtitle, done, onToggle, pending, children }: { n: nu
           onClick={() => onToggle(!done)}
           aria-pressed={done}
           className={cn(
-            "inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition active:scale-95 disabled:opacity-50",
+            "col-span-2 inline-flex items-center justify-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition active:scale-95 disabled:opacity-50 sm:col-span-1 sm:ml-auto sm:shrink-0",
             done ? "bg-teal-50 text-teal-800 ring-1 ring-teal/30" : "bg-slate-100 text-slate-600 hover:bg-slate-200",
           )}
         >

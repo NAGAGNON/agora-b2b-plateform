@@ -1,4 +1,4 @@
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { requireCompany } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -26,8 +26,7 @@ export default async function CandidaturePage(props: PageProps<"/dashboard/candi
     db.from("companies").select("name, city").eq("id", company.id).maybeSingle(),
   ]);
   if (!o) notFound();
-  // Pas encore de candidature : la fiche de l'offre propose « En savoir plus »
-  if (!item) redirect(`/opportunites/${id}`);
+  // Pas encore enregistrée : simple consultation (« DETECTED »), rien n'est écrit tant que la personne ne choisit pas
 
   const admin = createAdminClient();
   const [{ data: sources }, { data: stored }, plan, { data: journal }, { data: questions }] = await Promise.all([
@@ -55,11 +54,11 @@ export default async function CandidaturePage(props: PageProps<"/dashboard/candi
         buyer: o.origin === "EXTERNAL" ? o.external_buyer_name : null,
         place: [o.city, o.department_code ? `(${o.department_code})` : null].filter(Boolean).join(" ") || null,
         deadline: o.response_deadline,
-        stage: item.stage,
-        submittedAt: item.submitted_at,
-        guideDone: (item.guide_done ?? []).map(Number),
-        docsDone: (item.docs_done ?? []).map(Number),
-        draft: item.draft,
+        stage: item?.stage ?? "DETECTED",
+        submittedAt: item?.submitted_at ?? null,
+        guideDone: (item?.guide_done ?? []).map(Number),
+        docsDone: (item?.docs_done ?? []).map(Number),
+        draft: item?.draft ?? null,
         brief,
         briefAllowed: allowed,
         // Avis officiel connu mais fiche absente ou ancienne : préparée à l'affichage
@@ -67,7 +66,7 @@ export default async function CandidaturePage(props: PageProps<"/dashboard/candi
         sourceLabel: idweb ? `BOAMP n° ${idweb}` : ted ? `TED n° ${ted}` : null,
         hasSource: (sources ?? []).some((s) => s.original_url),
         mine: profile?.certifications ?? [],
-        startedAt: item.created_at,
+        startedAt: item?.created_at ?? null,
         reference: primary?.external_id ?? null,
         journal: (journal ?? []).map((j) => ({
           id: j.id,

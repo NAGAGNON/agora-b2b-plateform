@@ -28,7 +28,7 @@ export function GettingStarted({ steps }: { steps: Step[] }) {
           </svg>
           <span className="absolute inset-0 flex items-center justify-center font-heading text-sm font-extrabold text-navy">{pct}%</span>
         </div>
-        <div className="min-w-0 flex-1">
+        <div className="min-w-[12rem] flex-1">
           <h2 id="demarrer" className="text-lg font-bold text-navy">
             Pour bien démarrer
           </h2>
@@ -37,7 +37,7 @@ export function GettingStarted({ steps }: { steps: Step[] }) {
           </p>
         </div>
         {next && (
-          <Link href={next.href} className="btn-shine inline-flex h-10 items-center gap-2 rounded-xl bg-navy px-4 text-sm font-bold text-white shadow-md transition hover:-translate-y-px">
+          <Link href={next.href} className="btn-shine inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-navy px-4 text-sm font-bold text-white shadow-md transition hover:-translate-y-px sm:w-auto">
             Étape suivante <ArrowRight className="size-4" aria-hidden />
           </Link>
         )}
