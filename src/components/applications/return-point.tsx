@@ -32,7 +32,7 @@ export function readReturnPoint(): Point | null {
 export function goBackToSearch(fallback = "/opportunites") {
   const p = readReturnPoint();
   try {
-    if (p) sessionStorage.setItem(RESTORE, String(p.y));
+    if (p) sessionStorage.setItem(RESTORE, JSON.stringify(p));
   } catch {
     // ignoré : retour sans la position
   }
@@ -50,11 +50,15 @@ export function ReturnPointTracker() {
   useEffect(() => {
     // Retour demandé : on remet la page à la même hauteur une fois le contenu affiché
     let restore: number | null = null;
+    const qs0 = search.toString();
+    const here = `${pathname}${qs0 ? `?${qs0}` : ""}`;
     try {
       const v = sessionStorage.getItem(RESTORE);
-      if (v) {
+      const r = v ? (JSON.parse(v) as Point) : null;
+      // Seulement sur la page de recherche visée (pas sur la page quittée, rafraîchie juste avant)
+      if (r && r.url === here) {
         sessionStorage.removeItem(RESTORE);
-        restore = Number(v);
+        restore = r.y;
       }
     } catch {
       // ignoré

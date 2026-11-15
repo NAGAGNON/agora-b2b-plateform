@@ -33,6 +33,8 @@ import {
   MessageSquareText,
   Trash2,
   Route,
+  ThumbsUp,
+  XCircle,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import type { TenderBrief } from "@/lib/tender-brief";
@@ -40,7 +42,7 @@ import { certStatus } from "@/lib/certification-match";
 import { APPLICATION_GUIDE, LOST_ADVICE, questionTemplate, rejectionTemplate } from "@/lib/application-guide";
 import { applicationPlan } from "@/lib/application-plan";
 import { buildMemoirDraft, type DraftCompany } from "@/lib/memoir-draft";
-import { addJournalNote, answerApplicationResult, deleteJournalNote, markApplicationSent, saveDraft, toggleDocStep, toggleGuideStep, type JournalEntry } from "@/app/actions/applications";
+import { addJournalNote, answerApplicationResult, deleteJournalNote, markApplicationSent, saveDraft, startApplicationGuide, toggleDocStep, toggleGuideStep, withdrawApplication, type JournalEntry } from "@/app/actions/applications";
 import { loadTenderBrief } from "@/app/actions/tender-brief";
 import { goBackToSearch } from "@/components/applications/return-point";
 
@@ -99,6 +101,17 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
   }, [briefState, data.id]);
 
   const sent = ["RESPONSE_SENT", "DISCUSSION", "NEGOTIATION", "WON", "LOST"].includes(stage);
+  // Offre « à l'étude » : la personne découvre avant de décider de répondre
+  const discovery = ["DETECTED", "QUALIFIED", "INTERESTED"].includes(stage);
+  const prepare = () => act(() => startApplicationGuide(data.id), "RESPONSE_PREPARING");
+  const withdraw = (confirm: boolean) => {
+    if (confirm && !window.confirm("Retirer cette offre de vos candidatures et retourner à vos recherches ?")) return;
+    start(async () => {
+      const r = await withdrawApplication(data.id);
+      if (r.ok) goBackToSearch();
+      else setError(r.error);
+    });
+  };
   const progress = sent ? 100 : Math.round((done.length / APPLICATION_GUIDE.length) * 100);
   const days = data.deadline ? Math.ceil((new Date(data.deadline).getTime() - nowMs()) / 86_400_000) : null;
   const nextStep = APPLICATION_GUIDE.findIndex((_, i) => !done.includes(i));
@@ -110,7 +123,10 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
     setDone(value ? [...done, i].sort((a, b) => a - b) : done.filter((x) => x !== i));
     start(async () => {
       const r = await toggleGuideStep(data.id, i, value);
-      if (r.ok) setDone(r.done);
+      if (r.ok) {
+        setDone(r.done);
+        if (value && discovery) setStage("RESPONSE_PREPARING");
+      }
       else {
         setDone(before);
         setError(r.error);
@@ -177,7 +193,7 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
               </div>
             )}
           </div>
-          <ProgressRing value={progress} label={sent ? "Réponse envoyée" : "Candidature prête"} />
+          <ProgressRing value={progress} label={sent ? "Réponse envoyée" : discovery ? "À l'étude" : "Candidature prête"} />
         </div>
         <div className="mt-8 flex flex-wrap gap-3">
           <button
@@ -191,8 +207,35 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
           <Link href="/dashboard/candidatures" className="inline-flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-slate-500 transition hover:bg-white/70 hover:text-navy">
             <ArrowLeft className="size-4" aria-hidden /> Toutes mes candidatures
           </Link>
+          {!discovery && !sent && (
+            <button type="button" disabled={pending} onClick={() => withdraw(true)} className="inline-flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-slate-400 transition hover:bg-white/70 hover:text-rose-700">
+              <XCircle className="size-4" aria-hidden /> Cette offre ne m&apos;intéresse plus
+            </button>
+          )}
         </div>
       </section>
+
+      {/* À l'étude : la décision, sans engagement */}
+      {discovery && (
+        <section className="plan-in relative overflow-hidden rounded-3xl bg-white p-6 shadow-lg ring-2 ring-teal/40 sm:p-8" data-testid="decision">
+          <div aria-hidden className="pointer-events-none absolute -top-20 -right-20 size-56 animate-aurora rounded-full bg-teal/15 blur-3xl" />
+          <div className="relative flex flex-col gap-5 lg:flex-row lg:items-center">
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-bold tracking-wide text-teal-700 uppercase">À l&apos;étude</p>
+              <h2 className="mt-1 font-heading text-2xl font-extrabold text-navy">Alors, cette offre vous intéresse ?</h2>
+              <p className="mt-1 text-slate-600">Parcourez les conditions, les pièces et la notation ci-dessous. Si c&apos;est pour vous, LinkProB2B vous accompagne étape par étape jusqu&apos;au dépôt.</p>
+            </div>
+            <div className="flex flex-col gap-2 sm:flex-row lg:flex-col">
+              <button type="button" disabled={pending} onClick={prepare} className="btn-shine inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-teal to-electric px-5 py-3 font-semibold text-navy shadow-lg shadow-teal/25 transition hover:-translate-y-0.5 active:scale-[0.98] disabled:opacity-50">
+                <ThumbsUp className="size-4" aria-hidden /> Oui, je prépare ma candidature
+              </button>
+              <button type="button" disabled={pending} onClick={() => withdraw(false)} className="inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 font-semibold text-slate-600 ring-1 ring-slate-300 transition hover:-translate-y-0.5 hover:ring-rose-300 hover:text-rose-700 active:scale-[0.98] disabled:opacity-50">
+                <Search className="size-4" aria-hidden /> Non, retour à mes recherches
+              </button>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* L'essentiel */}
       {(brief || briefState === "loading") && (
@@ -427,6 +470,17 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
             <p className="flex items-center gap-2 text-xs font-bold tracking-wide text-teal-200 uppercase">
               <Sparkles className="size-4" aria-hidden /> Vous avez tout en main
             </p>
+            {discovery && (
+              <div className="mt-3 mb-6 flex flex-wrap items-center gap-3 rounded-2xl bg-white/5 p-4 ring-1 ring-white/10">
+                <p className="mr-auto font-semibold text-white">Cette offre est pour vous ?</p>
+                <button type="button" disabled={pending} onClick={prepare} className="inline-flex items-center gap-2 rounded-xl bg-teal px-4 py-2.5 text-sm font-semibold text-navy transition hover:-translate-y-0.5 disabled:opacity-50">
+                  <ThumbsUp className="size-4" aria-hidden /> Oui, je prépare ma candidature
+                </button>
+                <button type="button" disabled={pending} onClick={() => withdraw(false)} className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white/80 ring-1 ring-white/20 transition hover:bg-white/10 disabled:opacity-50">
+                  Non, retour à mes recherches
+                </button>
+              </div>
+            )}
             <h2 className="mt-2 font-heading text-2xl font-extrabold text-white">Prêt à passer sur l&apos;annonce officielle ?</h2>
             <p className="mt-2 max-w-2xl text-white/75">
               Conditions vérifiées, pièces listées, notation comprise et trame du mémoire préparée : téléchargez maintenant le dossier complet sur le site de l&apos;acheteur.

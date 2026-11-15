@@ -626,9 +626,9 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
                       opportunityId={o.id}
                       signedIn={Boolean(session)}
                       hasCompany={Boolean(session?.activeCompany)}
-                      started={["RESPONSE_PREPARING", "RESPONSE_SENT", "DISCUSSION", "NEGOTIATION", "WON", "LOST"].includes(pipeline?.data?.stage ?? "")}
+                      started={Boolean(pipeline?.data)}
                     />
-                    <p className="mt-2 text-center text-xs text-slate-500">Conditions, pièces, notation, conseils et étapes à cocher pour optimiser votre candidature.</p>
+                    <p className="mt-2 text-center text-xs text-slate-500">Conditions exigées, pièces, notation et conseils : de quoi décider en 2 minutes si l&apos;offre est pour vous.</p>
                   </div>
                 )}
                 {/* Offre ouverte : l'annonce officielle s'ouvre depuis la candidature (après l'accompagnement) */}

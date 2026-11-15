@@ -158,13 +158,17 @@ export async function toggleGuideStep(opportunityId: string, step: number, done:
   if (!session?.activeCompany) return { ok: false, error: "Créez d'abord le profil de votre entreprise." };
   const companyId = session.activeCompany.company.id;
   const db = await createClient();
-  const { data: item } = await db.from("pipeline_items").select("id, guide_done").eq("company_id", companyId).eq("opportunity_id", opportunityId).maybeSingle();
+  const { data: item } = await db.from("pipeline_items").select("id, guide_done, stage").eq("company_id", companyId).eq("opportunity_id", opportunityId).maybeSingle();
   const set = new Set((item?.guide_done ?? []).map(Number));
   if (done) set.add(step);
   else set.delete(step);
   const next = [...set].sort((a, b) => a - b);
   const { error } = item
-    ? await db.from("pipeline_items").update({ guide_done: next, updated_by: session.userId }).eq("id", item.id)
+    ? await db
+        .from("pipeline_items")
+        // Une étape cochée sur une offre « à l'étude » : la candidature passe en préparation
+        .update({ guide_done: next, ...(done && rank(item.stage) < rank("RESPONSE_PREPARING") ? { stage: "RESPONSE_PREPARING" as Stage } : {}), updated_by: session.userId })
+        .eq("id", item.id)
     : await db.from("pipeline_items").insert({ company_id: companyId, opportunity_id: opportunityId, stage: "RESPONSE_PREPARING", guide_done: next, updated_by: session.userId });
   if (error) return { ok: false, error: "Enregistrement impossible. Réessayez." };
   if (done && !(item?.guide_done ?? []).map(Number).includes(step)) await logJournal(db, companyId, opportunityId, session.userId, "STEP", `Étape faite : ${APPLICATION_GUIDE[step].title}.`);
@@ -172,7 +176,33 @@ export async function toggleGuideStep(opportunityId: string, step: number, done:
   return { ok: true, done: next };
 }
 
-/** « Me guider pour le gagner » depuis une fiche d'appel d'offres : la candidature passe en préparation. */
+/** « En savoir plus » depuis une fiche d'appel d'offres : l'offre est mise à l'étude (sans engagement). */
+export async function startDiscovery(opportunityId: string): Promise<Result> {
+  if (!z.uuid().safeParse(opportunityId).success) return { ok: false, error: "Offre introuvable." };
+  return advance(opportunityId, "QUALIFIED");
+}
+
+/** « Cette offre ne m'intéresse plus » : retirée de mes candidatures (et du pipeline), plus jamais proposée. */
+export async function withdrawApplication(opportunityId: string): Promise<Result> {
+  if (!z.uuid().safeParse(opportunityId).success) return { ok: false, error: "Offre introuvable." };
+  const session = await getSession();
+  if (!session?.activeCompany) return { ok: false, error: "Connectez-vous." };
+  const db = await createClient();
+  const { error } = await db.from("pipeline_items").delete().eq("company_id", session.activeCompany.company.id).eq("opportunity_id", opportunityId);
+  if (error) return { ok: false, error: "Action impossible. Réessayez." };
+  await db
+    .from("application_prompts")
+    .upsert({ user_id: session.userId, opportunity_id: opportunityId, answer: "NOT_FOR_ME", reason: "Retirée de mes candidatures", updated_at: new Date().toISOString() }, { onConflict: "user_id,opportunity_id" })
+    .then(
+      () => undefined,
+      () => undefined,
+    );
+  revalidatePath("/dashboard/candidatures");
+  revalidatePath("/dashboard/pipeline");
+  return { ok: true };
+}
+
+/** « Oui, je prépare ma candidature » : la candidature passe en préparation. */
 export async function startApplicationGuide(opportunityId: string): Promise<Result> {
   if (!z.uuid().safeParse(opportunityId).success) return { ok: false, error: "Offre introuvable." };
   return advance(opportunityId, "RESPONSE_PREPARING");

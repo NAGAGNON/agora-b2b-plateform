@@ -10,7 +10,7 @@ import { cn } from "@/lib/cn";
 
 export const metadata = { title: "Mes candidatures" };
 
-const STAGES = ["RESPONSE_PREPARING", "RESPONSE_SENT", "DISCUSSION", "NEGOTIATION", "WON", "LOST"] as const;
+const STAGES = ["QUALIFIED", "RESPONSE_PREPARING", "RESPONSE_SENT", "DISCUSSION", "NEGOTIATION", "WON", "LOST"] as const;
 const SENT = ["RESPONSE_SENT", "DISCUSSION", "NEGOTIATION"];
 const DAY = 86_400_000;
 const nowDate = () => new Date();
@@ -40,7 +40,8 @@ export default async function ApplicationsPage() {
     const brief = parsed?.success ? parsed.data : null;
     const done = (r.guide_done ?? []).map(Number);
     const sent = SENT.includes(r.stage) || r.stage === "WON" || r.stage === "LOST";
-    const plan = sent ? [] : applicationPlan(o.response_deadline, done, now, r.created_at);
+    const study = r.stage === "QUALIFIED";
+    const plan = sent || study ? [] : applicationPlan(o.response_deadline, done, now, r.created_at);
     const days = o.response_deadline ? Math.ceil((new Date(o.response_deadline).getTime() - now.getTime()) / DAY) : null;
     const next = APPLICATION_GUIDE.findIndex((_, i) => !done.includes(i));
     return {
@@ -52,13 +53,15 @@ export default async function ApplicationsPage() {
       sent,
       days,
       progress: sent ? 100 : Math.round((done.length / APPLICATION_GUIDE.length) * 100),
-      next: next >= 0 ? APPLICATION_GUIDE[next].title : null,
+      study,
+      next: study ? "Décider si l'offre vous intéresse" : next >= 0 ? APPLICATION_GUIDE[next].title : null,
       due: dueToday(plan),
       visit: brief?.site_visit && /obligatoire/i.test(brief.site_visit) ? brief.site_visit : null,
       docs: brief ? { done: (r.docs_done ?? []).length, total: brief.documents.length } : null,
     };
   });
-  const preparing = cards.filter((c) => !c.sent);
+  const studying = cards.filter((c) => c.study);
+  const preparing = cards.filter((c) => !c.sent && !c.study);
   const waiting = cards.filter((c) => SENT.includes(c.stage));
   const finished = cards.filter((c) => c.stage === "WON" || c.stage === "LOST");
   const won = cards.filter((c) => c.stage === "WON").length;
@@ -161,6 +164,7 @@ export default async function ApplicationsPage() {
 
           {[
             { title: "En préparation", list: preparing },
+            { title: "À l'étude", list: studying },
             { title: "En attente du résultat", list: waiting },
             { title: "Terminées", list: finished },
           ]
@@ -198,7 +202,10 @@ export default async function ApplicationsPage() {
                           <Chip tone="slate">Pas retenu</Chip>
                         ) : c.sent ? (
                           <Chip tone="navy">Réponse envoyée</Chip>
-                        ) : c.days !== null ? (
+                        ) : c.study ? (
+                          <Chip tone="slate">À l&apos;étude</Chip>
+                        ) : null}
+                        {!c.sent && c.days !== null ? (
                           <Chip tone={c.days <= 5 ? "rose" : "slate"} icon={CalendarClock}>
                             {c.days < 0 ? "Date limite dépassée" : c.days === 0 ? "Dernier jour" : `${c.days} jour${c.days > 1 ? "s" : ""} restant${c.days > 1 ? "s" : ""}`}
                           </Chip>

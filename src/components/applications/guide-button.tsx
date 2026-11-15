@@ -3,13 +3,14 @@
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Trophy } from "lucide-react";
-import { startApplicationGuide } from "@/app/actions/applications";
+import { Sparkles } from "lucide-react";
+import { startDiscovery } from "@/app/actions/applications";
 import { useToast } from "@/components/ui/toast";
 
 /**
- * Fiche d'un appel d'offres : « Ça m'intéresse » ouvre la candidature sur LinkProB2B (conditions,
- * pièces, notation, conseils, étapes à cocher, lien vers l'annonce officielle et retour à la recherche).
+ * Fiche d'un appel d'offres : « En savoir plus » ouvre la fiche de candidature sur LinkProB2B en mode
+ * découverte (conditions, pièces, notation, conseils, lien vers l'annonce officielle, retour à la
+ * recherche) ; la personne décide ensuite si elle prépare sa candidature.
  */
 export function GuideButton({ opportunityId, started, signedIn = true, hasCompany = true }: { opportunityId: string; started: boolean; signedIn?: boolean; hasCompany?: boolean }) {
   const [pending, start] = useTransition();
@@ -20,7 +21,7 @@ export function GuideButton({ opportunityId, started, signedIn = true, hasCompan
     "btn-shine inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-teal to-electric px-4 py-3.5 font-semibold text-navy shadow-lg shadow-teal/25 transition hover:-translate-y-0.5 active:scale-[0.98] disabled:opacity-50";
   const label = (
     <>
-      <Trophy className="size-5" aria-hidden /> {started ? "Continuer ma candidature" : "Ça m'intéresse : préparer ma candidature"}
+      <Sparkles className="size-5" aria-hidden /> {started ? "Reprendre où j'en étais" : "En savoir plus"}
     </>
   );
   if (!signedIn)
@@ -48,7 +49,7 @@ export function GuideButton({ opportunityId, started, signedIn = true, hasCompan
       className={cls}
       onClick={() =>
         start(async () => {
-          const r = await startApplicationGuide(opportunityId);
+          const r = await startDiscovery(opportunityId);
           if (r.ok) router.push(target);
           else toast(r.error, "error");
         })
