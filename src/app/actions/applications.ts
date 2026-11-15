@@ -24,7 +24,7 @@ export type ApplicationPrompt =
 
 /**
  * Question à poser au retour sur le site : d'abord le résultat d'une réponse envoyée dont la date
- * limite est passée depuis plus de 3 semaines, sinon « où en êtes-vous ? » pour une annonce officielle
+ * limite est passée depuis plus de 3 semaines, sinon « cet appel d'offres vous intéresse ? » pour une annonce officielle
  * consultée (il y a plus de 10 minutes et moins de 14 jours). Une seule question à la fois.
  */
 export async function nextApplicationPrompt(): Promise<ApplicationPrompt | null> {
@@ -65,8 +65,8 @@ export async function nextApplicationPrompt(): Promise<ApplicationPrompt | null>
     const a = answered.get(id);
     // « Plus tard » : reposée le lendemain ; toute autre réponse : plus jamais
     if (a && (a.answer !== "LATER" || new Date(a.updated_at).getTime() > now - DAY)) continue;
-    const t = tracked.get(id);
-    if (t && rank(t.stage) >= rank("RESPONSE_PREPARING")) continue;
+    // Déjà dans le suivi de l'entreprise (pipeline ou candidature) : rien à demander
+    if (tracked.has(id)) continue;
     const { data: o } = await db.from("opportunities").select("id, title, external_buyer_name, response_deadline").eq("id", id).maybeSingle();
     if (!o) continue;
     return { kind: "apply", opportunityId: o.id, title: o.title, buyer: o.external_buyer_name, deadline: o.response_deadline };
@@ -93,9 +93,9 @@ async function advance(opportunityId: string, stage: Stage, extra: { submitted_a
   return { ok: true };
 }
 
-const Answer = z.enum(["SENT", "PREPARING", "NOT_FOR_ME", "LATER"]);
+const Answer = z.enum(["INTERESTED", "SENT", "PREPARING", "NOT_FOR_ME", "LATER"]);
 
-/** Réponse à « Où en êtes-vous ? ». */
+/** Réponse à « Cet appel d'offres vous intéresse ? » : suivi simple, guide pour gagner, pas pour moi ou plus tard. */
 export async function answerApplicationPrompt(opportunityId: string, answer: string, reason?: string): Promise<Result> {
   const a = Answer.safeParse(answer);
   if (!z.uuid().safeParse(opportunityId).success || !a.success) return { ok: false, error: "Réponse invalide." };
@@ -107,6 +107,7 @@ export async function answerApplicationPrompt(opportunityId: string, answer: str
     .from("application_prompts")
     .upsert({ user_id: session.userId, opportunity_id: opportunityId, answer: a.data, reason: reason?.trim().slice(0, 200) || null, updated_at: new Date().toISOString() }, { onConflict: "user_id,opportunity_id" });
   if (error) return { ok: false, error: "Enregistrement impossible. Réessayez." };
+  if (a.data === "INTERESTED") return advance(opportunityId, "QUALIFIED");
   if (a.data === "SENT") return advance(opportunityId, "RESPONSE_SENT", { submitted_at: todayParis() });
   if (a.data === "PREPARING") return advance(opportunityId, "RESPONSE_PREPARING");
   return { ok: true };
@@ -153,4 +154,10 @@ export async function toggleGuideStep(opportunityId: string, step: number, done:
   if (error) return { ok: false, error: "Enregistrement impossible. Réessayez." };
   revalidatePath("/dashboard/candidatures");
   return { ok: true, done: next };
+}
+
+/** « Me guider pour le gagner » depuis une fiche d'appel d'offres : la candidature passe en préparation. */
+export async function startApplicationGuide(opportunityId: string): Promise<Result> {
+  if (!z.uuid().safeParse(opportunityId).success) return { ok: false, error: "Offre introuvable." };
+  return advance(opportunityId, "RESPONSE_PREPARING");
 }

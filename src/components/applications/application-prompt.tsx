@@ -3,20 +3,21 @@
 import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CheckCircle2, ClipboardList, PartyPopper, Send, ThumbsDown, Trophy, X } from "lucide-react";
+import { CheckCircle2, KanbanSquare, PartyPopper, Sparkles, ThumbsDown, Trophy, X } from "lucide-react";
 import { answerApplicationPrompt, answerApplicationResult, nextApplicationPrompt, type ApplicationPrompt } from "@/app/actions/applications";
 
 const CLOSED_KEY = "lp-application-prompt-closed";
 const REASONS = ["Certification ou qualification manquante", "Trop loin", "Trop gros pour nous", "Pas mon métier", "Délai trop court"];
 
 /**
- * Au retour sur le site après avoir consulté une annonce officielle : « Où en êtes-vous ? ».
- * Une réponse range l'offre dans « Mes candidatures ». Discret, une question à la fois, fermable.
+ * Au retour sur le site après avoir consulté une annonce officielle : « Cet appel d'offres vous
+ * intéresse ? » (la personne est souvent en repérage). Oui : suivi dans le pipeline, ou guide pour
+ * gagner dans « Mes candidatures ». Discret, une question à la fois, fermable.
  */
 export function ApplicationPromptCard() {
   const pathname = usePathname();
   const [prompt, setPrompt] = useState<ApplicationPrompt | null>(null);
-  const [step, setStep] = useState<"ask" | "reasons" | "done-sent" | "done-preparing" | "done-won" | "done-lost">("ask");
+  const [step, setStep] = useState<"ask" | "reasons" | "done-interested" | "done-preparing" | "done-won" | "done-lost">("ask");
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -74,20 +75,22 @@ export function ApplicationPromptCard() {
           {step === "ask" && (
             <>
               <p className="flex items-center gap-2 text-xs font-bold tracking-wide text-teal-700 uppercase">
-                {prompt.kind === "result" ? <Trophy className="size-4" aria-hidden /> : <ClipboardList className="size-4" aria-hidden />}
-                {prompt.kind === "result" ? "Résultat de votre réponse" : "Votre candidature"}
+                {prompt.kind === "result" ? <Trophy className="size-4" aria-hidden /> : <Sparkles className="size-4" aria-hidden />}
+                {prompt.kind === "result" ? "Résultat de votre réponse" : "Appel d'offres consulté"}
               </p>
               <p id="application-prompt-title" className="mt-2 pr-6 font-heading text-lg leading-snug font-bold text-navy">
-                {prompt.kind === "result" ? "Avez-vous eu le résultat pour" : "Où en êtes-vous pour"} « {prompt.title.length > 90 ? `${prompt.title.slice(0, 88)}…` : prompt.title} » ?
+                {prompt.kind === "result" ? "Avez-vous eu le résultat pour" : "Cet appel d'offres vous intéresse ?"}
+                {prompt.kind === "result" && <> « {prompt.title.length > 90 ? `${prompt.title.slice(0, 88)}…` : prompt.title} » ?</>}
               </p>
-              {prompt.buyer && <p className="mt-1 text-sm text-slate-500">{prompt.buyer}</p>}
+              {prompt.kind === "apply" && <p className="mt-1 text-sm font-semibold text-slate-700">{prompt.title.length > 110 ? `${prompt.title.slice(0, 108)}…` : prompt.title}</p>}
+              {prompt.buyer && <p className="mt-0.5 text-sm text-slate-500">{prompt.buyer}</p>}
               {prompt.kind === "apply" ? (
                 <div className="mt-4 grid gap-2">
-                  <button type="button" disabled={pending} onClick={() => run(() => answerApplicationPrompt(id, "SENT"), "done-sent")} className={`${btn} bg-navy text-white hover:bg-navy/90`}>
-                    <Send className="size-4" aria-hidden /> J&apos;ai répondu
+                  <button type="button" disabled={pending} onClick={() => run(() => answerApplicationPrompt(id, "PREPARING"), "done-preparing")} className={`${btn} btn-shine bg-navy text-white hover:bg-navy/90`}>
+                    <Trophy className="size-4" aria-hidden /> Oui, me guider pour le gagner
                   </button>
-                  <button type="button" disabled={pending} onClick={() => run(() => answerApplicationPrompt(id, "PREPARING"), "done-preparing")} className={`${btn} bg-teal text-navy hover:bg-teal/90`}>
-                    <ClipboardList className="size-4" aria-hidden /> Je prépare ma réponse
+                  <button type="button" disabled={pending} onClick={() => run(() => answerApplicationPrompt(id, "INTERESTED"), "done-interested")} className={`${btn} bg-teal text-navy hover:bg-teal/90`}>
+                    <KanbanSquare className="size-4" aria-hidden /> Oui, l&apos;ajouter à mon suivi
                   </button>
                   <div className="grid grid-cols-2 gap-2">
                     <button type="button" disabled={pending} onClick={() => setStep("reasons")} className={`${btn} text-slate-700 ring-1 ring-slate-300 hover:bg-slate-50`}>
@@ -144,16 +147,20 @@ export function ApplicationPromptCard() {
                 {step === "done-won" ? "Bravo pour ce marché !" : step === "done-lost" ? "Merci, c'est noté." : "C'est noté !"}
               </p>
               <p className="mt-1 text-sm text-slate-600">
-                {step === "done-sent"
-                  ? "Votre candidature est suivie dans « Mes candidatures ». Nous vous demanderons le résultat le moment venu."
+                {step === "done-interested"
+                  ? "L'appel d'offres est dans votre pipeline. Quand vous décidez d'y répondre, le guide vous accompagne jusqu'au dépôt."
                   : step === "done-preparing"
-                    ? "Suivez le guide étape par étape jusqu'au dépôt de votre offre."
+                    ? "Suivez le guide étape par étape : conditions, dossier, pièces, mémoire technique et dépôt."
                     : step === "done-won"
                       ? "Retrouvez-le dans « Mes candidatures »."
                       : "Découvrez comment obtenir les motifs du rejet pour progresser."}
               </p>
-              <Link href="/dashboard/candidatures" onClick={close} className="mt-4 inline-flex items-center justify-center rounded-xl bg-navy px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-navy/90">
-                Voir mes candidatures
+              <Link
+                href={step === "done-interested" ? "/dashboard/pipeline" : "/dashboard/candidatures"}
+                onClick={close}
+                className="mt-4 inline-flex items-center justify-center rounded-xl bg-navy px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-navy/90"
+              >
+                {step === "done-interested" ? "Voir mon pipeline" : "Commencer le guide"}
               </Link>
             </div>
           )}

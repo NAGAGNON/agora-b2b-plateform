@@ -48,6 +48,7 @@ import { ShareLinks } from "@/components/share-links";
 import { cookies, headers } from "next/headers";
 import { OfferAccessGate } from "@/components/opportunities/offer-access-gate";
 import { TenderBriefPanel } from "@/components/opportunities/tender-brief";
+import { GuideButton } from "@/components/applications/guide-button";
 import { boampId, isFullBrief, storedBrief, tedId } from "@/lib/tender-brief";
 import { founderOffer, founderOpen } from "@/lib/billing/founder";
 import { NeedContactForm } from "@/components/opportunities/need-contact-form";
@@ -323,7 +324,7 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
     session ? supabase.from("favorites").select("id").eq("user_id", session.userId).eq("opportunity_id", o.id).maybeSingle() : null,
     myCompanyId ? supabase.from("interests").select("id, status").eq("opportunity_id", o.id).eq("company_id", myCompanyId).maybeSingle() : null,
     myCompanyId ? supabase.from("proposals").select("id, status").eq("opportunity_id", o.id).eq("company_id", myCompanyId).maybeSingle() : null,
-    myCompanyId ? supabase.from("pipeline_items").select("id").eq("opportunity_id", o.id).eq("company_id", myCompanyId).maybeSingle() : null,
+    myCompanyId ? supabase.from("pipeline_items").select("id, stage").eq("opportunity_id", o.id).eq("company_id", myCompanyId).maybeSingle() : null,
     // Certifications de la fiche entreprise : comparées aux exigences de l'avis
     myCompanyId && o.origin === "EXTERNAL" ? supabase.from("company_profiles").select("certifications").eq("company_id", myCompanyId).maybeSingle() : null,
   ]);
@@ -663,6 +664,9 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
             )}
             <div className="flex flex-col gap-2 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
               <FavoriteButton target="opportunity" id={o.id} initial={Boolean(fav?.data)} signedIn={Boolean(session)} />
+              {external && session?.activeCompany && isOpen && (
+                <GuideButton opportunityId={o.id} started={["RESPONSE_PREPARING", "RESPONSE_SENT", "DISCUSSION", "NEGOTIATION", "WON", "LOST"].includes(pipeline?.data?.stage ?? "")} />
+              )}
               {external && session?.activeCompany && <PipelineButton opportunityId={o.id} initial={Boolean(pipeline?.data)} />}
               {isOpen && o.response_deadline && (
                 <a href={`/api/opportunites/${o.id}/agenda`} download className={buttonClasses({ variant: "outline", full: true })} data-testid="deadline-calendar">
