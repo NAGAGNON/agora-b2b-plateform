@@ -32,7 +32,7 @@ const ANSWER_LABEL: Record<string, string> = {
 /**
  * Suivi des candidatures : combien d'offres sont découvertes avec « En savoir plus », gardées, préparées,
  * déposées et gagnées ; ce que les membres font chaque jour ; questions posées à l'assistant.
- * Entreprises de démonstration exclues. Données internes, aucune action.
+ * Entreprises de démonstration et comptes de l'équipe (vos tests) exclus. Données internes, aucune action.
  */
 export default async function AdminApplicationsPage() {
   await requireAdmin();
@@ -41,7 +41,7 @@ export default async function AdminApplicationsPage() {
   const since30 = new Date(now - 30 * DAY).toISOString();
   const since7 = new Date(now - 7 * DAY).toISOString();
 
-  const [{ data: items }, { data: prompts }, { data: journal }, { data: questions }, { count: q7 }, { count: q30 }] = await Promise.all([
+  const [{ data: items }, { data: prompts }, { data: journal }, { data: questions }] = await Promise.all([
     db
       .from("pipeline_items")
       .select("stage, created_at, updated_at, updated_by, company_id, opportunity_id, companies!inner(name, is_demo)")
@@ -49,23 +49,27 @@ export default async function AdminApplicationsPage() {
       .eq("companies.is_demo", false)
       .order("updated_at", { ascending: false })
       .limit(2000),
-    db.from("application_prompts").select("answer, reason, updated_at").gte("updated_at", since30).limit(2000),
+    db.from("application_prompts").select("answer, reason, updated_at, user_id").gte("updated_at", since30).limit(2000),
     db.from("application_journal").select("kind, body, created_at, company_id, opportunity_id, user_id").gte("created_at", since30).order("created_at", { ascending: false }).limit(200),
     db.from("application_questions").select("question, answer, created_at, company_id, opportunity_id, user_id").order("created_at", { ascending: false }).limit(500),
-    db.from("application_questions").select("id", { count: "exact", head: true }).gte("created_at", since7),
-    db.from("application_questions").select("id", { count: "exact", head: true }).gte("created_at", since30),
   ]);
 
-  const rows = (items ?? []).map((r) => ({ ...r, company: Array.isArray(r.companies) ? r.companies[0] : r.companies }));
+  // Entreprises de l'équipe (un membre marqué « interne », comme le propriétaire) : tests, jamais comptés
+  const { data: internalUsers } = await db.from("users").select("id").eq("is_internal", true);
+  const internalIds = (internalUsers ?? []).map((u) => u.id);
+  const { data: internalMembers } = internalIds.length ? await db.from("company_members").select("company_id").in("user_id", internalIds) : { data: [] as { company_id: string }[] };
+  const internal = new Set((internalMembers ?? []).map((m) => m.company_id));
+  const rows = (items ?? []).filter((r) => !internal.has(r.company_id)).map((r) => ({ ...r, company: Array.isArray(r.companies) ? r.companies[0] : r.companies }));
   const count = (stages: string[]) => rows.filter((r) => stages.includes(r.stage)).length;
   const decided = count(["INTERESTED", "RESPONSE_PREPARING", "RESPONSE_SENT", "DISCUSSION", "NEGOTIATION", "WON", "LOST"]);
   const sent = count(["RESPONSE_SENT", "DISCUSSION", "NEGOTIATION", "WON", "LOST"]);
   const won = count(["WON"]);
   const companies = new Set(rows.map((r) => r.company_id)).size;
   const new7 = rows.filter((r) => r.created_at >= since7).length;
-  const withdrawn = (prompts ?? []).filter((p) => p.answer === "NOT_FOR_ME" && p.reason === "Retirée de mes candidatures").length;
+  const realPrompts = (prompts ?? []).filter((p) => !internalIds.includes(p.user_id));
+  const withdrawn = realPrompts.filter((p) => p.answer === "NOT_FOR_ME" && p.reason === "Retirée de mes candidatures").length;
   const answers = Object.entries(
-    (prompts ?? []).reduce<Record<string, number>>((acc, p) => {
+    realPrompts.reduce<Record<string, number>>((acc, p) => {
       if (p.reason !== "Retirée de mes candidatures") acc[p.answer] = (acc[p.answer] ?? 0) + 1;
       return acc;
     }, {}),
@@ -83,7 +87,7 @@ export default async function AdminApplicationsPage() {
   const co = new Map((cos ?? []).map((c) => [c.id, c]));
   const opp = new Map((opps ?? []).map((o) => [o.id, o.title]));
   const userName = new Map((users ?? []).map((u) => [u.id, u.full_name]));
-  const real = <T extends { company_id: string }>(list: T[]) => list.filter((x) => co.get(x.company_id) && !co.get(x.company_id)!.is_demo);
+  const real = <T extends { company_id: string }>(list: T[]) => list.filter((x) => co.get(x.company_id) && !co.get(x.company_id)!.is_demo && !internal.has(x.company_id));
   const activity = real(journal ?? []);
   const asked = real(questions ?? []);
 
@@ -162,7 +166,7 @@ export default async function AdminApplicationsPage() {
         <DashboardCard label="Réponses déposées" value={sent} hint={`${count(["RESPONSE_SENT", "DISCUSSION", "NEGOTIATION"])} en attente du résultat`} />
         <DashboardCard label="Gagnées / non retenues" value={`${won} / ${count(["LOST"])}`} hint={`Taux de réussite : ${pct(won, won + count(["LOST"]))}`} />
         <DashboardCard label="Retirées (30 j)" value={withdrawn} hint="« Ne m'intéresse plus »" />
-        <DashboardCard label="Questions à l'assistant" value={q30 ?? 0} hint={`${q7 ?? 0} sur 7 jours`} />
+        <DashboardCard label="Questions à l'assistant" value={asked.filter((q) => q.created_at >= since30).length} hint={`${asked.filter((q) => q.created_at >= since7).length} sur 7 jours`} />
       </div>
 
       <section className="overflow-x-auto rounded-2xl border border-slate-200 bg-white" data-testid="per-user">
