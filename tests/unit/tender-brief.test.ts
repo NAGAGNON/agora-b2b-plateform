@@ -37,5 +37,6 @@ describe("préparer sa réponse", () => {
     expect(certStatus("ISO 9001", ["MASE"])).toBe("missing");
     expect(certStatus("ISO 9001", [])).toBe("missing");
     expect(certStatus("Habilitation électrique", ["habilitation electrique B2V"])).toBe("ok");
+    expect(certStatus("Habilitation électrique BR", ["Habilitation électrique B2V"])).toBe("check");
   });
 });

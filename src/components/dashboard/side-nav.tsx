@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Bell,
+  ClipboardList,
   Building2,
   FileStack,
   Heart,
@@ -29,6 +30,7 @@ const GROUPS = [
       { href: "/dashboard", label: "Tableau de bord", icon: Home, exact: true },
       { href: "/dashboard/opportunites", label: "Opportunités", icon: FileStack },
       { href: "/dashboard/recommandations", label: "Recommandations", icon: Sparkles },
+      { href: "/dashboard/candidatures", label: "Mes candidatures", icon: ClipboardList },
       { href: "/dashboard/pipeline", label: "Pipeline", icon: KanbanSquare },
       { href: "/dashboard/favoris", label: "Favoris", icon: Heart },
     ],

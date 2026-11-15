@@ -33,10 +33,11 @@ export function certStatus(required: string, mine: string[]): CertStatus {
   let best: CertStatus = "missing";
   for (const m of mine) {
     const c = parts(m);
-    const sameName = r.names.length > 0 && r.names.some((n) => c.names.includes(n));
-    if (!sameName) continue;
-    // Même intitulé : les numéros exigés (ex. Qualibat 1311) doivent aussi figurer sur la fiche
-    if (r.numbers.every((n) => c.numbers.includes(n))) return "ok";
+    const shared = r.names.filter((n) => c.names.includes(n));
+    if (!shared.length) continue;
+    // Tout l'intitulé exigé (ex. « habilitation électrique BR ») et ses numéros (ex. Qualibat 1311)
+    // doivent figurer sur la fiche ; sinon « à vérifier »
+    if (shared.length === r.names.length && r.numbers.every((n) => c.numbers.includes(n))) return "ok";
     best = "check";
   }
   return best;
