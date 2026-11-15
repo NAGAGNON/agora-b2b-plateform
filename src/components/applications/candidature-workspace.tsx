@@ -218,7 +218,7 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
           </div>
           {/* Sur téléphone, l'anneau n'apparaît qu'une fois la préparation commencée */}
           <div className={cn("justify-center", discovery ? "hidden lg:flex" : "flex")}>
-            <ProgressRing value={progress} label={sent ? "Réponse envoyée" : discovery ? "À l'étude" : "Candidature prête"} />
+            <ProgressRing value={progress} label={sent ? "Réponse envoyée" : discovery ? "À l'étude" : progress >= 100 ? "Candidature prête" : "En préparation"} />
           </div>
         </div>
         <div className="mt-6 flex flex-col gap-2 sm:mt-8 sm:flex-row sm:flex-wrap sm:gap-3">

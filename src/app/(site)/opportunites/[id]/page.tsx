@@ -591,9 +591,9 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
 
           <aside className="min-w-0 space-y-4 [overflow-wrap:anywhere] lg:sticky lg:top-20 lg:self-start">
             {external ? (
-              <div className="rounded-2xl border-2 border-amber-300 bg-white p-5 shadow-sm">
+              <div className="rounded-2xl border-2 border-teal/40 bg-white p-5 shadow-sm">
                 <p className="flex items-center gap-2 font-heading text-lg font-bold text-navy">
-                  <ExternalLink className="size-5 text-amber-600" aria-hidden /> Opportunité externe
+                  <ExternalLink className="size-5 text-teal-700" aria-hidden /> Opportunité externe
                 </p>
                 <p className="mt-2 text-sm text-slate-600">
                   {isOpen && !o.is_demo ? (
