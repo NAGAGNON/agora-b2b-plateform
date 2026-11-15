@@ -6,11 +6,19 @@ import { cn } from "@/lib/cn";
 
 const DAY = 86_400_000;
 export const GLANCE_PERIODS = [
+  { key: "auj", label: "Aujourd'hui", long: "aujourd'hui (depuis minuit)", days: 0 },
   { key: "24h", label: "24 h", long: "les dernières 24 heures", days: 1 },
   { key: "48h", label: "48 h", long: "les dernières 48 heures", days: 2 },
   { key: "7j", label: "7 jours", long: "les 7 derniers jours", days: 7 },
   { key: "30j", label: "30 jours", long: "les 30 derniers jours", days: 30 },
 ] as const;
+
+/** Minuit (heure de Paris) du jour de `now`. */
+function parisMidnight(now: number): Date {
+  const parts = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Paris", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" }).formatToParts(new Date(now));
+  const get = (t: string) => Number(parts.find((p) => p.type === t)?.value ?? 0);
+  return new Date(now - ((get("hour") * 60 + get("minute")) * 60 + get("second")) * 1000 - (now % 1000));
+}
 
 const pl = (n: number, one: string, many: string) => `${n} ${n > 1 ? many : one}`;
 
@@ -20,7 +28,8 @@ const pl = (n: number, one: string, many: string) => `${n} ${n > 1 ? many : one}
  */
 export async function AtAGlance({ periodKey, now }: { periodKey: string | undefined; now: number }) {
   const period = GLANCE_PERIODS.find((p) => p.key === periodKey) ?? GLANCE_PERIODS[0];
-  const since = new Date(now - period.days * DAY).toISOString();
+  // « Aujourd'hui » : depuis minuit, heure de Paris ; sinon les N derniers jours glissants
+  const since = (period.days === 0 ? parisMidnight(now) : new Date(now - period.days * DAY)).toISOString();
   const db = createAdminClient();
   const { data: team } = await db.from("users").select("id").or("is_internal.eq.true,is_demo.eq.true");
   const excluded = new Set((team ?? []).map((u) => u.id));
@@ -62,7 +71,7 @@ export async function AtAGlance({ periodKey, now }: { periodKey: string | undefi
         <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-xs font-bold tracking-wide text-teal-200 uppercase">En bref</p>
-            <h2 className="mt-1 font-heading text-2xl font-extrabold text-white">Sur {period.long}</h2>
+            <h2 className="mt-1 font-heading text-2xl font-extrabold text-white">{period.days === 0 ? "Aujourd’hui, depuis minuit" : `Sur ${period.long}`}</h2>
           </div>
           <nav aria-label="Période" className="inline-flex rounded-2xl bg-white/10 p-1 ring-1 ring-white/15">
             {GLANCE_PERIODS.map((p) => (
