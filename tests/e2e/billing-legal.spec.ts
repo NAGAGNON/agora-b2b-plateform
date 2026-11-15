@@ -29,7 +29,7 @@ test("page d'accueil : message et appels à l'action", async ({ browser }) => {
   const page = await newPage(browser);
   await page.goto("/");
   await expect(page.getByRole("heading", { level: 1 })).toContainText("Les bonnes opportunités commencent ici.");
-  await expect(page.getByText("Trouvez des partenaires, découvrez des opportunités et développez votre activité.")).toBeVisible();
+  await expect(page.getByText("Trouvez les bons marchés, évaluez vos chances de répondre et pilotez vos candidatures jusqu'au résultat.")).toBeVisible();
   await expect(page.getByText("Gratuit · Sans carte bancaire · Des opportunités partout en France", { exact: false })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Trouvez les marchés de votre secteur" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Ce que vous pouvez faire dès maintenant" })).toBeVisible();

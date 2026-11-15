@@ -128,7 +128,7 @@ export default async function HomePage(props: PageProps<"/">) {
                 Les bonnes <span className="text-gradient-dark">opportunités</span> commencent ici.
               </h1>
               <p className="mt-5 max-w-xl animate-rise text-lg text-slate-700 [animation-delay:300ms]">
-                Trouvez des partenaires, découvrez des opportunités et développez votre activité.
+                Trouvez les bons marchés, évaluez vos chances de répondre et pilotez vos candidatures jusqu&apos;au résultat.
               </p>
               <div className="mt-8 flex animate-rise flex-col gap-3 [animation-delay:500ms] sm:flex-row">
                 <TrackedButtonLink cta="home_hero_opportunites" href="/opportunites" size="lg" className="sm:px-8">
