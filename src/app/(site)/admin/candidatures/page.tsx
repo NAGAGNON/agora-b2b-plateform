@@ -3,6 +3,8 @@ import { requireAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { DashboardCard } from "@/components/ui/card";
 import { formatDateTime } from "@/lib/format";
+import { Bookmark, Eye, FolderOpen, Hammer, MessageCircleQuestion, Send, Trophy } from "lucide-react";
+import { cn } from "@/lib/cn";
 
 export const metadata = { title: "Candidatures" };
 export const dynamic = "force-dynamic";
@@ -34,7 +36,8 @@ const ANSWER_LABEL: Record<string, string> = {
  * déposées et gagnées ; ce que les membres font chaque jour ; questions posées à l'assistant.
  * Entreprises de démonstration et comptes de l'équipe (vos tests) exclus. Données internes, aucune action.
  */
-export default async function AdminApplicationsPage() {
+export default async function AdminApplicationsPage(props: PageProps<"/admin/candidatures">) {
+  const sp = await props.searchParams;
   await requireAdmin();
   const db = createAdminClient();
   const now = nowMs();
@@ -104,17 +107,19 @@ export default async function AdminApplicationsPage() {
   // Par période : 24 h, 48 h, 7 jours, 30 jours (mêmes définitions que le parcours ci-dessous)
   const realViews = (views ?? []).filter((v) => v.user_id && !internalIds.includes(v.user_id));
   const PERIODS = [
-    { label: "24 h", since: new Date(now - DAY).toISOString() },
-    { label: "48 h", since: new Date(now - 2 * DAY).toISOString() },
-    { label: "7 jours", since: since7 },
-    { label: "30 jours", since: since30 },
+    { key: "24h", label: "24 h", long: "les dernières 24 heures", since: new Date(now - DAY).toISOString() },
+    { key: "48h", label: "48 h", long: "les dernières 48 heures", since: new Date(now - 2 * DAY).toISOString() },
+    { key: "7j", label: "7 jours", long: "les 7 derniers jours", since: since7 },
+    { key: "30j", label: "30 jours", long: "les 30 derniers jours", since: since30 },
   ];
   const OPENED = ["RESPONSE_PREPARING", "RESPONSE_SENT", "DISCUSSION", "NEGOTIATION", "WON", "LOST"];
   const SENT_STAGES = ["RESPONSE_SENT", "DISCUSSION", "NEGOTIATION", "WON", "LOST"];
-  const periodStats = PERIODS.map(({ label, since }) => {
+  const periodStats = PERIODS.map(({ key, label, long, since }) => {
     const created = rows.filter((r) => r.created_at >= since);
     return {
+      key,
       label,
+      long,
       values: [
         new Set(realViews.filter((v) => v.created_at >= since).map((v) => `${v.user_id}:${(v.properties as { opportunity_id?: string } | null)?.opportunity_id ?? ""}`)).size,
         created.filter((r) => r.stage === "INTERESTED").length,
@@ -127,7 +132,21 @@ export default async function AdminApplicationsPage() {
       ],
     };
   });
-  const PERIOD_ROWS = ["Offres consultées", "Gardées pour plus tard", "Dossiers ouverts (« Oui, je prépare »)", "Travail réellement commencé", "Réponses déposées", "Marchés gagnés", "Questions à l'assistant", "Entreprises actives (nouvelles candidatures)"];
+  const period = periodStats.find((p) => p.key === (typeof sp.periode === "string" ? sp.periode : "7j")) ?? periodStats[2];
+  const TILES = [
+    { index: 0, label: "offre(s) consultée(s)", one: "offre consultée", many: "offres consultées", icon: Eye, color: "text-sky-300" },
+    { index: 1, label: "gardée(s)", one: "gardée pour plus tard", many: "gardées pour plus tard", icon: Bookmark, color: "text-teal-200" },
+    { index: 2, label: "dossier(s) ouvert(s)", one: "dossier ouvert (« Oui, je prépare »)", many: "dossiers ouverts (« Oui, je prépare »)", icon: FolderOpen, color: "text-teal-200" },
+    { index: 3, label: "travail commencé", one: "avec travail réellement commencé", many: "avec travail réellement commencé", icon: Hammer, color: "text-teal-300" },
+    { index: 4, label: "réponse(s) déposée(s)", one: "réponse déposée", many: "réponses déposées", icon: Send, color: "text-violet-300" },
+    { index: 5, label: "marché(s) gagné(s)", one: "marché gagné", many: "marchés gagnés", icon: Trophy, color: "text-emerald-300" },
+  ];
+  const pl = (n: number, one: string, many: string) => `${n} ${n > 1 ? many : one}`;
+  const [v0, v1, v2, v3, v4, v5] = period.values;
+  const summary =
+    v0 + v1 + v2 + v3 + v4 + v5 === 0
+      ? "Aucune activité sur les candidatures pour l'instant sur cette période."
+      : `${pl(v0, "offre consultée", "offres consultées")}, ${pl(v1, "gardée", "gardées")} pour plus tard, ${pl(v2, "dossier ouvert", "dossiers ouverts")} dont ${pl(v3, "avec un vrai travail commencé", "avec un vrai travail commencé")}, ${pl(v4, "réponse déposée", "réponses déposées")} et ${pl(v5, "marché gagné", "marchés gagnés")}.`;
 
   // Suivi par inscrit : chaque membre des entreprises qui ont des candidatures ou ont posé une question
   const memberCompanies = [...new Set([...rows.map((r) => r.company_id), ...asked.map((q) => q.company_id)])];
@@ -198,32 +217,46 @@ export default async function AdminApplicationsPage() {
         </p>
       </div>
 
-      <section className="overflow-x-auto rounded-2xl border border-slate-200 bg-white" data-testid="periods">
-        <table className="w-full min-w-[36rem] text-sm">
-          <caption className="px-3 pt-3 text-left font-semibold text-navy">Par période</caption>
-          <thead className="bg-canvas text-left text-slate-600">
-            <tr>
-              <th scope="col" className="px-3 py-2">Indicateur</th>
-              {periodStats.map((p) => (
-                <th key={p.label} scope="col" className="px-3 py-2 text-right whitespace-nowrap">
-                  {p.label}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {PERIOD_ROWS.map((label, i) => (
-              <tr key={label} className="border-t border-slate-100">
-                <th scope="row" className="px-3 py-2 text-left font-medium text-slate-700">{label}</th>
-                {periodStats.map((p) => (
-                  <td key={p.label} className="px-3 py-2 text-right font-semibold text-navy tabular-nums">
-                    {p.values[i] || "—"}
-                  </td>
-                ))}
-              </tr>
+      {/* En bref : la période choisie, en une phrase et six grandes cartes */}
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-navy to-navy-900 p-6 text-white shadow-xl sm:p-8" data-testid="periods">
+        <div aria-hidden className="pointer-events-none absolute -top-24 -right-16 size-72 animate-aurora rounded-full bg-teal/25 blur-3xl" />
+        <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-xs font-bold tracking-wide text-teal-200 uppercase">En bref</p>
+            <h2 className="mt-1 font-heading text-2xl font-extrabold text-white">Sur {period.long}</h2>
+          </div>
+          <nav aria-label="Période" className="inline-flex rounded-2xl bg-white/10 p-1 ring-1 ring-white/15">
+            {periodStats.map((p) => (
+              <Link
+                key={p.key}
+                href={`/admin/candidatures?periode=${p.key}`}
+                aria-current={p.key === period.key ? "page" : undefined}
+                className={cn("rounded-xl px-3.5 py-2 text-sm font-semibold transition", p.key === period.key ? "bg-white text-navy shadow" : "text-white/75 hover:bg-white/10 hover:text-white")}
+              >
+                {p.label}
+              </Link>
             ))}
-          </tbody>
-        </table>
+          </nav>
+        </div>
+        <p className="relative mt-4 max-w-3xl text-lg leading-relaxed text-white/85">{summary}</p>
+        <ol className="relative mt-6 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
+          {TILES.map((t, i) => {
+            const v = period.values[t.index];
+            const prev = i > 0 ? period.values[TILES[i - 1].index] : null;
+            return (
+              <li key={t.label} className="rounded-2xl bg-white/[0.07] p-4 ring-1 ring-white/10">
+                <t.icon className={cn("size-5", t.color)} aria-hidden />
+                <p className="mt-3 font-heading text-4xl font-extrabold tabular-nums">{v}</p>
+                <p className="mt-1 text-sm leading-snug text-white/80">{v > 1 ? t.many : t.one}</p>
+                {prev !== null && prev > 0 && <p className="mt-2 text-xs font-semibold text-teal-200">{Math.round((v / prev) * 100)} % de l&apos;étape avant</p>}
+              </li>
+            );
+          })}
+        </ol>
+        <p className="relative mt-4 text-sm text-white/60">
+          <MessageCircleQuestion className="mr-1 inline size-4 align-[-3px]" aria-hidden />
+          {pl(period.values[6], "question posée", "questions posées")} à l&apos;assistant · {pl(period.values[7], "entreprise active", "entreprises actives")} · vos comptes de test ne sont jamais comptés.
+        </p>
       </section>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
