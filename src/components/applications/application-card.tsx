@@ -33,7 +33,7 @@ function countdown(deadline: string | null) {
 }
 
 /** Une candidature : guide étape par étape, dépôt, résultat. */
-export function ApplicationCard({ data }: { data: ApplicationCardData }) {
+export function ApplicationCard({ data, detail = false }: { data: ApplicationCardData; detail?: boolean }) {
   const [done, setDone] = useState<number[]>(data.guideDone);
   const [stage, setStage] = useState(data.stage);
   const [open, setOpen] = useState<number | null>(null);
@@ -67,13 +67,19 @@ export function ApplicationCard({ data }: { data: ApplicationCardData }) {
     <article className="plan-in overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200" data-testid="application-card">
       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 p-5">
         <div className="min-w-0 flex-1">
-          <Link href={`/opportunites/${data.opportunityId}`} className="font-heading text-lg font-bold text-navy hover:underline">
-            {data.title}
-          </Link>
-          <p className="mt-0.5 text-sm text-slate-500">
-            {data.buyer ?? "Besoin publié sur LinkProB2B"}
-            {data.deadline ? ` · date limite ${fmt(data.deadline)}` : ""}
-          </p>
+          {detail ? (
+            <h2 className="font-heading text-lg font-bold text-navy">Les étapes pour gagner</h2>
+          ) : (
+            <Link href={`/dashboard/candidatures/${data.opportunityId}`} className="font-heading text-lg font-bold text-navy hover:underline">
+              {data.title}
+            </Link>
+          )}
+          {!detail && (
+            <p className="mt-0.5 text-sm text-slate-500">
+              {data.buyer ?? "Besoin publié sur LinkProB2B"}
+              {data.deadline ? ` · date limite ${fmt(data.deadline)}` : ""}
+            </p>
+          )}
         </div>
         <span
           className={cn(
@@ -146,7 +152,7 @@ export function ApplicationCard({ data }: { data: ApplicationCardData }) {
                         </p>
                       )}
                       {i === 0 && data.external && (
-                        <Link href={`/opportunites/${data.opportunityId}#fiche-synthese`} className="mt-3 inline-flex items-center gap-1.5 font-semibold text-teal-700 hover:underline">
+                        <Link href={detail ? "#fiche-synthese" : `/dashboard/candidatures/${data.opportunityId}#fiche-synthese`} className="mt-3 inline-flex items-center gap-1.5 font-semibold text-teal-700 hover:underline">
                           <FileText className="size-4" aria-hidden /> Voir les conditions de cette offre
                           {data.briefTodo.total > 0 ? ` (à faire de la fiche : ${data.briefTodo.done}/${data.briefTodo.total})` : ""}
                         </Link>

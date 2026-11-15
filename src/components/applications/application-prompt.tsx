@@ -156,7 +156,7 @@ export function ApplicationPromptCard() {
                       : "Découvrez comment obtenir les motifs du rejet pour progresser."}
               </p>
               <Link
-                href={step === "done-interested" ? "/dashboard/pipeline" : "/dashboard/candidatures"}
+                href={step === "done-interested" ? "/dashboard/pipeline" : step === "done-preparing" ? `/dashboard/candidatures/${id}` : "/dashboard/candidatures"}
                 onClick={close}
                 className="mt-4 inline-flex items-center justify-center rounded-xl bg-navy px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-navy/90"
               >

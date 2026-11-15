@@ -611,12 +611,23 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
                   {source?.external_source?.license && <Row label="Conditions" value={source.external_source.license} />}
                 </dl>
                 {source?.external_source?.attribution && <p className="mt-3 text-xs text-slate-500">{source.external_source.attribution}</p>}
+                {isOpen && !o.is_demo && (
+                  <div className="mt-5">
+                    <GuideButton
+                      opportunityId={o.id}
+                      signedIn={Boolean(session)}
+                      hasCompany={Boolean(session?.activeCompany)}
+                      started={["RESPONSE_PREPARING", "RESPONSE_SENT", "DISCUSSION", "NEGOTIATION", "WON", "LOST"].includes(pipeline?.data?.stage ?? "")}
+                    />
+                    <p className="mt-2 text-center text-xs text-slate-500">Conditions, pièces, notation, conseils et étapes à cocher pour optimiser votre candidature.</p>
+                  </div>
+                )}
                 {source?.original_url && (
                   <a
                     href={`/go/${o.id}`}
                     target="_blank"
                     rel="noopener noreferrer nofollow"
-                    className={buttonClasses({ full: true, size: "lg", className: "mt-5" })}
+                    className={buttonClasses({ full: true, size: "lg", variant: isOpen && !o.is_demo ? "outline" : undefined, className: isOpen && !o.is_demo ? "mt-3" : "mt-5" })}
                   >
                     Consulter l&apos;opportunité originale <ExternalLink className="size-4" aria-hidden />
                   </a>
@@ -664,9 +675,6 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
             )}
             <div className="flex flex-col gap-2 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
               <FavoriteButton target="opportunity" id={o.id} initial={Boolean(fav?.data)} signedIn={Boolean(session)} />
-              {external && session?.activeCompany && isOpen && (
-                <GuideButton opportunityId={o.id} started={["RESPONSE_PREPARING", "RESPONSE_SENT", "DISCUSSION", "NEGOTIATION", "WON", "LOST"].includes(pipeline?.data?.stage ?? "")} />
-              )}
               {external && session?.activeCompany && <PipelineButton opportunityId={o.id} initial={Boolean(pipeline?.data)} />}
               {isOpen && o.response_deadline && (
                 <a href={`/api/opportunites/${o.id}/agenda`} download className={buttonClasses({ variant: "outline", full: true })} data-testid="deadline-calendar">

@@ -7,17 +7,38 @@ import { Trophy } from "lucide-react";
 import { startApplicationGuide } from "@/app/actions/applications";
 import { useToast } from "@/components/ui/toast";
 
-/** Fiche d'un appel d'offres : ouvrir le guide de réponse (crée ou fait avancer la candidature). */
-export function GuideButton({ opportunityId, started }: { opportunityId: string; started: boolean }) {
+/**
+ * Fiche d'un appel d'offres : « Ça m'intéresse » ouvre la candidature sur LinkProB2B (conditions,
+ * pièces, notation, conseils, étapes à cocher, lien vers l'annonce officielle et retour à la recherche).
+ */
+export function GuideButton({ opportunityId, started, signedIn = true, hasCompany = true }: { opportunityId: string; started: boolean; signedIn?: boolean; hasCompany?: boolean }) {
   const [pending, start] = useTransition();
   const router = useRouter();
   const toast = useToast();
+  const target = `/dashboard/candidatures/${opportunityId}`;
   const cls =
-    "btn-shine inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-navy to-navy-900 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-navy/20 transition hover:-translate-y-0.5 active:scale-[0.98] disabled:opacity-50";
+    "btn-shine inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-teal to-electric px-4 py-3.5 font-semibold text-navy shadow-lg shadow-teal/25 transition hover:-translate-y-0.5 active:scale-[0.98] disabled:opacity-50";
+  const label = (
+    <>
+      <Trophy className="size-5" aria-hidden /> {started ? "Continuer ma candidature" : "Ça m'intéresse : préparer ma candidature"}
+    </>
+  );
+  if (!signedIn)
+    return (
+      <Link href={`/inscription?suite=${encodeURIComponent(`/opportunites/${opportunityId}`)}`} className={cls}>
+        {label}
+      </Link>
+    );
+  if (!hasCompany)
+    return (
+      <Link href="/onboarding/entreprise" className={cls}>
+        {label}
+      </Link>
+    );
   if (started)
     return (
-      <Link href="/dashboard/candidatures" className={cls}>
-        <Trophy className="size-4" aria-hidden /> Continuer le guide pour gagner
+      <Link href={target} className={cls}>
+        {label}
       </Link>
     );
   return (
@@ -28,12 +49,12 @@ export function GuideButton({ opportunityId, started }: { opportunityId: string;
       onClick={() =>
         start(async () => {
           const r = await startApplicationGuide(opportunityId);
-          if (r.ok) router.push("/dashboard/candidatures");
+          if (r.ok) router.push(target);
           else toast(r.error, "error");
         })
       }
     >
-      <Trophy className="size-4" aria-hidden /> Me guider pour le gagner
+      {label}
     </button>
   );
 }
