@@ -82,3 +82,9 @@ end;
 $$;
 revoke execute on function public.process_deadline_reminders(int) from public, anon, authenticated;
 grant execute on function public.process_deadline_reminders(int) to service_role;
+
+-- E-mail « Avez-vous eu le résultat ? » : activé par le propriétaire (15/11/2026)
+update public.platform_settings
+   set value = '{"enabled": true}'::jsonb,
+       description = 'Rappels e-mail des candidatures : demande de résultat 3 semaines après la date limite (activé par le propriétaire)'
+ where key = 'application_reminders';
