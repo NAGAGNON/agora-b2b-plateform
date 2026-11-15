@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AlertTriangle, ArrowRight, Bookmark, CalendarClock, CheckCircle2, ClipboardList, MapPinned, Search, Sparkles, Trophy } from "lucide-react";
+import { AlertTriangle, ArrowRight, Bookmark, Heart, CalendarClock, CheckCircle2, ClipboardList, MapPinned, Search, Sparkles, Trophy } from "lucide-react";
 import { requireCompany } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -31,6 +31,19 @@ export default async function ApplicationsPage() {
     .order("updated_at", { ascending: false });
   const rows = (data ?? []).map((d) => ({ ...d, opportunity: Array.isArray(d.opportunity) ? d.opportunity[0] : d.opportunity })).filter((d) => d.opportunity);
   const ids = rows.map((r) => r.opportunity!.id);
+  // Favoris encore ouverts, pas encore dans les candidatures : proposés sans rien enregistrer à leur place
+  const { data: favs } = await supabase
+    .from("favorites")
+    .select("created_at, opportunity:opportunities!inner(id, title, external_buyer_name, response_deadline, status, city, department_code)")
+    .eq("user_id", session.userId)
+    .not("opportunity_id", "is", null)
+    .eq("opportunity.status", "PUBLISHED")
+    .order("created_at", { ascending: false })
+    .limit(30);
+  const favorites = (favs ?? [])
+    .map((f) => (Array.isArray(f.opportunity) ? f.opportunity[0] : f.opportunity))
+    .filter((o): o is NonNullable<typeof o> => Boolean(o) && !ids.includes(o!.id) && (!o!.response_deadline || new Date(o!.response_deadline).getTime() > nowDate().getTime()))
+    .slice(0, 6);
   const { data: briefs } = ids.length ? await createAdminClient().from("tender_briefs").select("opportunity_id, content").in("opportunity_id", ids) : { data: [] };
   const briefOf = new Map((briefs ?? []).map((b) => [b.opportunity_id, BriefSchema.safeParse(b.content)]));
   const now = nowDate();
@@ -109,7 +122,7 @@ export default async function ApplicationsPage() {
         <section className="plan-in rounded-3xl bg-white p-10 text-center shadow-sm ring-1 ring-slate-200">
           <Sparkles className="mx-auto size-10 text-teal-700" aria-hidden />
           <h2 className="mt-3 font-heading text-xl font-bold text-navy">Aucune candidature pour l&apos;instant</h2>
-          <p className="mx-auto mt-1 max-w-md text-slate-600">Sur un appel d&apos;offres qui vous plaît, cliquez sur « Ça m&apos;intéresse » : il arrive ici avec tout ce qu&apos;il faut pour y répondre.</p>
+          <p className="mx-auto mt-1 max-w-md text-slate-600">Sur un appel d&apos;offres qui vous plaît, cliquez sur « En savoir plus », puis « Oui, je prépare » ou « Je la garde pour plus tard » : il arrive ici avec tout ce qu&apos;il faut pour y répondre.</p>
           <Link href="/opportunites" className="btn-shine mt-6 inline-flex items-center gap-2 rounded-xl bg-navy px-5 py-3 font-semibold text-white transition hover:-translate-y-0.5">
             <Search className="size-4" aria-hidden /> Trouver un appel d&apos;offres
           </Link>
@@ -273,6 +286,40 @@ export default async function ApplicationsPage() {
               </section>
             ))}
         </>
+      )}
+
+      {/* Dans vos favoris : découvrir le parcours de candidature à partir d'offres déjà repérées */}
+      {favorites.length > 0 && (
+        <section data-testid="favorites-block">
+          <h2 className="mb-1 flex items-center gap-2 font-heading text-xl font-bold text-navy">
+            <Heart className="size-5 text-rose-500" aria-hidden /> Dans vos favoris
+          </h2>
+          <p className="mb-4 text-sm text-slate-600">Des offres encore ouvertes que vous avez mises de côté. Ouvrez-en une pour voir les conditions, les pièces et décider si vous répondez.</p>
+          <div className="grid gap-3 md:grid-cols-2 [&>*]:min-w-0">
+            {favorites.map((o, i) => {
+              const d = o.response_deadline ? Math.ceil((new Date(o.response_deadline).getTime() - now.getTime()) / DAY) : null;
+              return (
+                <div key={o.id} className="plan-in flex items-center gap-4 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200" style={{ animationDelay: `${i * 60}ms` }}>
+                  <div className="min-w-0 flex-1">
+                    <p className="line-clamp-2 font-semibold text-navy">{o.title}</p>
+                    <p className="mt-0.5 truncate text-sm text-slate-500">{o.external_buyer_name ?? "Besoin publié sur LinkProB2B"}</p>
+                    {d !== null && (
+                      <p className={cn("mt-1 inline-flex items-center gap-1 text-xs font-semibold", d <= 5 ? "text-rose-700" : "text-teal-800")}>
+                        <CalendarClock className="size-3.5" aria-hidden /> {d <= 0 ? "Dernier jour" : `${d} jour${d > 1 ? "s" : ""} restant${d > 1 ? "s" : ""}`}
+                      </p>
+                    )}
+                  </div>
+                  <Link
+                    href={`/dashboard/candidatures/${o.id}`}
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-gradient-to-r from-teal to-electric px-3.5 py-2 text-sm font-semibold text-navy shadow-sm transition hover:-translate-y-0.5"
+                  >
+                    <Sparkles className="size-4" aria-hidden /> En savoir plus
+                  </Link>
+                </div>
+              );
+            })}
+          </div>
+        </section>
       )}
     </div>
   );
