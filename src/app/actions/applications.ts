@@ -1,0 +1,156 @@
+"use server";
+
+import { z } from "zod";
+import { revalidatePath } from "next/cache";
+import { getSession } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { rateLimit } from "@/lib/rate-limit";
+import { APPLICATION_GUIDE } from "@/lib/application-guide";
+import type { Database } from "@/lib/database.types";
+
+type Stage = Database["public"]["Enums"]["pipeline_stage"];
+type Result<T = object> = ({ ok: true } & T) | { ok: false; error: string };
+
+const ORDER: Stage[] = ["DETECTED", "QUALIFIED", "INTERESTED", "RESPONSE_PREPARING", "RESPONSE_SENT", "DISCUSSION", "NEGOTIATION", "WON", "LOST"];
+const rank = (s: Stage) => ORDER.indexOf(s);
+const DAY = 86_400_000;
+const nowMs = () => Date.now();
+const todayParis = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris" }).format(new Date());
+
+export type ApplicationPrompt =
+  | { kind: "apply"; opportunityId: string; title: string; buyer: string | null; deadline: string | null }
+  | { kind: "result"; opportunityId: string; title: string; buyer: string | null; deadline: string | null };
+
+/**
+ * Question à poser au retour sur le site : d'abord le résultat d'une réponse envoyée dont la date
+ * limite est passée depuis plus de 3 semaines, sinon « où en êtes-vous ? » pour une annonce officielle
+ * consultée (il y a plus de 10 minutes et moins de 14 jours). Une seule question à la fois.
+ */
+export async function nextApplicationPrompt(): Promise<ApplicationPrompt | null> {
+  const session = await getSession();
+  if (!session?.activeCompany) return null;
+  const companyId = session.activeCompany.company.id;
+  const db = await createClient();
+  const now = nowMs();
+
+  const { data: items } = await db
+    .from("pipeline_items")
+    .select("opportunity_id, stage, result_asked_at, opportunity:opportunities(id, title, external_buyer_name, response_deadline)")
+    .eq("company_id", companyId);
+  const tracked = new Map((items ?? []).map((i) => [i.opportunity_id, i]));
+  for (const i of items ?? []) {
+    const o = Array.isArray(i.opportunity) ? i.opportunity[0] : i.opportunity;
+    if (i.stage !== "RESPONSE_SENT" || !o?.response_deadline) continue;
+    const due = new Date(o.response_deadline).getTime() + 21 * DAY < now;
+    const asked = i.result_asked_at && new Date(i.result_asked_at).getTime() > now - 14 * DAY;
+    if (due && !asked) return { kind: "result", opportunityId: o.id, title: o.title, buyer: o.external_buyer_name, deadline: o.response_deadline };
+  }
+
+  const admin = createAdminClient();
+  const { data: clicks } = await admin
+    .from("analytics_events")
+    .select("properties, created_at")
+    .eq("event_name", "source_outbound_clicked")
+    .eq("user_id", session.userId)
+    .gte("created_at", new Date(now - 14 * DAY).toISOString())
+    .lte("created_at", new Date(now - 10 * 60_000).toISOString())
+    .order("created_at", { ascending: false })
+    .limit(30);
+  const ids = [...new Set((clicks ?? []).map((c) => (c.properties as { opportunity_id?: string } | null)?.opportunity_id).filter((x): x is string => Boolean(x && z.uuid().safeParse(x).success)))];
+  if (!ids.length) return null;
+  const { data: answers } = await db.from("application_prompts").select("opportunity_id, answer, updated_at").eq("user_id", session.userId).in("opportunity_id", ids);
+  const answered = new Map((answers ?? []).map((a) => [a.opportunity_id, a]));
+  for (const id of ids) {
+    const a = answered.get(id);
+    // « Plus tard » : reposée le lendemain ; toute autre réponse : plus jamais
+    if (a && (a.answer !== "LATER" || new Date(a.updated_at).getTime() > now - DAY)) continue;
+    const t = tracked.get(id);
+    if (t && rank(t.stage) >= rank("RESPONSE_PREPARING")) continue;
+    const { data: o } = await db.from("opportunities").select("id, title, external_buyer_name, response_deadline").eq("id", id).maybeSingle();
+    if (!o) continue;
+    return { kind: "apply", opportunityId: o.id, title: o.title, buyer: o.external_buyer_name, deadline: o.response_deadline };
+  }
+  return null;
+}
+
+/** Ajoute (ou fait avancer, jamais reculer) la candidature dans le suivi de l'entreprise. */
+async function advance(opportunityId: string, stage: Stage, extra: { submitted_at?: string } = {}): Promise<Result> {
+  const session = await getSession();
+  if (!session?.activeCompany) return { ok: false, error: "Créez d'abord le profil de votre entreprise." };
+  const companyId = session.activeCompany.company.id;
+  const db = await createClient();
+  const { data: item } = await db.from("pipeline_items").select("id, stage").eq("company_id", companyId).eq("opportunity_id", opportunityId).maybeSingle();
+  const { error } = item
+    ? await db
+        .from("pipeline_items")
+        .update({ ...(rank(item.stage) < rank(stage) ? { stage } : {}), ...extra, updated_by: session.userId })
+        .eq("id", item.id)
+    : await db.from("pipeline_items").insert({ company_id: companyId, opportunity_id: opportunityId, stage, ...extra, updated_by: session.userId });
+  if (error) return { ok: false, error: "Enregistrement impossible. Réessayez." };
+  revalidatePath("/dashboard/candidatures");
+  revalidatePath("/dashboard/pipeline");
+  return { ok: true };
+}
+
+const Answer = z.enum(["SENT", "PREPARING", "NOT_FOR_ME", "LATER"]);
+
+/** Réponse à « Où en êtes-vous ? ». */
+export async function answerApplicationPrompt(opportunityId: string, answer: string, reason?: string): Promise<Result> {
+  const a = Answer.safeParse(answer);
+  if (!z.uuid().safeParse(opportunityId).success || !a.success) return { ok: false, error: "Réponse invalide." };
+  const session = await getSession();
+  if (!session) return { ok: false, error: "Connectez-vous." };
+  if (!(await rateLimit("application-prompt", 60, 3600))) return { ok: false, error: "Trop de demandes. Réessayez plus tard." };
+  const db = await createClient();
+  const { error } = await db
+    .from("application_prompts")
+    .upsert({ user_id: session.userId, opportunity_id: opportunityId, answer: a.data, reason: reason?.trim().slice(0, 200) || null, updated_at: new Date().toISOString() }, { onConflict: "user_id,opportunity_id" });
+  if (error) return { ok: false, error: "Enregistrement impossible. Réessayez." };
+  if (a.data === "SENT") return advance(opportunityId, "RESPONSE_SENT", { submitted_at: todayParis() });
+  if (a.data === "PREPARING") return advance(opportunityId, "RESPONSE_PREPARING");
+  return { ok: true };
+}
+
+/** Résultat d'une réponse envoyée : gagnée, perdue ou toujours en attente (reposée dans 2 semaines). */
+export async function answerApplicationResult(opportunityId: string, result: "WON" | "LOST" | "WAITING"): Promise<Result> {
+  if (!z.uuid().safeParse(opportunityId).success || !["WON", "LOST", "WAITING"].includes(result)) return { ok: false, error: "Réponse invalide." };
+  const session = await getSession();
+  if (!session?.activeCompany) return { ok: false, error: "Connectez-vous." };
+  const db = await createClient();
+  const { error } = await db
+    .from("pipeline_items")
+    .update({ ...(result === "WAITING" ? {} : { stage: result }), result_asked_at: new Date().toISOString(), updated_by: session.userId })
+    .eq("company_id", session.activeCompany.company.id)
+    .eq("opportunity_id", opportunityId);
+  if (error) return { ok: false, error: "Enregistrement impossible. Réessayez." };
+  revalidatePath("/dashboard/candidatures");
+  revalidatePath("/dashboard/pipeline");
+  return { ok: true };
+}
+
+/** « J'ai déposé ma réponse » depuis le suivi. */
+export async function markApplicationSent(opportunityId: string): Promise<Result> {
+  if (!z.uuid().safeParse(opportunityId).success) return { ok: false, error: "Offre introuvable." };
+  return advance(opportunityId, "RESPONSE_SENT", { submitted_at: todayParis() });
+}
+
+/** Coche ou décoche une étape du guide de réponse (la candidature est créée au besoin). */
+export async function toggleGuideStep(opportunityId: string, step: number, done: boolean): Promise<Result<{ done: number[] }>> {
+  if (!z.uuid().safeParse(opportunityId).success || !Number.isInteger(step) || step < 0 || step >= APPLICATION_GUIDE.length) return { ok: false, error: "Étape inconnue." };
+  const session = await getSession();
+  if (!session?.activeCompany) return { ok: false, error: "Créez d'abord le profil de votre entreprise." };
+  const companyId = session.activeCompany.company.id;
+  const db = await createClient();
+  const { data: item } = await db.from("pipeline_items").select("id, guide_done").eq("company_id", companyId).eq("opportunity_id", opportunityId).maybeSingle();
+  const set = new Set((item?.guide_done ?? []).map(Number));
+  if (done) set.add(step);
+  else set.delete(step);
+  const next = [...set].sort((a, b) => a - b);
+  const { error } = item
+    ? await db.from("pipeline_items").update({ guide_done: next, updated_by: session.userId }).eq("id", item.id)
+    : await db.from("pipeline_items").insert({ company_id: companyId, opportunity_id: opportunityId, stage: "RESPONSE_PREPARING", guide_done: next, updated_by: session.userId });
+  if (error) return { ok: false, error: "Enregistrement impossible. Réessayez." };
+  revalidatePath("/dashboard/candidatures");
+  return { ok: true, done: next };
+}

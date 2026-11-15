@@ -1,3 +1,4 @@
+import { processApplicationReminders } from "@/lib/application-reminders";
 import { queueBoostPresentations } from "@/lib/visibility-send";
 import { cronPausedResponse } from "@/lib/cron-usage";
 import { NextResponse } from "next/server";
@@ -123,6 +124,7 @@ async function run(req: Request) {
     return { ...(data as object), ...(await queueBoostPresentations()) };
   });
   // Annonce du service « Visibilité » (inactive tant que le propriétaire ne l'a pas validée ; le mardi)
+  await step("candidatures-resultat", async () => processApplicationReminders());
   await step("annonce-visibilite", async () => {
     const { data, error } = await createAdminClient().rpc("process_visibility_announce", { p_limit: 30 });
     if (error) throw error;

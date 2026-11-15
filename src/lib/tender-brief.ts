@@ -12,7 +12,7 @@ import { logServerError } from "@/lib/errors";
  * (dates, lots, pièces à fournir, jugement des offres, à faire, pièges). Préparée une fois depuis
  * l'avis BOAMP complet, puis conservée. Uniquement les faits écrits dans l'avis : rien n'est déduit.
  */
-export const BriefSchema = z.object({
+const BriefBase = z.object({
   summary: z.string().describe("Ce que veut l'acheteur, en 1 ou 2 phrases simples"),
   deadline: z.string().nullable().describe("Date et heure limite de remise des offres, ex. « lundi 7 décembre 2026 à 12 h »"),
   site_visit: z.string().nullable().describe("Visite : obligatoire ou non, dates et lieu ; null si l'avis n'en parle pas"),
@@ -24,14 +24,47 @@ export const BriefSchema = z.object({
   todo: z.array(z.string()).max(6).describe("Actions concrètes à faire, dans l'ordre, avec les dates"),
   warnings: z.array(z.string()).max(4).describe("Pièges réels tirés de l'avis (visite obligatoire, pas de variantes, prix forfaitaires, qualification exigée…)"),
 });
+/** Préparer sa réponse : conditions pour candidater, dépôt, notation et conseils (tirés de l'avis uniquement). */
+const BriefExtra = z.object({
+  certifications: z
+    .array(z.string())
+    .max(8)
+    .describe("Qualifications, certifications, habilitations ou labels exigés des candidats, recopiés tels qu'écrits dans l'avis (ex. « Qualibat 1311 ou équivalent », « RGE », « ISO 9001 ») ; liste vide si l'avis n'en exige aucun"),
+  capacity: z
+    .array(z.string())
+    .max(6)
+    .describe("Autres conditions pour candidater écrites dans l'avis : chiffre d'affaires minimum, assurances, références similaires, effectifs, moyens ; une ligne courte chacune. Si l'avis renvoie ces conditions au règlement de la consultation, une seule ligne qui le dit"),
+  submission: z
+    .string()
+    .nullable()
+    .describe("Où et comment déposer l'offre selon l'avis : nom de la plateforme ou du profil d'acheteur, dépôt électronique obligatoire, signature électronique ; null si l'avis n'en dit rien"),
+  submission_url: z.string().nullable().describe("Adresse internet du profil d'acheteur ou de la plateforme de dépôt, recopiée exactement depuis l'avis ; null si l'avis n'en donne pas"),
+  criteria: z
+    .array(z.object({ label: z.string(), weight: z.number().nullable() }))
+    .max(8)
+    .describe("Critères de jugement des offres et leur pondération en pourcentage quand l'avis la donne (weight null sinon) ; liste vide si l'avis renvoie au règlement de la consultation"),
+  tips: z
+    .array(z.string())
+    .max(5)
+    .describe("Conseils concrets pour obtenir la meilleure note, déduits uniquement des critères, exigences et pièges de cet avis (ex. « La valeur technique compte pour 60 % : détaillez votre méthodologie et vos moyens humains, cités dans les critères »). Aucun conseil générique sans lien avec l'avis"),
+});
+/** Schéma demandé lors de la préparation (tous les champs). */
+const BriefGenSchema = BriefBase.merge(BriefExtra);
+/** Fiche conservée : les fiches préparées avant l'ajout des rubriques « Préparer sa réponse » restent valides. */
+export const BriefSchema = BriefBase.merge(BriefExtra.partial());
 export type TenderBrief = z.infer<typeof BriefSchema>;
+/** Fiche complète (avec les conditions pour candidater, le dépôt, la notation et les conseils) ? */
+export const isFullBrief = (b: TenderBrief | null | undefined): b is TenderBrief => Array.isArray(b?.certifications);
 
 const SYSTEM = `Tu rédiges des fiches synthèse d'appels d'offres publics pour des artisans et des PME françaises.
 Règles absolues :
 - Utilise UNIQUEMENT les informations écrites dans l'avis fourni. N'invente rien : ni date, ni montant, ni pièce, ni critère.
 - Si une information est absente, mets null (ou une liste vide). Pour les critères renvoyés au règlement de consultation, dis-le simplement.
 - Français simple, phrases courtes, aucun jargon inutile. Dates en toutes lettres avec le jour de la semaine quand elles sont connues.
-- Les « à faire » et « points d'attention » doivent découler directement de l'avis.`;
+- Les « à faire » et « points d'attention » doivent découler directement de l'avis.
+- Certifications et conditions pour candidater : recopie uniquement celles que l'avis exige. Si l'avis n'en exige pas, liste vide.
+- Adresse de dépôt : uniquement une adresse internet écrite dans l'avis, recopiée à l'identique.
+- Conseils : chaque conseil s'appuie sur un critère, une exigence ou un piège présent dans l'avis. Jamais de promesse de résultat.`;
 
 /** Identifiant de l'avis BOAMP (« 26-108110 ») tiré de l'adresse de la source. */
 export function boampId(url: string | null | undefined): string | null {
@@ -107,33 +140,37 @@ export async function storedBrief(opportunityId: string, db = createAdminClient(
  */
 export async function ensureBrief(opportunityId: string, { db = createAdminClient(), client }: { db?: ReturnType<typeof createAdminClient>; client?: Pick<Anthropic, "beta"> } = {}): Promise<TenderBrief | null> {
   const existing = await storedBrief(opportunityId, db);
-  if (existing) return existing;
-  if (!process.env.ANTHROPIC_API_KEY && !client) return null;
+  if (isFullBrief(existing)) return existing;
+  // Fiche ancienne (sans « Préparer sa réponse ») : préparée à nouveau, l'ancienne reste en secours
+  if (!process.env.ANTHROPIC_API_KEY && !client) return existing;
   const { data: sources } = await db.from("opportunity_sources").select("original_url").eq("opportunity_id", opportunityId);
   // Avis BOAMP en priorité (le plus complet), sinon l'avis européen TED
   const idweb = (sources ?? []).map((s) => boampId(s.original_url)).find(Boolean);
   const ted = idweb ? null : (sources ?? []).map((s) => tedId(s.original_url)).find(Boolean);
-  if (!idweb && !ted) return null;
+  if (!idweb && !ted) return existing;
   const ref = idweb ? `BOAMP ${idweb}` : `TED ${ted}`;
   try {
     const text = idweb ? await boampNoticeText(idweb) : await tedNoticeText(ted!);
-    if (!text) return null;
+    if (!text) return existing;
     const ai = client ?? new Anthropic({ timeout: 60_000, maxRetries: 1 });
     const response = await ai.beta.messages.parse({
       model: REPORT_MODEL,
       // Fiche complète : 2 000 jetons coupaient la réponse en plein milieu sur les avis longs (JSON tronqué)
       max_tokens: 8000,
-      output_config: { format: betaZodOutputFormat(BriefSchema) },
+      output_config: { format: betaZodOutputFormat(BriefGenSchema) },
       system: SYSTEM,
       messages: [{ role: "user", content: `Avis ${ref} :\n\n${text}` }],
     });
-    if (response.stop_reason === "refusal" || !response.parsed_output) return null;
+    if (response.stop_reason === "refusal" || !response.parsed_output) return existing;
     const brief = response.parsed_output;
+    // Adresse de dépôt : gardée seulement si elle figure telle quelle dans l'avis (jamais devinée)
+    const url = brief.submission_url?.trim() ?? null;
+    brief.submission_url = url && /^https?:\/\/[^\s]+$/i.test(url) && text.includes(url.replace(/\/$/, "")) ? url : null;
     await db.from("tender_briefs").upsert({ opportunity_id: opportunityId, content: brief as never, source_ref: ref });
     return brief;
   } catch (e) {
     logServerError("tender brief", e);
-    return null;
+    return existing;
   }
 }
 
