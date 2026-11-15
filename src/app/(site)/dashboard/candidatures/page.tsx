@@ -79,11 +79,12 @@ export default async function ApplicationsPage() {
         </p>
         <h1 className="mt-4 animate-rise font-heading text-3xl font-extrabold text-navy [animation-delay:80ms] sm:text-4xl">Vos appels d&apos;offres, étape par étape</h1>
         <p className="mt-2 max-w-2xl animate-rise text-slate-600 [animation-delay:140ms]">
-          Pour chaque appel d&apos;offres qui vous intéresse : les conditions, les pièces, la notation, une trame de mémoire technique et un planning jusqu&apos;au dépôt.
+          Pour chaque appel d&apos;offres qui vous intéresse : les conditions, les pièces, la notation, une trame de mémoire technique, un planning jusqu&apos;au dépôt et un assistant qui répond à vos questions sur l&apos;avis.
         </p>
-        <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
           {[
             { n: preparing.length, l: "en préparation" },
+            { n: kept.length, l: "gardée" + (kept.length > 1 ? "s" : "") + " pour plus tard" },
             { n: waiting.length, l: "en attente du résultat" },
             { n: won, l: `marché${won > 1 ? "s" : ""} gagné${won > 1 ? "s" : ""}` },
             { n: finished.length ? `${Math.round((won / finished.length) * 100)} %` : "—", l: "taux de réussite" },

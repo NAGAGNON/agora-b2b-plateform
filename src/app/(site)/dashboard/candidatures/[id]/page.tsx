@@ -26,15 +26,16 @@ export default async function CandidaturePage(props: PageProps<"/dashboard/candi
     db.from("companies").select("name, city").eq("id", company.id).maybeSingle(),
   ]);
   if (!o) notFound();
-  // Pas encore de candidature : la fiche de l'offre propose « Ça m'intéresse »
+  // Pas encore de candidature : la fiche de l'offre propose « En savoir plus »
   if (!item) redirect(`/opportunites/${id}`);
 
   const admin = createAdminClient();
-  const [{ data: sources }, { data: stored }, plan, { data: journal }] = await Promise.all([
+  const [{ data: sources }, { data: stored }, plan, { data: journal }, { data: questions }] = await Promise.all([
     admin.from("opportunity_sources").select("original_url, external_id, is_primary").eq("opportunity_id", id),
     admin.from("tender_briefs").select("content").eq("opportunity_id", id).maybeSingle(),
     db.rpc("user_plan").then((r) => r.data ?? "FREE"),
     db.from("application_journal").select("id, kind, body, created_at, user_id").eq("company_id", company.id).eq("opportunity_id", id).order("created_at", { ascending: false }).limit(100),
+    db.from("application_questions").select("id, question, answer, created_at, user_id").eq("company_id", company.id).eq("opportunity_id", id).order("created_at", { ascending: true }).limit(50),
   ]);
   const authorIds = [...new Set((journal ?? []).map((j) => j.user_id).filter((x): x is string => Boolean(x)))];
   const { data: authors } = authorIds.length ? await admin.from("users").select("id, full_name").in("id", authorIds) : { data: [] as { id: string; full_name: string }[] };
@@ -76,6 +77,7 @@ export default async function CandidaturePage(props: PageProps<"/dashboard/candi
           author: j.user_id === session.userId ? "Vous" : j.user_id ? (authorName.get(j.user_id) ?? null) : null,
           mine: j.user_id === session.userId,
         })),
+        questions: (questions ?? []).map((q) => ({ id: q.id, question: q.question, answer: q.answer, created_at: q.created_at, mine: q.user_id === session.userId })),
         company: {
           name: co?.name ?? company.name,
           city: co?.city ?? null,

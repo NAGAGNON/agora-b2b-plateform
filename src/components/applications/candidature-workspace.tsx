@@ -46,6 +46,8 @@ import { buildMemoirDraft, type DraftCompany } from "@/lib/memoir-draft";
 import { addJournalNote, answerApplicationResult, deleteJournalNote, keepForLater, markApplicationSent, saveDraft, startApplicationGuide, toggleDocStep, toggleGuideStep, withdrawApplication, type JournalEntry } from "@/app/actions/applications";
 import { loadTenderBrief } from "@/app/actions/tender-brief";
 import { goBackToSearch } from "@/components/applications/return-point";
+import { ApplicationAssistant } from "@/components/applications/application-assistant";
+import type { AssistantMessage } from "@/app/actions/application-assistant";
 
 export type WorkspaceData = {
   id: string;
@@ -68,6 +70,7 @@ export type WorkspaceData = {
   startedAt: string | null;
   reference: string | null;
   journal: JournalEntry[];
+  questions: AssistantMessage[];
 };
 
 const SHORT = ["Conditions", "Dossier", "Questions et visite", "Pièces", "Rédaction", "Dépôt"];
@@ -308,6 +311,9 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
           )}
         </section>
       )}
+
+      {/* Une question ? L'assistant répond à partir de l'avis */}
+      <ApplicationAssistant id={data.id} initial={data.questions} suggestions={assistantSuggestions(brief, data.mine)} />
 
       {/* Frise des étapes */}
       <nav aria-label="Étapes de la candidature" className="sticky top-20 z-20 rounded-2xl bg-white/95 p-3 shadow-md ring-1 ring-slate-200">
@@ -1044,4 +1050,18 @@ function Journal({ id, initial }: { id: string; initial: JournalEntry[] }) {
       )}
     </section>
   );
+}
+
+/** Questions proposées : adaptées à ce que l'avis exige (certification manquante, visite, notation). */
+function assistantSuggestions(brief: TenderBrief | null, mine: string[]): string[] {
+  const out: string[] = [];
+  const missing = (brief?.certifications ?? []).find((c) => certStatus(c, mine) !== "ok");
+  if (missing) out.push(`Puis-je candidater sans « ${missing.length > 60 ? `${missing.slice(0, 57)}…` : missing} » ?`);
+  out.push("Quelles pièces dois-je fournir exactement ?");
+  if (brief?.criteria?.length) out.push("Comment mon offre sera-t-elle notée ?");
+  else out.push("Comment se passe la sélection des offres ?");
+  if (brief?.site_visit) out.push("La visite est-elle obligatoire ? Comment m'inscrire ?");
+  out.push("Puis-je répondre à plusieurs (groupement ou sous-traitance) ?");
+  out.push("Que mettre dans mon mémoire technique ?");
+  return out.slice(0, 5);
 }

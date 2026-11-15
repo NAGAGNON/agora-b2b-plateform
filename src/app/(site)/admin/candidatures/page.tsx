@@ -1,0 +1,277 @@
+import Link from "next/link";
+import { requireAdmin } from "@/lib/auth";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { DashboardCard } from "@/components/ui/card";
+import { formatDateTime } from "@/lib/format";
+
+export const metadata = { title: "Candidatures" };
+export const dynamic = "force-dynamic";
+
+const DAY = 86_400_000;
+const nowMs = () => Date.now();
+
+const STAGE_LABEL: Record<string, string> = {
+  QUALIFIED: "À l'étude",
+  INTERESTED: "Gardée pour plus tard",
+  RESPONSE_PREPARING: "En préparation",
+  RESPONSE_SENT: "Réponse déposée",
+  DISCUSSION: "En discussion",
+  NEGOTIATION: "En négociation",
+  WON: "Gagnée",
+  LOST: "Non retenue",
+};
+const KIND_LABEL: Record<string, string> = { NOTE: "Note", START: "Préparation commencée", STEP: "Étape franchie", SENT: "Réponse déposée", WON: "Marché gagné", LOST: "Non retenue" };
+const ANSWER_LABEL: Record<string, string> = {
+  INTERESTED: "Oui, à suivre",
+  PREPARING: "Oui, me guider",
+  SENT: "J'ai déjà répondu",
+  NOT_FOR_ME: "Pas pour moi / retirée",
+  LATER: "Plus tard",
+};
+
+/**
+ * Suivi des candidatures : combien d'offres sont découvertes avec « En savoir plus », gardées, préparées,
+ * déposées et gagnées ; ce que les membres font chaque jour ; questions posées à l'assistant.
+ * Entreprises de démonstration exclues. Données internes, aucune action.
+ */
+export default async function AdminApplicationsPage() {
+  await requireAdmin();
+  const db = createAdminClient();
+  const now = nowMs();
+  const since30 = new Date(now - 30 * DAY).toISOString();
+  const since7 = new Date(now - 7 * DAY).toISOString();
+
+  const [{ data: items }, { data: prompts }, { data: journal }, { data: questions }, { count: q7 }, { count: q30 }] = await Promise.all([
+    db
+      .from("pipeline_items")
+      .select("stage, created_at, updated_at, company_id, opportunity_id, companies!inner(name, is_demo)")
+      .in("stage", Object.keys(STAGE_LABEL) as never)
+      .eq("companies.is_demo", false)
+      .order("updated_at", { ascending: false })
+      .limit(2000),
+    db.from("application_prompts").select("answer, reason, updated_at").gte("updated_at", since30).limit(2000),
+    db.from("application_journal").select("kind, body, created_at, company_id, opportunity_id, user_id").gte("created_at", since30).order("created_at", { ascending: false }).limit(200),
+    db.from("application_questions").select("question, answer, created_at, company_id, opportunity_id").order("created_at", { ascending: false }).limit(50),
+    db.from("application_questions").select("id", { count: "exact", head: true }).gte("created_at", since7),
+    db.from("application_questions").select("id", { count: "exact", head: true }).gte("created_at", since30),
+  ]);
+
+  const rows = (items ?? []).map((r) => ({ ...r, company: Array.isArray(r.companies) ? r.companies[0] : r.companies }));
+  const count = (stages: string[]) => rows.filter((r) => stages.includes(r.stage)).length;
+  const decided = count(["INTERESTED", "RESPONSE_PREPARING", "RESPONSE_SENT", "DISCUSSION", "NEGOTIATION", "WON", "LOST"]);
+  const sent = count(["RESPONSE_SENT", "DISCUSSION", "NEGOTIATION", "WON", "LOST"]);
+  const won = count(["WON"]);
+  const companies = new Set(rows.map((r) => r.company_id)).size;
+  const new7 = rows.filter((r) => r.created_at >= since7).length;
+  const withdrawn = (prompts ?? []).filter((p) => p.answer === "NOT_FOR_ME" && p.reason === "Retirée de mes candidatures").length;
+  const answers = Object.entries(
+    (prompts ?? []).reduce<Record<string, number>>((acc, p) => {
+      if (p.reason !== "Retirée de mes candidatures") acc[p.answer] = (acc[p.answer] ?? 0) + 1;
+      return acc;
+    }, {}),
+  ).sort((a, b) => b[1] - a[1]);
+
+  // Noms des entreprises et des offres pour les tableaux
+  const companyIds = [...new Set([...(journal ?? []), ...(questions ?? [])].map((j) => j.company_id))];
+  const oppIds = [...new Set([...(journal ?? []), ...(questions ?? []), ...rows.slice(0, 50)].map((j) => j.opportunity_id))];
+  const userIds = [...new Set((journal ?? []).map((j) => j.user_id).filter((x): x is string => Boolean(x)))];
+  const [{ data: cos }, { data: opps }, { data: users }] = await Promise.all([
+    companyIds.length ? db.from("companies").select("id, name, is_demo").in("id", companyIds) : Promise.resolve({ data: [] as { id: string; name: string; is_demo: boolean }[] }),
+    oppIds.length ? db.from("opportunities").select("id, title").in("id", oppIds) : Promise.resolve({ data: [] as { id: string; title: string }[] }),
+    userIds.length ? db.from("users").select("id, full_name").in("id", userIds) : Promise.resolve({ data: [] as { id: string; full_name: string }[] }),
+  ]);
+  const co = new Map((cos ?? []).map((c) => [c.id, c]));
+  const opp = new Map((opps ?? []).map((o) => [o.id, o.title]));
+  const userName = new Map((users ?? []).map((u) => [u.id, u.full_name]));
+  const real = <T extends { company_id: string }>(list: T[]) => list.filter((x) => co.get(x.company_id) && !co.get(x.company_id)!.is_demo);
+  const activity = real(journal ?? []);
+  const asked = real(questions ?? []);
+
+  // 14 derniers jours (heure de Paris) : nouvelles candidatures et questions
+  const dayKey = (iso: string) => new Date(iso).toLocaleDateString("fr-CA", { timeZone: "Europe/Paris" });
+  const days = Array.from({ length: 14 }, (_, i) => dayKey(new Date(now - (13 - i) * DAY).toISOString()));
+  const perDay = days.map((d) => ({ d, apps: rows.filter((r) => dayKey(r.created_at) === d).length, steps: activity.filter((a) => dayKey(a.created_at) === d).length }));
+  const maxDay = Math.max(1, ...perDay.map((x) => x.apps + x.steps));
+
+  const funnel = [
+    { label: "Découvertes (« En savoir plus »)", value: rows.length },
+    { label: "Gardées ou préparées", value: decided },
+    { label: "Préparation commencée", value: count(["RESPONSE_PREPARING", "RESPONSE_SENT", "DISCUSSION", "NEGOTIATION", "WON", "LOST"]) },
+    { label: "Réponses déposées", value: sent },
+    { label: "Marchés gagnés", value: won },
+  ];
+  const pct = (a: number, b: number) => (b ? `${Math.round((a / b) * 100)} %` : "—");
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold">Candidatures</h1>
+        <p className="mt-1 text-slate-600">
+          Ce que les membres font des appels d&apos;offres : découverte avec « En savoir plus », offres gardées pour plus tard, préparation étape par étape, dépôt et résultat.
+          Entreprises de démonstration exclues.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <DashboardCard label="Candidatures suivies" value={rows.length} hint={`${new7} nouvelle(s) sur 7 jours · ${companies} entreprise(s)`} />
+        <DashboardCard label="À l'étude" value={count(["QUALIFIED"])} hint="Ouvertes, pas encore décidées" />
+        <DashboardCard label="Gardées pour plus tard" value={count(["INTERESTED"])} hint="Rappel e-mail 7 j puis 2 j avant la date limite" />
+        <DashboardCard label="En préparation" value={count(["RESPONSE_PREPARING"])} hint="Accompagnées étape par étape" />
+        <DashboardCard label="Réponses déposées" value={sent} hint={`${count(["RESPONSE_SENT", "DISCUSSION", "NEGOTIATION"])} en attente du résultat`} />
+        <DashboardCard label="Gagnées / non retenues" value={`${won} / ${count(["LOST"])}`} hint={`Taux de réussite : ${pct(won, won + count(["LOST"]))}`} />
+        <DashboardCard label="Retirées (30 j)" value={withdrawn} hint="« Ne m'intéresse plus »" />
+        <DashboardCard label="Questions à l'assistant" value={q30 ?? 0} hint={`${q7 ?? 0} sur 7 jours`} />
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <section className="rounded-2xl border border-slate-200 bg-white p-4">
+          <h2 className="font-semibold text-navy">Du clic au marché gagné</h2>
+          <ol className="mt-4 space-y-3">
+            {funnel.map((f, i) => (
+              <li key={f.label}>
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-700">{f.label}</span>
+                  <span className="font-semibold text-navy tabular-nums">
+                    {f.value}
+                    {i > 0 && <span className="ml-2 text-xs font-normal text-slate-500">{pct(f.value, funnel[i - 1].value)}</span>}
+                  </span>
+                </div>
+                <div className="mt-1 h-2.5 overflow-hidden rounded-full bg-slate-100">
+                  <div className="h-full rounded-full bg-gradient-to-r from-teal to-electric" style={{ width: `${rows.length ? Math.max(2, (f.value / rows.length) * 100) : 0}%` }} />
+                </div>
+              </li>
+            ))}
+          </ol>
+        </section>
+
+        <section className="rounded-2xl border border-slate-200 bg-white p-4">
+          <h2 className="font-semibold text-navy">14 derniers jours</h2>
+          <div className="mt-4 flex h-32 items-end gap-1.5" role="img" aria-label="Nouvelles candidatures et étapes par jour sur 14 jours">
+            {perDay.map((x) => (
+              <div key={x.d} className="flex h-full flex-1 flex-col justify-end" title={`${new Date(x.d).toLocaleDateString("fr-FR")} : ${x.apps} nouvelle(s) candidature(s), ${x.steps} action(s)`}>
+                {x.steps > 0 && <div className={x.apps ? "rounded-t bg-violet/70" : "rounded-t bg-violet/70"} style={{ height: `${(x.steps / maxDay) * 100}%` }} />}
+                {x.apps > 0 && <div className={x.steps ? "bg-teal" : "rounded-t bg-teal"} style={{ height: `${(x.apps / maxDay) * 100}%` }} />}
+                {x.apps + x.steps === 0 && <div className="h-px bg-slate-200" />}
+              </div>
+            ))}
+          </div>
+          <div className="mt-1 flex justify-between text-xs text-slate-500">
+            <span>{new Date(days[0]).toLocaleDateString("fr-FR")}</span>
+            <span>{new Date(days[days.length - 1]).toLocaleDateString("fr-FR")}</span>
+          </div>
+          <div className="mt-2 flex flex-wrap gap-4 text-xs text-slate-600">
+            <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-sm bg-teal" aria-hidden /> Nouvelles candidatures</span>
+            <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-sm bg-violet/70" aria-hidden /> Étapes, notes et dépôts</span>
+          </div>
+          {answers.length > 0 && (
+            <div className="mt-5 border-t border-slate-100 pt-4">
+              <p className="text-sm font-semibold text-navy">Réponses à « Cet appel d&apos;offres vous intéresse ? » (30 j)</p>
+              <ul className="mt-2 flex flex-wrap gap-2">
+                {answers.map(([a, n]) => (
+                  <li key={a} className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+                    {ANSWER_LABEL[a] ?? a} : {n}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </section>
+      </div>
+
+      <section className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
+        <table className="w-full min-w-[48rem] text-sm">
+          <caption className="px-3 pt-3 text-left font-semibold text-navy">Dernières candidatures</caption>
+          <thead className="bg-canvas text-left text-slate-600">
+            <tr>
+              <th scope="col" className="px-3 py-2">Mise à jour</th>
+              <th scope="col" className="px-3 py-2">Entreprise</th>
+              <th scope="col" className="px-3 py-2">Offre</th>
+              <th scope="col" className="px-3 py-2">Où en est-elle</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.length === 0 ? (
+              <tr>
+                <td colSpan={4} className="px-3 py-4 text-slate-600">Aucune candidature pour l&apos;instant.</td>
+              </tr>
+            ) : (
+              rows.slice(0, 50).map((r) => (
+                <tr key={`${r.company_id}-${r.opportunity_id}`} className="border-t border-slate-100 align-top">
+                  <td className="px-3 py-2 whitespace-nowrap text-slate-600">{formatDateTime(r.updated_at)}</td>
+                  <td className="px-3 py-2 font-medium text-navy">{r.company?.name ?? "—"}</td>
+                  <td className="px-3 py-2">
+                    <Link href={`/opportunites/${r.opportunity_id}`} className="text-navy hover:underline">
+                      {opp.get(r.opportunity_id) ?? "Voir l'offre"}
+                    </Link>
+                  </td>
+                  <td className="px-3 py-2">
+                    <span className="rounded-full bg-teal-50 px-2 py-0.5 text-xs font-semibold whitespace-nowrap text-teal-800 ring-1 ring-teal/20">{STAGE_LABEL[r.stage] ?? r.stage}</span>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </section>
+
+      <section className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
+        <table className="w-full min-w-[48rem] text-sm">
+          <caption className="px-3 pt-3 text-left font-semibold text-navy">Activité jour par jour (30 jours)</caption>
+          <thead className="bg-canvas text-left text-slate-600">
+            <tr>
+              <th scope="col" className="px-3 py-2">Date</th>
+              <th scope="col" className="px-3 py-2">Qui</th>
+              <th scope="col" className="px-3 py-2">Offre</th>
+              <th scope="col" className="px-3 py-2">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {activity.length === 0 ? (
+              <tr>
+                <td colSpan={4} className="px-3 py-4 text-slate-600">Aucune activité sur 30 jours.</td>
+              </tr>
+            ) : (
+              activity.slice(0, 100).map((a, i) => (
+                <tr key={i} className="border-t border-slate-100 align-top">
+                  <td className="px-3 py-2 whitespace-nowrap text-slate-600">{formatDateTime(a.created_at)}</td>
+                  <td className="px-3 py-2">
+                    <p className="font-medium text-navy">{co.get(a.company_id)?.name ?? "—"}</p>
+                    {a.user_id && userName.get(a.user_id) && <p className="text-xs text-slate-500">{userName.get(a.user_id)}</p>}
+                  </td>
+                  <td className="px-3 py-2 text-slate-700">{opp.get(a.opportunity_id) ?? "—"}</td>
+                  <td className="px-3 py-2">
+                    <span className="rounded-full bg-navy/10 px-2 py-0.5 text-xs font-semibold text-navy">{KIND_LABEL[a.kind] ?? a.kind}</span>
+                    {a.kind !== "NOTE" && <p className="mt-1 text-xs text-slate-500">{a.body}</p>}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </section>
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-4">
+        <h2 className="font-semibold text-navy">Dernières questions posées à l&apos;assistant</h2>
+        <p className="mt-1 text-sm text-slate-600">Pour vérifier la qualité des réponses et repérer les besoins fréquents.</p>
+        {asked.length === 0 ? (
+          <p className="mt-4 text-slate-600">Aucune question pour l&apos;instant.</p>
+        ) : (
+          <ul className="mt-4 space-y-3">
+            {asked.map((q, i) => (
+              <li key={i} className="rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200">
+                <p className="text-xs text-slate-500">
+                  {formatDateTime(q.created_at)} · {co.get(q.company_id)?.name} · {opp.get(q.opportunity_id) ?? "offre"}
+                </p>
+                <p className="mt-1 font-semibold text-navy">{q.question}</p>
+                <details className="mt-1">
+                  <summary className="cursor-pointer text-sm text-teal-800">Voir la réponse</summary>
+                  <p className="mt-2 text-sm whitespace-pre-line text-slate-700">{q.answer}</p>
+                </details>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    </div>
+  );
+}

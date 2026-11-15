@@ -1171,6 +1171,17 @@ isOneToOne: false
                     "answer"?: string,"created_at"?: string,"opportunity_id"?: string,"reason"?: string | null,"updated_at"?: string,"user_id"?: string
                   }
                   Relationships: []
+                },"application_questions": {
+                  Row: {
+                    "answer": string,"company_id": string,"created_at": string,"id": string,"opportunity_id": string,"question": string,"user_id": string | null
+                  }
+                  Insert: {
+                    "answer": string,"company_id": string,"created_at"?: string,"id"?: string,"opportunity_id": string,"question": string,"user_id"?: string | null
+                  }
+                  Update: {
+                    "answer"?: string,"company_id"?: string,"created_at"?: string,"id"?: string,"opportunity_id"?: string,"question"?: string,"user_id"?: string | null
+                  }
+                  Relationships: []
                 },"pipeline_items": {
                   Row: {
                     "brief_done": number[],"guide_done": number[],"docs_done": number[],"draft": string | null,"submitted_at": string | null,"result_asked_at": string | null,"deadline_reminder_at": string | null,"result_email_at": string | null,"company_id": string,"created_at": string,"estimated_value": number | null,"id": string,"next_action": string | null,"next_action_at": string | null,"notes": string | null,"opportunity_id": string,"stage": Database["public"]['Enums']["pipeline_stage"],"updated_at": string,"updated_by": string | null
