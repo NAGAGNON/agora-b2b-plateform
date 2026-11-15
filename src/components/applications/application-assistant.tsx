@@ -93,7 +93,7 @@ export function ApplicationAssistant({
           aria-hidden
           className="pointer-events-none absolute -top-16 -right-10 size-48 animate-aurora rounded-full bg-violet/20 blur-3xl"
         />
-        <div className="relative flex flex-col gap-5 lg:flex-row lg:items-center">
+        <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center">
           <div className="flex min-w-0 flex-1 items-start gap-4">
             <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-violet to-teal text-white shadow-lg shadow-violet/25">
               <MessageCircleQuestion className="size-6" aria-hidden />

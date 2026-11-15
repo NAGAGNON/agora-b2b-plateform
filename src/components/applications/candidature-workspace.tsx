@@ -109,13 +109,19 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
   const discovery = ["DETECTED", "QUALIFIED", "INTERESTED"].includes(stage);
   const prepare = () => act(() => startApplicationGuide(data.id), "RESPONSE_PREPARING");
   const later = stage === "INTERESTED";
-  const keep = () =>
+  // Cocher « je la garde pour plus tard » : enregistré, la personne reste sur la page et continue de lire
+  const keep = () => {
+    const value = !later;
+    setStage(value ? "INTERESTED" : "QUALIFIED");
     start(async () => {
       setError(null);
-      const r = await keepForLater(data.id);
-      if (r.ok) goBackToSearch();
-      else setError(r.error ?? "Réessayez.");
+      const r = await keepForLater(data.id, value);
+      if (!r.ok) {
+        setStage(value ? "QUALIFIED" : "INTERESTED");
+        setError(r.error ?? "Réessayez.");
+      }
     });
+  };
   const withdraw = (confirm: boolean) => {
     if (confirm && !window.confirm("Retirer cette offre de vos candidatures et retourner à vos recherches ?")) return;
     start(async () => {
@@ -242,10 +248,10 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
                   "À l'étude"
                 )}
               </p>
-              <h2 className="mt-1 font-heading text-2xl font-extrabold text-navy">{later ? "Prêt à vous lancer sur cette offre ?" : "Alors, cette offre vous intéresse ?"}</h2>
+              <h2 className="mt-1 font-heading text-2xl font-extrabold text-navy">Alors, cette offre vous intéresse ?</h2>
               <p className="mt-1 text-slate-600">
                 {later
-                  ? "Elle est enregistrée dans vos candidatures. Quand vous êtes prêt, LinkProB2B vous accompagne étape par étape jusqu'au dépôt."
+                  ? "Elle est enregistrée dans vos candidatures. Continuez à lire les infos ci-dessous ; quand vous êtes prêt, LinkProB2B vous accompagne étape par étape jusqu'au dépôt."
                   : "Parcourez les conditions, les pièces et la notation ci-dessous. Si c'est pour vous, LinkProB2B vous accompagne étape par étape jusqu'au dépôt."}
               </p>
             </div>
@@ -253,17 +259,22 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
               <button type="button" disabled={pending} onClick={prepare} className="btn-shine inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-teal to-electric px-5 py-3 font-semibold text-navy shadow-lg shadow-teal/25 transition hover:-translate-y-0.5 active:scale-[0.98] disabled:opacity-50">
                 <ThumbsUp className="size-4" aria-hidden /> Oui, je prépare ma candidature
               </button>
-              {!later && (
-                <button
-                  type="button"
-                  disabled={pending}
-                  onClick={keep}
-                  data-testid="keep-later"
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-sky px-5 py-3 font-semibold text-navy ring-1 ring-teal/30 transition hover:-translate-y-0.5 hover:ring-teal active:scale-[0.98] disabled:opacity-50"
-                >
-                  <Bookmark className="size-4" aria-hidden /> Oui, je la garde pour plus tard
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={keep}
+                role="checkbox"
+                aria-checked={later}
+                data-testid="keep-later"
+                className={cn(
+                  "inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 font-semibold transition hover:-translate-y-0.5 active:scale-[0.98]",
+                  later ? "bg-teal-50 text-teal-800 ring-2 ring-teal" : "bg-sky text-navy ring-1 ring-teal/30 hover:ring-teal",
+                )}
+              >
+                <span className={cn("flex size-5 items-center justify-center rounded-md transition", later ? "bg-teal text-white" : "bg-white ring-1 ring-slate-300")}>
+                  {later && <Check className="size-3.5" aria-hidden />}
+                </span>
+                {later ? "Gardée pour plus tard" : "Oui, je la garde pour plus tard"}
+              </button>
               <button type="button" disabled={pending} onClick={() => withdraw(later)} className="inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 font-semibold text-slate-600 ring-1 ring-slate-300 transition hover:-translate-y-0.5 hover:ring-rose-300 hover:text-rose-700 active:scale-[0.98] disabled:opacity-50">
                 <Search className="size-4" aria-hidden /> {later ? "Ne m'intéresse plus" : "Non, retour à mes recherches"}
               </button>
@@ -311,9 +322,6 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
           )}
         </section>
       )}
-
-      {/* Une question ? L'assistant répond à partir de l'avis */}
-      <ApplicationAssistant id={data.id} initial={data.questions} suggestions={assistantSuggestions(brief, data.mine)} />
 
       {/* Frise des étapes */}
       <nav aria-label="Étapes de la candidature" className="sticky top-20 z-20 rounded-2xl bg-white/95 p-3 shadow-md ring-1 ring-slate-200">
@@ -501,6 +509,9 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
 
           <Journal id={data.id} initial={data.journal} />
 
+          {/* Une question ? L'assistant répond à partir de l'avis */}
+          <ApplicationAssistant id={data.id} initial={data.questions} suggestions={assistantSuggestions(brief, data.mine)} />
+
           {/* Fin de page : l'annonce officielle, une fois tout l'accompagnement parcouru */}
           <section className="plan-in relative isolate overflow-hidden rounded-3xl bg-gradient-to-br from-navy to-navy-900 p-6 text-white shadow-xl sm:p-8" data-testid="official-section">
             <div aria-hidden className="pointer-events-none absolute -top-20 -right-20 -z-10 size-64 animate-aurora rounded-full bg-teal/30 blur-3xl" />
@@ -514,11 +525,16 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
                 <button type="button" disabled={pending} onClick={prepare} className="inline-flex items-center gap-2 rounded-xl bg-teal px-4 py-2.5 text-sm font-semibold text-navy transition hover:-translate-y-0.5 disabled:opacity-50">
                   <ThumbsUp className="size-4" aria-hidden /> Oui, je prépare ma candidature
                 </button>
-                {!later && (
-                  <button type="button" disabled={pending} onClick={keep} className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-sm font-semibold text-white ring-1 ring-white/25 transition hover:-translate-y-0.5 hover:bg-white/15 disabled:opacity-50">
-                    <Bookmark className="size-4" aria-hidden /> Je la garde pour plus tard
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={keep}
+                  role="checkbox"
+                  aria-checked={later}
+                  className={cn("inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold ring-1 transition hover:-translate-y-0.5", later ? "bg-teal/20 text-teal-100 ring-teal" : "bg-white/10 text-white ring-white/25 hover:bg-white/15")}
+                >
+                  <span className={cn("flex size-4 items-center justify-center rounded", later ? "bg-teal text-navy" : "ring-1 ring-white/50")}>{later && <Check className="size-3" aria-hidden />}</span>
+                  {later ? "Gardée pour plus tard" : "Je la garde pour plus tard"}
+                </button>
                 <button type="button" disabled={pending} onClick={() => withdraw(later)} className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white/80 ring-1 ring-white/20 transition hover:bg-white/10 disabled:opacity-50">
                   {later ? "Ne m'intéresse plus" : "Non, retour à mes recherches"}
                 </button>

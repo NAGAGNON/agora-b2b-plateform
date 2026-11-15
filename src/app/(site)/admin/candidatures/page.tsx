@@ -44,14 +44,14 @@ export default async function AdminApplicationsPage() {
   const [{ data: items }, { data: prompts }, { data: journal }, { data: questions }, { count: q7 }, { count: q30 }] = await Promise.all([
     db
       .from("pipeline_items")
-      .select("stage, created_at, updated_at, company_id, opportunity_id, companies!inner(name, is_demo)")
+      .select("stage, created_at, updated_at, updated_by, company_id, opportunity_id, companies!inner(name, is_demo)")
       .in("stage", Object.keys(STAGE_LABEL) as never)
       .eq("companies.is_demo", false)
       .order("updated_at", { ascending: false })
       .limit(2000),
     db.from("application_prompts").select("answer, reason, updated_at").gte("updated_at", since30).limit(2000),
     db.from("application_journal").select("kind, body, created_at, company_id, opportunity_id, user_id").gte("created_at", since30).order("created_at", { ascending: false }).limit(200),
-    db.from("application_questions").select("question, answer, created_at, company_id, opportunity_id").order("created_at", { ascending: false }).limit(50),
+    db.from("application_questions").select("question, answer, created_at, company_id, opportunity_id, user_id").order("created_at", { ascending: false }).limit(500),
     db.from("application_questions").select("id", { count: "exact", head: true }).gte("created_at", since7),
     db.from("application_questions").select("id", { count: "exact", head: true }).gte("created_at", since30),
   ]);
@@ -73,7 +73,7 @@ export default async function AdminApplicationsPage() {
 
   // Noms des entreprises et des offres pour les tableaux
   const companyIds = [...new Set([...(journal ?? []), ...(questions ?? [])].map((j) => j.company_id))];
-  const oppIds = [...new Set([...(journal ?? []), ...(questions ?? []), ...rows.slice(0, 50)].map((j) => j.opportunity_id))];
+  const oppIds = [...new Set([...(journal ?? []), ...(questions ?? []), ...rows.slice(0, 300)].map((j) => j.opportunity_id))];
   const userIds = [...new Set((journal ?? []).map((j) => j.user_id).filter((x): x is string => Boolean(x)))];
   const [{ data: cos }, { data: opps }, { data: users }] = await Promise.all([
     companyIds.length ? db.from("companies").select("id, name, is_demo").in("id", companyIds) : Promise.resolve({ data: [] as { id: string; name: string; is_demo: boolean }[] }),
@@ -86,6 +86,48 @@ export default async function AdminApplicationsPage() {
   const real = <T extends { company_id: string }>(list: T[]) => list.filter((x) => co.get(x.company_id) && !co.get(x.company_id)!.is_demo);
   const activity = real(journal ?? []);
   const asked = real(questions ?? []);
+
+  // Suivi par inscrit : chaque membre des entreprises qui ont des candidatures ou ont posé une question
+  const memberCompanies = [...new Set([...rows.map((r) => r.company_id), ...asked.map((q) => q.company_id)])];
+  const { data: members } = memberCompanies.length
+    ? await db.from("company_members").select("user_id, company_id").in("company_id", memberCompanies)
+    : { data: [] as { user_id: string; company_id: string }[] };
+  const memberIds = [...new Set((members ?? []).map((m) => m.user_id))];
+  const { data: people } = memberIds.length
+    ? await db.from("users").select("id, full_name, email, created_at, last_seen_at, is_demo, is_internal").in("id", memberIds)
+    : { data: [] as { id: string; full_name: string; email: string; created_at: string; last_seen_at: string | null; is_demo: boolean; is_internal: boolean }[] };
+  const companyName = new Map(rows.map((r) => [r.company_id, r.company?.name ?? ""]));
+  const perUser = (people ?? [])
+    .filter((u) => !u.is_demo && !u.is_internal)
+    .map((u) => {
+      const cids = (members ?? []).filter((m) => m.user_id === u.id).map((m) => m.company_id);
+      const mine = rows.filter((r) => cids.includes(r.company_id));
+      const by = (stages: string[]) => mine.filter((r) => stages.includes(r.stage)).length;
+      const qs = asked.filter((q) => q.user_id === u.id);
+      const acts = activity.filter((a) => a.user_id === u.id);
+      const last = [...mine.filter((r) => r.updated_by === u.id).map((r) => r.updated_at), ...qs.map((q) => q.created_at), ...acts.map((a) => a.created_at)].sort().pop() ?? null;
+      return {
+        id: u.id,
+        name: u.full_name || u.email,
+        email: u.email,
+        company: cids.map((c) => companyName.get(c) || co.get(c)?.name).filter(Boolean).join(", "),
+        signup: u.created_at,
+        seen: u.last_seen_at,
+        total: mine.length,
+        study: by(["QUALIFIED"]),
+        kept: by(["INTERESTED"]),
+        preparing: by(["RESPONSE_PREPARING"]),
+        sent: by(["RESPONSE_SENT", "DISCUSSION", "NEGOTIATION"]),
+        won: by(["WON"]),
+        lost: by(["LOST"]),
+        questions: qs.length,
+        actions: acts.length,
+        last,
+        offers: mine.slice(0, 20),
+      };
+    })
+    .filter((u) => u.total || u.questions)
+    .sort((a, b) => (b.last ?? b.signup).localeCompare(a.last ?? a.signup));
 
   // 14 derniers jours (heure de Paris) : nouvelles candidatures et questions
   const dayKey = (iso: string) => new Date(iso).toLocaleDateString("fr-CA", { timeZone: "Europe/Paris" });
@@ -122,6 +164,69 @@ export default async function AdminApplicationsPage() {
         <DashboardCard label="Retirées (30 j)" value={withdrawn} hint="« Ne m'intéresse plus »" />
         <DashboardCard label="Questions à l'assistant" value={q30 ?? 0} hint={`${q7 ?? 0} sur 7 jours`} />
       </div>
+
+      <section className="overflow-x-auto rounded-2xl border border-slate-200 bg-white" data-testid="per-user">
+        <table className="w-full min-w-[68rem] text-sm [&_th]:whitespace-nowrap">
+          <caption className="px-3 pt-3 text-left">
+            <span className="font-semibold text-navy">Par inscrit</span>
+            <span className="ml-2 text-slate-500">({perUser.length}) · cliquez sur un nom pour voir ses offres</span>
+          </caption>
+          <thead className="bg-canvas text-left text-slate-600">
+            <tr>
+              <th scope="col" className="min-w-[20rem] px-3 py-2">Inscrit</th>
+              <th scope="col" className="px-3 py-2 text-center">Offres</th>
+              <th scope="col" className="px-3 py-2 text-center">À l&apos;étude</th>
+              <th scope="col" className="px-3 py-2 text-center">Gardées</th>
+              <th scope="col" className="px-3 py-2 text-center">Préparation</th>
+              <th scope="col" className="px-3 py-2 text-center">Déposées</th>
+              <th scope="col" className="px-3 py-2 text-center">Gagnées / perdues</th>
+              <th scope="col" className="px-3 py-2 text-center">Questions</th>
+              <th scope="col" className="px-3 py-2">Dernière action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {perUser.length === 0 ? (
+              <tr>
+                <td colSpan={9} className="px-3 py-4 text-slate-600">Aucun inscrit n&apos;a encore ouvert de candidature.</td>
+              </tr>
+            ) : (
+              perUser.map((u) => (
+                <tr key={u.id} className="border-t border-slate-100 align-top">
+                  <td className="px-3 py-2">
+                    <details>
+                      <summary className="cursor-pointer list-none">
+                        <span className="font-semibold text-navy hover:underline">{u.name}</span>
+                        <span className="block text-xs text-slate-500">{u.email}</span>
+                        <span className="block text-xs text-slate-500">
+                          {u.company || "—"} · inscrit le {new Date(u.signup).toLocaleDateString("fr-FR")}
+                        </span>
+                      </summary>
+                      <ul className="mt-2 space-y-1">
+                        {u.offers.map((r) => (
+                          <li key={r.opportunity_id} className="flex items-start gap-2 text-xs">
+                            <span className="rounded-full bg-teal-50 px-2 py-0.5 font-semibold whitespace-nowrap text-teal-800 ring-1 ring-teal/20">{STAGE_LABEL[r.stage] ?? r.stage}</span>
+                            <Link href={`/opportunites/${r.opportunity_id}`} className="text-navy hover:underline">
+                              {opp.get(r.opportunity_id) ?? "Voir l'offre"}
+                            </Link>
+                          </li>
+                        ))}
+                      </ul>
+                    </details>
+                  </td>
+                  <td className="px-3 py-2 text-center font-semibold text-navy tabular-nums">{u.total}</td>
+                  <td className="px-3 py-2 text-center tabular-nums">{u.study || "—"}</td>
+                  <td className="px-3 py-2 text-center tabular-nums">{u.kept || "—"}</td>
+                  <td className="px-3 py-2 text-center tabular-nums">{u.preparing || "—"}</td>
+                  <td className="px-3 py-2 text-center tabular-nums">{u.sent || "—"}</td>
+                  <td className="px-3 py-2 text-center tabular-nums">{u.won || u.lost ? `${u.won} / ${u.lost}` : "—"}</td>
+                  <td className="px-3 py-2 text-center tabular-nums">{u.questions || "—"}</td>
+                  <td className="px-3 py-2 whitespace-nowrap text-slate-600">{u.last ? formatDateTime(u.last) : "—"}</td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </section>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <section className="rounded-2xl border border-slate-200 bg-white p-4">
@@ -257,7 +362,7 @@ export default async function AdminApplicationsPage() {
           <p className="mt-4 text-slate-600">Aucune question pour l&apos;instant.</p>
         ) : (
           <ul className="mt-4 space-y-3">
-            {asked.map((q, i) => (
+            {asked.slice(0, 50).map((q, i) => (
               <li key={i} className="rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200">
                 <p className="text-xs text-slate-500">
                   {formatDateTime(q.created_at)} · {co.get(q.company_id)?.name} · {opp.get(q.opportunity_id) ?? "offre"}

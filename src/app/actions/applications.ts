@@ -182,14 +182,29 @@ export async function startDiscovery(opportunityId: string): Promise<Result> {
   return advance(opportunityId, "QUALIFIED");
 }
 
-/** « Oui, je la garde pour plus tard » : enregistrée dans Mes candidatures, sans commencer la préparation. */
-export async function keepForLater(opportunityId: string): Promise<Result> {
+/** « Oui, je la garde pour plus tard » (case à cocher) : enregistrée dans Mes candidatures ; décocher la remet « à l'étude ». */
+export async function keepForLater(opportunityId: string, value = true): Promise<Result> {
   if (!z.uuid().safeParse(opportunityId).success) return { ok: false, error: "Offre introuvable." };
-  const r = await advance(opportunityId, "INTERESTED");
-  if (!r.ok) return r;
+  if (value) {
+    const r = await advance(opportunityId, "INTERESTED");
+    if (!r.ok) return r;
+    const session = await getSession();
+    if (session?.activeCompany) await logJournal(await createClient(), session.activeCompany.company.id, opportunityId, session.userId, "NOTE", "Offre gardée pour plus tard.");
+    return r;
+  }
   const session = await getSession();
-  if (session?.activeCompany) await logJournal(await createClient(), session.activeCompany.company.id, opportunityId, session.userId, "NOTE", "Offre gardée pour plus tard.");
-  return r;
+  if (!session?.activeCompany) return { ok: false, error: "Connectez-vous." };
+  const db = await createClient();
+  const { error } = await db
+    .from("pipeline_items")
+    .update({ stage: "QUALIFIED", updated_by: session.userId })
+    .eq("company_id", session.activeCompany.company.id)
+    .eq("opportunity_id", opportunityId)
+    .eq("stage", "INTERESTED");
+  if (error) return { ok: false, error: "Enregistrement impossible. Réessayez." };
+  revalidatePath("/dashboard/candidatures");
+  revalidatePath("/dashboard/pipeline");
+  return { ok: true };
 }
 
 /** « Cette offre ne m'intéresse plus » : retirée de mes candidatures (et du pipeline), plus jamais proposée. */
