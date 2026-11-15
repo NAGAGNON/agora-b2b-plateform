@@ -48,6 +48,7 @@ import { ShareLinks } from "@/components/share-links";
 import { cookies, headers } from "next/headers";
 import { OfferAccessGate } from "@/components/opportunities/offer-access-gate";
 import { TenderBriefPanel } from "@/components/opportunities/tender-brief";
+import { GuideButton } from "@/components/applications/guide-button";
 import { boampId, isFullBrief, storedBrief, tedId } from "@/lib/tender-brief";
 import { founderOffer, founderOpen } from "@/lib/billing/founder";
 import { NeedContactForm } from "@/components/opportunities/need-contact-form";
@@ -323,7 +324,7 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
     session ? supabase.from("favorites").select("id").eq("user_id", session.userId).eq("opportunity_id", o.id).maybeSingle() : null,
     myCompanyId ? supabase.from("interests").select("id, status").eq("opportunity_id", o.id).eq("company_id", myCompanyId).maybeSingle() : null,
     myCompanyId ? supabase.from("proposals").select("id, status").eq("opportunity_id", o.id).eq("company_id", myCompanyId).maybeSingle() : null,
-    myCompanyId ? supabase.from("pipeline_items").select("id").eq("opportunity_id", o.id).eq("company_id", myCompanyId).maybeSingle() : null,
+    myCompanyId ? supabase.from("pipeline_items").select("id, stage").eq("opportunity_id", o.id).eq("company_id", myCompanyId).maybeSingle() : null,
     // Certifications de la fiche entreprise : comparées aux exigences de l'avis
     myCompanyId && o.origin === "EXTERNAL" ? supabase.from("company_profiles").select("certifications").eq("company_id", myCompanyId).maybeSingle() : null,
   ]);
@@ -595,8 +596,17 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
                   <ExternalLink className="size-5 text-amber-600" aria-hidden /> Opportunité externe
                 </p>
                 <p className="mt-2 text-sm text-slate-600">
-                  Cette opportunité est issue d&apos;une source externe. Consultez la source officielle pour les informations définitives et les modalités
-                  de candidature. LinkProB2B n&apos;est pas l&apos;organisme qui publie ce marché.
+                  {isOpen && !o.is_demo ? (
+                    <>
+                      Cette opportunité est issue d&apos;une source externe : l&apos;annonce officielle fait foi. Elle est accessible depuis votre candidature, avec
+                      tout ce qu&apos;il faut pour y répondre. LinkProB2B n&apos;est pas l&apos;organisme qui publie ce marché.
+                    </>
+                  ) : (
+                    <>
+                      Cette opportunité est issue d&apos;une source externe. Consultez la source officielle pour les informations définitives et les modalités
+                      de candidature. LinkProB2B n&apos;est pas l&apos;organisme qui publie ce marché.
+                    </>
+                  )}
                 </p>
                 <dl className="mt-4 space-y-2 text-sm">
                   <Row label="Source" value={source?.external_source?.name ?? "—"} />
@@ -610,27 +620,43 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
                   {source?.external_source?.license && <Row label="Conditions" value={source.external_source.license} />}
                 </dl>
                 {source?.external_source?.attribution && <p className="mt-3 text-xs text-slate-500">{source.external_source.attribution}</p>}
-                {source?.original_url && (
-                  <a
-                    href={`/go/${o.id}`}
-                    target="_blank"
-                    rel="noopener noreferrer nofollow"
-                    className={buttonClasses({ full: true, size: "lg", className: "mt-5" })}
-                  >
-                    Consulter l&apos;opportunité originale <ExternalLink className="size-4" aria-hidden />
-                  </a>
+                {isOpen && !o.is_demo && (
+                  <div className="mt-5">
+                    <GuideButton
+                      opportunityId={o.id}
+                      signedIn={Boolean(session)}
+                      hasCompany={Boolean(session?.activeCompany)}
+                      started={Boolean(pipeline?.data)}
+                    />
+                    <p className="mt-2 text-center text-xs text-slate-500">Conditions exigées, pièces, notation et conseils, plus un assistant pour répondre à vos questions : de quoi décider en 2 minutes si l&apos;offre est pour vous.</p>
+                  </div>
                 )}
-                <p className="mt-2 text-center text-xs text-slate-500">Ouvre le site source dans un nouvel onglet.</p>
+                {/* Offre ouverte : l'annonce officielle s'ouvre depuis la candidature (après l'accompagnement) */}
+                {source?.original_url && !(isOpen && !o.is_demo) && (
+                  <>
+                    <a href={`/go/${o.id}`} target="_blank" rel="noopener noreferrer nofollow" className={buttonClasses({ full: true, size: "lg", className: "mt-5" })}>
+                      Consulter l&apos;opportunité originale <ExternalLink className="size-4" aria-hidden />
+                    </a>
+                    <p className="mt-2 text-center text-xs text-slate-500">Ouvre le site source dans un nouvel onglet.</p>
+                  </>
+                )}
                 {otherSources.length > 0 && (
                   <div className="mt-4 border-t border-slate-100 pt-3 text-sm">
                     <p className="font-semibold text-navy">Également publiée sur</p>
                     <ul className="mt-1 space-y-1">
                       {otherSources.map((s) => (
                         <li key={s.source_id}>
-                          <a href={`/go/${o.id}?source=${s.source_id}`} target="_blank" rel="noopener noreferrer nofollow" className="text-teal-700 underline">
-                            {s.external_source?.name}
-                            {s.external_id ? ` — réf. ${s.external_id}` : ""}
-                          </a>
+                          {isOpen && !o.is_demo ? (
+                            <span className="text-slate-700">
+                              {s.external_source?.name}
+                              {s.external_id ? ` — réf. ${s.external_id}` : ""}
+                            </span>
+                          ) : (
+                            <a href={`/go/${o.id}?source=${s.source_id}`} target="_blank" rel="noopener noreferrer nofollow" className="text-teal-700 underline">
+                              {s.external_source?.name}
+                              {s.external_id ? ` — réf. ${s.external_id}` : ""}
+                            </a>
+                          )}
                         </li>
                       ))}
                     </ul>

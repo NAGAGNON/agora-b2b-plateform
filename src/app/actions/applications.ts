@@ -24,7 +24,7 @@ export type ApplicationPrompt =
 
 /**
  * Question à poser au retour sur le site : d'abord le résultat d'une réponse envoyée dont la date
- * limite est passée depuis plus de 3 semaines, sinon « où en êtes-vous ? » pour une annonce officielle
+ * limite est passée depuis plus de 3 semaines, sinon « cet appel d'offres vous intéresse ? » pour une annonce officielle
  * consultée (il y a plus de 10 minutes et moins de 14 jours). Une seule question à la fois.
  */
 export async function nextApplicationPrompt(): Promise<ApplicationPrompt | null> {
@@ -65,13 +65,23 @@ export async function nextApplicationPrompt(): Promise<ApplicationPrompt | null>
     const a = answered.get(id);
     // « Plus tard » : reposée le lendemain ; toute autre réponse : plus jamais
     if (a && (a.answer !== "LATER" || new Date(a.updated_at).getTime() > now - DAY)) continue;
-    const t = tracked.get(id);
-    if (t && rank(t.stage) >= rank("RESPONSE_PREPARING")) continue;
+    // Déjà dans le suivi de l'entreprise (pipeline ou candidature) : rien à demander
+    if (tracked.has(id)) continue;
     const { data: o } = await db.from("opportunities").select("id, title, external_buyer_name, response_deadline").eq("id", id).maybeSingle();
     if (!o) continue;
     return { kind: "apply", opportunityId: o.id, title: o.title, buyer: o.external_buyer_name, deadline: o.response_deadline };
   }
   return null;
+}
+
+type Db = Awaited<ReturnType<typeof createClient>>;
+type JournalKind = "NOTE" | "START" | "STEP" | "SENT" | "WON" | "LOST";
+/** Entrée du journal de suivi (jamais bloquant). */
+async function logJournal(db: Db, companyId: string, opportunityId: string, userId: string, kind: JournalKind, body: string) {
+  await db.from("application_journal").insert({ company_id: companyId, opportunity_id: opportunityId, user_id: userId, kind, body: body.slice(0, 2000) }).then(
+    () => undefined,
+    () => undefined,
+  );
 }
 
 /** Ajoute (ou fait avancer, jamais reculer) la candidature dans le suivi de l'entreprise. */
@@ -88,14 +98,17 @@ async function advance(opportunityId: string, stage: Stage, extra: { submitted_a
         .eq("id", item.id)
     : await db.from("pipeline_items").insert({ company_id: companyId, opportunity_id: opportunityId, stage, ...extra, updated_by: session.userId });
   if (error) return { ok: false, error: "Enregistrement impossible. Réessayez." };
+  const moved = !item || rank(item.stage) < rank(stage);
+  if (moved && stage === "RESPONSE_PREPARING") await logJournal(db, companyId, opportunityId, session.userId, "START", "Candidature commencée.");
+  if (moved && stage === "RESPONSE_SENT") await logJournal(db, companyId, opportunityId, session.userId, "SENT", "Réponse déposée sur la plateforme de l'acheteur.");
   revalidatePath("/dashboard/candidatures");
   revalidatePath("/dashboard/pipeline");
   return { ok: true };
 }
 
-const Answer = z.enum(["SENT", "PREPARING", "NOT_FOR_ME", "LATER"]);
+const Answer = z.enum(["INTERESTED", "SENT", "PREPARING", "NOT_FOR_ME", "LATER"]);
 
-/** Réponse à « Où en êtes-vous ? ». */
+/** Réponse à « Cet appel d'offres vous intéresse ? » : suivi simple, guide pour gagner, pas pour moi ou plus tard. */
 export async function answerApplicationPrompt(opportunityId: string, answer: string, reason?: string): Promise<Result> {
   const a = Answer.safeParse(answer);
   if (!z.uuid().safeParse(opportunityId).success || !a.success) return { ok: false, error: "Réponse invalide." };
@@ -107,6 +120,7 @@ export async function answerApplicationPrompt(opportunityId: string, answer: str
     .from("application_prompts")
     .upsert({ user_id: session.userId, opportunity_id: opportunityId, answer: a.data, reason: reason?.trim().slice(0, 200) || null, updated_at: new Date().toISOString() }, { onConflict: "user_id,opportunity_id" });
   if (error) return { ok: false, error: "Enregistrement impossible. Réessayez." };
+  if (a.data === "INTERESTED") return advance(opportunityId, "QUALIFIED");
   if (a.data === "SENT") return advance(opportunityId, "RESPONSE_SENT", { submitted_at: todayParis() });
   if (a.data === "PREPARING") return advance(opportunityId, "RESPONSE_PREPARING");
   return { ok: true };
@@ -124,6 +138,8 @@ export async function answerApplicationResult(opportunityId: string, result: "WO
     .eq("company_id", session.activeCompany.company.id)
     .eq("opportunity_id", opportunityId);
   if (error) return { ok: false, error: "Enregistrement impossible. Réessayez." };
+  if (result !== "WAITING")
+    await logJournal(db, session.activeCompany.company.id, opportunityId, session.userId, result, result === "WON" ? "Marché remporté !" : "Offre non retenue.");
   revalidatePath("/dashboard/candidatures");
   revalidatePath("/dashboard/pipeline");
   return { ok: true };
@@ -142,15 +158,136 @@ export async function toggleGuideStep(opportunityId: string, step: number, done:
   if (!session?.activeCompany) return { ok: false, error: "Créez d'abord le profil de votre entreprise." };
   const companyId = session.activeCompany.company.id;
   const db = await createClient();
-  const { data: item } = await db.from("pipeline_items").select("id, guide_done").eq("company_id", companyId).eq("opportunity_id", opportunityId).maybeSingle();
+  const { data: item } = await db.from("pipeline_items").select("id, guide_done, stage").eq("company_id", companyId).eq("opportunity_id", opportunityId).maybeSingle();
   const set = new Set((item?.guide_done ?? []).map(Number));
   if (done) set.add(step);
   else set.delete(step);
   const next = [...set].sort((a, b) => a - b);
   const { error } = item
-    ? await db.from("pipeline_items").update({ guide_done: next, updated_by: session.userId }).eq("id", item.id)
+    ? await db
+        .from("pipeline_items")
+        // Une étape cochée sur une offre « à l'étude » : la candidature passe en préparation
+        .update({ guide_done: next, ...(done && rank(item.stage) < rank("RESPONSE_PREPARING") ? { stage: "RESPONSE_PREPARING" as Stage } : {}), updated_by: session.userId })
+        .eq("id", item.id)
     : await db.from("pipeline_items").insert({ company_id: companyId, opportunity_id: opportunityId, stage: "RESPONSE_PREPARING", guide_done: next, updated_by: session.userId });
   if (error) return { ok: false, error: "Enregistrement impossible. Réessayez." };
+  if (done && !(item?.guide_done ?? []).map(Number).includes(step)) await logJournal(db, companyId, opportunityId, session.userId, "STEP", `Étape faite : ${APPLICATION_GUIDE[step].title}.`);
   revalidatePath("/dashboard/candidatures");
   return { ok: true, done: next };
+}
+
+/** « En savoir plus » depuis une fiche d'appel d'offres : l'offre est mise à l'étude (sans engagement). */
+export async function startDiscovery(opportunityId: string): Promise<Result> {
+  if (!z.uuid().safeParse(opportunityId).success) return { ok: false, error: "Offre introuvable." };
+  return advance(opportunityId, "QUALIFIED");
+}
+
+/** « Oui, je la garde pour plus tard » (case à cocher) : enregistrée dans Mes candidatures ; décocher la remet « à l'étude ». */
+export async function keepForLater(opportunityId: string, value = true): Promise<Result> {
+  if (!z.uuid().safeParse(opportunityId).success) return { ok: false, error: "Offre introuvable." };
+  if (value) {
+    const r = await advance(opportunityId, "INTERESTED");
+    if (!r.ok) return r;
+    const session = await getSession();
+    if (session?.activeCompany) await logJournal(await createClient(), session.activeCompany.company.id, opportunityId, session.userId, "NOTE", "Offre gardée pour plus tard.");
+    return r;
+  }
+  const session = await getSession();
+  if (!session?.activeCompany) return { ok: false, error: "Connectez-vous." };
+  const db = await createClient();
+  const { error } = await db
+    .from("pipeline_items")
+    .update({ stage: "QUALIFIED", updated_by: session.userId })
+    .eq("company_id", session.activeCompany.company.id)
+    .eq("opportunity_id", opportunityId)
+    .eq("stage", "INTERESTED");
+  if (error) return { ok: false, error: "Enregistrement impossible. Réessayez." };
+  revalidatePath("/dashboard/candidatures");
+  revalidatePath("/dashboard/pipeline");
+  return { ok: true };
+}
+
+/** « Cette offre ne m'intéresse plus » : retirée de mes candidatures (et du pipeline), plus jamais proposée. */
+export async function withdrawApplication(opportunityId: string): Promise<Result> {
+  if (!z.uuid().safeParse(opportunityId).success) return { ok: false, error: "Offre introuvable." };
+  const session = await getSession();
+  if (!session?.activeCompany) return { ok: false, error: "Connectez-vous." };
+  const db = await createClient();
+  const { error } = await db.from("pipeline_items").delete().eq("company_id", session.activeCompany.company.id).eq("opportunity_id", opportunityId);
+  if (error) return { ok: false, error: "Action impossible. Réessayez." };
+  await db
+    .from("application_prompts")
+    .upsert({ user_id: session.userId, opportunity_id: opportunityId, answer: "NOT_FOR_ME", reason: "Retirée de mes candidatures", updated_at: new Date().toISOString() }, { onConflict: "user_id,opportunity_id" })
+    .then(
+      () => undefined,
+      () => undefined,
+    );
+  revalidatePath("/dashboard/candidatures");
+  revalidatePath("/dashboard/pipeline");
+  return { ok: true };
+}
+
+/** « Oui, je prépare ma candidature » : la candidature passe en préparation. */
+export async function startApplicationGuide(opportunityId: string): Promise<Result> {
+  if (!z.uuid().safeParse(opportunityId).success) return { ok: false, error: "Offre introuvable." };
+  return advance(opportunityId, "RESPONSE_PREPARING");
+}
+
+/** Coche ou décoche une pièce à fournir (liste tirée de l'avis officiel). */
+export async function toggleDocStep(opportunityId: string, index: number, done: boolean): Promise<Result<{ done: number[] }>> {
+  if (!z.uuid().safeParse(opportunityId).success || !Number.isInteger(index) || index < 0 || index > 39) return { ok: false, error: "Pièce inconnue." };
+  const session = await getSession();
+  if (!session?.activeCompany) return { ok: false, error: "Créez d'abord le profil de votre entreprise." };
+  const db = await createClient();
+  const { data: item } = await db.from("pipeline_items").select("id, docs_done").eq("company_id", session.activeCompany.company.id).eq("opportunity_id", opportunityId).maybeSingle();
+  if (!item) return { ok: false, error: "Candidature introuvable." };
+  const set = new Set((item.docs_done ?? []).map(Number));
+  if (done) set.add(index);
+  else set.delete(index);
+  const next = [...set].sort((a, b) => a - b);
+  const { error } = await db.from("pipeline_items").update({ docs_done: next, updated_by: session.userId }).eq("id", item.id);
+  return error ? { ok: false, error: "Enregistrement impossible. Réessayez." } : { ok: true, done: next };
+}
+
+/** Enregistre le brouillon du mémoire technique (privé à l'entreprise). */
+export async function saveDraft(opportunityId: string, draft: string): Promise<Result> {
+  if (!z.uuid().safeParse(opportunityId).success || typeof draft !== "string" || draft.length > 40000) return { ok: false, error: "Brouillon trop long." };
+  const session = await getSession();
+  if (!session?.activeCompany) return { ok: false, error: "Créez d'abord le profil de votre entreprise." };
+  const db = await createClient();
+  const { error } = await db
+    .from("pipeline_items")
+    .update({ draft, updated_by: session.userId })
+    .eq("company_id", session.activeCompany.company.id)
+    .eq("opportunity_id", opportunityId);
+  return error ? { ok: false, error: "Enregistrement impossible. Réessayez." } : { ok: true };
+}
+
+export type JournalEntry = { id: string; kind: string; body: string; created_at: string; author: string | null; mine: boolean };
+
+/** Ajoute une note au journal de suivi de la candidature. */
+export async function addJournalNote(opportunityId: string, body: string): Promise<Result<{ entry: JournalEntry }>> {
+  const text = typeof body === "string" ? body.trim() : "";
+  if (!z.uuid().safeParse(opportunityId).success || !text || text.length > 2000) return { ok: false, error: "Note vide ou trop longue." };
+  const session = await getSession();
+  if (!session?.activeCompany) return { ok: false, error: "Créez d'abord le profil de votre entreprise." };
+  if (!(await rateLimit("application-journal", 120, 3600))) return { ok: false, error: "Trop de notes. Réessayez plus tard." };
+  const db = await createClient();
+  const { data, error } = await db
+    .from("application_journal")
+    .insert({ company_id: session.activeCompany.company.id, opportunity_id: opportunityId, user_id: session.userId, kind: "NOTE", body: text })
+    .select("id, kind, body, created_at")
+    .single();
+  if (error || !data) return { ok: false, error: "Enregistrement impossible. Réessayez." };
+  return { ok: true, entry: { ...data, author: "Vous", mine: true } };
+}
+
+/** Supprime une de ses notes du journal. */
+export async function deleteJournalNote(id: string): Promise<Result> {
+  if (!z.uuid().safeParse(id).success) return { ok: false, error: "Note introuvable." };
+  const session = await getSession();
+  if (!session) return { ok: false, error: "Connectez-vous." };
+  const db = await createClient();
+  const { error } = await db.from("application_journal").delete().eq("id", id).eq("user_id", session.userId).eq("kind", "NOTE");
+  return error ? { ok: false, error: "Suppression impossible." } : { ok: true };
 }

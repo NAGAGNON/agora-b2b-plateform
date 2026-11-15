@@ -60,3 +60,40 @@ export const LOST_ADVICE = [
   "Ces retours sont précieux pour améliorer votre prochain mémoire technique.",
   "Restez visible auprès de cet acheteur : suivez-le sur LinkProB2B pour être prévenu de ses prochains marchés.",
 ];
+
+type TemplateInput = { title: string; buyer: string | null; reference: string | null; company: string };
+
+/** Modèle de question à poser à l'acheteur (sur sa plateforme, avant la date limite des questions). */
+export function questionTemplate(t: TemplateInput) {
+  return [
+    "Objet : Question sur la consultation" + (t.reference ? ` n° ${t.reference}` : ""),
+    "",
+    "Madame, Monsieur,",
+    "",
+    `Dans le cadre de la consultation « ${t.title} »${t.buyer ? ` publiée par ${t.buyer}` : ""}, nous souhaiterions obtenir une précision :`,
+    "",
+    "[Votre question, précise et courte. Une question par point : quantités, accès au site, planning, documents attendus…]",
+    "",
+    "Nous vous remercions par avance pour votre réponse.",
+    "",
+    "Cordialement,",
+    t.company,
+  ].join("\n");
+}
+
+/** Modèle de demande des motifs du rejet d'une offre. */
+export function rejectionTemplate(t: TemplateInput) {
+  return [
+    "Objet : Demande d'informations sur le rejet de notre offre" + (t.reference ? ` (consultation n° ${t.reference})` : ""),
+    "",
+    "Madame, Monsieur,",
+    "",
+    `Nous avons été informés que notre offre pour la consultation « ${t.title} » n'a pas été retenue.`,
+    "Afin de progresser, nous vous serions reconnaissants de bien vouloir nous communiquer les motifs de ce rejet, le nom de l'entreprise retenue, ainsi que les caractéristiques et avantages de l'offre retenue et, si possible, les notes obtenues par notre offre sur chaque critère.",
+    "",
+    "Nous vous remercions par avance.",
+    "",
+    "Cordialement,",
+    t.company,
+  ].join("\n");
+}

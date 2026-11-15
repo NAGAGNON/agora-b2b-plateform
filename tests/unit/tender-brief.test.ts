@@ -40,3 +40,32 @@ describe("préparer sa réponse", () => {
     expect(certStatus("Habilitation électrique BR", ["Habilitation électrique B2V"])).toBe("check");
   });
 });
+
+const { buildMemoirDraft } = await import("@/lib/memoir-draft");
+describe("trame du mémoire technique", () => {
+  it("suit les critères de l'avis et n'invente rien", () => {
+    const brief = BriefSchema.parse({ summary: "Maintenance des grues.", deadline: null, site_visit: null, duration: null, pricing: null, lots: [], documents: ["DUME"], judging: "j", todo: [], warnings: [], certifications: ["ISO 9001"], capacity: [], submission: null, submission_url: null, criteria: [{ label: "Valeur technique", weight: 60 }, { label: "Prix", weight: 40 }], tips: ["La valeur technique compte pour 60 %."] });
+    const d = buildMemoirDraft({ title: "Maintenance", buyer: "Port" }, brief, { name: "ACME", city: "Brest", description: null, references: null, certifications: [], employees: null, founded: null });
+    expect(d).toContain("3. Valeur technique (60 % de la note)");
+    expect(d).not.toContain("4. Prix");
+    expect(d).toContain("[À compléter : activité");
+    expect(d).toContain("- DUME");
+  });
+});
+
+const { applicationPlan } = await import("@/lib/application-plan");
+describe("planning de candidature", () => {
+  it("répartit les étapes jusqu'à la veille de la date limite", () => {
+    const now = new Date(2026, 10, 15, 10);
+    const plan = applicationPlan(new Date(2026, 10, 25, 12).toISOString(), [0], now);
+    expect(plan).toHaveLength(6);
+    expect(plan[0].status).toBe("done");
+    expect(plan[1].status).toBe("upcoming");
+    expect(plan[5].date.getDate()).toBe(24);
+    expect(applicationPlan(null, [], now)).toEqual([]);
+  });
+  it("étape non faite dont la date est passée : en retard", () => {
+    const plan = applicationPlan(new Date(2026, 10, 30).toISOString(), [], new Date(2026, 10, 20), new Date(2026, 10, 1).toISOString());
+    expect(plan[1].status).toBe("late");
+  });
+});
