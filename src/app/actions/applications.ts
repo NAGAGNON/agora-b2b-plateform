@@ -84,6 +84,20 @@ async function logJournal(db: Db, companyId: string, opportunityId: string, user
   );
 }
 
+/** Première action concrète sur un dossier (étape, pièce, mémoire, note, dépôt) : le travail a réellement commencé. */
+async function markWorkStarted(db: Db, companyId: string, opportunityId: string) {
+  await db
+    .from("pipeline_items")
+    .update({ work_started_at: new Date().toISOString() })
+    .eq("company_id", companyId)
+    .eq("opportunity_id", opportunityId)
+    .is("work_started_at", null)
+    .then(
+      () => undefined,
+      () => undefined,
+    );
+}
+
 /** Ajoute (ou fait avancer, jamais reculer) la candidature dans le suivi de l'entreprise. */
 async function advance(opportunityId: string, stage: Stage, extra: { submitted_at?: string } = {}): Promise<Result> {
   const session = await getSession();
@@ -101,6 +115,7 @@ async function advance(opportunityId: string, stage: Stage, extra: { submitted_a
   const moved = !item || rank(item.stage) < rank(stage);
   if (moved && stage === "RESPONSE_PREPARING") await logJournal(db, companyId, opportunityId, session.userId, "START", "Candidature commencée.");
   if (moved && stage === "RESPONSE_SENT") await logJournal(db, companyId, opportunityId, session.userId, "SENT", "Réponse déposée sur la plateforme de l'acheteur.");
+  if (rank(stage) >= rank("RESPONSE_SENT")) await markWorkStarted(db, companyId, opportunityId);
   revalidatePath("/dashboard/candidatures");
   revalidatePath("/dashboard/pipeline");
   return { ok: true };
@@ -172,6 +187,7 @@ export async function toggleGuideStep(opportunityId: string, step: number, done:
     : await db.from("pipeline_items").insert({ company_id: companyId, opportunity_id: opportunityId, stage: "RESPONSE_PREPARING", guide_done: next, updated_by: session.userId });
   if (error) return { ok: false, error: "Enregistrement impossible. Réessayez." };
   if (done && !(item?.guide_done ?? []).map(Number).includes(step)) await logJournal(db, companyId, opportunityId, session.userId, "STEP", `Étape faite : ${APPLICATION_GUIDE[step].title}.`);
+  if (done) await markWorkStarted(db, companyId, opportunityId);
   revalidatePath("/dashboard/candidatures");
   return { ok: true, done: next };
 }
@@ -244,6 +260,7 @@ export async function toggleDocStep(opportunityId: string, index: number, done: 
     ? await db.from("pipeline_items").update({ docs_done: next, updated_by: session.userId }).eq("id", item.id)
     : await db.from("pipeline_items").insert({ company_id: session.activeCompany.company.id, opportunity_id: opportunityId, stage: "RESPONSE_PREPARING", docs_done: next, updated_by: session.userId });
   if (!item) revalidatePath("/dashboard/candidatures");
+  if (!error && done) await markWorkStarted(db, session.activeCompany.company.id, opportunityId);
   return error ? { ok: false, error: "Enregistrement impossible. Réessayez." } : { ok: true, done: next };
 }
 
@@ -260,6 +277,7 @@ export async function saveDraft(opportunityId: string, draft: string): Promise<R
     ? await db.from("pipeline_items").update({ draft, updated_by: session.userId }).eq("id", item.id)
     : await db.from("pipeline_items").insert({ company_id: cid, opportunity_id: opportunityId, stage: "RESPONSE_PREPARING", draft, updated_by: session.userId });
   if (!item) revalidatePath("/dashboard/candidatures");
+  if (!error && draft.trim()) await markWorkStarted(db, cid, opportunityId);
   return error ? { ok: false, error: "Enregistrement impossible. Réessayez." } : { ok: true };
 }
 
@@ -279,6 +297,7 @@ export async function addJournalNote(opportunityId: string, body: string): Promi
     .select("id, kind, body, created_at")
     .single();
   if (error || !data) return { ok: false, error: "Enregistrement impossible. Réessayez." };
+  await markWorkStarted(db, session.activeCompany.company.id, opportunityId);
   return { ok: true, entry: { ...data, author: "Vous", mine: true } };
 }
 

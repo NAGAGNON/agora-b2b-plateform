@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { isUuid } from "@/lib/format";
 import { BriefSchema, boampId, isFullBrief, tedId } from "@/lib/tender-brief";
 import { CandidatureWorkspace } from "@/components/applications/candidature-workspace";
+import { track } from "@/lib/analytics";
 
 export const metadata = { title: "Ma candidature" };
 
@@ -26,6 +27,8 @@ export default async function CandidaturePage(props: PageProps<"/dashboard/candi
     db.from("companies").select("name, city").eq("id", company.id).maybeSingle(),
   ]);
   if (!o) notFound();
+  // Mesure de la consultation (aucune donnée de candidature n'est écrite)
+  void track("view_application", { opportunity_id: id, saved: Boolean(item), stage: item?.stage ?? "CONSULTEE" });
   // Pas encore enregistrée : simple consultation (« DETECTED »), rien n'est écrit tant que la personne ne choisit pas
 
   const admin = createAdminClient();

@@ -44,7 +44,7 @@ export default async function AdminApplicationsPage() {
   const [{ data: items }, { data: prompts }, { data: journal }, { data: questions }] = await Promise.all([
     db
       .from("pipeline_items")
-      .select("stage, created_at, updated_at, updated_by, company_id, opportunity_id, companies!inner(name, is_demo)")
+      .select("stage, created_at, updated_at, updated_by, work_started_at, company_id, opportunity_id, companies!inner(name, is_demo)")
       .in("stage", Object.keys(STAGE_LABEL) as never)
       .eq("companies.is_demo", false)
       .order("updated_at", { ascending: false })
@@ -66,6 +66,16 @@ export default async function AdminApplicationsPage() {
   const won = count(["WON"]);
   const companies = new Set(rows.map((r) => r.company_id)).size;
   const new7 = rows.filter((r) => r.created_at >= since7).length;
+  // Consultées : fiches de candidature ouvertes (« En savoir plus »), sans rien enregistrer — 30 derniers jours
+  const { data: views } = await db.from("analytics_events").select("user_id, properties").eq("event_name", "view_application").gte("created_at", since30).limit(5000);
+  const viewed = new Set(
+    (views ?? [])
+      .filter((v) => v.user_id && !internalIds.includes(v.user_id))
+      .map((v) => `${v.user_id}:${(v.properties as { opportunity_id?: string } | null)?.opportunity_id ?? ""}`),
+  );
+  const opened = rows.filter((r) => ["RESPONSE_PREPARING", "RESPONSE_SENT", "DISCUSSION", "NEGOTIATION", "WON", "LOST"].includes(r.stage));
+  const working = rows.filter((r) => r.work_started_at);
+  const idle = opened.filter((r) => !r.work_started_at);
   const realPrompts = (prompts ?? []).filter((p) => !internalIds.includes(p.user_id));
   const withdrawn = realPrompts.filter((p) => p.answer === "NOT_FOR_ME" && p.reason === "Retirée de mes candidatures").length;
   const answers = Object.entries(
@@ -121,6 +131,7 @@ export default async function AdminApplicationsPage() {
         study: by(["QUALIFIED"]),
         kept: by(["INTERESTED"]),
         preparing: by(["RESPONSE_PREPARING"]),
+        working: mine.filter((r) => r.work_started_at).length,
         sent: by(["RESPONSE_SENT", "DISCUSSION", "NEGOTIATION"]),
         won: by(["WON"]),
         lost: by(["LOST"]),
@@ -140,9 +151,10 @@ export default async function AdminApplicationsPage() {
   const maxDay = Math.max(1, ...perDay.map((x) => x.apps + x.steps));
 
   const funnel = [
-    { label: "Découvertes (« En savoir plus »)", value: rows.length },
-    { label: "Gardées ou préparées", value: decided },
-    { label: "Préparation commencée", value: count(["RESPONSE_PREPARING", "RESPONSE_SENT", "DISCUSSION", "NEGOTIATION", "WON", "LOST"]) },
+    { label: "Consultées (« En savoir plus », 30 j)", value: viewed.size },
+    { label: "Gardées ou dossiers ouverts", value: decided },
+    { label: "Dossiers ouverts (« Oui, je prépare »)", value: opened.length },
+    { label: "Travail réellement commencé", value: working.length },
     { label: "Réponses déposées", value: sent },
     { label: "Marchés gagnés", value: won },
   ];
@@ -153,16 +165,17 @@ export default async function AdminApplicationsPage() {
       <div>
         <h1 className="text-2xl font-bold">Candidatures</h1>
         <p className="mt-1 text-slate-600">
-          Ce que les membres font des appels d&apos;offres : découverte avec « En savoir plus », offres gardées pour plus tard, préparation étape par étape, dépôt et résultat.
+          Trois niveaux bien distincts : consultée (rien n&apos;est enregistré), gardée pour plus tard, dossier ouvert (« Oui, je prépare ») puis travail réellement commencé (première action concrète), jusqu&apos;au dépôt et au résultat.
           Entreprises de démonstration exclues.
         </p>
       </div>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <DashboardCard label="Candidatures suivies" value={rows.length} hint={`${new7} nouvelle(s) sur 7 jours · ${companies} entreprise(s)`} />
-        <DashboardCard label="À l'étude" value={count(["QUALIFIED"])} hint="Ouvertes, pas encore décidées" />
-        <DashboardCard label="Gardées pour plus tard" value={count(["INTERESTED"])} hint="Rappel e-mail 7 j puis 2 j avant la date limite" />
-        <DashboardCard label="En préparation" value={count(["RESPONSE_PREPARING"])} hint="Accompagnées étape par étape" />
+                <DashboardCard label="Gardées pour plus tard" value={count(["INTERESTED"])} hint="Rappel e-mail 7 j puis 2 j avant la date limite" />
+        <DashboardCard label="Dossiers ouverts" value={opened.length} hint={`« Oui, je prépare » · ${idle.length} sans action pour l'instant`} />
+        <DashboardCard label="Travail commencé" value={working.length} hint="Étape, pièce, mémoire, note ou dépôt" />
+        <DashboardCard label="Consultées (30 j)" value={viewed.size} hint="Fiches ouvertes sans rien enregistrer ou avant de décider" />
         <DashboardCard label="Réponses déposées" value={sent} hint={`${count(["RESPONSE_SENT", "DISCUSSION", "NEGOTIATION"])} en attente du résultat`} />
         <DashboardCard label="Gagnées / non retenues" value={`${won} / ${count(["LOST"])}`} hint={`Taux de réussite : ${pct(won, won + count(["LOST"]))}`} />
         <DashboardCard label="Retirées (30 j)" value={withdrawn} hint="« Ne m'intéresse plus »" />
@@ -181,7 +194,8 @@ export default async function AdminApplicationsPage() {
               <th scope="col" className="px-3 py-2 text-center">Offres</th>
               <th scope="col" className="px-3 py-2 text-center">À l&apos;étude</th>
               <th scope="col" className="px-3 py-2 text-center">Gardées</th>
-              <th scope="col" className="px-3 py-2 text-center">Préparation</th>
+              <th scope="col" className="px-3 py-2 text-center">Dossiers ouverts</th>
+              <th scope="col" className="px-3 py-2 text-center">Travail commencé</th>
               <th scope="col" className="px-3 py-2 text-center">Déposées</th>
               <th scope="col" className="px-3 py-2 text-center">Gagnées / perdues</th>
               <th scope="col" className="px-3 py-2 text-center">Questions</th>
@@ -191,7 +205,7 @@ export default async function AdminApplicationsPage() {
           <tbody>
             {perUser.length === 0 ? (
               <tr>
-                <td colSpan={9} className="px-3 py-4 text-slate-600">Aucun inscrit n&apos;a encore ouvert de candidature.</td>
+                <td colSpan={10} className="px-3 py-4 text-slate-600">Aucun inscrit n&apos;a encore ouvert de candidature.</td>
               </tr>
             ) : (
               perUser.map((u) => (
@@ -221,6 +235,7 @@ export default async function AdminApplicationsPage() {
                   <td className="px-3 py-2 text-center tabular-nums">{u.study || "—"}</td>
                   <td className="px-3 py-2 text-center tabular-nums">{u.kept || "—"}</td>
                   <td className="px-3 py-2 text-center tabular-nums">{u.preparing || "—"}</td>
+                  <td className="px-3 py-2 text-center tabular-nums">{u.working || "—"}</td>
                   <td className="px-3 py-2 text-center tabular-nums">{u.sent || "—"}</td>
                   <td className="px-3 py-2 text-center tabular-nums">{u.won || u.lost ? `${u.won} / ${u.lost}` : "—"}</td>
                   <td className="px-3 py-2 text-center tabular-nums">{u.questions || "—"}</td>
@@ -246,7 +261,7 @@ export default async function AdminApplicationsPage() {
                   </span>
                 </div>
                 <div className="mt-1 h-2.5 overflow-hidden rounded-full bg-slate-100">
-                  <div className="h-full rounded-full bg-gradient-to-r from-teal to-electric" style={{ width: `${rows.length ? Math.max(2, (f.value / rows.length) * 100) : 0}%` }} />
+                  <div className="h-full rounded-full bg-gradient-to-r from-teal to-electric" style={{ width: `${funnel[0].value ? Math.max(2, Math.min(100, (f.value / funnel[0].value) * 100)) : 0}%` }} />
                 </div>
               </li>
             ))}
