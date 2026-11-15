@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireStaff } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { DashboardCard, Card, CardHeader } from "@/components/ui/card";
 import { Notice } from "@/components/ui/notice";
 import { stripeMode as stripeModeOf } from "@/lib/billing/stripe";
@@ -45,6 +46,13 @@ export default async function AdminHome(props: PageProps<"/admin">) {
   const s = (data ?? {}) as Stats;
   const b = billing as Stats | null; // réservé aux administrateurs (null pour la modération)
   const stripeMode = stripeModeOf();
+  // Entreprises de test de l'équipe (masquées volontairement du public) : pas de données à supprimer
+  const admin = createAdminClient();
+  const { data: team } = await admin.from("users").select("id").eq("is_internal", true);
+  const { data: teamCompanies } = (team ?? []).length
+    ? await admin.from("company_members").select("company_id, companies!inner(is_demo)").in("user_id", (team ?? []).map((u) => u.id)).eq("companies.is_demo", true)
+    : { data: [] as { company_id: string }[] };
+  const realDemo = Math.max(0, (s.demo_records ?? 0) - new Set((teamCompanies ?? []).map((c) => c.company_id)).size);
   return (
     <div className="space-y-8">
       {statsError && <Notice tone="error">Les compteurs n&apos;ont pas pu être chargés (base lente). Rechargez la page dans un instant.</Notice>}
@@ -53,9 +61,9 @@ export default async function AdminHome(props: PageProps<"/admin">) {
         <h1 className="text-2xl font-bold">Vue d&apos;ensemble</h1>
         <p className="mt-1 text-slate-600">Indicateurs calculés en temps réel sur la base de données — aucune valeur estimée.</p>
       </div>
-      {s.demo_records > 0 && (
+      {realDemo > 0 && (
         <Notice tone="warning">
-          {s.demo_records} enregistrement(s) de démonstration sont présents et inclus dans ces chiffres. Supprimez-les avant le lancement réel (
+          {realDemo} enregistrement(s) de démonstration sont présents et inclus dans ces chiffres. Supprimez-les avant le lancement réel (
           <code>npm run seed:clean</code>).
         </Notice>
       )}
