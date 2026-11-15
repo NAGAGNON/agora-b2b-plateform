@@ -169,20 +169,10 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
           <ProgressRing value={progress} label={sent ? "Réponse envoyée" : "Candidature prête"} />
         </div>
         <div className="mt-8 flex flex-wrap gap-3">
-          {data.hasSource && (
-            <a
-              href={`/go/${data.id}`}
-              target="_blank"
-              rel="noopener noreferrer nofollow"
-              className="btn-shine inline-flex items-center gap-2 rounded-xl bg-navy px-5 py-3 font-semibold text-white shadow-lg shadow-navy/20 transition hover:-translate-y-0.5 active:scale-[0.98]"
-            >
-              <ExternalLink className="size-4" aria-hidden /> Voir l&apos;annonce officielle
-            </a>
-          )}
           <button
             type="button"
             onClick={() => goBackToSearch()}
-            className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 font-semibold text-navy shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:ring-teal active:scale-[0.98]"
+            className="btn-shine inline-flex items-center gap-2 rounded-xl bg-navy px-5 py-3 font-semibold text-white shadow-lg shadow-navy/20 transition hover:-translate-y-0.5 active:scale-[0.98]"
             data-testid="continue-search"
           >
             <Search className="size-4" aria-hidden /> Continuer mes recherches
@@ -238,15 +228,15 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
               {(b) => (
                 <div className="space-y-4">
                   <InfoCard icon={FolderDown} title="Où trouver le dossier" tone="teal">
-                    <p>{b.submission ?? "Sur la plateforme de l'acheteur, indiquée dans l'annonce officielle."}</p>
-                    {(b.submission_url || data.hasSource) && (
+                    <p>{b.submission ?? "Sur la plateforme de l'acheteur, indiquée dans l'annonce officielle (lien en bas de cette page)."}</p>
+                    {b.submission_url && (
                       <a
-                        href={b.submission_url ?? `/go/${data.id}`}
+                        href={b.submission_url}
                         target="_blank"
                         rel="noopener noreferrer nofollow"
                         className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-white px-3 py-2 text-sm font-semibold text-teal-800 ring-1 ring-teal/40 transition hover:-translate-y-0.5"
                       >
-                        <ExternalLink className="size-4" aria-hidden /> {b.submission_url ? "Espace de l'acheteur" : "Annonce officielle"}
+                        <ExternalLink className="size-4" aria-hidden /> Espace de dépôt de l&apos;acheteur
                       </a>
                     )}
                   </InfoCard>
@@ -375,6 +365,39 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
             </div>
           </Step>
           {error && <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-800 ring-1 ring-rose-200">{error}</p>}
+
+          {/* Fin de page : l'annonce officielle, une fois tout l'accompagnement parcouru */}
+          <section className="plan-in relative isolate overflow-hidden rounded-3xl bg-gradient-to-br from-navy to-navy-900 p-6 text-white shadow-xl sm:p-8" data-testid="official-section">
+            <div aria-hidden className="pointer-events-none absolute -top-20 -right-20 -z-10 size-64 animate-aurora rounded-full bg-teal/30 blur-3xl" />
+            <div aria-hidden className="pointer-events-none absolute -bottom-24 left-10 -z-10 size-56 animate-aurora rounded-full bg-violet/25 blur-3xl [animation-delay:-5s]" />
+            <p className="flex items-center gap-2 text-xs font-bold tracking-wide text-teal-200 uppercase">
+              <Sparkles className="size-4" aria-hidden /> Vous avez tout en main
+            </p>
+            <h2 className="mt-2 font-heading text-2xl font-extrabold text-white">Prêt à passer sur l&apos;annonce officielle ?</h2>
+            <p className="mt-2 max-w-2xl text-white/75">
+              Conditions vérifiées, pièces listées, notation comprise et trame du mémoire préparée : téléchargez maintenant le dossier complet sur le site de l&apos;acheteur.
+              Votre candidature reste ici, enregistrée, pour suivre chaque étape.
+            </p>
+            <div className="mt-6 flex flex-wrap gap-3">
+              {data.hasSource && (
+                <a
+                  href={`/go/${data.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer nofollow"
+                  className="btn-shine inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-teal to-electric px-5 py-3 font-semibold text-navy shadow-lg shadow-teal/25 transition hover:-translate-y-0.5 active:scale-[0.98]"
+                >
+                  <ExternalLink className="size-4" aria-hidden /> Voir l&apos;annonce officielle
+                </a>
+              )}
+              <button
+                type="button"
+                onClick={() => goBackToSearch()}
+                className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-5 py-3 font-semibold text-white ring-1 ring-white/20 transition hover:-translate-y-0.5 hover:bg-white/15 active:scale-[0.98]"
+              >
+                <Search className="size-4" aria-hidden /> Continuer mes recherches
+              </button>
+            </div>
+          </section>
         </div>
 
         {/* Récap */}
