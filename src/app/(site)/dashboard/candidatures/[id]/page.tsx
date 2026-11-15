@@ -20,7 +20,7 @@ export default async function CandidaturePage(props: PageProps<"/dashboard/candi
   const company = session.activeCompany.company;
   const db = await createClient();
   const [{ data: item }, { data: o }, { data: profile }, { data: co }] = await Promise.all([
-    db.from("pipeline_items").select("stage, guide_done, docs_done, draft, submitted_at").eq("company_id", company.id).eq("opportunity_id", id).maybeSingle(),
+    db.from("pipeline_items").select("stage, guide_done, docs_done, draft, submitted_at, created_at").eq("company_id", company.id).eq("opportunity_id", id).maybeSingle(),
     db.from("opportunities").select("id, title, origin, external_buyer_name, response_deadline, city, department_code").eq("id", id).maybeSingle(),
     db.from("company_profiles").select("description, references_text, certifications, employees_range, founded_year").eq("company_id", company.id).maybeSingle(),
     db.from("companies").select("name, city").eq("id", company.id).maybeSingle(),
@@ -30,11 +30,16 @@ export default async function CandidaturePage(props: PageProps<"/dashboard/candi
   if (!item) redirect(`/opportunites/${id}`);
 
   const admin = createAdminClient();
-  const [{ data: sources }, { data: stored }, plan] = await Promise.all([
-    admin.from("opportunity_sources").select("original_url").eq("opportunity_id", id),
+  const [{ data: sources }, { data: stored }, plan, { data: journal }] = await Promise.all([
+    admin.from("opportunity_sources").select("original_url, external_id, is_primary").eq("opportunity_id", id),
     admin.from("tender_briefs").select("content").eq("opportunity_id", id).maybeSingle(),
     db.rpc("user_plan").then((r) => r.data ?? "FREE"),
+    db.from("application_journal").select("id, kind, body, created_at, user_id").eq("company_id", company.id).eq("opportunity_id", id).order("created_at", { ascending: false }).limit(100),
   ]);
+  const authorIds = [...new Set((journal ?? []).map((j) => j.user_id).filter((x): x is string => Boolean(x)))];
+  const { data: authors } = authorIds.length ? await admin.from("users").select("id, full_name").in("id", authorIds) : { data: [] as { id: string; full_name: string }[] };
+  const authorName = new Map((authors ?? []).map((a) => [a.id, a.full_name]));
+  const primary = (sources ?? []).find((s) => s.is_primary) ?? (sources ?? [])[0];
   const allowed = (await db.rpc("plan_feature", { p_plan: plan, p_key: "tender_brief" })).data === true;
   const idweb = (sources ?? []).map((s) => boampId(s.original_url)).find(Boolean);
   const ted = idweb ? null : (sources ?? []).map((s) => tedId(s.original_url)).find(Boolean);
@@ -61,6 +66,16 @@ export default async function CandidaturePage(props: PageProps<"/dashboard/candi
         sourceLabel: idweb ? `BOAMP n° ${idweb}` : ted ? `TED n° ${ted}` : null,
         hasSource: (sources ?? []).some((s) => s.original_url),
         mine: profile?.certifications ?? [],
+        startedAt: item.created_at,
+        reference: primary?.external_id ?? null,
+        journal: (journal ?? []).map((j) => ({
+          id: j.id,
+          kind: j.kind,
+          body: j.body,
+          created_at: j.created_at,
+          author: j.user_id === session.userId ? "Vous" : j.user_id ? (authorName.get(j.user_id) ?? null) : null,
+          mine: j.user_id === session.userId,
+        })),
         company: {
           name: co?.name ?? company.name,
           city: co?.city ?? null,

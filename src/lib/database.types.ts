@@ -1149,6 +1149,17 @@ isOneToOne: false
                   Relationships: [
                     
                   ]
+                },"application_journal": {
+                  Row: {
+                    "body": string,"company_id": string,"created_at": string,"id": string,"kind": string,"opportunity_id": string,"user_id": string | null
+                  }
+                  Insert: {
+                    "body": string,"company_id": string,"created_at"?: string,"id"?: string,"kind"?: string,"opportunity_id": string,"user_id"?: string | null
+                  }
+                  Update: {
+                    "body"?: string,"company_id"?: string,"created_at"?: string,"id"?: string,"kind"?: string,"opportunity_id"?: string,"user_id"?: string | null
+                  }
+                  Relationships: []
                 },"application_prompts": {
                   Row: {
                     "answer": string,"created_at": string,"opportunity_id": string,"reason": string | null,"updated_at": string,"user_id": string

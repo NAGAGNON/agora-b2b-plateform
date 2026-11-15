@@ -28,13 +28,19 @@ import {
   ThumbsDown,
   Trophy,
   Users,
+  BookOpen,
+  CalendarPlus,
+  MessageSquareText,
+  Trash2,
+  Route,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import type { TenderBrief } from "@/lib/tender-brief";
 import { certStatus } from "@/lib/certification-match";
-import { APPLICATION_GUIDE, LOST_ADVICE } from "@/lib/application-guide";
+import { APPLICATION_GUIDE, LOST_ADVICE, questionTemplate, rejectionTemplate } from "@/lib/application-guide";
+import { applicationPlan } from "@/lib/application-plan";
 import { buildMemoirDraft, type DraftCompany } from "@/lib/memoir-draft";
-import { answerApplicationResult, markApplicationSent, saveDraft, toggleDocStep, toggleGuideStep } from "@/app/actions/applications";
+import { addJournalNote, answerApplicationResult, deleteJournalNote, markApplicationSent, saveDraft, toggleDocStep, toggleGuideStep, type JournalEntry } from "@/app/actions/applications";
 import { loadTenderBrief } from "@/app/actions/tender-brief";
 import { goBackToSearch } from "@/components/applications/return-point";
 
@@ -56,6 +62,9 @@ export type WorkspaceData = {
   hasSource: boolean;
   mine: string[];
   company: DraftCompany;
+  startedAt: string | null;
+  reference: string | null;
+  journal: JournalEntry[];
 };
 
 const SHORT = ["Conditions", "Dossier", "Questions et visite", "Pièces", "Rédaction", "Dépôt"];
@@ -93,6 +102,8 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
   const progress = sent ? 100 : Math.round((done.length / APPLICATION_GUIDE.length) * 100);
   const days = data.deadline ? Math.ceil((new Date(data.deadline).getTime() - nowMs()) / 86_400_000) : null;
   const nextStep = APPLICATION_GUIDE.findIndex((_, i) => !done.includes(i));
+  const plan = useMemo(() => (sent ? [] : applicationPlan(data.deadline, done, new Date(nowMs()), data.startedAt)), [sent, data.deadline, done, data.startedAt]);
+  const tpl = { title: data.title, buyer: data.buyer, reference: data.reference, company: data.company.name };
 
   const toggleStep = (i: number, value: boolean) => {
     const before = done;
@@ -183,6 +194,46 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
         </div>
       </section>
 
+      {/* L'essentiel */}
+      {(brief || briefState === "loading") && (
+        <section className="plan-in grid gap-4 rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200 sm:p-8 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+          <div>
+            <p className="flex items-center gap-2 text-xs font-bold tracking-wide text-teal-700 uppercase">
+              <BookOpen className="size-4" aria-hidden /> L&apos;essentiel en 30 secondes
+            </p>
+            {brief ? (
+              <p className="mt-3 text-lg leading-relaxed text-navy">{brief.summary}</p>
+            ) : (
+              <div className="mt-3 space-y-2">
+                {[90, 70].map((w) => (
+                  <div key={w} className="h-4 animate-pulse rounded-full bg-slate-100" style={{ width: `${w}%` }} />
+                ))}
+              </div>
+            )}
+            {data.deadline && (
+              <a href={`/api/opportunites/${data.id}/agenda`} download className="mt-4 inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-teal-800 ring-1 ring-teal/40 transition hover:-translate-y-0.5 hover:bg-teal-50">
+                <CalendarPlus className="size-4" aria-hidden /> Ajouter la date limite à mon agenda
+              </a>
+            )}
+          </div>
+          {brief && (
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { n: (brief.certifications ?? []).length + (brief.capacity ?? []).length, l: "conditions vérifiées" },
+                { n: brief.documents.length, l: "pièces listées" },
+                { n: (brief.criteria ?? []).length, l: "critères de notation" },
+                { n: (brief.tips ?? []).length + brief.warnings.length, l: "conseils et pièges" },
+              ].map((x, i) => (
+                <div key={x.l} className="plan-in rounded-2xl bg-gradient-to-br from-sky to-white p-4 ring-1 ring-slate-200" style={{ animationDelay: `${i * 80}ms` }}>
+                  <p className="font-heading text-3xl font-extrabold text-navy tabular-nums">{x.n}</p>
+                  <p className="text-sm text-slate-600">{x.l}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
       {/* Frise des étapes */}
       <nav aria-label="Étapes de la candidature" className="sticky top-20 z-20 rounded-2xl bg-white/95 p-3 shadow-md ring-1 ring-slate-200">
         <div className="relative">
@@ -264,6 +315,7 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
             ) : briefState === "ready" ? (
               <p className="text-sm text-slate-600">L&apos;avis ne mentionne pas de visite. Vérifiez dans le règlement de la consultation.</p>
             ) : null}
+            <TemplateCard icon={MessageSquareText} title="Modèle de question à l'acheteur" text={questionTemplate(tpl)} />
             <HowTo items={APPLICATION_GUIDE[2].how} />
           </Step>
 
@@ -360,11 +412,13 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
                   <Send className="size-5" aria-hidden /> J&apos;ai déposé ma réponse
                 </button>
               ) : (
-                <Result stage={stage} pending={pending} onWon={() => act(() => answerApplicationResult(data.id, "WON"), "WON")} onLost={() => act(() => answerApplicationResult(data.id, "LOST"), "LOST")} submittedAt={data.submittedAt} />
+                <Result stage={stage} pending={pending} onWon={() => act(() => answerApplicationResult(data.id, "WON"), "WON")} onLost={() => act(() => answerApplicationResult(data.id, "LOST"), "LOST")} submittedAt={data.submittedAt} rejection={rejectionTemplate(tpl)} />
               )}
             </div>
           </Step>
           {error && <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-800 ring-1 ring-rose-200">{error}</p>}
+
+          <Journal id={data.id} initial={data.journal} />
 
           {/* Fin de page : l'annonce officielle, une fois tout l'accompagnement parcouru */}
           <section className="plan-in relative isolate overflow-hidden rounded-3xl bg-gradient-to-br from-navy to-navy-900 p-6 text-white shadow-xl sm:p-8" data-testid="official-section">
@@ -410,18 +464,44 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
               <p className="relative text-white/80">{days < 0 ? "date limite dépassée" : `jour${days > 1 ? "s" : ""} restant${days > 1 ? "s" : ""}`}</p>
             </div>
           )}
-          {!sent && nextStep >= 0 && (
-            <button
-              type="button"
-              onClick={() => scrollTo(nextStep)}
-              className="plan-in w-full rounded-3xl bg-white p-5 text-left shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:ring-teal [animation-delay:120ms]"
-            >
-              <p className="text-xs font-bold tracking-wide text-slate-500 uppercase">Prochaine étape</p>
-              <p className="mt-1 font-bold text-navy">
-                {nextStep + 1}. {APPLICATION_GUIDE[nextStep].title}
+          {plan.length > 0 && (
+            <div className="plan-in rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200 [animation-delay:120ms]">
+              <p className="flex items-center gap-2 font-bold text-navy">
+                <Route className="size-4 text-teal-700" aria-hidden /> Mon planning conseillé
               </p>
-              <p className="mt-2 text-sm font-semibold text-teal-700">Y aller →</p>
-            </button>
+              <p className="mt-1 text-xs text-slate-500">Une étape par jour clé, jusqu&apos;à la veille de la date limite.</p>
+              <ol className="mt-4 space-y-1">
+                {plan.map((p) => (
+                  <li key={p.step}>
+                    <button
+                      type="button"
+                      onClick={() => scrollTo(p.step)}
+                      className={cn(
+                        "flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-left transition hover:bg-slate-50",
+                        p.status === "today" && "bg-teal-50 ring-1 ring-teal/30",
+                        p.status === "late" && "bg-rose-50 ring-1 ring-rose-200",
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-bold",
+                          p.status === "done" ? "bg-gradient-to-br from-teal to-violet text-white" : p.status === "late" ? "bg-rose-500 text-white" : p.status === "today" ? "bg-navy text-white" : "bg-slate-100 text-slate-500",
+                        )}
+                      >
+                        {p.status === "done" ? <Check className="size-3.5" aria-hidden /> : p.step + 1}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className={cn("block text-sm font-semibold", p.status === "done" ? "text-slate-400 line-through" : "text-navy")}>{p.title}</span>
+                        <span className={cn("text-xs", p.status === "late" ? "font-semibold text-rose-700" : p.status === "today" ? "font-semibold text-teal-800" : "text-slate-500")}>
+                          {p.status === "late" ? "En retard · " : p.status === "today" ? "Aujourd'hui · " : ""}
+                          {p.date.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" })}
+                        </span>
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ol>
+            </div>
           )}
           {brief && brief.todo.length > 0 && (
             <div className="plan-in rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200 [animation-delay:200ms]">
@@ -662,7 +742,7 @@ function DraftEditor({ id, initial, make }: { id: string; initial: string | null
   );
 }
 
-function Result({ stage, pending, onWon, onLost, submittedAt }: { stage: string; pending: boolean; onWon: () => void; onLost: () => void; submittedAt: string | null }) {
+function Result({ stage, pending, onWon, onLost, submittedAt, rejection }: { stage: string; pending: boolean; onWon: () => void; onLost: () => void; submittedAt: string | null; rejection: string }) {
   if (stage === "WON")
     return (
       <div className="plan-in rounded-2xl bg-gradient-to-br from-teal-50 to-white p-6 text-center ring-1 ring-teal/30">
@@ -673,9 +753,12 @@ function Result({ stage, pending, onWon, onLost, submittedAt }: { stage: string;
     );
   if (stage === "LOST")
     return (
-      <InfoCard icon={Lightbulb} title="Pour progresser" tone="teal">
-        <Bullets items={LOST_ADVICE} />
-      </InfoCard>
+      <div className="space-y-4">
+        <InfoCard icon={Lightbulb} title="Pour progresser" tone="teal">
+          <Bullets items={LOST_ADVICE} />
+        </InfoCard>
+        <TemplateCard icon={MessageSquareText} title="Modèle de demande des motifs du rejet" text={rejection} />
+      </div>
     );
   return (
     <div className="plan-in rounded-2xl bg-slate-50 p-6 ring-1 ring-slate-200">
@@ -732,3 +815,142 @@ const Bullets = ({ items }: { items: string[] }) => (
     ))}
   </ul>
 );
+
+/** Modèle de texte prêt à copier (question à l'acheteur, demande des motifs du rejet). */
+function TemplateCard({ icon: Icon, title, text }: { icon: typeof Lightbulb; title: string; text: string }) {
+  const [open, setOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+  return (
+    <div className="overflow-hidden rounded-2xl ring-1 ring-slate-200">
+      <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} className="flex w-full items-center justify-between gap-3 bg-white px-5 py-3.5 text-left text-sm font-semibold text-navy transition hover:bg-slate-50">
+        <span className="flex items-center gap-2">
+          <Icon className="size-4 text-teal-700" aria-hidden /> {title}
+        </span>
+        <ChevronDown className={cn("size-4 transition duration-300", open && "rotate-180")} aria-hidden />
+      </button>
+      {open && (
+        <div className="animate-rise border-t border-slate-100 bg-slate-50 p-5">
+          <pre className="font-sans text-sm leading-relaxed whitespace-pre-wrap text-slate-700">{text}</pre>
+          <button
+            type="button"
+            onClick={() => {
+              navigator.clipboard
+                ?.writeText(text)
+                .then(() => {
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 1500);
+                })
+                .catch(() => {});
+            }}
+            className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-white px-3 py-2 text-sm font-semibold text-navy ring-1 ring-slate-300 transition hover:ring-teal"
+          >
+            <Copy className="size-4" aria-hidden /> {copied ? "Copié !" : "Copier le texte"}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const KIND_STYLE: Record<string, string> = {
+  NOTE: "bg-slate-100 text-slate-600",
+  START: "bg-violet/10 text-violet",
+  STEP: "bg-teal-50 text-teal-800",
+  SENT: "bg-navy text-white",
+  WON: "bg-teal text-navy",
+  LOST: "bg-slate-200 text-slate-700",
+};
+const KIND_LABEL: Record<string, string> = { NOTE: "Note", START: "Début", STEP: "Étape", SENT: "Dépôt", WON: "Gagné", LOST: "Résultat" };
+
+/** Journal de suivi jour par jour : notes de l'équipe et étapes franchies. */
+function Journal({ id, initial }: { id: string; initial: JournalEntry[] }) {
+  const [entries, setEntries] = useState(initial);
+  const [text, setText] = useState("");
+  const [pending, start] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  const add = () =>
+    start(async () => {
+      setError(null);
+      const r = await addJournalNote(id, text);
+      if (r.ok) {
+        setEntries([r.entry, ...entries]);
+        setText("");
+      } else setError(r.error);
+    });
+  const groups = entries.reduce<Record<string, JournalEntry[]>>((acc, e) => {
+    const day = new Date(e.created_at).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
+    (acc[day] ??= []).push(e);
+    return acc;
+  }, {});
+  return (
+    <section id="journal" className="plan-in scroll-mt-48 rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200 sm:p-8">
+      <header className="mb-5 flex items-start gap-4">
+        <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-teal to-violet text-white">
+          <BookOpen className="size-5" aria-hidden />
+        </span>
+        <div>
+          <h2 className="font-heading text-xl font-bold text-navy">Journal de suivi</h2>
+          <p className="mt-0.5 text-sm text-slate-500">Jour après jour : ce qui a été fait, les échanges avec l&apos;acheteur, les points à ne pas oublier. Visible par votre équipe.</p>
+        </div>
+      </header>
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <input
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && text.trim()) add();
+          }}
+          maxLength={2000}
+          placeholder="Ex. : visite faite avec M. Dupont, question posée sur les quantités…"
+          aria-label="Nouvelle note"
+          className="h-12 flex-1 rounded-xl border border-slate-300 px-4 text-sm focus:border-teal focus:ring-2 focus:ring-teal/30 focus:outline-none"
+        />
+        <button type="button" disabled={pending || !text.trim()} onClick={add} className="btn-shine h-12 rounded-xl bg-navy px-5 text-sm font-semibold text-white transition hover:-translate-y-0.5 disabled:opacity-50">
+          Ajouter au journal
+        </button>
+      </div>
+      {error && <p className="mt-2 text-sm text-rose-700">{error}</p>}
+      {entries.length === 0 ? (
+        <p className="mt-6 text-center text-sm text-slate-500">Votre journal se remplit au fil des étapes. Ajoutez vos notes pour garder une trace de chaque échange.</p>
+      ) : (
+        <div className="mt-6 space-y-5">
+          {Object.entries(groups).map(([day, list]) => (
+            <div key={day}>
+              <p className="mb-2 text-xs font-bold tracking-wide text-slate-500 uppercase">{day}</p>
+              <ol className="space-y-2 border-l-2 border-slate-100 pl-4">
+                {list.map((e) => (
+                  <li key={e.id} className="animate-rise relative flex items-start gap-3">
+                    <span aria-hidden className="absolute top-2 -left-[1.4rem] size-2.5 rounded-full bg-teal ring-4 ring-white" />
+                    <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold", KIND_STYLE[e.kind] ?? KIND_STYLE.NOTE)}>{KIND_LABEL[e.kind] ?? "Note"}</span>
+                    <p className="min-w-0 flex-1 text-sm text-slate-700">
+                      {e.body}
+                      <span className="ml-2 text-xs text-slate-400">
+                        {new Date(e.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                        {e.author ? ` · ${e.author}` : ""}
+                      </span>
+                    </p>
+                    {e.mine && e.kind === "NOTE" && (
+                      <button
+                        type="button"
+                        aria-label="Supprimer la note"
+                        onClick={() =>
+                          start(async () => {
+                            const r = await deleteJournalNote(e.id);
+                            if (r.ok) setEntries(entries.filter((x) => x.id !== e.id));
+                          })
+                        }
+                        className="rounded-lg p-1 text-slate-300 transition hover:bg-rose-50 hover:text-rose-600"
+                      >
+                        <Trash2 className="size-4" aria-hidden />
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ol>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
