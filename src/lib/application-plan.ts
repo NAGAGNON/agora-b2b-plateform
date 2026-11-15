@@ -30,3 +30,21 @@ export function applicationPlan(deadline: string | null, done: number[], now = n
 export function dueToday(plan: PlanItem[]) {
   return plan.filter((p) => p.status === "today" || p.status === "late");
 }
+
+/** Noms courts des 6 étapes (barre de progression). */
+export const STEP_SHORT = ["Conditions", "Dossier", "Questions et visite", "Pièces", "Rédaction", "Dépôt"];
+
+/**
+ * Étapes à venir dans les `horizon` prochains jours, avec leur écart en jours (0 = aujourd'hui ; une
+ * étape en retard est ramenée à aujourd'hui et signalée).
+ */
+export function upcomingSteps(plan: PlanItem[], now = new Date(), horizon = 7) {
+  const today = startOfDay(now).getTime();
+  return plan
+    .filter((p) => p.status !== "done")
+    .map((p) => ({ ...p, offset: Math.max(0, Math.round((startOfDay(p.date).getTime() - today) / DAY)) }))
+    .filter((p) => p.offset <= horizon);
+}
+
+/** « Aujourd'hui », « Demain », « Dans 3 jours ». */
+export const dayLabel = (offset: number) => (offset <= 0 ? "Aujourd'hui" : offset === 1 ? "Demain" : `Dans ${offset} jours`);

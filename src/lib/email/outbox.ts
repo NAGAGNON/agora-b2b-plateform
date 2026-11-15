@@ -6,6 +6,7 @@ import { renderOfferEmail, type OfferEmail } from "@/lib/email/offer-template";
 import { renderEmail } from "@/lib/email/templates";
 import { familyOf, type Hero } from "@/lib/email/design";
 import { sendEmail } from "@/lib/email/send";
+import { WEEKEND_HELD, isWeekendPause } from "@/lib/weekend";
 
 const CTA_LABELS: Record<string, string> = {
   visibility_announce: "Faire connaître mon entreprise",
@@ -106,13 +107,20 @@ export function notificationLayout(template: string, payload: NotificationPayloa
 /** Traite la file d'attente des e-mails (appelé par la tâche planifiée). */
 export async function processEmailOutbox(limit = 50): Promise<{ sent: number; skipped: number; failed: number }> {
   const admin = createAdminClient();
-  const { data: rows } = await admin
+  // Week-end : les e-mails non urgents restent en attente jusqu'au lundi
+  const weekend = isWeekendPause();
+  const { data: fetched } = await admin
     .from("email_outbox")
     .select("*")
     .eq("status", "PENDING")
     .lt("attempts", 5)
     .order("created_at")
-    .limit(limit);
+    .limit(weekend ? limit * 4 : limit);
+  const held = (r: { template: string; payload: unknown }) => {
+    const p = (r.payload ?? {}) as { type?: string; offer?: unknown };
+    return Boolean(p.offer) || WEEKEND_HELD.has(p.type ?? r.template) || WEEKEND_HELD.has(r.template);
+  };
+  const rows = weekend ? (fetched ?? []).filter((r) => !held(r)).slice(0, limit) : fetched;
   const stats = { sent: 0, skipped: 0, failed: 0 };
   for (const row of rows ?? []) {
     // Réservation : un seul traitement par e-mail même si deux files tournent en même temps
@@ -146,7 +154,9 @@ export async function processEmailOutbox(limit = 50): Promise<{ sent: number; sk
 }
 
 /** Résumés quotidiens / hebdomadaires des alertes. */
-export async function processAlertDigests(): Promise<{ alerts: number; emails: number }> {
+export async function processAlertDigests(): Promise<{ alerts: number; emails: number; skipped?: string }> {
+  // Pas de résumé le week-end : celui du lundi reprend tout depuis le dernier envoi
+  if (isWeekendPause()) return { alerts: 0, emails: 0, skipped: "pause du week-end : reprise lundi" };
   const admin = createAdminClient();
   const now = Date.now();
   const { data: alerts } = await admin

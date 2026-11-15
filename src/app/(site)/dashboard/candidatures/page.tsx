@@ -1,11 +1,12 @@
 import Link from "next/link";
-import { AlertTriangle, ArrowRight, Bookmark, CalendarClock, CheckCircle2, ClipboardList, MapPinned, Search, Sparkles, Trophy } from "lucide-react";
+import { AlertTriangle, ArrowRight, Bookmark, Heart, CalendarClock, CheckCircle2, ClipboardList, MapPinned, Search, Sparkles, Trophy } from "lucide-react";
 import { requireCompany } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { BriefSchema } from "@/lib/tender-brief";
 import { APPLICATION_GUIDE } from "@/lib/application-guide";
-import { applicationPlan, dueToday } from "@/lib/application-plan";
+import { applicationPlan, dayLabel, dueToday, upcomingSteps } from "@/lib/application-plan";
+import { StepsProgress } from "@/components/applications/steps-progress";
 import { cn } from "@/lib/cn";
 
 export const metadata = { title: "Mes candidatures" };
@@ -30,6 +31,19 @@ export default async function ApplicationsPage() {
     .order("updated_at", { ascending: false });
   const rows = (data ?? []).map((d) => ({ ...d, opportunity: Array.isArray(d.opportunity) ? d.opportunity[0] : d.opportunity })).filter((d) => d.opportunity);
   const ids = rows.map((r) => r.opportunity!.id);
+  // Favoris encore ouverts, pas encore dans les candidatures : proposés sans rien enregistrer à leur place
+  const { data: favs } = await supabase
+    .from("favorites")
+    .select("created_at, opportunity:opportunities!inner(id, title, external_buyer_name, response_deadline, status, city, department_code)")
+    .eq("user_id", session.userId)
+    .not("opportunity_id", "is", null)
+    .eq("opportunity.status", "PUBLISHED")
+    .order("created_at", { ascending: false })
+    .limit(30);
+  const favorites = (favs ?? [])
+    .map((f) => (Array.isArray(f.opportunity) ? f.opportunity[0] : f.opportunity))
+    .filter((o): o is NonNullable<typeof o> => Boolean(o) && !ids.includes(o!.id) && (!o!.response_deadline || new Date(o!.response_deadline).getTime() > nowDate().getTime()))
+    .slice(0, 6);
   const { data: briefs } = ids.length ? await createAdminClient().from("tender_briefs").select("opportunity_id, content").in("opportunity_id", ids) : { data: [] };
   const briefOf = new Map((briefs ?? []).map((b) => [b.opportunity_id, BriefSchema.safeParse(b.content)]));
   const now = nowDate();
@@ -56,6 +70,8 @@ export default async function ApplicationsPage() {
       study,
       next: r.stage === "INTERESTED" ? "Commencer quand vous êtes prêt" : study ? "Décider si l'offre vous intéresse" : next >= 0 ? APPLICATION_GUIDE[next].title : null,
       due: dueToday(plan),
+      week: upcomingSteps(plan, now, 7),
+      doneSteps: done,
       visit: brief?.site_visit && /obligatoire/i.test(brief.site_visit) ? brief.site_visit : null,
       docs: brief ? { done: (r.docs_done ?? []).length, total: brief.documents.length } : null,
     };
@@ -66,7 +82,12 @@ export default async function ApplicationsPage() {
   const waiting = cards.filter((c) => SENT.includes(c.stage));
   const finished = cards.filter((c) => c.stage === "WON" || c.stage === "LOST");
   const won = cards.filter((c) => c.stage === "WON").length;
-  const today = preparing.flatMap((c) => c.due.map((d) => ({ card: c, task: d })));
+  // Mon activité cette semaine : étapes conseillées des 7 prochains jours + dates limites des offres gardées
+  const weekItems = [
+    ...preparing.flatMap((c) => c.week.map((w) => ({ card: c, offset: w.offset, title: w.step === 2 && c.visit ? "Visite obligatoire du site" : w.step === 5 ? "Dépôt de la candidature" : w.title, late: w.status === "late", step: w.step as number | null }))),
+    ...kept.filter((c) => c.days !== null && c.days >= 0 && c.days <= 7).map((c) => ({ card: c, offset: c.days as number, title: "Date limite : décider si vous répondez", late: false, step: null as number | null })),
+  ].sort((a, b) => a.offset - b.offset);
+  const weekGroups = [...new Set(weekItems.map((w) => w.offset))].map((offset) => ({ offset, items: weekItems.filter((w) => w.offset === offset) }));
   const soon = [...preparing, ...kept].filter((c) => c.days !== null && c.days >= 0 && c.days <= 14).sort((a, b) => (a.days ?? 0) - (b.days ?? 0));
 
   return (
@@ -101,39 +122,51 @@ export default async function ApplicationsPage() {
         <section className="plan-in rounded-3xl bg-white p-10 text-center shadow-sm ring-1 ring-slate-200">
           <Sparkles className="mx-auto size-10 text-teal-700" aria-hidden />
           <h2 className="mt-3 font-heading text-xl font-bold text-navy">Aucune candidature pour l&apos;instant</h2>
-          <p className="mx-auto mt-1 max-w-md text-slate-600">Sur un appel d&apos;offres qui vous plaît, cliquez sur « Ça m&apos;intéresse » : il arrive ici avec tout ce qu&apos;il faut pour y répondre.</p>
+          <p className="mx-auto mt-1 max-w-md text-slate-600">Sur un appel d&apos;offres qui vous plaît, cliquez sur « En savoir plus », puis « Oui, je prépare » ou « Je la garde pour plus tard » : il arrive ici avec tout ce qu&apos;il faut pour y répondre.</p>
           <Link href="/opportunites" className="btn-shine mt-6 inline-flex items-center gap-2 rounded-xl bg-navy px-5 py-3 font-semibold text-white transition hover:-translate-y-0.5">
             <Search className="size-4" aria-hidden /> Trouver un appel d&apos;offres
           </Link>
         </section>
       ) : (
         <>
-          {(today.length > 0 || soon.length > 0) && (
-            <div className="grid gap-6 lg:grid-cols-2">
-              <section className="plan-in rounded-3xl bg-navy p-6 text-white shadow-xl sm:p-8">
+          {(weekItems.length > 0 || soon.length > 0 || preparing.length > 0) && (
+            <div className="grid gap-6 lg:grid-cols-2 [&>*]:min-w-0">
+              <section className="plan-in rounded-3xl bg-navy p-6 text-white shadow-xl sm:p-8" data-testid="week">
                 <p className="flex items-center gap-2 text-xs font-bold tracking-wide text-teal-200 uppercase">
-                  <CheckCircle2 className="size-4" aria-hidden /> À faire aujourd&apos;hui
+                  <CheckCircle2 className="size-4" aria-hidden /> Mon activité cette semaine
                 </p>
-                {today.length ? (
-                  <ul className="mt-4 space-y-2">
-                    {today.slice(0, 6).map(({ card, task }) => (
-                      <li key={`${card.id}-${task.step}`}>
-                        <Link href={`/dashboard/candidatures/${card.id}#etape-${task.step + 1}`} className="group flex items-start gap-3 rounded-2xl bg-white/5 p-3 ring-1 ring-white/10 transition hover:-translate-y-0.5 hover:bg-white/10">
-                          <span className={cn("mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-bold", task.status === "late" ? "bg-rose-500 text-white" : "bg-teal text-navy")}>{task.step + 1}</span>
-                          <span className="min-w-0 flex-1">
-                            <span className="block font-semibold text-white">{task.title}</span>
-                            <span className="block truncate text-sm text-white/60">
-                              {task.status === "late" ? "En retard · " : ""}
-                              {card.title}
-                            </span>
-                          </span>
-                          <ArrowRight className="mt-1 size-4 shrink-0 text-teal transition group-hover:translate-x-0.5" aria-hidden />
-                        </Link>
-                      </li>
+                {weekGroups.length ? (
+                  <div className="mt-4 space-y-5">
+                    {weekGroups.slice(0, 5).map((g) => (
+                      <div key={g.offset}>
+                        <p className={cn("mb-2 text-sm font-bold", g.offset === 0 ? "text-teal-200" : "text-white/70")}>{dayLabel(g.offset)}</p>
+                        <ul className="space-y-2">
+                          {g.items.slice(0, 4).map((w, i) => (
+                            <li key={`${w.card.id}-${w.step ?? "d"}-${i}`}>
+                              <Link
+                                href={`/dashboard/candidatures/${w.card.id}${w.step !== null ? `#etape-${w.step + 1}` : ""}`}
+                                className="group flex items-start gap-3 rounded-2xl bg-white/5 p-3 ring-1 ring-white/10 transition hover:-translate-y-0.5 hover:bg-white/10"
+                              >
+                                <span className={cn("mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-bold", w.late ? "bg-rose-500 text-white" : w.step === null ? "bg-white/15 text-white" : "bg-teal text-navy")}>
+                                  {w.step !== null ? w.step + 1 : "!"}
+                                </span>
+                                <span className="min-w-0 flex-1">
+                                  <span className="block font-semibold text-white">
+                                    {w.title}
+                                    {w.late && <span className="ml-2 rounded-full bg-rose-500/20 px-2 py-0.5 text-xs text-rose-200">En retard</span>}
+                                  </span>
+                                  <span className="block truncate text-sm text-white/60">{w.card.title}</span>
+                                </span>
+                                <ArrowRight className="mt-1 size-4 shrink-0 text-teal transition group-hover:translate-x-0.5" aria-hidden />
+                              </Link>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
                     ))}
-                  </ul>
+                  </div>
                 ) : (
-                  <p className="mt-4 text-white/70">Rien d&apos;urgent aujourd&apos;hui : vous êtes dans les temps.</p>
+                  <p className="mt-4 text-white/70">Rien de prévu dans les 7 prochains jours : vous êtes dans les temps.</p>
                 )}
               </section>
               <section className="plan-in rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200 [animation-delay:100ms] sm:p-8">
@@ -177,7 +210,7 @@ export default async function ApplicationsPage() {
                 <h2 className="mb-4 font-heading text-xl font-bold text-navy">
                   {s.title} <span className="text-slate-400">({s.list.length})</span>
                 </h2>
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid gap-4 md:grid-cols-2 [&>*]:min-w-0">
                   {s.list.map((c, i) => (
                     <Link
                       key={c.id}
@@ -196,6 +229,11 @@ export default async function ApplicationsPage() {
                           </p>
                         </div>
                       </div>
+                      {!c.study && (
+                        <div className="mt-4">
+                          <StepsProgress done={c.doneSteps} sent={c.sent} compact />
+                        </div>
+                      )}
                       <div className="mt-4 flex flex-wrap gap-2">
                         {c.stage === "WON" ? (
                           <Chip tone="teal" icon={Trophy}>
@@ -248,6 +286,40 @@ export default async function ApplicationsPage() {
               </section>
             ))}
         </>
+      )}
+
+      {/* Dans vos favoris : découvrir le parcours de candidature à partir d'offres déjà repérées */}
+      {favorites.length > 0 && (
+        <section data-testid="favorites-block">
+          <h2 className="mb-1 flex items-center gap-2 font-heading text-xl font-bold text-navy">
+            <Heart className="size-5 text-rose-500" aria-hidden /> Dans vos favoris
+          </h2>
+          <p className="mb-4 text-sm text-slate-600">Des offres encore ouvertes que vous avez mises de côté. Ouvrez-en une pour voir les conditions, les pièces et décider si vous répondez.</p>
+          <div className="grid gap-3 md:grid-cols-2 [&>*]:min-w-0">
+            {favorites.map((o, i) => {
+              const d = o.response_deadline ? Math.ceil((new Date(o.response_deadline).getTime() - now.getTime()) / DAY) : null;
+              return (
+                <div key={o.id} className="plan-in flex items-center gap-4 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200" style={{ animationDelay: `${i * 60}ms` }}>
+                  <div className="min-w-0 flex-1">
+                    <p className="line-clamp-2 font-semibold text-navy">{o.title}</p>
+                    <p className="mt-0.5 truncate text-sm text-slate-500">{o.external_buyer_name ?? "Besoin publié sur LinkProB2B"}</p>
+                    {d !== null && (
+                      <p className={cn("mt-1 inline-flex items-center gap-1 text-xs font-semibold", d <= 5 ? "text-rose-700" : "text-teal-800")}>
+                        <CalendarClock className="size-3.5" aria-hidden /> {d <= 0 ? "Dernier jour" : `${d} jour${d > 1 ? "s" : ""} restant${d > 1 ? "s" : ""}`}
+                      </p>
+                    )}
+                  </div>
+                  <Link
+                    href={`/dashboard/candidatures/${o.id}`}
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-gradient-to-r from-teal to-electric px-3.5 py-2 text-sm font-semibold text-navy shadow-sm transition hover:-translate-y-0.5"
+                  >
+                    <Sparkles className="size-4" aria-hidden /> En savoir plus
+                  </Link>
+                </div>
+              );
+            })}
+          </div>
+        </section>
       )}
     </div>
   );

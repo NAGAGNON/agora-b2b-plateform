@@ -37,7 +37,7 @@ export async function askApplicationQuestion(opportunityId: string, question: st
     db.from("companies").select("name").eq("id", companyId).maybeSingle(),
     db.from("application_questions").select("question, answer").eq("company_id", companyId).eq("opportunity_id", parsed.data.opportunityId).order("created_at", { ascending: false }).limit(4),
   ]);
-  if (!item || !o) return { ok: false, error: "Ajoutez d'abord cette offre à vos candidatures." };
+  if (!o) return { ok: false, error: "Offre introuvable." };
   const admin = createAdminClient();
   const [{ data: sources }, { data: stored }] = await Promise.all([
     admin.from("opportunity_sources").select("original_url").eq("opportunity_id", parsed.data.opportunityId),
@@ -72,7 +72,7 @@ export async function askApplicationQuestion(opportunityId: string, question: st
         employees: profile?.employees_range ?? null,
         founded: profile?.founded_year ?? null,
       },
-      stage: item.stage,
+      stage: item?.stage ?? "DETECTED",
     });
     const answer = await askAssistant(context, [...(history ?? [])].reverse(), parsed.data.question);
     if (!answer) return { ok: false, error: "L'assistant n'est pas disponible pour le moment. Réessayez dans quelques minutes." };

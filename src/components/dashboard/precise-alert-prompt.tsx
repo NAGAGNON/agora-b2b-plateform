@@ -19,7 +19,7 @@ export async function PreciseAlertPrompt({ userId }: { userId: string }) {
   return (
     <p className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-2xl bg-gradient-to-r from-teal-50 to-sky px-4 py-3 text-sm text-slate-700 ring-1 ring-teal/25">
       <Target className="size-4 shrink-0 text-teal-700" aria-hidden />
-      <span className="flex-1">
+      <span className="min-w-[12rem] flex-1">
         {list.length ? "Recevez uniquement les offres qui vous intéressent vraiment : " : "Ne ratez plus les offres de votre métier : "}
         plusieurs métiers et départements, mots à exclure, acheteurs, budget, délai pour répondre.
       </span>

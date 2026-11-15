@@ -1,6 +1,7 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { digestItems } from "@/lib/email/outbox";
+import { isWeekendPause } from "@/lib/weekend";
 import { sectorLabel } from "@/lib/constants";
 
 /**
@@ -102,6 +103,8 @@ export async function unsubscribeLead(token: string) {
  * Rien n'est envoyé s'il n'y a aucune nouveauté.
  */
 export async function processLeadDigests({ now = Date.now(), limit = 300 } = {}) {
+  // Pas de résumé le week-end (alertes sans compte) : reprise le lundi
+  if (isWeekendPause(new Date(now))) return { skipped: "pause du week-end : reprise lundi" };
   const db = createAdminClient();
   const before = new Date(now - LEAD_DIGEST_INTERVAL_MS + 60_000).toISOString();
   const { data: leads } = await db

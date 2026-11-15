@@ -3,6 +3,8 @@ import { requireAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { DashboardCard } from "@/components/ui/card";
 import { formatDateTime } from "@/lib/format";
+import { Bookmark, Eye, FolderOpen, Hammer, MessageCircleQuestion, Send, Trophy } from "lucide-react";
+import { cn } from "@/lib/cn";
 
 export const metadata = { title: "Candidatures" };
 export const dynamic = "force-dynamic";
@@ -32,40 +34,56 @@ const ANSWER_LABEL: Record<string, string> = {
 /**
  * Suivi des candidatures : combien d'offres sont découvertes avec « En savoir plus », gardées, préparées,
  * déposées et gagnées ; ce que les membres font chaque jour ; questions posées à l'assistant.
- * Entreprises de démonstration exclues. Données internes, aucune action.
+ * Entreprises de démonstration et comptes de l'équipe (vos tests) exclus. Données internes, aucune action.
  */
-export default async function AdminApplicationsPage() {
+export default async function AdminApplicationsPage(props: PageProps<"/admin/candidatures">) {
+  const sp = await props.searchParams;
   await requireAdmin();
   const db = createAdminClient();
   const now = nowMs();
   const since30 = new Date(now - 30 * DAY).toISOString();
   const since7 = new Date(now - 7 * DAY).toISOString();
 
-  const [{ data: items }, { data: prompts }, { data: journal }, { data: questions }, { count: q7 }, { count: q30 }] = await Promise.all([
+  const [{ data: items }, { data: prompts }, { data: journal }, { data: questions }] = await Promise.all([
     db
       .from("pipeline_items")
-      .select("stage, created_at, updated_at, updated_by, company_id, opportunity_id, companies!inner(name, is_demo)")
+      .select("stage, created_at, updated_at, updated_by, work_started_at, submitted_at, company_id, opportunity_id, companies!inner(name, is_demo)")
       .in("stage", Object.keys(STAGE_LABEL) as never)
       .eq("companies.is_demo", false)
       .order("updated_at", { ascending: false })
       .limit(2000),
-    db.from("application_prompts").select("answer, reason, updated_at").gte("updated_at", since30).limit(2000),
+    db.from("application_prompts").select("answer, reason, updated_at, user_id").gte("updated_at", since30).limit(2000),
     db.from("application_journal").select("kind, body, created_at, company_id, opportunity_id, user_id").gte("created_at", since30).order("created_at", { ascending: false }).limit(200),
     db.from("application_questions").select("question, answer, created_at, company_id, opportunity_id, user_id").order("created_at", { ascending: false }).limit(500),
-    db.from("application_questions").select("id", { count: "exact", head: true }).gte("created_at", since7),
-    db.from("application_questions").select("id", { count: "exact", head: true }).gte("created_at", since30),
   ]);
 
-  const rows = (items ?? []).map((r) => ({ ...r, company: Array.isArray(r.companies) ? r.companies[0] : r.companies }));
+  // Entreprises de l'équipe (un membre marqué « interne », comme le propriétaire) : tests, jamais comptés
+  const { data: internalUsers } = await db.from("users").select("id").eq("is_internal", true);
+  const internalIds = (internalUsers ?? []).map((u) => u.id);
+  const { data: internalMembers } = internalIds.length ? await db.from("company_members").select("company_id").in("user_id", internalIds) : { data: [] as { company_id: string }[] };
+  const internal = new Set((internalMembers ?? []).map((m) => m.company_id));
+  const rows = (items ?? []).filter((r) => !internal.has(r.company_id)).map((r) => ({ ...r, company: Array.isArray(r.companies) ? r.companies[0] : r.companies }));
   const count = (stages: string[]) => rows.filter((r) => stages.includes(r.stage)).length;
   const decided = count(["INTERESTED", "RESPONSE_PREPARING", "RESPONSE_SENT", "DISCUSSION", "NEGOTIATION", "WON", "LOST"]);
   const sent = count(["RESPONSE_SENT", "DISCUSSION", "NEGOTIATION", "WON", "LOST"]);
   const won = count(["WON"]);
   const companies = new Set(rows.map((r) => r.company_id)).size;
   const new7 = rows.filter((r) => r.created_at >= since7).length;
-  const withdrawn = (prompts ?? []).filter((p) => p.answer === "NOT_FOR_ME" && p.reason === "Retirée de mes candidatures").length;
+  // Consultées : fiches de candidature ouvertes (« En savoir plus »), sans rien enregistrer — 30 derniers jours
+  const { data: views } = await db.from("analytics_events").select("user_id, properties, created_at").eq("event_name", "view_application").gte("created_at", since30).limit(5000);
+  const viewed = new Set(
+    (views ?? [])
+      .filter((v) => v.user_id && !internalIds.includes(v.user_id))
+      .map((v) => `${v.user_id}:${(v.properties as { opportunity_id?: string } | null)?.opportunity_id ?? ""}`),
+  );
+  const opened = rows.filter((r) => ["RESPONSE_PREPARING", "RESPONSE_SENT", "DISCUSSION", "NEGOTIATION", "WON", "LOST"].includes(r.stage));
+  const working = rows.filter((r) => r.work_started_at);
+  const idle = opened.filter((r) => !r.work_started_at);
+
+  const realPrompts = (prompts ?? []).filter((p) => !internalIds.includes(p.user_id));
+  const withdrawn = realPrompts.filter((p) => p.answer === "NOT_FOR_ME" && p.reason === "Retirée de mes candidatures").length;
   const answers = Object.entries(
-    (prompts ?? []).reduce<Record<string, number>>((acc, p) => {
+    realPrompts.reduce<Record<string, number>>((acc, p) => {
       if (p.reason !== "Retirée de mes candidatures") acc[p.answer] = (acc[p.answer] ?? 0) + 1;
       return acc;
     }, {}),
@@ -73,19 +91,110 @@ export default async function AdminApplicationsPage() {
 
   // Noms des entreprises et des offres pour les tableaux
   const companyIds = [...new Set([...(journal ?? []), ...(questions ?? [])].map((j) => j.company_id))];
-  const oppIds = [...new Set([...(journal ?? []), ...(questions ?? []), ...rows.slice(0, 300)].map((j) => j.opportunity_id))];
-  const userIds = [...new Set((journal ?? []).map((j) => j.user_id).filter((x): x is string => Boolean(x)))];
+  const viewOpp = (v: { properties: unknown }) => (v.properties as { opportunity_id?: string } | null)?.opportunity_id ?? "";
+  const oppIds = [...new Set([...(journal ?? []).map((j) => j.opportunity_id), ...(questions ?? []).map((q) => q.opportunity_id), ...rows.slice(0, 300).map((r) => r.opportunity_id), ...(views ?? []).slice(0, 300).map(viewOpp)].filter(Boolean))];
+  const userIds = [
+    ...new Set([...(journal ?? []).map((j) => j.user_id), ...(questions ?? []).map((q) => q.user_id), ...(views ?? []).map((v) => v.user_id), ...rows.map((r) => r.updated_by)].filter((x): x is string => Boolean(x))),
+  ].slice(0, 300);
   const [{ data: cos }, { data: opps }, { data: users }] = await Promise.all([
     companyIds.length ? db.from("companies").select("id, name, is_demo").in("id", companyIds) : Promise.resolve({ data: [] as { id: string; name: string; is_demo: boolean }[] }),
     oppIds.length ? db.from("opportunities").select("id, title").in("id", oppIds) : Promise.resolve({ data: [] as { id: string; title: string }[] }),
-    userIds.length ? db.from("users").select("id, full_name").in("id", userIds) : Promise.resolve({ data: [] as { id: string; full_name: string }[] }),
+    userIds.length ? db.from("users").select("id, full_name, email").in("id", userIds) : Promise.resolve({ data: [] as { id: string; full_name: string; email: string }[] }),
   ]);
   const co = new Map((cos ?? []).map((c) => [c.id, c]));
   const opp = new Map((opps ?? []).map((o) => [o.id, o.title]));
-  const userName = new Map((users ?? []).map((u) => [u.id, u.full_name]));
-  const real = <T extends { company_id: string }>(list: T[]) => list.filter((x) => co.get(x.company_id) && !co.get(x.company_id)!.is_demo);
+  const userName = new Map((users ?? []).map((u) => [u.id, u.full_name || u.email]));
+  const real = <T extends { company_id: string }>(list: T[]) => list.filter((x) => co.get(x.company_id) && !co.get(x.company_id)!.is_demo && !internal.has(x.company_id));
   const activity = real(journal ?? []);
   const asked = real(questions ?? []);
+  // Par période : 24 h, 48 h, 7 jours, 30 jours (mêmes définitions que le parcours ci-dessous)
+  const realViews = (views ?? []).filter((v) => v.user_id && !internalIds.includes(v.user_id));
+  const PERIODS = [
+    { key: "24h", label: "24 h", long: "les dernières 24 heures", since: new Date(now - DAY).toISOString() },
+    { key: "48h", label: "48 h", long: "les dernières 48 heures", since: new Date(now - 2 * DAY).toISOString() },
+    { key: "7j", label: "7 jours", long: "les 7 derniers jours", since: since7 },
+    { key: "30j", label: "30 jours", long: "les 30 derniers jours", since: since30 },
+  ];
+  const OPENED = ["RESPONSE_PREPARING", "RESPONSE_SENT", "DISCUSSION", "NEGOTIATION", "WON", "LOST"];
+  const SENT_STAGES = ["RESPONSE_SENT", "DISCUSSION", "NEGOTIATION", "WON", "LOST"];
+  const periodStats = PERIODS.map(({ key, label, long, since }) => {
+    const created = rows.filter((r) => r.created_at >= since);
+    return {
+      key,
+      label,
+      long,
+      since,
+      values: [
+        new Set(realViews.filter((v) => v.created_at >= since).map((v) => `${v.user_id}:${(v.properties as { opportunity_id?: string } | null)?.opportunity_id ?? ""}`)).size,
+        created.filter((r) => r.stage === "INTERESTED").length,
+        created.filter((r) => OPENED.includes(r.stage)).length,
+        rows.filter((r) => r.work_started_at && r.work_started_at >= since).length,
+        rows.filter((r) => SENT_STAGES.includes(r.stage) && (r.submitted_at ?? r.updated_at) >= since.slice(0, 10)).length,
+        rows.filter((r) => r.stage === "WON" && r.updated_at >= since).length,
+        asked.filter((q) => q.created_at >= since).length,
+        new Set([...created.map((r) => r.company_id)]).size,
+      ],
+    };
+  });
+  const period = periodStats.find((p) => p.key === (typeof sp.periode === "string" ? sp.periode : "7j")) ?? periodStats[2];
+  // Qui a fait quoi sur la période : une ligne par action, regroupées par personne
+  type Act = { at: string; what: string; offer: string | null; tone: "view" | "keep" | "open" | "work" | "sent" | "ask" };
+  const KIND_TEXT: Record<string, { what: string; tone: Act["tone"] }> = {
+    START: { what: "a commencé sa candidature", tone: "open" },
+    STEP: { what: "a franchi une étape", tone: "work" },
+    SENT: { what: "a déposé sa réponse", tone: "sent" },
+    WON: { what: "a gagné le marché", tone: "sent" },
+    LOST: { what: "n'a pas été retenu", tone: "sent" },
+    NOTE: { what: "a ajouté une note au journal", tone: "work" },
+  };
+  const acts = new Map<string, Act[]>();
+  const push = (uid: string | null | undefined, a: Act) => {
+    if (!uid || internalIds.includes(uid)) return;
+    acts.set(uid, [...(acts.get(uid) ?? []), a]);
+  };
+  for (const v of realViews.filter((v) => v.created_at >= period.since)) push(v.user_id, { at: v.created_at, what: "a consulté", offer: opp.get(viewOpp(v)) ?? null, tone: "view" });
+  for (const r of rows.filter((r) => r.created_at >= period.since && r.stage === "INTERESTED")) push(r.updated_by, { at: r.created_at, what: "a gardé pour plus tard", offer: opp.get(r.opportunity_id) ?? null, tone: "keep" });
+  for (const j of activity.filter((j) => j.created_at >= period.since)) {
+    const k = KIND_TEXT[j.kind] ?? { what: j.kind, tone: "work" as const };
+    const what = j.kind === "STEP" ? j.body.replace(/^Étape faite : /, "a fait l'étape « ").replace(/\.$/, "") + (j.kind === "STEP" ? " »" : "") : j.kind === "NOTE" && j.body.startsWith("Offre gardée") ? "a gardé pour plus tard" : k.what;
+    push(j.user_id, { at: j.created_at, what, offer: opp.get(j.opportunity_id) ?? null, tone: j.kind === "NOTE" && j.body.startsWith("Offre gardée") ? "keep" : k.tone });
+  }
+  for (const q of asked.filter((q) => q.created_at >= period.since)) push(q.user_id, { at: q.created_at, what: `a demandé à l'assistant : « ${q.question.length > 90 ? `${q.question.slice(0, 87)}…` : q.question} »`, offer: opp.get(q.opportunity_id) ?? null, tone: "ask" });
+  const who = [...acts.entries()]
+    .map(([uid, list]) => {
+      // Actions identiques à la suite (ex. 5 consultations de la même offre) regroupées : « ×5 »
+      const sorted = list.sort((a, b) => b.at.localeCompare(a.at));
+      const merged: (Act & { times: number })[] = [];
+      for (const a of sorted) {
+        const last = merged[merged.length - 1];
+        if (last && last.what === a.what && last.offer === a.offer) last.times++;
+        else merged.push({ ...a, times: 1 });
+      }
+      return { uid, name: userName.get(uid) ?? "Membre", total: sorted.length, list: merged };
+    })
+    .sort((a, b) => b.list[0].at.localeCompare(a.list[0].at));
+  const TONE: Record<Act["tone"], string> = {
+    view: "bg-sky-100 text-sky-800",
+    keep: "bg-teal-50 text-teal-800",
+    open: "bg-teal-100 text-teal-900",
+    work: "bg-emerald-50 text-emerald-800",
+    sent: "bg-violet-100 text-violet-800",
+    ask: "bg-slate-100 text-slate-700",
+  };
+  const TILES = [
+    { index: 0, label: "offre(s) consultée(s)", one: "offre consultée", many: "offres consultées", icon: Eye, color: "text-sky-300" },
+    { index: 1, label: "gardée(s)", one: "gardée pour plus tard", many: "gardées pour plus tard", icon: Bookmark, color: "text-teal-200" },
+    { index: 2, label: "dossier(s) ouvert(s)", one: "dossier ouvert (« Oui, je prépare »)", many: "dossiers ouverts (« Oui, je prépare »)", icon: FolderOpen, color: "text-teal-200" },
+    { index: 3, label: "travail commencé", one: "avec travail réellement commencé", many: "avec travail réellement commencé", icon: Hammer, color: "text-teal-300" },
+    { index: 4, label: "réponse(s) déposée(s)", one: "réponse déposée", many: "réponses déposées", icon: Send, color: "text-violet-300" },
+    { index: 5, label: "marché(s) gagné(s)", one: "marché gagné", many: "marchés gagnés", icon: Trophy, color: "text-emerald-300" },
+  ];
+  const pl = (n: number, one: string, many: string) => `${n} ${n > 1 ? many : one}`;
+  const [v0, v1, v2, v3, v4, v5] = period.values;
+  const summary =
+    v0 + v1 + v2 + v3 + v4 + v5 === 0
+      ? "Aucune activité sur les candidatures pour l'instant sur cette période."
+      : `${pl(v0, "offre consultée", "offres consultées")}, ${pl(v1, "gardée", "gardées")} pour plus tard, ${pl(v2, "dossier ouvert", "dossiers ouverts")} dont ${pl(v3, "avec un vrai travail commencé", "avec un vrai travail commencé")}, ${pl(v4, "réponse déposée", "réponses déposées")} et ${pl(v5, "marché gagné", "marchés gagnés")}.`;
 
   // Suivi par inscrit : chaque membre des entreprises qui ont des candidatures ou ont posé une question
   const memberCompanies = [...new Set([...rows.map((r) => r.company_id), ...asked.map((q) => q.company_id)])];
@@ -117,6 +226,7 @@ export default async function AdminApplicationsPage() {
         study: by(["QUALIFIED"]),
         kept: by(["INTERESTED"]),
         preparing: by(["RESPONSE_PREPARING"]),
+        working: mine.filter((r) => r.work_started_at).length,
         sent: by(["RESPONSE_SENT", "DISCUSSION", "NEGOTIATION"]),
         won: by(["WON"]),
         lost: by(["LOST"]),
@@ -136,9 +246,10 @@ export default async function AdminApplicationsPage() {
   const maxDay = Math.max(1, ...perDay.map((x) => x.apps + x.steps));
 
   const funnel = [
-    { label: "Découvertes (« En savoir plus »)", value: rows.length },
-    { label: "Gardées ou préparées", value: decided },
-    { label: "Préparation commencée", value: count(["RESPONSE_PREPARING", "RESPONSE_SENT", "DISCUSSION", "NEGOTIATION", "WON", "LOST"]) },
+    { label: "Consultées (« En savoir plus », 30 j)", value: viewed.size },
+    { label: "Gardées ou dossiers ouverts", value: decided },
+    { label: "Dossiers ouverts (« Oui, je prépare »)", value: opened.length },
+    { label: "Travail réellement commencé", value: working.length },
     { label: "Réponses déposées", value: sent },
     { label: "Marchés gagnés", value: won },
   ];
@@ -149,20 +260,106 @@ export default async function AdminApplicationsPage() {
       <div>
         <h1 className="text-2xl font-bold">Candidatures</h1>
         <p className="mt-1 text-slate-600">
-          Ce que les membres font des appels d&apos;offres : découverte avec « En savoir plus », offres gardées pour plus tard, préparation étape par étape, dépôt et résultat.
+          Trois niveaux bien distincts : consultée (rien n&apos;est enregistré), gardée pour plus tard, dossier ouvert (« Oui, je prépare ») puis travail réellement commencé (première action concrète), jusqu&apos;au dépôt et au résultat.
           Entreprises de démonstration exclues.
         </p>
       </div>
 
+      {/* En bref : la période choisie, en une phrase et six grandes cartes */}
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-navy to-navy-900 p-6 text-white shadow-xl sm:p-8" data-testid="periods">
+        <div aria-hidden className="pointer-events-none absolute -top-24 -right-16 size-72 animate-aurora rounded-full bg-teal/25 blur-3xl" />
+        <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-xs font-bold tracking-wide text-teal-200 uppercase">En bref</p>
+            <h2 className="mt-1 font-heading text-2xl font-extrabold text-white">Sur {period.long}</h2>
+          </div>
+          <nav aria-label="Période" className="inline-flex rounded-2xl bg-white/10 p-1 ring-1 ring-white/15">
+            {periodStats.map((p) => (
+              <Link
+                key={p.key}
+                href={`/admin/candidatures?periode=${p.key}`}
+                aria-current={p.key === period.key ? "page" : undefined}
+                className={cn("rounded-xl px-3.5 py-2 text-sm font-semibold transition", p.key === period.key ? "bg-white text-navy shadow" : "text-white/75 hover:bg-white/10 hover:text-white")}
+              >
+                {p.label}
+              </Link>
+            ))}
+          </nav>
+        </div>
+        <p className="relative mt-4 max-w-3xl text-lg leading-relaxed text-white/85">{summary}</p>
+        <ol className="relative mt-6 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
+          {TILES.map((t, i) => {
+            const v = period.values[t.index];
+            const prev = i > 0 ? period.values[TILES[i - 1].index] : null;
+            return (
+              <li key={t.label} className="rounded-2xl bg-white/[0.07] p-4 ring-1 ring-white/10">
+                <t.icon className={cn("size-5", t.color)} aria-hidden />
+                <p className="mt-3 font-heading text-4xl font-extrabold tabular-nums">{v}</p>
+                <p className="mt-1 text-sm leading-snug text-white/80">{v > 1 ? t.many : t.one}</p>
+                {prev !== null && prev > 0 && <p className="mt-2 text-xs font-semibold text-teal-200">{Math.round((v / prev) * 100)} % de l&apos;étape avant</p>}
+              </li>
+            );
+          })}
+        </ol>
+        <p className="relative mt-4 text-sm text-white/60">
+          <MessageCircleQuestion className="mr-1 inline size-4 align-[-3px]" aria-hidden />
+          {pl(period.values[6], "question posée", "questions posées")} à l&apos;assistant · {pl(period.values[7], "entreprise active", "entreprises actives")} · vos comptes de test ne sont jamais comptés.
+        </p>
+      </section>
+
+      <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6" data-testid="who">
+        <h2 className="font-heading text-xl font-bold text-navy">Qui a fait quoi · {period.label}</h2>
+        <p className="mt-1 text-sm text-slate-600">Chaque inscrit, avec ses actions dans l&apos;ordre (la plus récente en haut).</p>
+        {who.length === 0 ? (
+          <p className="mt-4 rounded-2xl bg-slate-50 p-4 text-slate-600">Personne n&apos;a encore utilisé les candidatures sur cette période.</p>
+        ) : (
+          <ul className="mt-4 grid gap-3 lg:grid-cols-2">
+            {who.slice(0, 30).map((u) => (
+              <li key={u.uid}>
+                <details className="group rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200 open:bg-white open:shadow-sm" open={who.length <= 4}>
+                  <summary className="flex cursor-pointer list-none items-center gap-3">
+                    <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-teal to-electric text-sm font-bold text-navy" aria-hidden>
+                      {u.name.split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((w) => w[0]!.toUpperCase()).join("")}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-semibold text-navy">{u.name}</span>
+                      <span className="block text-xs text-slate-500">
+                        {u.total} action{u.total > 1 ? "s" : ""} · dernière le {formatDateTime(u.list[0].at)}
+                      </span>
+                    </span>
+                    <span className="text-xs font-semibold text-teal-700 group-open:hidden">Voir</span>
+                  </summary>
+                  <ol className="mt-3 space-y-2 border-l-2 border-slate-200 pl-4">
+                    {u.list.slice(0, 15).map((a, k) => (
+                      <li key={k} className="text-sm">
+                        <span className="text-xs text-slate-400">{formatDateTime(a.at)}</span>
+                        <p className="text-slate-700">
+                          <span className={cn("mr-1.5 rounded-full px-2 py-0.5 text-xs font-semibold", TONE[a.tone])}>
+                            {a.what}
+                            {a.times > 1 ? ` ×${a.times}` : ""}
+                          </span>
+                          {a.offer && <span className="font-medium text-navy">{a.offer}</span>}
+                        </p>
+                      </li>
+                    ))}
+                  </ol>
+                </details>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <DashboardCard label="Candidatures suivies" value={rows.length} hint={`${new7} nouvelle(s) sur 7 jours · ${companies} entreprise(s)`} />
-        <DashboardCard label="À l'étude" value={count(["QUALIFIED"])} hint="Ouvertes, pas encore décidées" />
-        <DashboardCard label="Gardées pour plus tard" value={count(["INTERESTED"])} hint="Rappel e-mail 7 j puis 2 j avant la date limite" />
-        <DashboardCard label="En préparation" value={count(["RESPONSE_PREPARING"])} hint="Accompagnées étape par étape" />
+                <DashboardCard label="Gardées pour plus tard" value={count(["INTERESTED"])} hint="Rappel e-mail 7 j puis 2 j avant la date limite" />
+        <DashboardCard label="Dossiers ouverts" value={opened.length} hint={`« Oui, je prépare » · ${idle.length} sans action pour l'instant`} />
+        <DashboardCard label="Travail commencé" value={working.length} hint="Étape, pièce, mémoire, note ou dépôt" />
+        <DashboardCard label="Consultées (30 j)" value={viewed.size} hint="Fiches ouvertes sans rien enregistrer ou avant de décider" />
         <DashboardCard label="Réponses déposées" value={sent} hint={`${count(["RESPONSE_SENT", "DISCUSSION", "NEGOTIATION"])} en attente du résultat`} />
         <DashboardCard label="Gagnées / non retenues" value={`${won} / ${count(["LOST"])}`} hint={`Taux de réussite : ${pct(won, won + count(["LOST"]))}`} />
         <DashboardCard label="Retirées (30 j)" value={withdrawn} hint="« Ne m'intéresse plus »" />
-        <DashboardCard label="Questions à l'assistant" value={q30 ?? 0} hint={`${q7 ?? 0} sur 7 jours`} />
+        <DashboardCard label="Questions à l'assistant" value={asked.filter((q) => q.created_at >= since30).length} hint={`${asked.filter((q) => q.created_at >= since7).length} sur 7 jours`} />
       </div>
 
       <section className="overflow-x-auto rounded-2xl border border-slate-200 bg-white" data-testid="per-user">
@@ -177,7 +374,8 @@ export default async function AdminApplicationsPage() {
               <th scope="col" className="px-3 py-2 text-center">Offres</th>
               <th scope="col" className="px-3 py-2 text-center">À l&apos;étude</th>
               <th scope="col" className="px-3 py-2 text-center">Gardées</th>
-              <th scope="col" className="px-3 py-2 text-center">Préparation</th>
+              <th scope="col" className="px-3 py-2 text-center">Dossiers ouverts</th>
+              <th scope="col" className="px-3 py-2 text-center">Travail commencé</th>
               <th scope="col" className="px-3 py-2 text-center">Déposées</th>
               <th scope="col" className="px-3 py-2 text-center">Gagnées / perdues</th>
               <th scope="col" className="px-3 py-2 text-center">Questions</th>
@@ -187,7 +385,7 @@ export default async function AdminApplicationsPage() {
           <tbody>
             {perUser.length === 0 ? (
               <tr>
-                <td colSpan={9} className="px-3 py-4 text-slate-600">Aucun inscrit n&apos;a encore ouvert de candidature.</td>
+                <td colSpan={10} className="px-3 py-4 text-slate-600">Aucun inscrit n&apos;a encore ouvert de candidature.</td>
               </tr>
             ) : (
               perUser.map((u) => (
@@ -217,6 +415,7 @@ export default async function AdminApplicationsPage() {
                   <td className="px-3 py-2 text-center tabular-nums">{u.study || "—"}</td>
                   <td className="px-3 py-2 text-center tabular-nums">{u.kept || "—"}</td>
                   <td className="px-3 py-2 text-center tabular-nums">{u.preparing || "—"}</td>
+                  <td className="px-3 py-2 text-center tabular-nums">{u.working || "—"}</td>
                   <td className="px-3 py-2 text-center tabular-nums">{u.sent || "—"}</td>
                   <td className="px-3 py-2 text-center tabular-nums">{u.won || u.lost ? `${u.won} / ${u.lost}` : "—"}</td>
                   <td className="px-3 py-2 text-center tabular-nums">{u.questions || "—"}</td>
@@ -230,7 +429,11 @@ export default async function AdminApplicationsPage() {
 
       <div className="grid gap-4 lg:grid-cols-2">
         <section className="rounded-2xl border border-slate-200 bg-white p-4">
-          <h2 className="font-semibold text-navy">Du clic au marché gagné</h2>
+          <h2 className="font-semibold text-navy">Taux de transformation des opportunités</h2>
+          <p className="mt-1 text-sm text-slate-600">
+            Sur {funnel[0].value} opportunité(s) consultée(s) : chaque ligne indique le nombre et la part des consultées
+            {funnel[0].value > 0 && funnel[5].value > 0 ? ` · 1 marché gagné pour ${Math.round(funnel[0].value / funnel[5].value)} consultées` : ""}.
+          </p>
           <ol className="mt-4 space-y-3">
             {funnel.map((f, i) => (
               <li key={f.label}>
@@ -238,11 +441,15 @@ export default async function AdminApplicationsPage() {
                   <span className="text-slate-700">{f.label}</span>
                   <span className="font-semibold text-navy tabular-nums">
                     {f.value}
-                    {i > 0 && <span className="ml-2 text-xs font-normal text-slate-500">{pct(f.value, funnel[i - 1].value)}</span>}
+                    {i > 0 && (
+                      <span className="ml-2 text-xs font-normal text-slate-500">
+                        {pct(f.value, funnel[0].value)} des consultées · {pct(f.value, funnel[i - 1].value)} de l&apos;étape précédente
+                      </span>
+                    )}
                   </span>
                 </div>
                 <div className="mt-1 h-2.5 overflow-hidden rounded-full bg-slate-100">
-                  <div className="h-full rounded-full bg-gradient-to-r from-teal to-electric" style={{ width: `${rows.length ? Math.max(2, (f.value / rows.length) * 100) : 0}%` }} />
+                  <div className="h-full rounded-full bg-gradient-to-r from-teal to-electric" style={{ width: `${funnel[0].value ? Math.max(2, Math.min(100, (f.value / funnel[0].value) * 100)) : 0}%` }} />
                 </div>
               </li>
             ))}
