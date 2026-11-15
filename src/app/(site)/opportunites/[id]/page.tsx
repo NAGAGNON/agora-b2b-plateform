@@ -596,8 +596,17 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
                   <ExternalLink className="size-5 text-amber-600" aria-hidden /> Opportunité externe
                 </p>
                 <p className="mt-2 text-sm text-slate-600">
-                  Cette opportunité est issue d&apos;une source externe. Consultez la source officielle pour les informations définitives et les modalités
-                  de candidature. LinkProB2B n&apos;est pas l&apos;organisme qui publie ce marché.
+                  {isOpen && !o.is_demo ? (
+                    <>
+                      Cette opportunité est issue d&apos;une source externe : l&apos;annonce officielle fait foi. Elle est accessible depuis votre candidature, avec
+                      tout ce qu&apos;il faut pour y répondre. LinkProB2B n&apos;est pas l&apos;organisme qui publie ce marché.
+                    </>
+                  ) : (
+                    <>
+                      Cette opportunité est issue d&apos;une source externe. Consultez la source officielle pour les informations définitives et les modalités
+                      de candidature. LinkProB2B n&apos;est pas l&apos;organisme qui publie ce marché.
+                    </>
+                  )}
                 </p>
                 <dl className="mt-4 space-y-2 text-sm">
                   <Row label="Source" value={source?.external_source?.name ?? "—"} />
@@ -622,27 +631,32 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
                     <p className="mt-2 text-center text-xs text-slate-500">Conditions, pièces, notation, conseils et étapes à cocher pour optimiser votre candidature.</p>
                   </div>
                 )}
-                {source?.original_url && (
-                  <a
-                    href={`/go/${o.id}`}
-                    target="_blank"
-                    rel="noopener noreferrer nofollow"
-                    className={buttonClasses({ full: true, size: "lg", variant: isOpen && !o.is_demo ? "outline" : undefined, className: isOpen && !o.is_demo ? "mt-3" : "mt-5" })}
-                  >
-                    Consulter l&apos;opportunité originale <ExternalLink className="size-4" aria-hidden />
-                  </a>
+                {/* Offre ouverte : l'annonce officielle s'ouvre depuis la candidature (après l'accompagnement) */}
+                {source?.original_url && !(isOpen && !o.is_demo) && (
+                  <>
+                    <a href={`/go/${o.id}`} target="_blank" rel="noopener noreferrer nofollow" className={buttonClasses({ full: true, size: "lg", className: "mt-5" })}>
+                      Consulter l&apos;opportunité originale <ExternalLink className="size-4" aria-hidden />
+                    </a>
+                    <p className="mt-2 text-center text-xs text-slate-500">Ouvre le site source dans un nouvel onglet.</p>
+                  </>
                 )}
-                <p className="mt-2 text-center text-xs text-slate-500">Ouvre le site source dans un nouvel onglet.</p>
                 {otherSources.length > 0 && (
                   <div className="mt-4 border-t border-slate-100 pt-3 text-sm">
                     <p className="font-semibold text-navy">Également publiée sur</p>
                     <ul className="mt-1 space-y-1">
                       {otherSources.map((s) => (
                         <li key={s.source_id}>
-                          <a href={`/go/${o.id}?source=${s.source_id}`} target="_blank" rel="noopener noreferrer nofollow" className="text-teal-700 underline">
-                            {s.external_source?.name}
-                            {s.external_id ? ` — réf. ${s.external_id}` : ""}
-                          </a>
+                          {isOpen && !o.is_demo ? (
+                            <span className="text-slate-700">
+                              {s.external_source?.name}
+                              {s.external_id ? ` — réf. ${s.external_id}` : ""}
+                            </span>
+                          ) : (
+                            <a href={`/go/${o.id}?source=${s.source_id}`} target="_blank" rel="noopener noreferrer nofollow" className="text-teal-700 underline">
+                              {s.external_source?.name}
+                              {s.external_id ? ` — réf. ${s.external_id}` : ""}
+                            </a>
+                          )}
                         </li>
                       ))}
                     </ul>
