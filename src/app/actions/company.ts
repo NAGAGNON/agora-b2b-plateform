@@ -197,7 +197,11 @@ export async function updateCompanyProfile(_prev: ActionResult | null, fd: FormD
   return { ok: true, message: "Profil de l'entreprise enregistré." };
 }
 
-const inviteSchema = z.object({ email: emailSchema, role: z.enum(["COMPANY_MEMBER", "COMPANY_ADMIN"]) });
+const inviteSchema = z.object({
+  email: emailSchema,
+  role: z.enum(["COMPANY_MEMBER", "COMPANY_ADMIN"]),
+  jobTitle: z.string().trim().max(100, "100 caractères au plus.").optional().default(""),
+});
 
 export async function inviteMember(_prev: ActionResult | null, fd: FormData): Promise<ActionResult> {
   const parsed = parseForm(inviteSchema, fd);
@@ -211,13 +215,22 @@ export async function inviteMember(_prev: ActionResult | null, fd: FormData): Pr
     p_role: parsed.data.role,
   });
   if (error) return actionError(error);
+  // Poste du collègue (facultatif) : sur l'invitation, ou sur son compte s'il est déjà inscrit et n'en a pas
+  const jobTitle = parsed.data.jobTitle || null;
+  if (jobTitle) {
+    const admin = createAdminClient();
+    const email = parsed.data.email.trim().toLowerCase();
+    if (data === "ADDED") await admin.from("users").update({ job_title: jobTitle }).eq("email", email).or("job_title.is.null,job_title.eq.");
+    else await admin.from("company_invitations").update({ job_title: jobTitle }).eq("company_id", session.activeCompany.company.id).eq("email", email);
+  }
   revalidatePath("/dashboard/entreprise");
+  revalidatePath("/dashboard");
   return {
     ok: true,
     message:
       data === "ADDED"
-        ? "Cette personne a été ajoutée à votre entreprise."
-        : "Invitation enregistrée : la personne rejoindra votre entreprise dès son inscription avec cette adresse.",
+        ? "Cette personne a été ajoutée à votre équipe."
+        : "Invitation envoyée par e-mail : votre collègue rejoindra votre entreprise dès son inscription avec cette adresse.",
   };
 }
 

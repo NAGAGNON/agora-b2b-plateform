@@ -194,13 +194,13 @@ isOneToOne: false
                   ]
                 },"company_invitations": {
                   Row: {
-                    "accepted_at": string | null,"company_id": string,"created_at": string,"email": string,"id": string,"invited_by": string | null,"role": Database["public"]['Enums']["company_role"]
+                    "accepted_at": string | null,"company_id": string,"created_at": string,"email": string,"id": string,"invited_by": string | null,"job_title": string | null,"role": Database["public"]['Enums']["company_role"]
                   }
                   Insert: {
-                    "accepted_at"?: string | null,"company_id": string,"created_at"?: string,"email": string,"id"?: string,"invited_by"?: string | null,"role"?: Database["public"]['Enums']["company_role"]
+                    "accepted_at"?: string | null,"company_id": string,"created_at"?: string,"email": string,"id"?: string,"invited_by"?: string | null,"job_title"?: string | null,"role"?: Database["public"]['Enums']["company_role"]
                   }
                   Update: {
-                    "accepted_at"?: string | null,"company_id"?: string,"created_at"?: string,"email"?: string,"id"?: string,"invited_by"?: string | null,"role"?: Database["public"]['Enums']["company_role"]
+                    "accepted_at"?: string | null,"company_id"?: string,"created_at"?: string,"email"?: string,"id"?: string,"invited_by"?: string | null,"job_title"?: string | null,"role"?: Database["public"]['Enums']["company_role"]
                   }
                   Relationships: [
                     {

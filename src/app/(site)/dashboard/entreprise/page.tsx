@@ -24,7 +24,7 @@ export default async function CompanySettingsPage() {
   const supabase = await createClient();
   const [{ data: company }, { data: members }, { data: invitations }, places, departments, { data: photos }] = await Promise.all([
     supabase.from("companies").select("*, profile:company_profiles(*)").eq("id", cid).single(),
-    supabase.from("company_members").select("id, role, created_at, user_id, user:users(full_name, email)").eq("company_id", cid).order("created_at"),
+    supabase.from("company_members").select("id, role, created_at, user_id, user:users(full_name, email, job_title)").eq("company_id", cid).order("created_at"),
     isAdmin ? supabase.from("company_invitations").select("*").eq("company_id", cid).is("accepted_at", null) : { data: [] },
     getPlaces(),
     getDepartments(),
@@ -85,18 +85,26 @@ export default async function CompanySettingsPage() {
           )}
         </div>
       </Card>
-      <Card>
-        <CardHeader title="Membres" description="Tous les membres peuvent publier et répondre au nom de l'entreprise ; les administrateurs gèrent le profil et l'équipe." />
+      <Card id="equipe" className="scroll-mt-28">
+        <CardHeader title="Mon équipe" description="Travaillez à plusieurs : tous les membres voient les candidatures, le journal et l'assistant, et peuvent publier et répondre au nom de l'entreprise. Les administrateurs gèrent le profil et l'équipe." />
         <ul className="divide-y divide-slate-100">
           {(members ?? []).map((m) => {
             const u = Array.isArray(m.user) ? m.user[0] : m.user;
             return (
               <li key={m.id} className="flex flex-col gap-2 px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="font-semibold text-navy">{u?.full_name || u?.email}</p>
-                  <p className="text-xs text-slate-500">
-                    {u?.email} · depuis le {formatDate(m.created_at)}
-                  </p>
+                <div className="flex items-center gap-3">
+                  <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-teal to-electric text-sm font-bold text-navy" aria-hidden>
+                    {initials(u?.full_name || u?.email || "?")}
+                  </span>
+                  <div>
+                    <p className="font-semibold text-navy">
+                      {u?.full_name || u?.email}
+                      {u?.job_title && <span className="ml-2 rounded-full bg-sky px-2 py-0.5 text-xs font-medium text-teal-800">{u.job_title}</span>}
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      {u?.email} · depuis le {formatDate(m.created_at)}
+                    </p>
+                  </div>
                 </div>
                 <MemberControls memberId={m.id} role={m.role} isSelf={m.user_id === session.userId} canManage={isAdmin} />
               </li>
@@ -105,7 +113,8 @@ export default async function CompanySettingsPage() {
         </ul>
         {isAdmin && (
           <div className="border-t border-slate-100 p-5">
-            <h3 className="mb-3 text-sm font-bold">Ajouter un membre</h3>
+            <h3 className="mb-1 text-sm font-bold">Ajouter un membre de mon équipe</h3>
+            <p className="mb-3 text-sm text-slate-600">Votre collègue reçoit une invitation par e-mail et rejoint l&apos;entreprise dès son inscription avec cette adresse.</p>
             <InviteMemberForm />
             {invitations && invitations.length > 0 && (
               <div className="mt-4">
@@ -113,7 +122,8 @@ export default async function CompanySettingsPage() {
                 <ul className="mt-1 text-sm text-slate-600">
                   {invitations.map((i) => (
                     <li key={i.id}>
-                      {i.email} — {COMPANY_ROLE_LABELS[i.role]}
+                      {i.email}
+                      {i.job_title ? ` · ${i.job_title}` : ""} — {COMPANY_ROLE_LABELS[i.role]}
                     </li>
                   ))}
                 </ul>
@@ -125,3 +135,11 @@ export default async function CompanySettingsPage() {
     </div>
   );
 }
+
+const initials = (name: string) =>
+  name
+    .split(/[\s@.]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0]!.toUpperCase())
+    .join("");

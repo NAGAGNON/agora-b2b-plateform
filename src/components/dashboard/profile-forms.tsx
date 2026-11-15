@@ -55,13 +55,16 @@ export function UserProfileForm({ v }: { v: { full_name: string; job_title: stri
   );
 }
 
-export function InviteMemberForm() {
+export function InviteMemberForm({ compact = false }: { compact?: boolean }) {
   const [state, action] = useActionState(inviteMember, null);
   const fe = state && !state.ok ? state.fieldErrors : undefined;
   return (
-    <form action={action} className="grid gap-3 sm:grid-cols-[1fr_12rem_auto] sm:items-end">
+    <form action={action} className={compact ? "grid gap-3 sm:grid-cols-2" : "grid gap-3 sm:grid-cols-2 lg:grid-cols-[1.3fr_1fr_11rem_auto] lg:items-end"} data-testid="invite-form">
       <Field label="E-mail du collègue" name="email" error={fe?.email} required>
-        {(p) => <Input {...p} type="email" />}
+        {(p) => <Input {...p} type="email" placeholder="prenom.nom@entreprise.fr" autoComplete="off" />}
+      </Field>
+      <Field label="Son poste" name="jobTitle" error={fe?.jobTitle} hint={compact ? "Facultatif" : undefined}>
+        {(p) => <Input {...p} placeholder="Ex. Chargé d'affaires" maxLength={100} />}
       </Field>
       <Field label="Rôle" name="role">
         {(p) => (
@@ -71,8 +74,13 @@ export function InviteMemberForm() {
           </Select>
         )}
       </Field>
-      <SubmitButton>Ajouter</SubmitButton>
-      {state && <Notice tone={state.ok ? "success" : "error"} className="sm:col-span-3">{state.ok ? state.message : state.error}</Notice>}
+      <div className={compact ? "flex items-end" : ""}>
+        <SubmitButton>Inviter</SubmitButton>
+      </div>
+      {state?.ok && <Notice tone="success" className={compact ? "sm:col-span-2" : "sm:col-span-2 lg:col-span-4"}>{state.message}</Notice>}
+      <div className={compact ? "sm:col-span-2" : "sm:col-span-2 lg:col-span-4"}>
+        <ActionError state={state} />
+      </div>
     </form>
   );
 }

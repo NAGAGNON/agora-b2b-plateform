@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { TeamCard } from "@/components/dashboard/team-card";
 import { ArrowRight, BellRing, Briefcase, Megaphone, FileStack, Handshake, Heart, Inbox, Send, Sparkles, Users } from "lucide-react";
 import { requireSession } from "@/lib/auth";
 import { MemberProofCompact } from "@/components/home/member-proof";
@@ -153,6 +154,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
       <VisibilityPrompt companyId={cid} />
       <SinceLastVisit userId={session.userId} companyId={cid} supplier={supplier} since={previousVisit(session.profile, nowMs())} now={nowMs()} includeDemo={await showDemoData()} />
       <NextActions companyId={cid} userId={session.userId} buyer={buyer} supplier={supplier} now={nowMs()} />
+      <TeamCard companyId={cid} isAdmin={session.activeCompany?.role === "COMPANY_ADMIN"} />
       {supplier && <PreciseAlertPrompt userId={session.userId} />}
       <GettingStarted
         steps={[
