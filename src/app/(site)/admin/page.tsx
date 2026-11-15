@@ -11,6 +11,7 @@ import { DailyReportCard, type DailyReportRow } from "@/components/admin/daily-r
 import { GoogleArticlesCard } from "@/components/admin/google-articles";
 import type { SeoSnapshot } from "@/lib/seo-snapshot";
 import { SocialPostCard } from "@/components/admin/social-post";
+import { AtAGlance } from "@/components/admin/at-a-glance";
 import { loadSocialPostFacts, renderSocialPost } from "@/lib/social-post";
 
 export const metadata = { title: "Vue d'ensemble" };
@@ -18,6 +19,7 @@ export const metadata = { title: "Vue d'ensemble" };
 export const maxDuration = 120;
 
 type Stats = Record<string, number>;
+const nowMs = () => Date.now();
 
 const euros = (cents: number) => new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(cents / 100);
 
@@ -61,6 +63,7 @@ export default async function AdminHome(props: PageProps<"/admin">) {
         <h1 className="text-2xl font-bold">Vue d&apos;ensemble</h1>
         <p className="mt-1 text-slate-600">Indicateurs calculés en temps réel sur la base de données — aucune valeur estimée.</p>
       </div>
+      {session.isAdmin && <AtAGlance periodKey={typeof sp.bref === "string" ? sp.bref : undefined} now={nowMs()} />}
       {realDemo > 0 && (
         <Notice tone="warning">
           {realDemo} enregistrement(s) de démonstration sont présents et inclus dans ces chiffres. Supprimez-les avant le lancement réel (

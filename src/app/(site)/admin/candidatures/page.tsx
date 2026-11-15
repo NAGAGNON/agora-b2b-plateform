@@ -91,16 +91,19 @@ export default async function AdminApplicationsPage(props: PageProps<"/admin/can
 
   // Noms des entreprises et des offres pour les tableaux
   const companyIds = [...new Set([...(journal ?? []), ...(questions ?? [])].map((j) => j.company_id))];
-  const oppIds = [...new Set([...(journal ?? []), ...(questions ?? []), ...rows.slice(0, 300)].map((j) => j.opportunity_id))];
-  const userIds = [...new Set((journal ?? []).map((j) => j.user_id).filter((x): x is string => Boolean(x)))];
+  const viewOpp = (v: { properties: unknown }) => (v.properties as { opportunity_id?: string } | null)?.opportunity_id ?? "";
+  const oppIds = [...new Set([...(journal ?? []).map((j) => j.opportunity_id), ...(questions ?? []).map((q) => q.opportunity_id), ...rows.slice(0, 300).map((r) => r.opportunity_id), ...(views ?? []).slice(0, 300).map(viewOpp)].filter(Boolean))];
+  const userIds = [
+    ...new Set([...(journal ?? []).map((j) => j.user_id), ...(questions ?? []).map((q) => q.user_id), ...(views ?? []).map((v) => v.user_id), ...rows.map((r) => r.updated_by)].filter((x): x is string => Boolean(x))),
+  ].slice(0, 300);
   const [{ data: cos }, { data: opps }, { data: users }] = await Promise.all([
     companyIds.length ? db.from("companies").select("id, name, is_demo").in("id", companyIds) : Promise.resolve({ data: [] as { id: string; name: string; is_demo: boolean }[] }),
     oppIds.length ? db.from("opportunities").select("id, title").in("id", oppIds) : Promise.resolve({ data: [] as { id: string; title: string }[] }),
-    userIds.length ? db.from("users").select("id, full_name").in("id", userIds) : Promise.resolve({ data: [] as { id: string; full_name: string }[] }),
+    userIds.length ? db.from("users").select("id, full_name, email").in("id", userIds) : Promise.resolve({ data: [] as { id: string; full_name: string; email: string }[] }),
   ]);
   const co = new Map((cos ?? []).map((c) => [c.id, c]));
   const opp = new Map((opps ?? []).map((o) => [o.id, o.title]));
-  const userName = new Map((users ?? []).map((u) => [u.id, u.full_name]));
+  const userName = new Map((users ?? []).map((u) => [u.id, u.full_name || u.email]));
   const real = <T extends { company_id: string }>(list: T[]) => list.filter((x) => co.get(x.company_id) && !co.get(x.company_id)!.is_demo && !internal.has(x.company_id));
   const activity = real(journal ?? []);
   const asked = real(questions ?? []);
@@ -120,6 +123,7 @@ export default async function AdminApplicationsPage(props: PageProps<"/admin/can
       key,
       label,
       long,
+      since,
       values: [
         new Set(realViews.filter((v) => v.created_at >= since).map((v) => `${v.user_id}:${(v.properties as { opportunity_id?: string } | null)?.opportunity_id ?? ""}`)).size,
         created.filter((r) => r.stage === "INTERESTED").length,
@@ -133,6 +137,50 @@ export default async function AdminApplicationsPage(props: PageProps<"/admin/can
     };
   });
   const period = periodStats.find((p) => p.key === (typeof sp.periode === "string" ? sp.periode : "7j")) ?? periodStats[2];
+  // Qui a fait quoi sur la période : une ligne par action, regroupées par personne
+  type Act = { at: string; what: string; offer: string | null; tone: "view" | "keep" | "open" | "work" | "sent" | "ask" };
+  const KIND_TEXT: Record<string, { what: string; tone: Act["tone"] }> = {
+    START: { what: "a commencé sa candidature", tone: "open" },
+    STEP: { what: "a franchi une étape", tone: "work" },
+    SENT: { what: "a déposé sa réponse", tone: "sent" },
+    WON: { what: "a gagné le marché", tone: "sent" },
+    LOST: { what: "n'a pas été retenu", tone: "sent" },
+    NOTE: { what: "a ajouté une note au journal", tone: "work" },
+  };
+  const acts = new Map<string, Act[]>();
+  const push = (uid: string | null | undefined, a: Act) => {
+    if (!uid || internalIds.includes(uid)) return;
+    acts.set(uid, [...(acts.get(uid) ?? []), a]);
+  };
+  for (const v of realViews.filter((v) => v.created_at >= period.since)) push(v.user_id, { at: v.created_at, what: "a consulté", offer: opp.get(viewOpp(v)) ?? null, tone: "view" });
+  for (const r of rows.filter((r) => r.created_at >= period.since && r.stage === "INTERESTED")) push(r.updated_by, { at: r.created_at, what: "a gardé pour plus tard", offer: opp.get(r.opportunity_id) ?? null, tone: "keep" });
+  for (const j of activity.filter((j) => j.created_at >= period.since)) {
+    const k = KIND_TEXT[j.kind] ?? { what: j.kind, tone: "work" as const };
+    const what = j.kind === "STEP" ? j.body.replace(/^Étape faite : /, "a fait l'étape « ").replace(/\.$/, "") + (j.kind === "STEP" ? " »" : "") : j.kind === "NOTE" && j.body.startsWith("Offre gardée") ? "a gardé pour plus tard" : k.what;
+    push(j.user_id, { at: j.created_at, what, offer: opp.get(j.opportunity_id) ?? null, tone: j.kind === "NOTE" && j.body.startsWith("Offre gardée") ? "keep" : k.tone });
+  }
+  for (const q of asked.filter((q) => q.created_at >= period.since)) push(q.user_id, { at: q.created_at, what: `a demandé à l'assistant : « ${q.question.length > 90 ? `${q.question.slice(0, 87)}…` : q.question} »`, offer: opp.get(q.opportunity_id) ?? null, tone: "ask" });
+  const who = [...acts.entries()]
+    .map(([uid, list]) => {
+      // Actions identiques à la suite (ex. 5 consultations de la même offre) regroupées : « ×5 »
+      const sorted = list.sort((a, b) => b.at.localeCompare(a.at));
+      const merged: (Act & { times: number })[] = [];
+      for (const a of sorted) {
+        const last = merged[merged.length - 1];
+        if (last && last.what === a.what && last.offer === a.offer) last.times++;
+        else merged.push({ ...a, times: 1 });
+      }
+      return { uid, name: userName.get(uid) ?? "Membre", total: sorted.length, list: merged };
+    })
+    .sort((a, b) => b.list[0].at.localeCompare(a.list[0].at));
+  const TONE: Record<Act["tone"], string> = {
+    view: "bg-sky-100 text-sky-800",
+    keep: "bg-teal-50 text-teal-800",
+    open: "bg-teal-100 text-teal-900",
+    work: "bg-emerald-50 text-emerald-800",
+    sent: "bg-violet-100 text-violet-800",
+    ask: "bg-slate-100 text-slate-700",
+  };
   const TILES = [
     { index: 0, label: "offre(s) consultée(s)", one: "offre consultée", many: "offres consultées", icon: Eye, color: "text-sky-300" },
     { index: 1, label: "gardée(s)", one: "gardée pour plus tard", many: "gardées pour plus tard", icon: Bookmark, color: "text-teal-200" },
@@ -257,6 +305,49 @@ export default async function AdminApplicationsPage(props: PageProps<"/admin/can
           <MessageCircleQuestion className="mr-1 inline size-4 align-[-3px]" aria-hidden />
           {pl(period.values[6], "question posée", "questions posées")} à l&apos;assistant · {pl(period.values[7], "entreprise active", "entreprises actives")} · vos comptes de test ne sont jamais comptés.
         </p>
+      </section>
+
+      <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6" data-testid="who">
+        <h2 className="font-heading text-xl font-bold text-navy">Qui a fait quoi · {period.label}</h2>
+        <p className="mt-1 text-sm text-slate-600">Chaque inscrit, avec ses actions dans l&apos;ordre (la plus récente en haut).</p>
+        {who.length === 0 ? (
+          <p className="mt-4 rounded-2xl bg-slate-50 p-4 text-slate-600">Personne n&apos;a encore utilisé les candidatures sur cette période.</p>
+        ) : (
+          <ul className="mt-4 grid gap-3 lg:grid-cols-2">
+            {who.slice(0, 30).map((u) => (
+              <li key={u.uid}>
+                <details className="group rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200 open:bg-white open:shadow-sm" open={who.length <= 4}>
+                  <summary className="flex cursor-pointer list-none items-center gap-3">
+                    <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-teal to-electric text-sm font-bold text-navy" aria-hidden>
+                      {u.name.split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((w) => w[0]!.toUpperCase()).join("")}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-semibold text-navy">{u.name}</span>
+                      <span className="block text-xs text-slate-500">
+                        {u.total} action{u.total > 1 ? "s" : ""} · dernière le {formatDateTime(u.list[0].at)}
+                      </span>
+                    </span>
+                    <span className="text-xs font-semibold text-teal-700 group-open:hidden">Voir</span>
+                  </summary>
+                  <ol className="mt-3 space-y-2 border-l-2 border-slate-200 pl-4">
+                    {u.list.slice(0, 15).map((a, k) => (
+                      <li key={k} className="text-sm">
+                        <span className="text-xs text-slate-400">{formatDateTime(a.at)}</span>
+                        <p className="text-slate-700">
+                          <span className={cn("mr-1.5 rounded-full px-2 py-0.5 text-xs font-semibold", TONE[a.tone])}>
+                            {a.what}
+                            {a.times > 1 ? ` ×${a.times}` : ""}
+                          </span>
+                          {a.offer && <span className="font-medium text-navy">{a.offer}</span>}
+                        </p>
+                      </li>
+                    ))}
+                  </ol>
+                </details>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
