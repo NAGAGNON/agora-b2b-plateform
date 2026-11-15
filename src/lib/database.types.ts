@@ -343,6 +343,17 @@ isOneToOne: false
                   Relationships: [
                     
                   ]
+                },"weekly_reviews": {
+                  Row: {
+                    "emailed_at": string | null,"error": string | null,"facts": NonNullable<Json>,"generated_at": string,"model": string | null,"summary": Json | null,"week_start": string
+                  }
+                  Insert: {
+                    "emailed_at"?: string | null,"error"?: string | null,"facts": NonNullable<Json>,"generated_at"?: string,"model"?: string | null,"summary"?: Json | null,"week_start": string
+                  }
+                  Update: {
+                    "emailed_at"?: string | null,"error"?: string | null,"facts"?: NonNullable<Json>,"generated_at"?: string,"model"?: string | null,"summary"?: Json | null,"week_start"?: string
+                  }
+                  Relationships: []
                 },"daily_reports": {
                   Row: {
                     "day": string,"emailed_at": string | null,"error": string | null,"facts": NonNullable<Json>,"generated_at": string,"model": string | null,"note": string | null,"summary": Json | null

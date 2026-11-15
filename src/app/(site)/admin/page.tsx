@@ -12,6 +12,7 @@ import { GoogleArticlesCard } from "@/components/admin/google-articles";
 import type { SeoSnapshot } from "@/lib/seo-snapshot";
 import { SocialPostCard } from "@/components/admin/social-post";
 import { AtAGlance } from "@/components/admin/at-a-glance";
+import { WeeklyReviewCard } from "@/components/admin/weekly-review";
 import { loadSocialPostFacts, renderSocialPost } from "@/lib/social-post";
 
 export const metadata = { title: "Vue d'ensemble" };
@@ -64,6 +65,7 @@ export default async function AdminHome(props: PageProps<"/admin">) {
         <p className="mt-1 text-slate-600">Indicateurs calculés en temps réel sur la base de données — aucune valeur estimée.</p>
       </div>
       {session.isAdmin && <AtAGlance periodKey={typeof sp.bref === "string" ? sp.bref : undefined} now={nowMs()} />}
+      {session.isAdmin && <WeeklyReviewCard />}
       {realDemo > 0 && (
         <Notice tone="warning">
           {realDemo} enregistrement(s) de démonstration sont présents et inclus dans ces chiffres. Supprimez-les avant le lancement réel (

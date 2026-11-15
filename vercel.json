@@ -50,6 +50,14 @@
       "schedule": "0 20 * * *"
     },
     {
+      "path": "/api/cron/bilan?semaine=1",
+      "schedule": "0 6 * * 1"
+    },
+    {
+      "path": "/api/cron/bilan?semaine=1",
+      "schedule": "0 7 * * 1"
+    },
+    {
       "path": "/api/cron/envoi?passe=6",
       "schedule": "30 6 * * *"
     },

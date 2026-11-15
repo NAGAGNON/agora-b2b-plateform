@@ -6,6 +6,7 @@ import { env } from "@/lib/env";
 import { logServerError } from "@/lib/errors";
 import { generateDailyReport } from "@/lib/daily-report";
 import { sendDailyReportEmail } from "@/lib/daily-report-email";
+import { sendWeeklyReview } from "@/lib/weekly-review";
 
 // Rédaction du bilan complet (jusqu'à deux appels) puis envoi par e-mail
 export const maxDuration = 300;
@@ -32,6 +33,14 @@ function parisHour(now = new Date()): number {
 async function run(req: Request) {
   if (!authorized(req)) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
   try {
+    // Analyste du lundi (`semaine=1`) : le lundi à 8 h, heure de Paris (tâche planifiée à 6 h et 7 h UTC
+    // pour couvrir l'heure d'été et d'hiver) ; envoyé une seule fois par semaine
+    if (new URL(req.url).searchParams.get("semaine") === "1") {
+      const monday = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Paris", weekday: "short" }).format(new Date()) === "Mon";
+      if (!monday || parisHour() < 8) return NextResponse.json({ ok: true, skipped: "Hors lundi 8 h (heure de Paris)" });
+      const r = await sendWeeklyReview();
+      return NextResponse.json({ ok: !("errors" in r && r.errors?.length), ...r });
+    }
     if (new URL(req.url).searchParams.get("soir") === "1") {
       if (parisHour() < 21) return NextResponse.json({ ok: true, skipped: "Avant 21 h (heure de Paris) : envoi au passage suivant" });
       const email = await sendDailyReportEmail();
