@@ -40,3 +40,15 @@ describe("préparer sa réponse", () => {
     expect(certStatus("Habilitation électrique BR", ["Habilitation électrique B2V"])).toBe("check");
   });
 });
+
+const { buildMemoirDraft } = await import("@/lib/memoir-draft");
+describe("trame du mémoire technique", () => {
+  it("suit les critères de l'avis et n'invente rien", () => {
+    const brief = BriefSchema.parse({ summary: "Maintenance des grues.", deadline: null, site_visit: null, duration: null, pricing: null, lots: [], documents: ["DUME"], judging: "j", todo: [], warnings: [], certifications: ["ISO 9001"], capacity: [], submission: null, submission_url: null, criteria: [{ label: "Valeur technique", weight: 60 }, { label: "Prix", weight: 40 }], tips: ["La valeur technique compte pour 60 %."] });
+    const d = buildMemoirDraft({ title: "Maintenance", buyer: "Port" }, brief, { name: "ACME", city: "Brest", description: null, references: null, certifications: [], employees: null, founded: null });
+    expect(d).toContain("3. Valeur technique (60 % de la note)");
+    expect(d).not.toContain("4. Prix");
+    expect(d).toContain("[À compléter : activité");
+    expect(d).toContain("- DUME");
+  });
+});

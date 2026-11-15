@@ -161,3 +161,33 @@ export async function startApplicationGuide(opportunityId: string): Promise<Resu
   if (!z.uuid().safeParse(opportunityId).success) return { ok: false, error: "Offre introuvable." };
   return advance(opportunityId, "RESPONSE_PREPARING");
 }
+
+/** Coche ou décoche une pièce à fournir (liste tirée de l'avis officiel). */
+export async function toggleDocStep(opportunityId: string, index: number, done: boolean): Promise<Result<{ done: number[] }>> {
+  if (!z.uuid().safeParse(opportunityId).success || !Number.isInteger(index) || index < 0 || index > 39) return { ok: false, error: "Pièce inconnue." };
+  const session = await getSession();
+  if (!session?.activeCompany) return { ok: false, error: "Créez d'abord le profil de votre entreprise." };
+  const db = await createClient();
+  const { data: item } = await db.from("pipeline_items").select("id, docs_done").eq("company_id", session.activeCompany.company.id).eq("opportunity_id", opportunityId).maybeSingle();
+  if (!item) return { ok: false, error: "Candidature introuvable." };
+  const set = new Set((item.docs_done ?? []).map(Number));
+  if (done) set.add(index);
+  else set.delete(index);
+  const next = [...set].sort((a, b) => a - b);
+  const { error } = await db.from("pipeline_items").update({ docs_done: next, updated_by: session.userId }).eq("id", item.id);
+  return error ? { ok: false, error: "Enregistrement impossible. Réessayez." } : { ok: true, done: next };
+}
+
+/** Enregistre le brouillon du mémoire technique (privé à l'entreprise). */
+export async function saveDraft(opportunityId: string, draft: string): Promise<Result> {
+  if (!z.uuid().safeParse(opportunityId).success || typeof draft !== "string" || draft.length > 40000) return { ok: false, error: "Brouillon trop long." };
+  const session = await getSession();
+  if (!session?.activeCompany) return { ok: false, error: "Créez d'abord le profil de votre entreprise." };
+  const db = await createClient();
+  const { error } = await db
+    .from("pipeline_items")
+    .update({ draft, updated_by: session.userId })
+    .eq("company_id", session.activeCompany.company.id)
+    .eq("opportunity_id", opportunityId);
+  return error ? { ok: false, error: "Enregistrement impossible. Réessayez." } : { ok: true };
+}
