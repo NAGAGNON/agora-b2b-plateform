@@ -44,7 +44,7 @@ export default async function AdminApplicationsPage() {
   const [{ data: items }, { data: prompts }, { data: journal }, { data: questions }] = await Promise.all([
     db
       .from("pipeline_items")
-      .select("stage, created_at, updated_at, updated_by, work_started_at, company_id, opportunity_id, companies!inner(name, is_demo)")
+      .select("stage, created_at, updated_at, updated_by, work_started_at, submitted_at, company_id, opportunity_id, companies!inner(name, is_demo)")
       .in("stage", Object.keys(STAGE_LABEL) as never)
       .eq("companies.is_demo", false)
       .order("updated_at", { ascending: false })
@@ -67,7 +67,7 @@ export default async function AdminApplicationsPage() {
   const companies = new Set(rows.map((r) => r.company_id)).size;
   const new7 = rows.filter((r) => r.created_at >= since7).length;
   // Consultées : fiches de candidature ouvertes (« En savoir plus »), sans rien enregistrer — 30 derniers jours
-  const { data: views } = await db.from("analytics_events").select("user_id, properties").eq("event_name", "view_application").gte("created_at", since30).limit(5000);
+  const { data: views } = await db.from("analytics_events").select("user_id, properties, created_at").eq("event_name", "view_application").gte("created_at", since30).limit(5000);
   const viewed = new Set(
     (views ?? [])
       .filter((v) => v.user_id && !internalIds.includes(v.user_id))
@@ -76,6 +76,7 @@ export default async function AdminApplicationsPage() {
   const opened = rows.filter((r) => ["RESPONSE_PREPARING", "RESPONSE_SENT", "DISCUSSION", "NEGOTIATION", "WON", "LOST"].includes(r.stage));
   const working = rows.filter((r) => r.work_started_at);
   const idle = opened.filter((r) => !r.work_started_at);
+
   const realPrompts = (prompts ?? []).filter((p) => !internalIds.includes(p.user_id));
   const withdrawn = realPrompts.filter((p) => p.answer === "NOT_FOR_ME" && p.reason === "Retirée de mes candidatures").length;
   const answers = Object.entries(
@@ -100,6 +101,33 @@ export default async function AdminApplicationsPage() {
   const real = <T extends { company_id: string }>(list: T[]) => list.filter((x) => co.get(x.company_id) && !co.get(x.company_id)!.is_demo && !internal.has(x.company_id));
   const activity = real(journal ?? []);
   const asked = real(questions ?? []);
+  // Par période : 24 h, 48 h, 7 jours, 30 jours (mêmes définitions que le parcours ci-dessous)
+  const realViews = (views ?? []).filter((v) => v.user_id && !internalIds.includes(v.user_id));
+  const PERIODS = [
+    { label: "24 h", since: new Date(now - DAY).toISOString() },
+    { label: "48 h", since: new Date(now - 2 * DAY).toISOString() },
+    { label: "7 jours", since: since7 },
+    { label: "30 jours", since: since30 },
+  ];
+  const OPENED = ["RESPONSE_PREPARING", "RESPONSE_SENT", "DISCUSSION", "NEGOTIATION", "WON", "LOST"];
+  const SENT_STAGES = ["RESPONSE_SENT", "DISCUSSION", "NEGOTIATION", "WON", "LOST"];
+  const periodStats = PERIODS.map(({ label, since }) => {
+    const created = rows.filter((r) => r.created_at >= since);
+    return {
+      label,
+      values: [
+        new Set(realViews.filter((v) => v.created_at >= since).map((v) => `${v.user_id}:${(v.properties as { opportunity_id?: string } | null)?.opportunity_id ?? ""}`)).size,
+        created.filter((r) => r.stage === "INTERESTED").length,
+        created.filter((r) => OPENED.includes(r.stage)).length,
+        rows.filter((r) => r.work_started_at && r.work_started_at >= since).length,
+        rows.filter((r) => SENT_STAGES.includes(r.stage) && (r.submitted_at ?? r.updated_at) >= since.slice(0, 10)).length,
+        rows.filter((r) => r.stage === "WON" && r.updated_at >= since).length,
+        asked.filter((q) => q.created_at >= since).length,
+        new Set([...created.map((r) => r.company_id)]).size,
+      ],
+    };
+  });
+  const PERIOD_ROWS = ["Offres consultées", "Gardées pour plus tard", "Dossiers ouverts (« Oui, je prépare »)", "Travail réellement commencé", "Réponses déposées", "Marchés gagnés", "Questions à l'assistant", "Entreprises actives (nouvelles candidatures)"];
 
   // Suivi par inscrit : chaque membre des entreprises qui ont des candidatures ou ont posé une question
   const memberCompanies = [...new Set([...rows.map((r) => r.company_id), ...asked.map((q) => q.company_id)])];
@@ -169,6 +197,34 @@ export default async function AdminApplicationsPage() {
           Entreprises de démonstration exclues.
         </p>
       </div>
+
+      <section className="overflow-x-auto rounded-2xl border border-slate-200 bg-white" data-testid="periods">
+        <table className="w-full min-w-[36rem] text-sm">
+          <caption className="px-3 pt-3 text-left font-semibold text-navy">Par période</caption>
+          <thead className="bg-canvas text-left text-slate-600">
+            <tr>
+              <th scope="col" className="px-3 py-2">Indicateur</th>
+              {periodStats.map((p) => (
+                <th key={p.label} scope="col" className="px-3 py-2 text-right whitespace-nowrap">
+                  {p.label}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {PERIOD_ROWS.map((label, i) => (
+              <tr key={label} className="border-t border-slate-100">
+                <th scope="row" className="px-3 py-2 text-left font-medium text-slate-700">{label}</th>
+                {periodStats.map((p) => (
+                  <td key={p.label} className="px-3 py-2 text-right font-semibold text-navy tabular-nums">
+                    {p.values[i] || "—"}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <DashboardCard label="Candidatures suivies" value={rows.length} hint={`${new7} nouvelle(s) sur 7 jours · ${companies} entreprise(s)`} />
