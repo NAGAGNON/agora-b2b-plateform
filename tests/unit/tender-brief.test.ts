@@ -87,3 +87,93 @@ describe("activité de la semaine", () => {
     expect(dayLabel(3)).toBe("Dans 3 jours");
   });
 });
+
+const { rewriteBriefs, BRIEF_STYLE, isCurrentBrief } = await import("@/lib/tender-brief");
+
+/** Base de données factice : fiches, sources, cases cochées par les membres, file de réécriture. */
+function fakeDb(state: { briefs: Record<string, Record<string, unknown>>; sources: Record<string, string[]>; pipeline: Record<string, { brief_done: number[]; docs_done: number[] }[]>; queue: string[] }) {
+  const writes = { upserts: [] as { opportunity_id: string; content: Record<string, unknown> }[], updates: [] as { id: string; content: Record<string, unknown> }[] };
+  const db = {
+    rpc: async () => ({ data: state.queue.map((id) => ({ opportunity_id: id })), error: null }),
+    from(table: string) {
+      const filters: Record<string, string> = {};
+      let payload: { content: Record<string, unknown> } | null = null;
+      const result = () => {
+        const id = filters.opportunity_id;
+        if (table === "tender_briefs") return { data: state.briefs[id] ? { content: state.briefs[id] } : null };
+        if (table === "opportunity_sources") return { data: (state.sources[id] ?? []).map((u) => ({ original_url: u })) };
+        if (table === "pipeline_items") return { data: state.pipeline[id] ?? [] };
+        return { data: null };
+      };
+      const q = {
+        select: () => q,
+        eq: (k: string, v: string): unknown => {
+          filters[k] = v;
+          if (payload) {
+            writes.updates.push({ id: v, content: payload.content });
+            state.briefs[v] = payload.content;
+            return Promise.resolve({ error: null });
+          }
+          return q;
+        },
+        maybeSingle: async () => result(),
+        then: (res: (v: unknown) => unknown, rej?: (e: unknown) => unknown) => Promise.resolve(result()).then(res, rej),
+        upsert: async (row: { opportunity_id: string; content: Record<string, unknown> }) => {
+          writes.upserts.push(row);
+          state.briefs[row.opportunity_id] = row.content;
+          return { error: null };
+        },
+        update: (p: { content: Record<string, unknown> }) => {
+          payload = p;
+          return q;
+        },
+      };
+      return q;
+    },
+  };
+  return { db: db as never, writes };
+}
+
+describe("réécriture des fiches en langage simple", () => {
+  const old = { summary: "Prestations récurrentes et remises en état sur bons de commande.", deadline: null, site_visit: null, duration: null, pricing: null, lots: [], documents: ["DUME", "Kbis"], judging: "Pondération : prix 40 %.", todo: ["Retirer le DCE", "Remettre l'offre"], warnings: [], certifications: [], capacity: [], submission: null, submission_url: null, criteria: [], tips: [] };
+  const simple = { ...old, summary: "L'acheteur cherche une entreprise pour l'entretien de ses bâtiments.", documents: ["DUME (formulaire de candidature en ligne)", "Kbis (extrait d'immatriculation)", "Attestation d'assurance"], judging: "Le prix compte pour 40 % de la note.", todo: ["Téléchargez le dossier", "Posez vos questions", "Déposez votre offre"] };
+  const client = { beta: { messages: { parse: vi.fn(async () => ({ stop_reason: "end_turn", parsed_output: structuredClone(simple) })) } } } as never;
+  const notice = async () => ({ ok: true, json: async () => ({ results: [{ objet: "Entretien", donnees: "{}" }] }) });
+
+  it("réécrit une fiche ancienne dans le style actuel", async () => {
+    vi.stubGlobal("fetch", vi.fn(notice));
+    const { db, writes } = fakeDb({ briefs: { a: old }, sources: { a: ["https://www.boamp.fr/pages/avis/?q=idweb:26-1"] }, pipeline: {}, queue: ["a"] });
+    const r = await rewriteBriefs(db, { client, deadline: Date.now() + 10_000 });
+    expect(r).toMatchObject({ rewritten: 1, failed: 0 });
+    expect(writes.upserts[0].content.style).toBe(BRIEF_STYLE);
+    expect(writes.upserts[0].content.summary).toBe(simple.summary);
+    expect(isCurrentBrief(BriefSchema.parse(writes.upserts[0].content))).toBe(true);
+    expect(isCurrentBrief(BriefSchema.parse(old))).toBe(false);
+  });
+
+  it("les cases déjà cochées par un membre gardent leur sens (listes conservées)", async () => {
+    vi.stubGlobal("fetch", vi.fn(notice));
+    const { db, writes } = fakeDb({ briefs: { b: old }, sources: { b: ["https://www.boamp.fr/pages/avis/?q=idweb:26-2"] }, pipeline: { b: [{ brief_done: [0, 1], docs_done: [] }] }, queue: ["b"] });
+    await rewriteBriefs(db, { client, deadline: Date.now() + 10_000 });
+    expect(writes.upserts[0].content.todo).toEqual(old.todo);
+    expect(writes.upserts[0].content.documents).toEqual(simple.documents);
+  });
+
+  it("avis introuvable : l'ancienne fiche reste, nouvel essai plus tard", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, json: async () => ({ results: [] }) })));
+    const { db, writes } = fakeDb({ briefs: { c: old }, sources: { c: ["https://www.boamp.fr/pages/avis/?q=idweb:26-3"] }, pipeline: {}, queue: ["c"] });
+    const r = await rewriteBriefs(db, { client, deadline: Date.now() + 10_000 });
+    expect(r).toMatchObject({ rewritten: 0, failed: 1 });
+    expect(writes.upserts).toHaveLength(0);
+    expect(writes.updates[0].content.summary).toBe(old.summary);
+    expect(typeof writes.updates[0].content.rewrite_failed_at).toBe("string");
+  });
+
+  it("temps écoulé : rien n'est lancé", async () => {
+    const { db, writes } = fakeDb({ briefs: { d: old }, sources: { d: ["https://www.boamp.fr/pages/avis/?q=idweb:26-4"] }, pipeline: {}, queue: ["d"] });
+    const r = await rewriteBriefs(db, { client, deadline: Date.now() - 1 });
+    expect(r).toMatchObject({ rewritten: 0, remaining: 1 });
+    expect(writes.upserts).toHaveLength(0);
+    vi.unstubAllGlobals();
+  });
+});

@@ -25,7 +25,6 @@ import {
   Send,
   ShieldCheck,
   Sparkles,
-  Tag,
   ThumbsDown,
   Trophy,
   Users,
@@ -38,6 +37,8 @@ import {
   XCircle,
   Bookmark,
   BellRing,
+  FolderOpen,
+  Scale,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import type { TenderBrief } from "@/lib/tender-brief";
@@ -46,7 +47,7 @@ import { APPLICATION_GUIDE, LOST_ADVICE, questionTemplate, rejectionTemplate } f
 import { applicationPlan } from "@/lib/application-plan";
 import { buildMemoirDraft, type DraftCompany } from "@/lib/memoir-draft";
 import { addJournalNote, answerApplicationResult, deleteJournalNote, keepForLater, markApplicationSent, saveDraft, startApplicationGuide, toggleDocStep, toggleGuideStep, withdrawApplication, type JournalEntry } from "@/app/actions/applications";
-import { loadTenderBrief } from "@/app/actions/tender-brief";
+import { loadTenderBrief, toggleBriefStep } from "@/app/actions/tender-brief";
 import { goBackToSearch } from "@/components/applications/return-point";
 import { ApplicationAssistant } from "@/components/applications/application-assistant";
 import { StepsProgress } from "@/components/applications/steps-progress";
@@ -56,6 +57,8 @@ export type WorkspaceData = {
   id: string;
   title: string;
   buyer: string | null;
+  /** Appel d'offres externe (BOAMP, TED…) plutôt que besoin publié sur LinkProB2B */
+  external: boolean;
   place: string | null;
   deadline: string | null;
   stage: string;
@@ -74,9 +77,12 @@ export type WorkspaceData = {
   reference: string | null;
   journal: JournalEntry[];
   questions: AssistantMessage[];
+  /** Lignes cochées du « à faire » de l'annonce (fiche synthèse) */
+  briefDone: number[];
+  /** Où découvrir l'offre Pro (fiche réservée) */
+  upgradeHref: string;
 };
 
-const SHORT = ["Conditions", "Dossier", "Questions et visite", "Pièces", "Rédaction", "Dépôt"];
 const nowMs = () => Date.now();
 const fmtDay = (iso: string) => new Date(iso).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
 
@@ -89,6 +95,10 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
   const [stage, setStage] = useState(data.stage);
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  // Une seule étape ouverte à la fois : la prochaine à faire (aucune une fois la réponse envoyée)
+  const [openStep, setOpenStep] = useState<number>(() =>
+    ["RESPONSE_SENT", "DISCUSSION", "NEGOTIATION", "WON", "LOST"].includes(data.stage) ? -1 : APPLICATION_GUIDE.findIndex((_, i) => !data.guideDone.includes(i)),
+  );
 
   useEffect(() => {
     if (briefState !== "loading") return;
@@ -169,15 +179,20 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
       else setError(r.error);
     });
   };
-  const progress = sent ? 100 : Math.round((done.length / APPLICATION_GUIDE.length) * 100);
   const days = data.deadline ? Math.ceil((new Date(data.deadline).getTime() - nowMs()) / 86_400_000) : null;
-  const nextStep = APPLICATION_GUIDE.findIndex((_, i) => !done.includes(i));
   const plan = useMemo(() => (sent ? [] : applicationPlan(data.deadline, done, new Date(nowMs()), data.startedAt)), [sent, data.deadline, done, data.startedAt]);
   const tpl = { title: data.title, buyer: data.buyer, reference: data.reference, company: data.company.name };
 
   const toggleStep = (i: number, value: boolean) => {
     const before = done;
-    setDone(value ? [...done, i].sort((a, b) => a - b) : done.filter((x) => x !== i));
+    const nextDone = value ? [...new Set([...done, i])].sort((a, b) => a - b) : done.filter((x) => x !== i);
+    setDone(nextDone);
+    // Étape faite : la suivante s'ouvre aussitôt ; étape rouverte : elle reste ouverte
+    if (value) {
+      const next = APPLICATION_GUIDE.findIndex((_, k) => !nextDone.includes(k));
+      setOpenStep(next);
+      if (next >= 0) setTimeout(() => document.getElementById(`etape-${next + 1}`)?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
+    }
     start(async () => {
       const r = await toggleGuideStep(data.id, i, value);
       if (r.ok) {
@@ -213,17 +228,101 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
       if (r.ok) setStage(next);
       else setError(r.error ?? "Réessayez.");
     });
-  const scrollTo = (i: number) => document.getElementById(`etape-${i + 1}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  const scrollTo = (i: number) => {
+    setOpenStep(i);
+    setTimeout(() => document.getElementById(`etape-${i + 1}`)?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
+  };
 
+  const visitHot = Boolean(brief?.site_visit && /obligatoire/i.test(brief.site_visit));
   const facts = [
-    data.deadline && { icon: CalendarClock, label: "Date limite", value: fmtDay(data.deadline), hot: days !== null && days <= 5 },
-    brief?.site_visit && { icon: MapPinned, label: "Visite", value: /obligatoire/i.test(brief.site_visit) ? "Obligatoire" : "Prévue", hot: /obligatoire/i.test(brief.site_visit) },
+    data.deadline && {
+      icon: CalendarClock,
+      label: "Date limite",
+      value: `${fmtDay(data.deadline)}${days === null ? "" : days < 0 ? " · dépassée" : days === 0 ? " · aujourd'hui" : ` · dans ${days} jour${days > 1 ? "s" : ""}`}`,
+      hot: days !== null && days <= 5,
+    },
+    brief?.site_visit && { icon: MapPinned, label: "Visite", value: visitHot ? "Obligatoire" : "Prévue", hot: visitHot },
     brief?.duration && { icon: Hourglass, label: "Durée", value: brief.duration, hot: false },
-    brief?.pricing && { icon: Tag, label: "Prix", value: brief.pricing, hot: false },
   ].filter(Boolean) as { icon: typeof CalendarClock; label: string; value: string; hot: boolean }[];
+  const statusLabel = sent ? "Réponse envoyée" : discovery ? (later ? "Gardée pour plus tard" : "À l'étude") : "En préparation";
+  // En bref : l'essentiel de l'annonce, le détail sur demande (avant la décision ; après les étapes une fois la préparation lancée)
+  const essentials =
+    brief || briefState === "loading" ? (
+            <section className="plan-in rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200 sm:p-8" data-testid="essentials">
+              <p className="flex items-center gap-2 text-xs font-bold tracking-wide text-teal-700 uppercase">
+                <BookOpen className="size-4" aria-hidden /> En bref
+              </p>
+              {brief ? (
+                <>
+                  <p className="mt-3 text-lg leading-relaxed text-navy">{brief.summary}</p>
+                  <div className="mt-5 grid gap-2">
+                    <EssentialRow icon={conditionsTone(brief, data.mine) === "missing" ? AlertTriangle : ShieldCheck} tone={conditionsTone(brief, data.mine)} title="Puis-je répondre ?" text={conditionsLine(brief, data.mine)}>
+                      <Conditions brief={brief} mine={data.mine} id={data.id} />
+                    </EssentialRow>
+                    <EssentialRow icon={FileText} title="Pièces à fournir" text={brief.documents.length ? `${brief.documents.length} pièce${brief.documents.length > 1 ? "s" : ""} à préparer` : "La liste est dans le règlement de la consultation (sur le site de l'acheteur)"}>
+                      {brief.documents.length > 0 ? <Bullets items={brief.documents} /> : null}
+                    </EssentialRow>
+                    <EssentialRow icon={Scale} title="Comment l'offre est notée" text={notationLine(brief)}>
+                      {(brief.criteria ?? []).length > 0 || (brief.tips ?? []).length > 0 ? <Notation brief={brief} /> : null}
+                    </EssentialRow>
+                    {(brief.submission || brief.submission_url) && (
+                      <EssentialRow icon={Send} title="Où déposer" text={brief.submission ?? "Sur le site de dépôt de l'acheteur"}>
+                        {brief.submission_url ? (
+                          <a href={brief.submission_url} target="_blank" rel="noopener noreferrer nofollow" className="inline-flex items-center gap-1.5 rounded-lg bg-white px-3 py-2 text-sm font-semibold text-teal-800 ring-1 ring-teal/40 transition hover:-translate-y-0.5">
+                            <ExternalLink className="size-4" aria-hidden /> Ouvrir le site de dépôt
+                          </a>
+                        ) : null}
+                      </EssentialRow>
+                    )}
+                  </div>
+                  {brief.warnings.length > 0 && (
+                    <div className="mt-4 rounded-2xl bg-rose-50 p-4 ring-1 ring-rose-200">
+                      <p className="flex items-center gap-2 text-sm font-bold text-rose-800">
+                        <AlertTriangle className="size-4" aria-hidden /> À ne pas manquer
+                      </p>
+                      <Bullets items={brief.warnings.slice(0, 3)} />
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="mt-3 space-y-2" aria-live="polite">
+                  <p className="text-sm font-semibold text-teal-700">Lecture de l&apos;annonce officielle… (quelques secondes)</p>
+                  {[90, 70, 80].map((w) => (
+                    <div key={w} className="h-4 animate-pulse rounded-full bg-slate-100" style={{ width: `${w}%` }} />
+                  ))}
+                </div>
+              )}
+              <div className="mt-5 flex flex-wrap gap-x-4 gap-y-2 border-t border-slate-100 pt-4 text-sm">
+                {data.deadline && (
+                  <a href={`/api/opportunites/${data.id}/agenda`} download className="inline-flex items-center gap-1.5 font-semibold text-slate-500 transition hover:text-teal-700">
+                    <CalendarPlus className="size-4" aria-hidden /> Date limite dans mon agenda
+                  </a>
+                )}
+                {brief && (
+                  <>
+                    <a href={`/api/opportunites/${data.id}/fiche?format=pdf`} target="_blank" rel="noopener" className="inline-flex items-center gap-1.5 font-semibold text-slate-500 transition hover:text-teal-700">
+                      <Download className="size-4" aria-hidden /> Fiche PDF
+                    </a>
+                    <a href={`/api/opportunites/${data.id}/fiche?format=doc`} className="inline-flex items-center gap-1.5 font-semibold text-slate-500 transition hover:text-teal-700">
+                      <Download className="size-4" aria-hidden /> Fiche Word
+                    </a>
+                  </>
+                )}
+                <Link href={`/publier?partenaire=${data.id}`} className="inline-flex items-center gap-1.5 font-semibold text-slate-500 transition hover:text-teal-700">
+                  <Users className="size-4" aria-hidden /> Trouver un partenaire
+                </Link>
+              </div>
+            </section>
+          ) : (
+            <section className="plan-in rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200 sm:p-6">
+              <BriefZone state={briefState} brief={brief} allowed={data.briefAllowed} upgradeHref={data.upgradeHref}>
+                {() => null}
+              </BriefZone>
+            </section>
+          );
 
   return (
-    <div className="space-y-8 pb-16">
+    <div className="space-y-6 pb-16 sm:space-y-8">
       {returnAsk && mounted && createPortal(
         // Fenêtre bloquante : pas de fermeture en cliquant à côté, il faut répondre
         <div className="fixed inset-0 z-[120] flex items-end justify-center bg-navy/50 p-3 backdrop-blur-sm sm:items-center sm:p-6" role="dialog" aria-modal="true" aria-labelledby="return-title" data-testid="return-ask">
@@ -275,7 +374,7 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
         </div>,
         document.body,
       )}
-      {/* En-tête */}
+      {/* En-tête : l'annonce officielle en premier, puis l'offre en une ligne */}
       <section className="relative isolate overflow-hidden rounded-[2rem] bg-gradient-to-br from-sky via-white to-teal-50 p-5 shadow-sm ring-1 ring-slate-200 sm:p-10">
         <div aria-hidden className="bg-tech-grid-light pointer-events-none absolute inset-0 -z-10 opacity-70" />
         <div aria-hidden className="pointer-events-none absolute -top-24 -right-16 -z-10 size-80 animate-aurora rounded-full bg-teal/25 blur-3xl" />
@@ -299,379 +398,269 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
             <span className="hidden shrink-0 rounded-lg bg-white/10 px-3 py-1.5 text-sm font-semibold ring-1 ring-white/20 transition group-hover:bg-white/20 sm:inline">Ouvrir ↗</span>
           </a>
         )}
-        <div className="flex flex-col gap-8 lg:flex-row lg:items-center">
-          <div className="min-w-0 flex-1">
-            <p className="inline-flex animate-rise items-center gap-2 rounded-full bg-white/80 px-3 py-1 text-xs font-bold tracking-wide text-teal-700 uppercase shadow-sm ring-1 ring-teal/20">
-              <Sparkles className="size-3.5" aria-hidden /> Ma candidature
-            </p>
-            <h1 className="mt-4 animate-rise font-heading text-xl leading-tight font-extrabold text-balance text-navy [animation-delay:80ms] sm:text-4xl">{data.title}</h1>
-            <p className="mt-2 animate-rise text-slate-600 [animation-delay:140ms]">
-              {data.buyer ?? "Besoin publié sur LinkProB2B"}
-              {data.place ? ` · ${data.place}` : ""}
-            </p>
-            {facts.length > 0 && (
-              <div className="mt-5 flex flex-wrap gap-2">
-                {facts.map(({ icon: Icon, label, value, hot }, i) => (
-                  <span
-                    key={label}
-                    className={cn("plan-in inline-flex max-w-full items-center gap-1.5 rounded-full px-3 py-1.5 text-xs shadow-sm ring-1 sm:gap-2 sm:px-3.5 sm:py-2 sm:text-sm", hot ? "bg-rose-50 text-rose-800 ring-rose-200" : "bg-white text-slate-700 ring-slate-200")}
-                    style={{ animationDelay: `${200 + i * 70}ms` }}
-                  >
-                    <Icon className="size-4 shrink-0" aria-hidden />
-                    <span className="text-slate-500">{label} :</span> <span className="font-semibold">{value}</span>
-                  </span>
-                ))}
-              </div>
-            )}
+        <p className="inline-flex animate-rise items-center gap-2 rounded-full bg-white/80 px-3 py-1 text-xs font-bold tracking-wide text-teal-700 uppercase shadow-sm ring-1 ring-teal/20">
+          <Sparkles className="size-3.5" aria-hidden /> Ma candidature · {statusLabel}
+        </p>
+        <h1 className="mt-4 animate-rise font-heading text-xl leading-tight font-extrabold text-balance text-navy [animation-delay:80ms] sm:text-4xl">{data.title}</h1>
+        <p className="mt-2 animate-rise text-slate-600 [animation-delay:140ms]">
+          {data.buyer ?? (data.external ? "Acheteur indiqué dans l'annonce officielle" : "Besoin publié sur LinkProB2B")}
+          {data.place ? ` · ${data.place}` : ""}
+        </p>
+        {facts.length > 0 && (
+          <div className="mt-5 flex flex-wrap gap-2">
+            {facts.map(({ icon: Icon, label, value, hot }, i) => (
+              <span
+                key={label}
+                className={cn("plan-in inline-flex max-w-full items-center gap-1.5 rounded-full px-3 py-1.5 text-xs shadow-sm ring-1 sm:gap-2 sm:px-3.5 sm:py-2 sm:text-sm", hot ? "bg-rose-50 text-rose-800 ring-rose-200" : "bg-white text-slate-700 ring-slate-200")}
+                style={{ animationDelay: `${200 + i * 70}ms` }}
+              >
+                <Icon className="size-4 shrink-0" aria-hidden />
+                <span className="text-slate-500">{label} :</span> <span className="font-semibold">{value}</span>
+              </span>
+            ))}
           </div>
-          {/* Sur téléphone, l'anneau n'apparaît qu'une fois la préparation commencée */}
-          <div className={cn("justify-center", discovery ? "hidden lg:flex" : "flex")}>
-            <ProgressRing value={progress} label={sent ? "Réponse envoyée" : discovery ? "À l'étude" : progress >= 100 ? "Candidature prête" : "En préparation"} />
-          </div>
-        </div>
-        <div className="mt-6 flex flex-col gap-2 sm:mt-8 sm:flex-row sm:flex-wrap sm:gap-3">
-          <button
-            type="button"
-            onClick={() => goBackToSearch()}
-            className="btn-shine inline-flex items-center justify-center gap-2 rounded-xl bg-navy px-5 py-3 font-semibold text-white shadow-lg shadow-navy/20 transition hover:-translate-y-0.5 active:scale-[0.98]"
-            data-testid="continue-search"
-          >
-            <Search className="size-4" aria-hidden /> Continuer mes recherches
+        )}
+        <div className="-mx-2 mt-5 flex flex-wrap items-center gap-x-1 text-sm sm:mt-8">
+          <button type="button" onClick={() => goBackToSearch()} className="inline-flex items-center gap-1.5 rounded-xl px-2 py-1.5 font-semibold text-navy transition hover:bg-white/80" data-testid="continue-search">
+            <ArrowLeft className="size-4" aria-hidden /> Continuer mes recherches
           </button>
-          <Link href="/dashboard/candidatures" className="inline-flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-slate-500 transition hover:bg-white/70 hover:text-navy">
-            <ArrowLeft className="size-4" aria-hidden /> Toutes mes candidatures
+          <Link href="/dashboard/candidatures" className="inline-flex items-center gap-1.5 rounded-xl px-2 py-1.5 font-semibold text-slate-500 transition hover:bg-white/80 hover:text-navy">
+            <FolderOpen className="size-4" aria-hidden /> Toutes mes candidatures
           </Link>
           {!discovery && !sent && (
-            <button type="button" disabled={pending} onClick={() => withdraw(true)} className="inline-flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-slate-400 transition hover:bg-white/70 hover:text-rose-700">
-              <XCircle className="size-4" aria-hidden /> Cette offre ne m&apos;intéresse plus
+            <button type="button" disabled={pending} onClick={() => withdraw(true)} className="inline-flex items-center gap-1.5 rounded-xl px-2 py-1.5 font-semibold text-slate-400 transition hover:bg-white/80 hover:text-rose-700">
+              <XCircle className="size-4" aria-hidden /> Ne m&apos;intéresse plus
             </button>
           )}
         </div>
       </section>
 
-      {/* À l'étude : la décision, sans engagement */}
-      {discovery && (
-        <section className="plan-in relative overflow-hidden rounded-3xl bg-gradient-to-br from-white via-white to-teal-50/60 p-6 shadow-lg ring-1 ring-teal/30 sm:p-8" data-testid="decision">
-          <div aria-hidden className="pointer-events-none absolute -top-24 -right-16 size-64 animate-aurora rounded-full bg-teal/15 blur-3xl" />
-          <div aria-hidden className="pointer-events-none absolute -bottom-24 -left-10 size-56 animate-aurora rounded-full bg-violet/10 blur-3xl [animation-delay:-4s]" />
-          <div className="relative text-center">
-            <p className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-xs font-bold tracking-wide text-teal-700 uppercase shadow-sm ring-1 ring-teal/20">
-              {later ? (
-                <>
-                  <Bookmark className="size-3.5" aria-hidden /> Gardée pour plus tard
-                </>
-              ) : (
-                <>
-                  <Sparkles className="size-3.5" aria-hidden /> À l&apos;étude
-                </>
-              )}
-            </p>
-            <h2 className="mt-3 font-heading text-2xl font-extrabold text-balance text-navy sm:text-3xl">Alors, cette offre vous intéresse ?</h2>
-            <p className="mx-auto mt-2 max-w-2xl text-balance text-slate-600">
-              {later
-                ? "Elle est enregistrée dans vos candidatures. Continuez à lire les infos ci-dessous ; quand vous êtes prêt, on vous accompagne étape par étape."
-                : "Parcourez les conditions, les pièces et la notation ci-dessous, puis choisissez. Vous pouvez changer d'avis à tout moment."}
-            </p>
-          </div>
-          <div className="relative mt-5 grid gap-2.5 sm:mt-6 sm:grid-cols-3 sm:gap-3">
-            <button
-              type="button"
-              disabled={pending}
-              onClick={prepare}
-              className="btn-shine group flex items-center gap-3 rounded-2xl text-left sm:flex-col sm:gap-2 sm:text-center bg-gradient-to-br from-teal to-electric p-4 sm:p-5 text-navy shadow-lg shadow-teal/25 transition hover:-translate-y-1 hover:shadow-xl active:scale-[0.98] disabled:opacity-50"
-            >
-              <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-white/30 ring-1 ring-white/50 transition group-hover:scale-110">
-                <ThumbsUp className="size-5" aria-hidden />
-              </span>
-              <span className="flex min-w-0 flex-col gap-0.5 sm:items-center">
-              <span className="font-heading text-base font-bold">Oui, je prépare ma candidature</span>
-              <span className="text-xs text-navy/75">On vous guide jusqu&apos;au dépôt</span></span>
-            </button>
-            <button
-              type="button"
-              onClick={keep}
-              role="checkbox"
-              aria-checked={later}
-              data-testid="keep-later"
-              className={cn(
-                "group flex items-center gap-3 rounded-2xl text-left sm:flex-col sm:gap-2 sm:text-center p-4 sm:p-5 transition hover:-translate-y-1 hover:shadow-lg active:scale-[0.98]",
-                later ? "bg-teal-50 text-teal-900 shadow-md ring-2 ring-teal" : "bg-white text-navy shadow-sm ring-1 ring-slate-200 hover:ring-teal",
-              )}
-            >
-              <span className={cn("flex size-11 shrink-0 items-center justify-center rounded-full transition group-hover:scale-110", later ? "bg-teal text-white" : "bg-sky text-teal-700 ring-1 ring-teal/30")}>
-                {later ? <Check className="size-5" aria-hidden /> : <Bookmark className="size-5" aria-hidden />}
-              </span>
-              <span className="flex min-w-0 flex-col gap-0.5 sm:items-center">
-              <span className="font-heading text-base font-bold">{later ? "Gardée pour plus tard" : "Oui, je la garde pour plus tard"}</span>
-              <span className="text-xs text-slate-500">{later ? "Cliquez pour décocher" : "Enregistrée dans Mes candidatures"}</span></span>
-            </button>
-            <button
-              type="button"
-              disabled={pending}
-              onClick={() => withdraw(later)}
-              className="group flex items-center gap-3 rounded-2xl text-left sm:flex-col sm:gap-2 sm:text-center bg-white p-4 sm:p-5 text-navy shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-1 hover:shadow-lg hover:ring-rose-300 active:scale-[0.98] disabled:opacity-50"
-            >
-              <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500 transition group-hover:scale-110 group-hover:bg-rose-50 group-hover:text-rose-600">
-                <XCircle className="size-5" aria-hidden />
-              </span>
-              <span className="flex min-w-0 flex-col gap-0.5 sm:items-center">
-              <span className="font-heading text-base font-bold">{later ? "Ne m'intéresse plus" : "Non, pas pour moi"}</span>
-              <span className="text-xs text-slate-500">Retour à vos recherches, au même endroit</span></span>
-            </button>
-          </div>
-        </section>
-      )}
-
-      {/* Où en est la candidature : visible dès le haut de la page */}
-      {!discovery && (
-        <div className="plan-in">
-          <StepsProgress done={done} sent={sent} />
-        </div>
-      )}
-
-      {/* L'essentiel */}
-      {(brief || briefState === "loading") && (
-        <section className="plan-in grid gap-4 rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200 sm:p-8 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
-          <div>
-            <p className="flex items-center gap-2 text-xs font-bold tracking-wide text-teal-700 uppercase">
-              <BookOpen className="size-4" aria-hidden /> L&apos;essentiel en 30 secondes
-            </p>
-            {brief ? (
-              <p className="mt-3 text-lg leading-relaxed text-navy">{brief.summary}</p>
-            ) : (
-              <div className="mt-3 space-y-2">
-                {[90, 70].map((w) => (
-                  <div key={w} className="h-4 animate-pulse rounded-full bg-slate-100" style={{ width: `${w}%` }} />
-                ))}
-              </div>
-            )}
-            {data.deadline && (
-              <a href={`/api/opportunites/${data.id}/agenda`} download className="mt-4 inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-teal-800 ring-1 ring-teal/40 transition hover:-translate-y-0.5 hover:bg-teal-50">
-                <CalendarPlus className="size-4" aria-hidden /> Ajouter la date limite à mon agenda
-              </a>
-            )}
-          </div>
-          {brief && (
-            <div className="grid grid-cols-2 gap-3">
-              {[
-                { n: (brief.certifications ?? []).length + (brief.capacity ?? []).length, l: "conditions vérifiées" },
-                { n: brief.documents.length, l: "pièces listées" },
-                { n: (brief.criteria ?? []).length, l: "critères de notation" },
-                { n: (brief.tips ?? []).length + brief.warnings.length, l: "conseils et pièges" },
-              ].map((x, i) => (
-                <div key={x.l} className="plan-in rounded-2xl bg-gradient-to-br from-sky to-white p-4 ring-1 ring-slate-200" style={{ animationDelay: `${i * 80}ms` }}>
-                  <p className="font-heading text-3xl font-extrabold text-navy tabular-nums">{x.n}</p>
-                  <p className="text-sm text-slate-600">{x.l}</p>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-      )}
-
-      {/* Frise des étapes */}
-      <nav aria-label="Étapes de la candidature" className="sticky top-20 z-20 rounded-2xl bg-white/95 p-3 shadow-md ring-1 ring-slate-200">
-        <div className="relative">
-          <div aria-hidden className="absolute top-5 right-8 left-8 hidden h-1 rounded-full bg-slate-100 sm:block">
-            <div className="h-full rounded-full bg-gradient-to-r from-teal to-violet transition-all duration-700" style={{ width: `${(Math.max(0, done.length - 1) / (APPLICATION_GUIDE.length - 1)) * 100}%` }} />
-          </div>
-          <ol className="relative flex gap-2 overflow-x-auto sm:justify-between">
-            {SHORT.map((label, i) => {
-              const ok = done.includes(i) || sent;
-              const current = !sent && i === nextStep;
-              return (
-                <li key={label} className="shrink-0">
-                  <button type="button" onClick={() => scrollTo(i)} className="group flex flex-col items-center gap-1.5 rounded-xl px-2 py-1 transition hover:bg-slate-50">
-                    <span
-                      className={cn(
-                        "flex size-10 items-center justify-center rounded-full text-sm font-bold ring-4 ring-white transition-all duration-300",
-                        ok ? "bg-gradient-to-br from-teal to-violet text-white" : current ? "scale-110 bg-navy text-white" : "bg-slate-100 text-slate-500 group-hover:bg-slate-200",
-                      )}
-                    >
-                      {ok ? <Check className="size-5" aria-hidden /> : i + 1}
-                    </span>
-                    <span className={cn("text-xs font-semibold whitespace-nowrap", ok ? "text-teal-700" : current ? "text-navy" : "text-slate-500")}>{label}</span>
-                  </button>
-                </li>
-              );
-            })}
-          </ol>
-        </div>
-      </nav>
-
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_20rem]">
+      <div className="grid gap-6 sm:gap-8 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <div className="min-w-0 space-y-6">
-          {/* 1. Conditions */}
-          <Step n={1} title="Puis-je répondre ?" subtitle="Les conditions exigées par l'acheteur, comparées à votre fiche entreprise." done={done.includes(0)} onToggle={(v) => toggleStep(0, v)} pending={pending}>
-            <BriefZone state={briefState} brief={brief} allowed={data.briefAllowed}>
-              {(b) => <Conditions brief={b} mine={data.mine} id={data.id} />}
-            </BriefZone>
-          </Step>
+          {discovery && essentials}
 
-          {/* 2. Dossier */}
-          <Step n={2} title="Télécharger le dossier" subtitle="Règlement de la consultation, cahier des charges et documents de prix." done={done.includes(1)} onToggle={(v) => toggleStep(1, v)} pending={pending}>
-            <BriefZone state={briefState} brief={brief} allowed={data.briefAllowed}>
-              {(b) => (
-                <div className="space-y-4">
-                  <InfoCard icon={FolderDown} title="Où trouver le dossier" tone="teal">
-                    <p>{b.submission ?? "Sur la plateforme de l'acheteur, indiquée dans l'annonce officielle (lien en haut de cette page)."}</p>
-                    {b.submission_url && (
-                      <a
-                        href={b.submission_url}
-                        target="_blank"
-                        rel="noopener noreferrer nofollow"
-                        className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-white px-3 py-2 text-sm font-semibold text-teal-800 ring-1 ring-teal/40 transition hover:-translate-y-0.5"
-                      >
-                        <ExternalLink className="size-4" aria-hidden /> Espace de dépôt de l&apos;acheteur
-                      </a>
-                    )}
-                  </InfoCard>
-                  {b.lots.length > 0 && (
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      {b.lots.map((l) => (
-                        <p key={l} className="rounded-xl bg-slate-50 px-3 py-2.5 text-sm text-slate-700 ring-1 ring-slate-200">
-                          {l}
-                        </p>
-                      ))}
-                    </div>
+          {/* À l'étude : la décision, sans engagement */}
+          {discovery && (
+            <section className="plan-in relative overflow-hidden rounded-3xl bg-gradient-to-br from-white via-white to-teal-50/60 p-6 shadow-lg ring-1 ring-teal/30 sm:p-8" data-testid="decision">
+              <div aria-hidden className="pointer-events-none absolute -top-24 -right-16 size-64 animate-aurora rounded-full bg-teal/15 blur-3xl" />
+              <div aria-hidden className="pointer-events-none absolute -bottom-24 -left-10 size-56 animate-aurora rounded-full bg-violet/10 blur-3xl [animation-delay:-4s]" />
+              <div className="relative text-center">
+                <p className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-xs font-bold tracking-wide text-teal-700 uppercase shadow-sm ring-1 ring-teal/20">
+                  {later ? (
+                    <>
+                      <Bookmark className="size-3.5" aria-hidden /> Gardée pour plus tard
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="size-3.5" aria-hidden /> À l&apos;étude
+                    </>
                   )}
-                </div>
-              )}
-            </BriefZone>
-            <HowTo items={APPLICATION_GUIDE[1].how} />
-          </Step>
-
-          {/* 3. Questions et visite */}
-          <Step n={3} title="Questions et visite" subtitle="Lever vos doutes avant de chiffrer, et ne pas manquer une visite obligatoire." done={done.includes(2)} onToggle={(v) => toggleStep(2, v)} pending={pending}>
-            {brief?.site_visit ? (
-              <InfoCard icon={MapPinned} title={/obligatoire/i.test(brief.site_visit) ? "Visite obligatoire" : "Visite"} tone={/obligatoire/i.test(brief.site_visit) ? "rose" : "teal"}>
-                <p>{brief.site_visit}</p>
-              </InfoCard>
-            ) : briefState === "ready" ? (
-              <p className="text-sm text-slate-600">L&apos;avis ne mentionne pas de visite. Vérifiez dans le règlement de la consultation.</p>
-            ) : null}
-            <TemplateCard icon={MessageSquareText} title="Modèle de question à l'acheteur" text={questionTemplate(tpl)} />
-            <HowTo items={APPLICATION_GUIDE[2].how} />
-          </Step>
-
-          {/* 4. Pièces */}
-          <Step n={4} title="Rassembler les pièces" subtitle="Cochez chaque pièce dès qu'elle est prête." done={done.includes(3)} onToggle={(v) => toggleStep(3, v)} pending={pending}>
-            <BriefZone state={briefState} brief={brief} allowed={data.briefAllowed}>
-              {(b) =>
-                b.documents.length ? (
-                  <div>
-                    <div className="mb-3 flex items-center gap-3">
-                      <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100">
-                        <div className="h-full rounded-full bg-gradient-to-r from-teal to-violet transition-all duration-500" style={{ width: `${(docs.length / b.documents.length) * 100}%` }} />
-                      </div>
-                      <span className="text-sm font-semibold text-navy">
-                        {docs.length}/{b.documents.length} prêtes
-                      </span>
-                    </div>
-                    <ul className="grid gap-2 sm:grid-cols-2">
-                      {b.documents.map((d, i) => {
-                        const ok = docs.includes(i);
-                        return (
-                          <li key={d}>
-                            <label className={cn("flex cursor-pointer items-center gap-3 rounded-xl p-3 ring-1 transition hover:-translate-y-0.5", ok ? "bg-teal-50 ring-teal/30" : "bg-white ring-slate-200 hover:ring-teal")}>
-                              <input type="checkbox" className="peer sr-only" checked={ok} disabled={pending} onChange={(e) => toggleDoc(i, e.target.checked)} />
-                              <span className={cn("flex size-6 shrink-0 items-center justify-center rounded-md ring-2 transition peer-focus-visible:ring-teal", ok ? "bg-gradient-to-br from-teal to-violet text-white ring-transparent" : "text-transparent ring-slate-300")}>
-                                <Check className="size-4" aria-hidden />
-                              </span>
-                              <span className={cn("text-sm", ok ? "text-slate-500 line-through" : "font-medium text-slate-800")}>{d}</span>
-                            </label>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </div>
-                ) : (
-                  <p className="text-sm text-slate-600">L&apos;avis renvoie la liste des pièces au règlement de la consultation.</p>
-                )
-              }
-            </BriefZone>
-            <HowTo items={APPLICATION_GUIDE[3].how} />
-          </Step>
-
-          {/* 5. Rédaction */}
-          <Step n={5} title="Rédiger votre réponse" subtitle="Ce qui rapporte des points, et une trame de mémoire technique déjà préparée pour vous." done={done.includes(4)} onToggle={(v) => toggleStep(4, v)} pending={pending}>
-            {brief && (
-              <div className="space-y-5">
-                {(brief.criteria ?? []).length > 0 && (
-                  <div className="rounded-2xl bg-slate-50 p-5 ring-1 ring-slate-200">
-                    <p className="mb-3 font-bold text-navy">Comment l&apos;offre sera notée</p>
-                    <div className="space-y-3">
-                      {(brief.criteria ?? []).map((c, i) => (
-                        <div key={c.label}>
-                          <div className="flex justify-between gap-3 text-sm">
-                            <span className="text-slate-700">{c.label}</span>
-                            {c.weight ? <span className="font-bold text-navy tabular-nums">{c.weight} %</span> : null}
-                          </div>
-                          {c.weight ? (
-                            <div className="mt-1.5 h-2.5 overflow-hidden rounded-full bg-white ring-1 ring-slate-200">
-                              <div className="plan-in h-full rounded-full bg-gradient-to-r from-teal to-violet" style={{ width: `${Math.min(100, c.weight)}%`, animationDelay: `${i * 120}ms` }} />
-                            </div>
-                          ) : null}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {(brief.tips ?? []).length > 0 && (
-                  <InfoCard icon={Lightbulb} title="Conseils pour obtenir la meilleure note" tone="teal">
-                    <Bullets items={brief.tips ?? []} />
-                  </InfoCard>
-                )}
+                </p>
+                <h2 className="mt-3 font-heading text-2xl font-extrabold text-balance text-navy sm:text-3xl">Alors, cette offre vous intéresse ?</h2>
+                <p className="mx-auto mt-2 max-w-2xl text-balance text-slate-600">
+                  {later ? "Elle est enregistrée dans vos candidatures. Quand vous êtes prêt, on vous guide étape par étape." : "Lisez l'essentiel ci-dessus, puis choisissez. Vous pouvez changer d'avis à tout moment."}
+                </p>
               </div>
-            )}
-            <DraftEditor id={data.id} initial={data.draft} make={() => buildMemoirDraft({ title: data.title, buyer: data.buyer }, brief, data.company)} />
-            <HowTo items={APPLICATION_GUIDE[4].how} />
-          </Step>
-
-          {/* 6. Dépôt */}
-          <Step n={6} title="Déposer avant la date limite" subtitle="Sur la plateforme de l'acheteur, sans attendre la dernière heure." done={done.includes(5)} onToggle={(v) => toggleStep(5, v)} pending={pending}>
-            <div className="space-y-4">
-              {brief?.submission && (
-                <InfoCard icon={Send} title="Où déposer" tone="teal">
-                  <p>{brief.submission}</p>
-                </InfoCard>
-              )}
-              <HowTo items={APPLICATION_GUIDE[5].how} open />
-              {!sent ? (
+              <div className="relative mt-5 grid gap-2.5 sm:mt-6 sm:grid-cols-3 sm:gap-3">
                 <button
                   type="button"
                   disabled={pending}
-                  onClick={() => act(() => markApplicationSent(data.id), "RESPONSE_SENT")}
-                  className="btn-shine inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-teal to-electric px-6 py-4 text-lg font-bold text-navy shadow-xl shadow-teal/25 transition hover:-translate-y-0.5 active:scale-[0.98] disabled:opacity-50"
+                  onClick={prepare}
+                  className="btn-shine group flex items-center gap-3 rounded-2xl bg-gradient-to-br from-teal to-electric p-4 text-left text-navy shadow-lg shadow-teal/25 transition hover:-translate-y-1 hover:shadow-xl active:scale-[0.98] disabled:opacity-50 sm:flex-col sm:gap-2 sm:p-5 sm:text-center"
                 >
-                  <Send className="size-5" aria-hidden /> J&apos;ai déposé ma réponse
+                  <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-white/30 ring-1 ring-white/50 transition group-hover:scale-110">
+                    <ThumbsUp className="size-5" aria-hidden />
+                  </span>
+                  <span className="flex min-w-0 flex-col gap-0.5 sm:items-center">
+                    <span className="font-heading text-base font-bold">Oui, je prépare ma candidature</span>
+                    <span className="text-xs text-navy/75">On vous guide jusqu&apos;au dépôt</span>
+                  </span>
                 </button>
-              ) : (
-                <Result stage={stage} pending={pending} onWon={() => act(() => answerApplicationResult(data.id, "WON"), "WON")} onLost={() => act(() => answerApplicationResult(data.id, "LOST"), "LOST")} submittedAt={data.submittedAt} rejection={rejectionTemplate(tpl)} />
-              )}
-            </div>
-          </Step>
+                <button
+                  type="button"
+                  onClick={keep}
+                  role="checkbox"
+                  aria-checked={later}
+                  data-testid="keep-later"
+                  className={cn(
+                    "group flex items-center gap-3 rounded-2xl p-4 text-left transition hover:-translate-y-1 hover:shadow-lg active:scale-[0.98] sm:flex-col sm:gap-2 sm:p-5 sm:text-center",
+                    later ? "bg-teal-50 text-teal-900 shadow-md ring-2 ring-teal" : "bg-white text-navy shadow-sm ring-1 ring-slate-200 hover:ring-teal",
+                  )}
+                >
+                  <span className={cn("flex size-11 shrink-0 items-center justify-center rounded-full transition group-hover:scale-110", later ? "bg-teal text-white" : "bg-sky text-teal-700 ring-1 ring-teal/30")}>
+                    {later ? <Check className="size-5" aria-hidden /> : <Bookmark className="size-5" aria-hidden />}
+                  </span>
+                  <span className="flex min-w-0 flex-col gap-0.5 sm:items-center">
+                    <span className="font-heading text-base font-bold">{later ? "Gardée pour plus tard" : "Oui, je la garde pour plus tard"}</span>
+                    <span className="text-xs text-slate-500">{later ? "Cliquez pour décocher" : "Enregistrée dans Mes candidatures"}</span>
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={() => withdraw(later)}
+                  className="group flex items-center gap-3 rounded-2xl bg-white p-4 text-left text-navy shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-1 hover:shadow-lg hover:ring-rose-300 active:scale-[0.98] disabled:opacity-50 sm:flex-col sm:gap-2 sm:p-5 sm:text-center"
+                >
+                  <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500 transition group-hover:scale-110 group-hover:bg-rose-50 group-hover:text-rose-600">
+                    <XCircle className="size-5" aria-hidden />
+                  </span>
+                  <span className="flex min-w-0 flex-col gap-0.5 sm:items-center">
+                    <span className="font-heading text-base font-bold">{later ? "Ne m'intéresse plus" : "Non, pas pour moi"}</span>
+                    <span className="text-xs text-slate-500">Retour à vos recherches, au même endroit</span>
+                  </span>
+                </button>
+              </div>
+            </section>
+          )}
+
+          {/* Réponse envoyée : le résultat d'abord */}
+          {sent && (
+            <section className="plan-in rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200 sm:p-8" data-testid="result">
+              <Result stage={stage} pending={pending} onWon={() => act(() => answerApplicationResult(data.id, "WON"), "WON")} onLost={() => act(() => answerApplicationResult(data.id, "LOST"), "LOST")} submittedAt={data.submittedAt} rejection={rejectionTemplate(tpl)} />
+            </section>
+          )}
+
+          {/* Préparation : où en est la candidature, puis une étape à la fois */}
+          {!discovery && (
+            <>
+              <div className="plan-in">
+                <StepsProgress done={done} sent={sent} />
+              </div>
+              <div className="space-y-3" data-testid="steps">
+                <Step n={1} title="Puis-je répondre ?" subtitle="Les conditions de l'acheteur, comparées à votre fiche." done={done.includes(0)} open={openStep === 0} onOpen={() => setOpenStep(openStep === 0 ? -1 : 0)} onToggle={(v) => toggleStep(0, v)} pending={pending}>
+                  <BriefZone state={briefState} brief={brief} allowed={data.briefAllowed} upgradeHref={data.upgradeHref}>
+                    {(b) => <Conditions brief={b} mine={data.mine} id={data.id} />}
+                  </BriefZone>
+                  <HowTo items={APPLICATION_GUIDE[0].how} />
+                </Step>
+
+                <Step n={2} title="Télécharger le dossier" subtitle="Sur le site de l'acheteur." done={done.includes(1)} open={openStep === 1} onOpen={() => setOpenStep(openStep === 1 ? -1 : 1)} onToggle={(v) => toggleStep(1, v)} pending={pending}>
+                  <InfoCard icon={FolderDown} title="Où aller" tone="teal">
+                    <p>{brief?.submission ?? "Sur le site de l'acheteur, indiqué dans l'annonce officielle."}</p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {data.hasSource && (
+                        <a href={`/go/${data.id}`} target="_blank" rel="noopener noreferrer nofollow" onClick={goToSource} className="inline-flex items-center gap-1.5 rounded-lg bg-navy px-3 py-2 text-sm font-semibold text-white transition hover:-translate-y-0.5">
+                          <ExternalLink className="size-4" aria-hidden /> Voir l&apos;annonce officielle
+                        </a>
+                      )}
+                      {brief?.submission_url && (
+                        <a href={brief.submission_url} target="_blank" rel="noopener noreferrer nofollow" className="inline-flex items-center gap-1.5 rounded-lg bg-white px-3 py-2 text-sm font-semibold text-teal-800 ring-1 ring-teal/40 transition hover:-translate-y-0.5">
+                          <ExternalLink className="size-4" aria-hidden /> Site de dépôt de l&apos;acheteur
+                        </a>
+                      )}
+                    </div>
+                  </InfoCard>
+                  {brief && brief.lots.length > 0 && (
+                    <div>
+                      <p className="mb-2 text-sm font-bold text-navy">Les lots (on peut répondre à un seul)</p>
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        {brief.lots.map((l) => (
+                          <p key={l} className="rounded-xl bg-slate-50 px-3 py-2.5 text-sm text-slate-700 ring-1 ring-slate-200">
+                            {l}
+                          </p>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <HowTo items={APPLICATION_GUIDE[1].how} />
+                </Step>
+
+                <Step n={3} title="Questions et visite" subtitle="Lever vos doutes et ne pas manquer une visite obligatoire." done={done.includes(2)} open={openStep === 2} onOpen={() => setOpenStep(openStep === 2 ? -1 : 2)} onToggle={(v) => toggleStep(2, v)} pending={pending}>
+                  {brief?.site_visit ? (
+                    <InfoCard icon={MapPinned} title={visitHot ? "Visite obligatoire" : "Visite"} tone={visitHot ? "rose" : "teal"}>
+                      <p>{brief.site_visit}</p>
+                    </InfoCard>
+                  ) : briefState === "ready" ? (
+                    <p className="text-sm text-slate-600">L&apos;annonce ne parle pas de visite. Vérifiez dans le règlement de la consultation (sur le site de l&apos;acheteur).</p>
+                  ) : null}
+                  <TemplateCard icon={MessageSquareText} title="Modèle de question à l'acheteur" text={questionTemplate(tpl)} />
+                  <HowTo items={APPLICATION_GUIDE[2].how} />
+                </Step>
+
+                <Step n={4} title="Rassembler les pièces" subtitle="Cochez chaque pièce dès qu'elle est prête." done={done.includes(3)} open={openStep === 3} onOpen={() => setOpenStep(openStep === 3 ? -1 : 3)} onToggle={(v) => toggleStep(3, v)} pending={pending}>
+                  <BriefZone state={briefState} brief={brief} allowed={data.briefAllowed} upgradeHref={data.upgradeHref}>
+                    {(b) =>
+                      b.documents.length ? (
+                        <div>
+                          <div className="mb-3 flex items-center gap-3">
+                            <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100">
+                              <div className="h-full rounded-full bg-gradient-to-r from-teal to-violet transition-all duration-500" style={{ width: `${(docs.length / b.documents.length) * 100}%` }} />
+                            </div>
+                            <span className="text-sm font-semibold text-navy">
+                              {docs.length}/{b.documents.length} prêtes
+                            </span>
+                          </div>
+                          <ul className="grid gap-2 sm:grid-cols-2">
+                            {b.documents.map((d, i) => {
+                              const ok = docs.includes(i);
+                              return (
+                                <li key={d}>
+                                  <label className={cn("flex cursor-pointer items-center gap-3 rounded-xl p-3 ring-1 transition hover:-translate-y-0.5", ok ? "bg-teal-50 ring-teal/30" : "bg-white ring-slate-200 hover:ring-teal")}>
+                                    <input type="checkbox" className="peer sr-only" checked={ok} disabled={pending} onChange={(e) => toggleDoc(i, e.target.checked)} />
+                                    <span className={cn("flex size-6 shrink-0 items-center justify-center rounded-md ring-2 transition peer-focus-visible:ring-teal", ok ? "bg-gradient-to-br from-teal to-violet text-white ring-transparent" : "text-transparent ring-slate-300")}>
+                                      <Check className="size-4" aria-hidden />
+                                    </span>
+                                    <span className={cn("text-sm", ok ? "text-slate-500 line-through" : "font-medium text-slate-800")}>{d}</span>
+                                  </label>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-slate-600">La liste des pièces est dans le règlement de la consultation (sur le site de l&apos;acheteur).</p>
+                      )
+                    }
+                  </BriefZone>
+                  <HowTo items={APPLICATION_GUIDE[3].how} />
+                </Step>
+
+                <Step n={5} title="Rédiger votre réponse" subtitle="Ce qui rapporte des points, et une trame déjà préparée pour vous." done={done.includes(4)} open={openStep === 4} onOpen={() => setOpenStep(openStep === 4 ? -1 : 4)} onToggle={(v) => toggleStep(4, v)} pending={pending}>
+                  {brief && ((brief.criteria ?? []).length > 0 || (brief.tips ?? []).length > 0) && <Notation brief={brief} />}
+                  <DraftEditor id={data.id} initial={data.draft} make={() => buildMemoirDraft({ title: data.title, buyer: data.buyer }, brief, data.company)} />
+                  <HowTo items={APPLICATION_GUIDE[4].how} />
+                </Step>
+
+                <Step n={6} title="Déposer avant la date limite" subtitle="Sur le site de l'acheteur, sans attendre la dernière heure." done={sent || done.includes(5)} open={openStep === 5} onOpen={() => setOpenStep(openStep === 5 ? -1 : 5)} pending={pending}>
+                  {brief?.submission && (
+                    <InfoCard icon={Send} title="Où déposer" tone="teal">
+                      <p>{brief.submission}</p>
+                    </InfoCard>
+                  )}
+                  <HowTo items={APPLICATION_GUIDE[5].how} />
+                  {!sent ? (
+                    <button
+                      type="button"
+                      disabled={pending}
+                      onClick={() => act(() => markApplicationSent(data.id), "RESPONSE_SENT")}
+                      className="btn-shine inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-teal to-electric px-6 py-4 text-lg font-bold text-navy shadow-xl shadow-teal/25 transition hover:-translate-y-0.5 active:scale-[0.98] disabled:opacity-50"
+                    >
+                      <Send className="size-5" aria-hidden /> J&apos;ai déposé ma réponse
+                    </button>
+                  ) : (
+                    <p className="rounded-xl bg-teal-50 px-4 py-3 text-sm font-semibold text-teal-800 ring-1 ring-teal/30">Réponse déposée : le résultat se suit en haut de cette page.</p>
+                  )}
+                </Step>
+              </div>
+            </>
+          )}
           {error && <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-800 ring-1 ring-rose-200">{error}</p>}
+
+          {!discovery && essentials}
 
           {stage !== "DETECTED" && <Journal id={data.id} initial={data.journal} />}
 
           {/* Une question ? L'assistant répond à partir de l'avis */}
           <ApplicationAssistant id={data.id} initial={data.questions} suggestions={assistantSuggestions(brief, data.mine)} />
 
-          {/* Fin de page : l'annonce officielle, une fois tout l'accompagnement parcouru */}
-          <section className="plan-in relative isolate overflow-hidden rounded-3xl bg-gradient-to-br from-navy to-navy-900 p-6 text-white shadow-xl sm:p-8" data-testid="official-section">
-            <div aria-hidden className="pointer-events-none absolute -top-20 -right-20 -z-10 size-64 animate-aurora rounded-full bg-teal/30 blur-3xl" />
-            <div aria-hidden className="pointer-events-none absolute -bottom-24 left-10 -z-10 size-56 animate-aurora rounded-full bg-violet/25 blur-3xl [animation-delay:-5s]" />
-            <p className="flex items-center gap-2 text-xs font-bold tracking-wide text-teal-200 uppercase">
-              <Sparkles className="size-4" aria-hidden /> Vous avez tout en main
-            </p>
-            <h2 className="mt-2 font-heading text-2xl font-extrabold text-white">Prêt à passer sur l&apos;annonce officielle ?</h2>
-            <p className="mt-2 max-w-2xl text-white/75">
-              Conditions vérifiées, pièces listées, notation comprise et trame du mémoire préparée : téléchargez maintenant le dossier complet sur le site de l&apos;acheteur.
-              Votre candidature reste ici, enregistrée, pour suivre chaque étape.
-            </p>
-            <div className="mt-6 flex flex-wrap gap-3">
-              {data.hasSource && (
+          {/* Fin de page : l'annonce officielle */}
+          {data.hasSource && (
+            <section className="plan-in relative isolate overflow-hidden rounded-3xl bg-gradient-to-br from-navy to-navy-900 p-6 text-white shadow-xl sm:p-8" data-testid="official-section">
+              <div aria-hidden className="pointer-events-none absolute -top-20 -right-20 -z-10 size-64 animate-aurora rounded-full bg-teal/30 blur-3xl" />
+              <div aria-hidden className="pointer-events-none absolute -bottom-24 left-10 -z-10 size-56 animate-aurora rounded-full bg-violet/25 blur-3xl [animation-delay:-5s]" />
+              <h2 className="font-heading text-2xl font-extrabold text-white">Le dossier complet est sur le site de l&apos;acheteur</h2>
+              <p className="mt-2 max-w-2xl text-white/75">Téléchargez-le depuis l&apos;annonce officielle. Votre candidature reste ici, enregistrée, pour suivre chaque étape.</p>
+              <div className="mt-6 flex flex-wrap gap-3">
                 <a
                   href={`/go/${data.id}`}
                   target="_blank"
@@ -681,20 +670,20 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
                 >
                   <ExternalLink className="size-4" aria-hidden /> Voir l&apos;annonce officielle
                 </a>
-              )}
-              <button
-                type="button"
-                onClick={() => goBackToSearch()}
-                className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-5 py-3 font-semibold text-white ring-1 ring-white/20 transition hover:-translate-y-0.5 hover:bg-white/15 active:scale-[0.98]"
-              >
-                <Search className="size-4" aria-hidden /> Continuer mes recherches
-              </button>
-            </div>
-          </section>
+                <button
+                  type="button"
+                  onClick={() => goBackToSearch()}
+                  className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-5 py-3 font-semibold text-white ring-1 ring-white/20 transition hover:-translate-y-0.5 hover:bg-white/15 active:scale-[0.98]"
+                >
+                  <Search className="size-4" aria-hidden /> Continuer mes recherches
+                </button>
+              </div>
+            </section>
+          )}
         </div>
 
-        {/* Récap */}
-        <aside className="space-y-4 lg:sticky lg:top-44 lg:self-start">
+        {/* Repères : le temps qui reste et le planning */}
+        <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
           {days !== null && (
             <div className="plan-in relative overflow-hidden rounded-3xl bg-navy p-6 text-white shadow-xl">
               <div aria-hidden className="pointer-events-none absolute -top-16 -right-16 size-48 rounded-full bg-teal/30 blur-3xl" />
@@ -703,7 +692,7 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
               <p className="relative text-white/80">{days < 0 ? "date limite dépassée" : `jour${days > 1 ? "s" : ""} restant${days > 1 ? "s" : ""}`}</p>
             </div>
           )}
-          {plan.length > 0 && (
+          {plan.length > 0 && !discovery && (
             <div className="plan-in rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200 [animation-delay:120ms]">
               <p className="flex items-center gap-2 font-bold text-navy">
                 <Route className="size-4 text-teal-700" aria-hidden /> Mon planning conseillé
@@ -742,104 +731,213 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
               </ol>
             </div>
           )}
-          {brief && brief.todo.length > 0 && (
-            <div className="plan-in rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200 [animation-delay:200ms]">
-              <p className="flex items-center gap-2 font-bold text-navy">
-                <ClipboardCheck className="size-4 text-teal-700" aria-hidden /> Le calendrier de l&apos;acheteur
-              </p>
-              <ol className="mt-3 space-y-3 border-l-2 border-teal/30 pl-4">
-                {brief.todo.map((t) => (
-                  <li key={t} className="relative text-sm text-slate-700">
-                    <span aria-hidden className="absolute top-1.5 -left-[1.4rem] size-2.5 rounded-full bg-teal ring-4 ring-white" />
-                    {t}
-                  </li>
-                ))}
-              </ol>
-            </div>
-          )}
-          {brief && brief.warnings.length > 0 && (
-            <div className="plan-in rounded-3xl bg-rose-50 p-5 ring-1 ring-rose-200 [animation-delay:280ms]">
-              <p className="flex items-center gap-2 font-bold text-rose-800">
-                <AlertTriangle className="size-4" aria-hidden /> Points d&apos;attention
-              </p>
-              <Bullets items={brief.warnings} />
-            </div>
-          )}
-          {data.sourceLabel && <p className="px-2 text-xs text-slate-500">D&apos;après l&apos;avis officiel ({data.sourceLabel}). En cas de doute, le dossier de consultation fait foi.</p>}
+          {brief && brief.todo.length > 0 && <BuyerTodo id={data.id} items={brief.todo} initial={data.briefDone} />}
+          {data.sourceLabel && <p className="px-2 text-xs text-slate-500">D&apos;après l&apos;annonce officielle ({data.sourceLabel}). En cas de doute, le dossier de l&apos;acheteur fait foi.</p>}
         </aside>
       </div>
     </div>
   );
 }
 
-/** Anneau de progression animé. */
-function ProgressRing({ value, label }: { value: number; label: string }) {
-  const r = 52;
-  const c = 2 * Math.PI * r;
+/** Étape du guide, repliable : une seule ouverte à la fois, la prochaine à faire. */
+function Step({ n, title, subtitle, done, open, onOpen, onToggle, pending, children }: { n: number; title: string; subtitle: string; done: boolean; open: boolean; onOpen: () => void; onToggle?: (v: boolean) => void; pending: boolean; children: React.ReactNode }) {
   return (
-    <div className="flex shrink-0 flex-col items-center">
-      <div className="relative size-36">
-        <svg viewBox="0 0 120 120" className="size-36 -rotate-90" aria-hidden>
-          <defs>
-            <linearGradient id="ring-grad" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stopColor="#14c2ad" />
-              <stop offset="100%" stopColor="#7c6cff" />
-            </linearGradient>
-          </defs>
-          <circle cx="60" cy="60" r={r} fill="none" stroke="#e2e8f0" strokeWidth="10" />
-          <circle cx="60" cy="60" r={r} fill="none" stroke="url(#ring-grad)" strokeWidth="10" strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - value / 100)} className="transition-[stroke-dashoffset] duration-1000 ease-out" />
-        </svg>
-        <span className="absolute inset-0 flex items-center justify-center font-heading text-3xl font-extrabold text-navy tabular-nums">{value} %</span>
-      </div>
-      <p className="mt-2 text-sm font-semibold text-slate-600">{label}</p>
-    </div>
-  );
-}
-
-function Step({ n, title, subtitle, done, onToggle, pending, children }: { n: number; title: string; subtitle: string; done: boolean; onToggle: (v: boolean) => void; pending: boolean; children: React.ReactNode }) {
-  return (
-    <section id={`etape-${n}`} className="plan-in scroll-mt-48 rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200 transition sm:p-8" style={{ animationDelay: `${n * 60}ms` }}>
-      <header className="mb-5 grid grid-cols-[auto_minmax(0,1fr)] items-start gap-x-4 gap-y-3 sm:flex">
-        <span className={cn("flex size-11 shrink-0 items-center justify-center rounded-2xl font-heading text-lg font-extrabold transition-all duration-300", done ? "bg-gradient-to-br from-teal to-violet text-white" : "bg-navy text-white")}>
+    <section id={`etape-${n}`} className={cn("plan-in scroll-mt-24 overflow-hidden rounded-3xl bg-white shadow-sm ring-1 transition", open ? "shadow-md ring-teal/40" : "ring-slate-200")} style={{ animationDelay: `${n * 50}ms` }}>
+      <button type="button" onClick={onOpen} aria-expanded={open} className="flex w-full items-center gap-3 p-4 text-left transition hover:bg-slate-50/70 sm:gap-4 sm:p-5">
+        <span className={cn("flex size-10 shrink-0 items-center justify-center rounded-2xl font-heading text-base font-extrabold transition-all duration-300", done ? "bg-gradient-to-br from-teal to-violet text-white" : open ? "bg-navy text-white" : "bg-slate-100 text-slate-500")}>
           {done ? <Check className="size-5" aria-hidden /> : n}
         </span>
-        <div className="min-w-0 flex-1">
-          <h2 className="font-heading text-xl font-bold text-navy">{title}</h2>
-          <p className="mt-0.5 text-sm text-slate-500">{subtitle}</p>
+        <span className="min-w-0 flex-1">
+          <span className={cn("block font-heading text-lg leading-snug font-bold", done && !open ? "text-slate-500" : "text-navy")}>{title}</span>
+          <span className="block text-sm text-slate-500">{done ? "Étape faite" : subtitle}</span>
+        </span>
+        <ChevronDown className={cn("size-5 shrink-0 text-slate-400 transition duration-300", open && "rotate-180")} aria-hidden />
+      </button>
+      {open && (
+        <div className="animate-rise space-y-5 border-t border-slate-100 p-4 sm:p-8">
+          {children}
+          {onToggle &&
+            (done ? (
+              <button type="button" disabled={pending} onClick={() => onToggle(false)} className="text-sm font-semibold text-slate-500 underline-offset-2 hover:text-navy hover:underline disabled:opacity-50">
+                Étape faite · la remettre à faire
+              </button>
+            ) : (
+              <button
+                type="button"
+                disabled={pending}
+                onClick={() => onToggle(true)}
+                className="btn-shine inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-navy px-5 py-3.5 font-semibold text-white shadow-lg shadow-navy/15 transition hover:-translate-y-0.5 active:scale-[0.98] disabled:opacity-50 sm:w-auto"
+              >
+                <Check className="size-5" aria-hidden /> C&apos;est fait : étape suivante
+              </button>
+            ))}
         </div>
-        <button
-          type="button"
-          disabled={pending}
-          onClick={() => onToggle(!done)}
-          aria-pressed={done}
-          className={cn(
-            "col-span-2 inline-flex items-center justify-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition active:scale-95 disabled:opacity-50 sm:col-span-1 sm:ml-auto sm:shrink-0",
-            done ? "bg-teal-50 text-teal-800 ring-1 ring-teal/30" : "bg-slate-100 text-slate-600 hover:bg-slate-200",
-          )}
-        >
-          <Check className="size-4" aria-hidden /> {done ? "Étape faite" : "Marquer comme faite"}
-        </button>
-      </header>
-      <div className="space-y-5">{children}</div>
+      )}
     </section>
   );
 }
 
-function BriefZone({ state, brief, allowed, children }: { state: "ready" | "loading" | "none"; brief: TenderBrief | null; allowed: boolean; children: (b: TenderBrief) => React.ReactNode }) {
+/** Ligne de « En bref » : l'information en une phrase, le détail en un clic. */
+function EssentialRow({ icon: Icon, title, text, tone = "neutral", children }: { icon: typeof Lightbulb; title: string; text: string; tone?: "ok" | "missing" | "check" | "neutral"; children?: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const color = tone === "missing" ? "bg-rose-50 text-rose-600" : tone === "ok" ? "bg-teal-50 text-teal-700" : "bg-sky text-teal-700";
+  const body = (
+    <>
+      <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-xl", color)}>
+        <Icon className="size-5" aria-hidden />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-xs font-bold tracking-wide text-slate-500 uppercase">{title}</span>
+        <span className={cn("block text-[15px] leading-snug", tone === "missing" ? "font-semibold text-rose-800" : "text-navy")}>{text}</span>
+      </span>
+    </>
+  );
+  if (!children) return <div className="flex items-start gap-3 rounded-2xl bg-slate-50/70 p-3 ring-1 ring-slate-200">{body}</div>;
+  return (
+    <div className="rounded-2xl bg-slate-50/70 ring-1 ring-slate-200">
+      <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} className="flex w-full items-start gap-3 p-3 text-left">
+        {body}
+        <span className="mt-2 inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-teal-700">
+          <span className="hidden sm:inline">{open ? "Masquer" : "Détail"}</span>
+          <ChevronDown className={cn("size-4 transition duration-300", open && "rotate-180")} aria-hidden />
+        </span>
+      </button>
+      {open && <div className="animate-rise border-t border-slate-200/70 px-3 pt-3 pb-4 sm:px-4">{children}</div>}
+    </div>
+  );
+}
+
+/** Ce qui compte dans la note : critères et poids, puis conseils tirés de l'annonce. */
+function Notation({ brief }: { brief: TenderBrief }) {
+  const criteria = (brief.criteria ?? []).filter((c) => c.label.trim());
+  return (
+    <div className="space-y-4">
+      {criteria.length > 0 && (
+        <div className="rounded-2xl bg-white p-4 ring-1 ring-slate-200">
+          <p className="mb-3 text-sm font-bold text-navy">Comment l&apos;offre sera notée</p>
+          <div className="space-y-3">
+            {criteria.map((c, i) => (
+              <div key={c.label}>
+                <div className="flex justify-between gap-3 text-sm">
+                  <span className="text-slate-700">{c.label}</span>
+                  {c.weight ? <span className="font-bold text-navy tabular-nums">{c.weight} %</span> : null}
+                </div>
+                {c.weight ? (
+                  <div className="mt-1.5 h-2.5 overflow-hidden rounded-full bg-slate-100">
+                    <div className="plan-in h-full rounded-full bg-gradient-to-r from-teal to-violet" style={{ width: `${Math.min(100, c.weight)}%`, animationDelay: `${i * 120}ms` }} />
+                  </div>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {(brief.tips ?? []).length > 0 && (
+        <InfoCard icon={Lightbulb} title="Pour avoir la meilleure note" tone="teal">
+          <Bullets items={(brief.tips ?? []).slice(0, 3)} />
+        </InfoCard>
+      )}
+    </div>
+  );
+}
+
+/** « À faire » tiré de l'annonce, à cocher (replié par défaut) : la première case cochée enregistre la candidature. */
+function BuyerTodo({ id, items, initial }: { id: string; items: string[]; initial: number[] }) {
+  const [open, setOpen] = useState(false);
+  const [checked, setChecked] = useState<number[]>(initial);
+  const [pending, start] = useTransition();
+  const toggle = (i: number, value: boolean) => {
+    const before = checked;
+    setChecked(value ? [...checked, i].sort((a, b) => a - b) : checked.filter((x) => x !== i));
+    start(async () => {
+      const r = await toggleBriefStep(id, i, value);
+      if (r.ok) setChecked(r.done);
+      else setChecked(before);
+    });
+  };
+  return (
+    <div className="plan-in rounded-3xl bg-white shadow-sm ring-1 ring-slate-200 [animation-delay:200ms]">
+      <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} className="flex w-full items-center gap-2 p-5 text-left font-bold text-navy">
+        <ClipboardCheck className="size-4 text-teal-700" aria-hidden />
+        <span className="flex-1">À faire selon l&apos;annonce</span>
+        <span className="text-xs font-semibold text-slate-500 tabular-nums">
+          {checked.length}/{items.length}
+        </span>
+        <ChevronDown className={cn("size-4 text-slate-400 transition duration-300", open && "rotate-180")} aria-hidden />
+      </button>
+      {open && (
+        <ul className="animate-rise space-y-2 px-5 pb-5">
+          {items.map((t, i) => {
+            const ok = checked.includes(i);
+            return (
+              <li key={t}>
+                <label className="flex cursor-pointer items-start gap-2.5 text-sm">
+                  <input type="checkbox" className="peer sr-only" checked={ok} disabled={pending} onChange={(e) => toggle(i, e.target.checked)} />
+                  <span className={cn("mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-md ring-2 transition peer-focus-visible:ring-teal", ok ? "bg-gradient-to-br from-teal to-violet text-white ring-transparent" : "text-transparent ring-slate-300")}>
+                    <Check className="size-3.5" aria-hidden />
+                  </span>
+                  <span className={ok ? "text-slate-400 line-through" : "text-slate-700"}>{t}</span>
+                </label>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function conditionsTone(brief: TenderBrief, mine: string[]): "ok" | "missing" | "check" | "neutral" {
+  const status = (brief.certifications ?? []).map((c) => certStatus(c, mine));
+  if (status.includes("missing")) return "missing";
+  if (status.includes("check")) return "check";
+  return status.length ? "ok" : "neutral";
+}
+
+/** « Puis-je répondre ? » en une phrase. */
+function conditionsLine(brief: TenderBrief, mine: string[]): string {
+  const certs = brief.certifications ?? [];
+  const status = certs.map((c) => certStatus(c, mine));
+  const missing = status.filter((x) => x === "missing").length;
+  const capacity = brief.capacity ?? [];
+  if (missing) return `Il vous manque ${missing} exigence${missing > 1 ? "s" : ""} : c'est possible avec un partenaire.`;
+  if (status.includes("check")) return "Certaines certifications sont à vérifier sur votre fiche.";
+  if (certs.length) return `Vos certifications correspondent${capacity.length ? ", d'autres conditions sont à vérifier" : ""}.`;
+  if (capacity.length) return `Pas de certification exigée. ${capacity.length} condition${capacity.length > 1 ? "s" : ""} à vérifier.`;
+  return "Pas de condition particulière dans l'annonce.";
+}
+
+/** La notation en une phrase : « Prix 40 % · Qualité 60 % », sinon le texte de l'annonce. */
+function notationLine(brief: TenderBrief): string {
+  const criteria = (brief.criteria ?? []).filter((c) => c.label.trim());
+  if (criteria.length) return criteria.map((c) => (c.weight ? `${c.label} ${c.weight} %` : c.label)).join(" · ");
+  return brief.judging.length > 160 ? `${brief.judging.slice(0, 157).replace(/\s+\S*$/, "")}…` : brief.judging;
+}
+
+function BriefZone({ state, brief, allowed, upgradeHref, children }: { state: "ready" | "loading" | "none"; brief: TenderBrief | null; allowed: boolean; upgradeHref: string; children: (b: TenderBrief) => React.ReactNode }) {
   if (brief) return <>{children(brief)}</>;
   if (state === "loading")
     return (
       <div className="space-y-3" aria-live="polite">
-        <p className="text-sm font-semibold text-teal-700">Lecture de l&apos;avis officiel… (quelques secondes)</p>
+        <p className="text-sm font-semibold text-teal-700">Lecture de l&apos;annonce officielle… (quelques secondes)</p>
         {[85, 65, 75].map((w) => (
           <div key={w} className="h-4 animate-pulse rounded-full bg-slate-100" style={{ width: `${w}%` }} />
         ))}
       </div>
     );
   return (
-    <p className="rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-600 ring-1 ring-slate-200">
-      {allowed ? "Ces informations sont dans l'annonce officielle et le règlement de la consultation." : "Le détail de l'avis (conditions, pièces, notation) est inclus dans l'offre Pro."}
-    </p>
+    <div className="rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-600 ring-1 ring-slate-200">
+      {allowed ? (
+        "Ces informations sont dans l'annonce officielle et le règlement de la consultation (sur le site de l'acheteur)."
+      ) : (
+        <>
+          Le résumé de l&apos;annonce (conditions, pièces, notation) est inclus dans l&apos;offre Pro.{" "}
+          <Link href={upgradeHref} className="font-semibold text-teal-700 underline">
+            Voir l&apos;offre Pro
+          </Link>
+        </>
+      )}
+    </div>
   );
 }
 
@@ -1026,7 +1124,8 @@ function InfoCard({ icon: Icon, title, tone, children }: { icon: typeof Lightbul
   );
 }
 
-function HowTo({ items, open = false }: { items: string[]; open?: boolean }) {
+/** « Comment faire » d'une étape : ouvert d'emblée (l'étape est déjà dépliée), repliable. */
+function HowTo({ items, open = true }: { items: string[]; open?: boolean }) {
   const [show, setShow] = useState(open);
   return (
     <div className="rounded-2xl bg-slate-50/70 ring-1 ring-slate-200">
@@ -1103,6 +1202,7 @@ const KIND_LABEL: Record<string, string> = { NOTE: "Note", START: "Début", STEP
 
 /** Journal de suivi jour par jour : notes de l'équipe et étapes franchies. */
 function Journal({ id, initial }: { id: string; initial: JournalEntry[] }) {
+  const [open, setOpen] = useState(false);
   const [entries, setEntries] = useState(initial);
   const [text, setText] = useState("");
   const [pending, start] = useTransition();
@@ -1122,16 +1222,19 @@ function Journal({ id, initial }: { id: string; initial: JournalEntry[] }) {
     return acc;
   }, {});
   return (
-    <section id="journal" className="plan-in scroll-mt-48 rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200 sm:p-8">
-      <header className="mb-5 flex items-start gap-4">
-        <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-teal to-violet text-white">
+    <section id="journal" className="plan-in scroll-mt-24 overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-slate-200">
+      <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} className="flex w-full items-center gap-4 p-5 text-left transition hover:bg-slate-50/70 sm:p-6">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-teal to-violet text-white">
           <BookOpen className="size-5" aria-hidden />
         </span>
-        <div>
-          <h2 className="font-heading text-xl font-bold text-navy">Journal de suivi</h2>
-          <p className="mt-0.5 text-sm text-slate-500">Jour après jour : ce qui a été fait, les échanges avec l&apos;acheteur, les points à ne pas oublier. Visible par votre équipe.</p>
-        </div>
-      </header>
+        <span className="min-w-0 flex-1">
+          <span className="block font-heading text-lg font-bold text-navy">Journal de suivi</span>
+          <span className="block text-sm text-slate-500">{entries.length ? `${entries.length} élément${entries.length > 1 ? "s" : ""} · visible par votre équipe` : "Vos notes, jour après jour · visible par votre équipe"}</span>
+        </span>
+        <ChevronDown className={cn("size-5 shrink-0 text-slate-400 transition duration-300", open && "rotate-180")} aria-hidden />
+      </button>
+      {open && (
+      <div className="animate-rise border-t border-slate-100 p-5 sm:p-8">
       <div className="flex flex-col gap-2 sm:flex-row">
         <input
           value={text}
@@ -1189,6 +1292,8 @@ function Journal({ id, initial }: { id: string; initial: JournalEntry[] }) {
             </div>
           ))}
         </div>
+      )}
+      </div>
       )}
     </section>
   );

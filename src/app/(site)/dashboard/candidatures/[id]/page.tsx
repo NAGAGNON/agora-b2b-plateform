@@ -6,6 +6,7 @@ import { isUuid } from "@/lib/format";
 import { BriefSchema, boampId, isFullBrief, tedId } from "@/lib/tender-brief";
 import { CandidatureWorkspace } from "@/components/applications/candidature-workspace";
 import { track } from "@/lib/analytics";
+import { founderOffer, founderOpen } from "@/lib/billing/founder";
 
 export const metadata = { title: "Ma candidature" };
 
@@ -21,7 +22,7 @@ export default async function CandidaturePage(props: PageProps<"/dashboard/candi
   const company = session.activeCompany.company;
   const db = await createClient();
   const [{ data: item }, { data: o }, { data: profile }, { data: co }] = await Promise.all([
-    db.from("pipeline_items").select("stage, guide_done, docs_done, draft, submitted_at, created_at").eq("company_id", company.id).eq("opportunity_id", id).maybeSingle(),
+    db.from("pipeline_items").select("stage, guide_done, docs_done, brief_done, draft, submitted_at, created_at").eq("company_id", company.id).eq("opportunity_id", id).maybeSingle(),
     db.from("opportunities").select("id, title, origin, external_buyer_name, response_deadline, city, department_code").eq("id", id).maybeSingle(),
     db.from("company_profiles").select("description, references_text, certifications, employees_range, founded_year").eq("company_id", company.id).maybeSingle(),
     db.from("companies").select("name, city").eq("id", company.id).maybeSingle(),
@@ -44,6 +45,8 @@ export default async function CandidaturePage(props: PageProps<"/dashboard/candi
   const authorName = new Map((authors ?? []).map((a) => [a.id, a.full_name]));
   const primary = (sources ?? []).find((s) => s.is_primary) ?? (sources ?? [])[0];
   const allowed = (await db.rpc("plan_feature", { p_plan: plan, p_key: "tender_brief" })).data === true;
+  // Fiche réservée : où découvrir l'offre Pro (offre fondateur quand elle est ouverte)
+  const upgradeHref = allowed ? "/tarifs" : founderOpen(await founderOffer(admin)) ? "/offre-fondateur" : "/tarifs";
   const idweb = (sources ?? []).map((s) => boampId(s.original_url)).find(Boolean);
   const ted = idweb ? null : (sources ?? []).map((s) => tedId(s.original_url)).find(Boolean);
   const parsed = BriefSchema.safeParse(stored?.content);
@@ -55,12 +58,15 @@ export default async function CandidaturePage(props: PageProps<"/dashboard/candi
         id,
         title: o.title,
         buyer: o.origin === "EXTERNAL" ? o.external_buyer_name : null,
+        external: o.origin === "EXTERNAL",
         place: [o.city, o.department_code ? `(${o.department_code})` : null].filter(Boolean).join(" ") || null,
         deadline: o.response_deadline,
         stage: item?.stage ?? "DETECTED",
         submittedAt: item?.submitted_at ?? null,
         guideDone: (item?.guide_done ?? []).map(Number),
         docsDone: (item?.docs_done ?? []).map(Number),
+        briefDone: (item?.brief_done ?? []).map(Number),
+        upgradeHref,
         draft: item?.draft ?? null,
         brief,
         briefAllowed: allowed,

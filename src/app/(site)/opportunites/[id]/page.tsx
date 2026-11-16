@@ -22,6 +22,7 @@ import {
   Building2,
   Landmark,
   Sparkles,
+  ChevronDown,
 } from "lucide-react";
 import { InterestPanel } from "@/components/opportunities/interest-panel";
 import { FavoriteButton } from "@/components/opportunities/favorite-button";
@@ -32,7 +33,6 @@ import { parseCompanyFilters } from "@/lib/search-params";
 import { LandingPage, landingMetadata } from "@/components/opportunities/landing-page";
 import { resolveLanding } from "@/lib/landing";
 import { ReportButton } from "@/components/report-button";
-import { PipelineButton } from "@/components/opportunities/pipeline-button";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Notice } from "@/components/ui/notice";
@@ -43,14 +43,12 @@ import { getOpportunityDetail } from "@/lib/queries/opportunities";
 import { visitorRpc } from "@/lib/queries/public-cache";
 import { buyerSlug } from "@/lib/buyer-slug";
 import { fitReasons, getFitProfile } from "@/lib/fit";
-import { BuyerOfficial } from "@/components/buyers/buyer-official";
+import { buyerRegistryUrl } from "@/components/buyers/buyer-official";
 import { ShareLinks } from "@/components/share-links";
 import { cookies, headers } from "next/headers";
 import { OfferAccessGate } from "@/components/opportunities/offer-access-gate";
-import { TenderBriefPanel } from "@/components/opportunities/tender-brief";
 import { GuideButton } from "@/components/applications/guide-button";
-import { boampId, isFullBrief, storedBrief, tedId } from "@/lib/tender-brief";
-import { founderOffer, founderOpen } from "@/lib/billing/founder";
+import { boampId, storedBrief, tedId } from "@/lib/tender-brief";
 import { NeedContactForm } from "@/components/opportunities/need-contact-form";
 import { OUTREACH_COOKIE, outreachVisitor, track as trackOutreach } from "@/lib/outreach/tracking";
 import { getSectorLabels, showDemoData, getLocationLabel, getDepartments, getOpenCounts } from "@/lib/queries/platform";
@@ -61,7 +59,7 @@ import { getSession } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { track } from "@/lib/analytics";
 import { pageMetadata, siteUrl } from "@/lib/seo";
-import { DEMO_NOTICE, OPPORTUNITY_TYPE_HELP, OPPORTUNITY_TYPE_LABELS, sectorLabel, VERIFICATION_STATUS_LABELS, COMPANY_SIZE_LABELS } from "@/lib/constants";
+import { DEMO_NOTICE, OPPORTUNITY_TYPE_HELP, OPPORTUNITY_TYPE_LABELS, sectorLabel, COMPANY_SIZE_LABELS } from "@/lib/constants";
 import { clip, deadlineLabel, formatBudget, formatBytes, formatDate, formatDateTime, isUuid } from "@/lib/format";
 
 export async function generateMetadata(props: PageProps<"/opportunites/[id]">): Promise<Metadata> {
@@ -165,32 +163,9 @@ async function membersOnlyGate(id: string) {
   );
 }
 
-/** Données de la fiche synthèse d'un appel d'offres BOAMP ou TED (null sans avis officiel exploitable). */
-async function briefContext(id: string) {
-  const db = createAdminClient();
-  const { data: sources } = await db.from("opportunity_sources").select("original_url").eq("opportunity_id", id);
-  const idweb = (sources ?? []).map((x) => boampId(x.original_url)).find(Boolean);
-  const ted = idweb ? null : (sources ?? []).map((x) => tedId(x.original_url)).find(Boolean);
-  if (!idweb && !ted) return null;
-  const user = await createClient();
-  const session = await getSession();
-  const plan = (await user.rpc("user_plan")).data ?? "FREE";
-  // Visiteur non connecté : jamais la fiche complète (elle se prépare pour un compte)
-  const allowed = Boolean(session) && (await user.rpc("plan_feature", { p_plan: plan, p_key: "tender_brief" })).data === true;
-  const open = founderOpen(await founderOffer(db));
-  const stored = await storedBrief(id, db);
-  const path = `/opportunites/${id}`;
-  return {
-    allowed,
-    // Fiche ancienne (sans « Préparer sa réponse ») : préparée à nouveau à l'affichage
-    initial: allowed && isFullBrief(stored) ? stored : null,
-    // En une phrase, ce que veut l'acheteur (tiré de l'avis officiel) : visible de tous, utile aussi aux moteurs de recherche
-    teaser: allowed ? null : (stored?.summary ?? null),
-    source: idweb ? `BOAMP n° ${idweb}` : `TED n° ${ted}`,
-    upgradeHref: !session ? `/inscription?suite=${encodeURIComponent(path)}` : open ? "/offre-fondateur" : "/tarifs",
-    upgradeLabel: !session ? "Voir la fiche : compte gratuit" : open ? "Débloquer avec Pro" : "Voir l'offre Pro",
-    lockedTitle: !session ? "Réservé aux membres" : "Réservé aux membres Pro",
-  };
+/** Ce que veut l'acheteur, en une phrase simple, tiré de la fiche synthèse de l'avis (null si elle n'est pas encore prête). */
+async function briefSummary(id: string): Promise<string | null> {
+  return ((await storedBrief(id, createAdminClient()).catch(() => null))?.summary ?? null) || null;
 }
 
 /**
@@ -320,18 +295,16 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
 
   const myCompanyId = session?.activeCompany?.company.id ?? null;
   const isOwner = Boolean(o.company_id && session?.memberships.some((m) => m.company.id === o.company_id));
-  const [fav, interest, proposal, pipeline, myProfile] = await Promise.all([
+  const [fav, interest, proposal, pipeline] = await Promise.all([
     session ? supabase.from("favorites").select("id").eq("user_id", session.userId).eq("opportunity_id", o.id).maybeSingle() : null,
     myCompanyId ? supabase.from("interests").select("id, status").eq("opportunity_id", o.id).eq("company_id", myCompanyId).maybeSingle() : null,
     myCompanyId ? supabase.from("proposals").select("id, status").eq("opportunity_id", o.id).eq("company_id", myCompanyId).maybeSingle() : null,
     myCompanyId ? supabase.from("pipeline_items").select("id, stage").eq("opportunity_id", o.id).eq("company_id", myCompanyId).maybeSingle() : null,
-    // Certifications de la fiche entreprise : comparées aux exigences de l'avis
-    myCompanyId && o.origin === "EXTERNAL" ? supabase.from("company_profiles").select("certifications").eq("company_id", myCompanyId).maybeSingle() : null,
   ]);
 
   const external = o.origin === "EXTERNAL";
-  // Fiche synthèse (avis BOAMP) : complète pour les membres Pro, en essai ou pendant la phase de lancement
-  const brief = external ? await briefContext(o.id) : null;
+  // Ce que veut l'acheteur, en mots simples (fiche synthèse de l'avis officiel) ; le détail est sur la fiche de candidature
+  const brief = external ? { summary: await briefSummary(o.id) } : null;
   const sources = (Array.isArray(o.source) ? o.source : o.source ? [o.source] : []).sort((a, b) => Number(b.is_primary) - Number(a.is_primary));
   const source = sources[0];
   const otherSources = sources.slice(1);
@@ -353,6 +326,232 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
   const fitProfile = isOpen ? await getFitProfile() : null;
   const fit = fitProfile ? fitReasons({ ...o, summary: o.summary ?? o.description }, fitProfile) : [];
   const showLeadForm = !session && !o.is_demo && o.visibility === "PUBLIC";
+
+  // Offre externe (appel d'offres BOAMP, TED…) : l'essentiel en un coup d'œil et un seul bouton,
+  // « En savoir plus », qui ouvre la fiche de candidature (conditions, pièces, dépôt et annonce officielle).
+  if (external) {
+    const guided = isOpen && !o.is_demo;
+    const what = brief?.summary ?? o.summary ?? (o.description ? clip(o.description.replace(/\s+/g, " ").trim(), 260) : null);
+    const days = o.response_deadline ? Math.ceil((new Date(o.response_deadline).getTime() - new Date().getTime()) / 86_400_000) : null;
+    const where = [(await getLocationLabel())(o.city, o.department_code), o.region].filter(Boolean).join(" · ") || null;
+    const trade = o.sector_slug ? sectorLabel(o.sector_slug, await getSectorLabels()) : null;
+    const official = [
+      o.description && { title: "Résumé", text: o.description },
+      o.services && { title: "Prestations attendues", text: o.services },
+      o.constraints && { title: "Contraintes", text: o.constraints },
+      o.criteria && { title: "Critères de sélection", text: o.criteria },
+    ].filter(Boolean) as { title: string; text: string }[];
+    return (
+      <div className="bg-slate-50/60">
+        <div className="container-page py-6 sm:py-10">
+          <JsonLd data={breadcrumbLd([...crumbs, { name: o.title, path: `/opportunites/${o.id}` }])} />
+          <nav aria-label="Fil d'Ariane" className="mb-4 text-sm text-slate-500">
+            {crumbs.map((c, i) => (
+              <span key={c.path}>
+                {i > 0 && " / "}
+                <Link href={c.path} className="hover:underline">
+                  {c.name}
+                </Link>
+              </span>
+            ))}
+          </nav>
+          <div className="mx-auto max-w-3xl">
+            {effectiveStatus === "EXPIRED" && (
+              <Notice tone="warning" title="EXPIRÉE" className="mb-6">
+                La date limite de cette opportunité est dépassée : elle n&apos;est plus active. Elle reste consultable pour information.{" "}
+                <Link href={`/opportunites${o.sector_slug ? `/${o.sector_slug}` : ""}`} className="font-semibold underline">
+                  Voir les opportunités ouvertes
+                </Link>
+              </Notice>
+            )}
+            {o.is_demo && (
+              <Notice tone="warning" className="mb-6">
+                {DEMO_NOTICE}
+              </Notice>
+            )}
+
+            <article className="relative isolate overflow-hidden rounded-[2rem] bg-white p-5 shadow-sm ring-1 ring-slate-200 [overflow-wrap:anywhere] sm:p-9">
+              <div aria-hidden className="pointer-events-none absolute -top-28 -right-24 -z-10 size-72 animate-aurora rounded-full bg-teal/15 blur-3xl" />
+              <div aria-hidden className="pointer-events-none absolute -bottom-32 -left-20 -z-10 size-72 animate-aurora rounded-full bg-violet/10 blur-3xl [animation-delay:-6s]" />
+              <div className="flex items-center gap-3">
+                <SectorVisual sector={o.sector_slug} priority className="size-11 shrink-0 rounded-xl sm:size-12" />
+                <div className="min-w-0">
+                  <p data-testid="origin" className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs font-semibold tracking-wide text-slate-500 uppercase">
+                    {o.type === "PUBLIC_TENDER" ? <Landmark className="size-3.5" aria-hidden /> : <ExternalLink className="size-3.5" aria-hidden />}
+                    <span>Opportunité externe</span>
+                    {o.type !== "EXTERNAL_OPPORTUNITY" && (
+                      <>
+                        <span aria-hidden>·</span>
+                        <span>{OPPORTUNITY_TYPE_LABELS[o.type]}</span>
+                      </>
+                    )}
+                  </p>
+                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                    <StatusBadge kind="opportunity" status={effectiveStatus} />
+                    {o.visibility === "MEMBERS_ONLY" && (
+                      <Badge tone="slate" icon={<Lock className="size-3" aria-hidden />}>
+                        Réservée aux membres
+                      </Badge>
+                    )}
+                    {o.is_demo && <DemoBadge />}
+                  </div>
+                </div>
+              </div>
+
+              <h1 className="mt-4 font-heading text-[1.4rem] leading-tight font-extrabold text-balance text-navy sm:mt-5 sm:text-3xl">{o.title}</h1>
+              <p className="mt-2 text-slate-600">
+                {o.external_buyer_name ? (
+                  buyerSlug(o.external_buyer_name) ? (
+                    <Link href={`/acheteurs/${buyerSlug(o.external_buyer_name)}`} className="font-semibold text-navy underline-offset-2 hover:underline">
+                      {o.external_buyer_name}
+                    </Link>
+                  ) : (
+                    <strong className="text-navy">{o.external_buyer_name}</strong>
+                  )
+                ) : (
+                  "Acheteur indiqué dans l'annonce officielle"
+                )}
+              </p>
+              {fit.length > 0 && (
+                <p className="mt-3 flex flex-wrap items-center gap-1.5 text-sm font-semibold text-teal-800" data-testid="fit-reasons">
+                  <Sparkles className="size-4 text-teal-600" aria-hidden /> Pour vous :
+                  {fit.map((r) => (
+                    <span key={r} className="rounded-full bg-teal-50 px-2.5 py-0.5 text-xs ring-1 ring-teal/30">
+                      {r}
+                    </span>
+                  ))}
+                </p>
+              )}
+
+              {what && (
+                <div className="mt-5 rounded-2xl bg-gradient-to-br from-sky to-white p-4 ring-1 ring-slate-200 sm:mt-6 sm:p-5" data-testid="offer-what">
+                  <p className="text-xs font-bold tracking-wide text-teal-700 uppercase">Ce que cherche l&apos;acheteur</p>
+                  <p className="mt-1.5 leading-relaxed text-navy sm:text-[17px]">{what}</p>
+                </div>
+              )}
+
+              <ul className="mt-4 flex flex-wrap gap-2 text-sm">
+                <li className={`inline-flex max-w-full items-start gap-1.5 rounded-2xl px-3 py-1.5 ring-1 ${days !== null && days >= 0 && days <= 5 ? "bg-rose-50 text-rose-800 ring-rose-200" : "bg-white text-slate-700 ring-slate-200"}`}>
+                  <CalendarClock className="mt-0.5 size-4 shrink-0" aria-hidden />
+                  <span className="min-w-0">
+                    <span className="opacity-70">Date limite : </span>
+                    <strong className="font-semibold">{o.response_deadline ? formatDate(o.response_deadline) : "voir l'annonce"}</strong>
+                    {deadline && <span className="font-semibold opacity-80"> · {deadline.toLowerCase()}</span>}
+                  </span>
+                </li>
+                {where && (
+                  <li className="inline-flex max-w-full items-center gap-1.5 rounded-2xl bg-white px-3 py-1.5 text-slate-700 ring-1 ring-slate-200">
+                    <MapPin className="size-4 shrink-0" aria-hidden />
+                    <span className="font-semibold">{where}</span>
+                  </li>
+                )}
+                {trade && (
+                  <li className="inline-flex max-w-full items-center gap-1.5 rounded-2xl bg-white px-3 py-1.5 text-slate-700 ring-1 ring-slate-200">
+                    <Tag className="size-4 shrink-0" aria-hidden />
+                    <span className="font-semibold">{trade}</span>
+                  </li>
+                )}
+              </ul>
+
+              <div className="mt-6">
+                {guided ? (
+                  <>
+                    <GuideButton opportunityId={o.id} signedIn={Boolean(session)} hasCompany={Boolean(session?.activeCompany)} started={Boolean(pipeline?.data)} />
+                    <p className="mt-2.5 text-center text-sm text-balance text-slate-500">
+                      Puis-je répondre ? Quelles pièces fournir ? Où déposer ? Tout est expliqué simplement, étape par étape, avec le lien vers l&apos;annonce officielle.
+                    </p>
+                  </>
+                ) : source?.original_url ? (
+                  <>
+                    <a href={`/go/${o.id}`} target="_blank" rel="noopener noreferrer nofollow" className={buttonClasses({ full: true, size: "lg" })}>
+                      Consulter l&apos;opportunité originale <ExternalLink className="size-4" aria-hidden />
+                    </a>
+                    <p className="mt-2 text-center text-xs text-slate-500">Ouvre le site source dans un nouvel onglet.</p>
+                  </>
+                ) : null}
+              </div>
+            </article>
+
+            {official.length > 0 && (
+              <details className="group mt-4 rounded-2xl bg-white shadow-sm ring-1 ring-slate-200" data-testid="official-text">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 font-semibold text-navy [&::-webkit-details-marker]:hidden">
+                  <span className="flex items-center gap-2">
+                    <FileText className="size-4 text-teal-700" aria-hidden /> Lire le texte de l&apos;annonce
+                  </span>
+                  <ChevronDown className="size-4 text-slate-400 transition group-open:rotate-180" aria-hidden />
+                </summary>
+                <div className="space-y-5 border-t border-slate-100 px-5 py-5 text-[15px] leading-7 text-slate-700">
+                  {official.map((x) => (
+                    <div key={x.title}>
+                      <p className="mb-1 text-sm font-bold text-navy">{x.title}</p>
+                      <p className="whitespace-pre-line">{x.text}</p>
+                    </div>
+                  ))}
+                </div>
+              </details>
+            )}
+
+            <div className="mt-4 rounded-2xl bg-white p-5 text-sm shadow-sm ring-1 ring-slate-200">
+              <p className="text-slate-600">
+                Cette opportunité est issue d&apos;une source externe : l&apos;annonce officielle fait foi. LinkProB2B n&apos;est pas l&apos;organisme qui publie ce marché.
+              </p>
+              <p className="mt-2 text-xs text-slate-500">
+                {[
+                  `Source : ${source?.external_source?.name ?? "source externe"}`,
+                  source?.external_id ? `réf. ${source.external_id}` : null,
+                  source?.source_published_at ? `publiée le ${formatDate(source.source_published_at)}` : null,
+                  source?.last_verified_at ? `vérifiée le ${formatDate(source.last_verified_at)}` : null,
+                  source?.external_source?.license ?? null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </p>
+              {source?.external_source?.attribution && <p className="mt-1 text-xs text-slate-500">{source.external_source.attribution}</p>}
+              {otherSources.length > 0 && (
+                <p className="mt-1 text-xs text-slate-500">
+                  Également publiée sur : {otherSources.map((s) => `${s.external_source?.name ?? "source"}${s.external_id ? ` (réf. ${s.external_id})` : ""}`).join(", ")}
+                </p>
+              )}
+              {source?.verification_status === "UNVERIFIABLE" && (
+                <p className="mt-2 flex items-center gap-1 text-xs font-semibold text-rose-700">
+                  <ShieldAlert className="size-4" aria-hidden /> Cette annonce n&apos;a pas pu être vérifiée récemment sur la source.
+                </p>
+              )}
+              <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-slate-100 pt-4">
+                <FavoriteButton target="opportunity" id={o.id} initial={Boolean(fav?.data)} signedIn={Boolean(session)} subtle />
+                {isOpen && o.response_deadline && (
+                  <a href={`/api/opportunites/${o.id}/agenda`} download className="inline-flex items-center gap-1.5 font-semibold text-slate-500 transition hover:text-teal-700" data-testid="deadline-calendar">
+                    <CalendarClock className="size-4" aria-hidden /> Ajouter la date limite à mon agenda
+                  </a>
+                )}
+                {o.external_buyer_name && (
+                  <a href={buyerRegistryUrl(o.external_buyer_name)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 font-semibold text-slate-500 transition hover:text-teal-700">
+                    <Landmark className="size-4" aria-hidden /> Fiche officielle de l&apos;acheteur
+                  </a>
+                )}
+                <ReportButton targetType="OPPORTUNITY" targetId={o.id} signedIn={Boolean(session)} label="Signaler cette opportunité" />
+              </div>
+              {isOpen && o.visibility === "PUBLIC" && !o.is_demo && (
+                <div className="mt-4 border-t border-slate-100 pt-4">
+                  <ShareLinks url={`${siteUrl()}/opportunites/${o.id}`} title={o.title} label="Partager à un collègue ou un partenaire" />
+                </div>
+              )}
+            </div>
+          </div>
+          <SimilarOpportunities
+            id={o.id}
+            sector={o.sector_slug}
+            department={o.department_code}
+            region={o.region}
+            signedIn={Boolean(session)}
+            morePath={crumbs.at(-1)?.path ?? "/opportunites"}
+            moreLabel={leadLabel}
+          />
+          <PartnersBlock sector={o.sector_slug} department={o.department_code} external />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-slate-50/60">
@@ -411,29 +610,12 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
               <div className="min-w-0 flex-1">
                 {/* Provenance toujours indiquée : externe (avec la source) ou besoin publié par un membre */}
                 <p data-testid="origin" className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs font-semibold tracking-wide text-slate-500 uppercase">
-                  {external ? (
+                  <Building2 className="size-3.5 text-teal-700" aria-hidden />
+                  <span className="text-teal-700">Besoin publié sur LinkProB2B</span>
+                  {o.type !== "EXTERNAL_OPPORTUNITY" && (
                     <>
-                      {o.type === "PUBLIC_TENDER" ? <Landmark className="size-3.5" aria-hidden /> : <ExternalLink className="size-3.5" aria-hidden />}
-                      <span>Opportunité externe</span>
-                      {o.type !== "EXTERNAL_OPPORTUNITY" && (
-                        <>
-                          <span aria-hidden>·</span>
-                          <span>{OPPORTUNITY_TYPE_LABELS[o.type]}</span>
-                        </>
-                      )}
                       <span aria-hidden>·</span>
-                      <span>{source?.external_source?.name ?? "Source externe"}</span>
-                    </>
-                  ) : (
-                    <>
-                      <Building2 className="size-3.5 text-teal-700" aria-hidden />
-                      <span className="text-teal-700">Besoin publié sur LinkProB2B</span>
-                      {o.type !== "EXTERNAL_OPPORTUNITY" && (
-                        <>
-                          <span aria-hidden>·</span>
-                          <span>{OPPORTUNITY_TYPE_LABELS[o.type]}</span>
-                        </>
-                      )}
+                      <span>{OPPORTUNITY_TYPE_LABELS[o.type]}</span>
                     </>
                   )}
                 </p>
@@ -460,24 +642,7 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
               </p>
             )}
 
-            {external ? (
-              <p className="mt-2 text-sm text-slate-600">
-                {o.external_buyer_name ? (
-                  <>
-                    <span className="text-slate-500">Acheteur (selon la source) :</span>{" "}
-                    {buyerSlug(o.external_buyer_name) ? (
-                      <Link href={`/acheteurs/${buyerSlug(o.external_buyer_name)}`} className="font-semibold text-navy underline-offset-2 hover:underline">
-                        {o.external_buyer_name}
-                      </Link>
-                    ) : (
-                      <strong className="text-navy">{o.external_buyer_name}</strong>
-                    )}
-                  </>
-                ) : (
-                  "Acheteur : voir la source originale"
-                )}
-              </p>
-            ) : company ? (
+            {company ? (
               <Link href={`/entreprises/${company.slug}`} className="mt-3 inline-flex items-center gap-3 rounded-xl hover:bg-sky sm:pr-3">
                 <CompanyLogo name={company.name} path={company.logo_path} size={40} />
                 <span>
@@ -505,24 +670,8 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
               <Info className="mt-0.5 size-3.5 shrink-0" aria-hidden /> {OPPORTUNITY_TYPE_HELP[o.type]}
             </p>
 
-            {brief && (
-              <TenderBriefPanel
-                opportunityId={o.id}
-                initial={brief.initial}
-                source={brief.source}
-                allowed={brief.allowed}
-                teaser={brief.teaser}
-                lockedTitle={brief.lockedTitle}
-                mine={myCompanyId ? (myProfile?.data?.certifications ?? []) : null}
-                upgrade={
-                  <Link href={brief.upgradeHref} className={buttonClasses({ full: true, className: "btn-shine" })}>
-                    {brief.upgradeLabel}
-                  </Link>
-                }
-              />
-            )}
             {o.summary && <p className="mt-6 text-lg text-navy">{o.summary}</p>}
-            <Section title={external ? "Résumé" : "Description"}>
+            <Section title="Description">
               <p className="whitespace-pre-line">{o.description}</p>
             </Section>
             {o.services && (
@@ -552,7 +701,7 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
               </Section>
             )}
 
-            {!external && (
+            {(
               <Section title="Documents">
                 {!session ? (
                   <p className="flex items-center gap-2 text-sm text-slate-600">
@@ -583,94 +732,14 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
               <span className="flex items-center gap-1">
                 <Eye className="size-3.5" aria-hidden />
                 Provenance :{" "}
-                {external ? `opportunité externe référencée (${source?.external_source?.name ?? "source externe"})` : "besoin publié sur LinkProB2B"}
+                besoin publié sur LinkProB2B
               </span>
               <ReportButton targetType="OPPORTUNITY" targetId={o.id} signedIn={Boolean(session)} label="Signaler cette opportunité" />
             </div>
           </article>
 
           <aside className="min-w-0 space-y-4 [overflow-wrap:anywhere] lg:sticky lg:top-20 lg:self-start">
-            {external ? (
-              <div className="rounded-2xl border-2 border-teal/40 bg-white p-5 shadow-sm">
-                <p className="flex items-center gap-2 font-heading text-lg font-bold text-navy">
-                  <ExternalLink className="size-5 text-teal-700" aria-hidden /> Opportunité externe
-                </p>
-                <p className="mt-2 text-sm text-slate-600">
-                  {isOpen && !o.is_demo ? (
-                    <>
-                      Cette opportunité est issue d&apos;une source externe : l&apos;annonce officielle fait foi. Elle est accessible depuis votre candidature, avec
-                      tout ce qu&apos;il faut pour y répondre. LinkProB2B n&apos;est pas l&apos;organisme qui publie ce marché.
-                    </>
-                  ) : (
-                    <>
-                      Cette opportunité est issue d&apos;une source externe. Consultez la source officielle pour les informations définitives et les modalités
-                      de candidature. LinkProB2B n&apos;est pas l&apos;organisme qui publie ce marché.
-                    </>
-                  )}
-                </p>
-                <dl className="mt-4 space-y-2 text-sm">
-                  <Row label="Source" value={source?.external_source?.name ?? "—"} />
-                  {source?.external_id && <Row label="Référence" value={source.external_id} />}
-                  <Row label="Publication (source)" value={formatDate(source?.source_published_at)} />
-                  <Row label="Référencée le" value={formatDate(source?.imported_at)} />
-                  <Row label="Dernière actualisation" value={formatDate(source?.last_verified_at)} />
-                  {source?.verification_status && source.verification_status !== "VERIFIED" && (
-                    <Row label="État" value={VERIFICATION_STATUS_LABELS[source.verification_status] ?? source.verification_status} />
-                  )}
-                  {source?.external_source?.license && <Row label="Conditions" value={source.external_source.license} />}
-                </dl>
-                {source?.external_source?.attribution && <p className="mt-3 text-xs text-slate-500">{source.external_source.attribution}</p>}
-                {isOpen && !o.is_demo && (
-                  <div className="mt-5">
-                    <GuideButton
-                      opportunityId={o.id}
-                      signedIn={Boolean(session)}
-                      hasCompany={Boolean(session?.activeCompany)}
-                      started={Boolean(pipeline?.data)}
-                    />
-                    <p className="mt-2 text-center text-xs text-slate-500">Conditions exigées, pièces, notation et conseils, plus un assistant pour répondre à vos questions : de quoi décider en 2 minutes si l&apos;offre est pour vous.</p>
-                  </div>
-                )}
-                {/* Offre ouverte : l'annonce officielle s'ouvre depuis la candidature (après l'accompagnement) */}
-                {source?.original_url && !(isOpen && !o.is_demo) && (
-                  <>
-                    <a href={`/go/${o.id}`} target="_blank" rel="noopener noreferrer nofollow" className={buttonClasses({ full: true, size: "lg", className: "mt-5" })}>
-                      Consulter l&apos;opportunité originale <ExternalLink className="size-4" aria-hidden />
-                    </a>
-                    <p className="mt-2 text-center text-xs text-slate-500">Ouvre le site source dans un nouvel onglet.</p>
-                  </>
-                )}
-                {otherSources.length > 0 && (
-                  <div className="mt-4 border-t border-slate-100 pt-3 text-sm">
-                    <p className="font-semibold text-navy">Également publiée sur</p>
-                    <ul className="mt-1 space-y-1">
-                      {otherSources.map((s) => (
-                        <li key={s.source_id}>
-                          {isOpen && !o.is_demo ? (
-                            <span className="text-slate-700">
-                              {s.external_source?.name}
-                              {s.external_id ? ` — réf. ${s.external_id}` : ""}
-                            </span>
-                          ) : (
-                            <a href={`/go/${o.id}?source=${s.source_id}`} target="_blank" rel="noopener noreferrer nofollow" className="text-teal-700 underline">
-                              {s.external_source?.name}
-                              {s.external_id ? ` — réf. ${s.external_id}` : ""}
-                            </a>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                {source?.verification_status === "UNVERIFIABLE" && (
-                  <Notice tone="warning" className="mt-4">
-                    <span className="flex items-center gap-1">
-                      <ShieldAlert className="size-4" aria-hidden /> Cette annonce n&apos;a pas pu être vérifiée récemment sur la source.
-                    </span>
-                  </Notice>
-                )}
-              </div>
-            ) : (
+            {(
               <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <p className="mb-4 font-heading text-lg font-bold text-navy">Besoin publié sur LinkProB2B</p>
                 <InterestPanel
@@ -689,27 +758,12 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
             )}
             <div className="flex flex-col gap-2 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
               <FavoriteButton target="opportunity" id={o.id} initial={Boolean(fav?.data)} signedIn={Boolean(session)} />
-              {external && session?.activeCompany && <PipelineButton opportunityId={o.id} initial={Boolean(pipeline?.data)} />}
               {isOpen && o.response_deadline && (
                 <a href={`/api/opportunites/${o.id}/agenda`} download className={buttonClasses({ variant: "outline", full: true })} data-testid="deadline-calendar">
                   <CalendarClock className="size-4" aria-hidden /> Ajouter l&apos;échéance à mon agenda
                 </a>
               )}
             </div>
-            {external && isOpen && !o.is_demo && (
-              <div className="rounded-2xl border border-teal-200 bg-teal-50/60 p-4" data-testid="find-partner">
-                <p className="font-semibold text-navy">Un lot hors de votre métier ?</p>
-                <p className="mt-1 text-sm text-slate-600">
-                  Trouvez un partenaire ou un sous-traitant pour répondre ensemble. Votre demande est présentée aux entreprises de ce métier dans la zone.
-                </p>
-                <Link
-                  href={session?.activeCompany ? `/publier?partenaire=${o.id}` : `/connexion?suite=${encodeURIComponent(`/publier?partenaire=${o.id}`)}`}
-                  className={`${buttonClasses({ variant: "outline", full: true })} mt-3`}
-                >
-                  <Users className="size-4" aria-hidden /> Trouver un partenaire
-                </Link>
-              </div>
-            )}
             {showLeadForm && (
               <AlertLeadForm
                 compact
@@ -723,16 +777,8 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
             )}
             {isOpen && o.visibility === "PUBLIC" && !o.is_demo && (
               <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                <ShareLinks url={`${siteUrl()}/opportunites/${o.id}`} title={o.title} needId={external ? undefined : o.id} label={external ? undefined : "Faire connaître ce besoin"} />
+                <ShareLinks url={`${siteUrl()}/opportunites/${o.id}`} title={o.title} needId={o.id} label="Faire connaître ce besoin" />
               </div>
-            )}
-            {external && o.external_buyer_name && (
-              <BuyerOfficial
-                name={o.external_buyer_name}
-                signedIn
-                signupHref="/inscription"
-                buyerPath={buyerSlug(o.external_buyer_name) ? `/acheteurs/${buyerSlug(o.external_buyer_name)}` : null}
-              />
             )}
           </aside>
         </div>
@@ -745,7 +791,7 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
           morePath={crumbs.at(-1)?.path ?? "/opportunites"}
           moreLabel={leadLabel}
         />
-        <PartnersBlock sector={o.sector_slug} department={o.department_code} external={external} />
+        <PartnersBlock sector={o.sector_slug} department={o.department_code} external={false} />
       </div>
     </div>
   );
@@ -892,15 +938,6 @@ function Fact({ icon: Icon, label, value }: { icon: typeof MapPin; label: string
         <dt className="text-xs text-slate-500">{label}</dt>
         <dd className="mt-0.5 font-medium text-navy">{value}</dd>
       </div>
-    </div>
-  );
-}
-
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex justify-between gap-3">
-      <dt className="shrink-0 text-slate-500">{label}</dt>
-      <dd className="min-w-0 text-right font-medium text-navy">{value}</dd>
     </div>
   );
 }
