@@ -41,6 +41,12 @@ export async function signIn(_prev: ActionResult | null, formData: FormData): Pr
   redirect(next);
 }
 
+/** Identifiant de la visite pendant laquelle le formulaire d'inscription a été rempli. */
+function visitId(formData: FormData): string | null {
+  const v = formData.get("visite");
+  return typeof v === "string" && /^[0-9a-f-]{36}$/i.test(v) ? v : null;
+}
+
 export async function signUp(_prev: ActionResult | null, formData: FormData): Promise<ActionResult> {
   const parsed = parseForm(signUpSchema, formData);
   if (!parsed.success) return parsed.result;
@@ -142,7 +148,7 @@ export async function signUp(_prev: ActionResult | null, formData: FormData): Pr
   const { data, error } = await supabase.auth.signUp({
     email: parsed.data.email,
     password: parsed.data.password,
-    options: { emailRedirectTo: `${env.siteUrl}/auth/confirmation?suite=${encodeURIComponent(next)}`, data: meta },
+    options: { emailRedirectTo: `${env.siteUrl}/auth/confirmation?${new URLSearchParams({ suite: next, ...(visitId(formData) ? { v: visitId(formData)! } : {}) })}`, data: meta },
   });
   if (error) {
     logServerError("signUp", error);
@@ -152,6 +158,9 @@ export async function signUp(_prev: ActionResult | null, formData: FormData): Pr
   }
   await supabase.rpc("track_event", { p_event_name: "create_account" });
   await trackSignupReferral(formData.get("ref"), data.user?.id ?? null);
+  // Provenance enregistrée dès la création du compte (le lien de confirmation peut s'ouvrir sur un autre appareil)
+  const visit = visitId(formData);
+  if (data.user && visit) await createAdminClient().from("users").update({ signup_visit: visit }).eq("id", data.user.id).is("signup_visit", null).then(({ error: e }) => e && logServerError("signup visit", e));
   if (!data.session) {
     const message = next.startsWith("/opportunites/")
       ? "Compte créé. Cliquez sur le lien reçu par e-mail pour l'activer : vous serez connecté et l'offre s'ouvrira directement."

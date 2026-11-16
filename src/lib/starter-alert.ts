@@ -121,7 +121,7 @@ export async function welcomeOffers(criteria: Criteria | null, limit = 4): Promi
 export async function welcomeNewMember(user: { id: string; email: string }, next: string | null | undefined, ref?: FormDataEntryValue | string | null, visit?: FormDataEntryValue | string | null) {
   // Visite pendant laquelle le compte a été créé : provenance de l'inscrit (bilan, tableau de bord)
   if (typeof visit === "string" && /^[0-9a-f-]{36}$/i.test(visit)) {
-    await createAdminClient().from("users").update({ signup_visit: visit }).eq("id", user.id).then(({ error }) => error && logServerError("signup visit", error));
+    await createAdminClient().from("users").update({ signup_visit: visit }).eq("id", user.id).is("signup_visit", null).then(({ error }) => error && logServerError("signup visit", error));
   }
   const criteria = await signupCriteria(next, ref ?? null).catch(() => null);
   let alertName: string | null = null;
