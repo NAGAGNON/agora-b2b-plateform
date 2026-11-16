@@ -1,0 +1,3 @@
+# Les scripts du conteneur Linux doivent garder des fins de ligne LF (Windows les convertit en CRLF et casse le démarrage)
+*.sh text eol=lf
+Dockerfile text eol=lf
