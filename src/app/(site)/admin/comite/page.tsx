@@ -220,7 +220,7 @@ export default async function BoardPage(props: { searchParams: Promise<Record<st
           <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
             <h2 className="font-heading text-lg font-bold text-navy">Seuils du lancement payant</h2>
             <p className={cn("text-sm font-semibold", launch.pret ? "text-teal-700" : "text-slate-500")}>
-              {launch.pret ? "Tous atteints : la décision vous revient" : `${launch.atteints} sur ${launch.criteres.length} atteints · alerte par e-mail dès que tout est atteint`}
+              {launch.pret ? "Tous atteints : la décision vous revient" : `${launch.atteints} sur ${launch.criteres.length} atteints · alerte par e-mail dès que tout est atteint · réexamen le ${new Date(`${launch.reexamen}T12:00:00Z`).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })}`}
             </p>
           </div>
           <div className="mt-4 grid gap-3 sm:grid-cols-3">

@@ -122,7 +122,7 @@ async function boardFacts(db: DB, now: Date, kind: BoardKind) {
     bilan_de_la_veille: report.data ? { journee: report.data.day, chiffres: scrub(report.data.facts) } : "indisponible",
     tendance: { "7_derniers_jours": cur, "7_jours_precedents": prev, "30_derniers_jours": month },
     seuils_du_lancement_payant_fixes_par_le_fondateur: launch
-      ? { tous_atteints: launch.pret, criteres: launch.criteres.map((c) => ({ critere: c.libelle, actuel: c.actuel, seuil: c.seuil, atteint: c.atteint })) }
+      ? { tous_atteints: launch.pret, date_de_reexamen: launch.reexamen, criteres: launch.criteres.map((c) => ({ critere: c.libelle, actuel: c.actuel, seuil: c.seuil, atteint: c.atteint })) }
       : "indisponible",
     dernier_bilan_hebdomadaire: weekly ? { semaine: weekly.facts.semaine, chiffres: weekly.facts.chiffres } : null,
     plateforme: {
