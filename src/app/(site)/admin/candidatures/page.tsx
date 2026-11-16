@@ -5,6 +5,7 @@ import { DashboardCard } from "@/components/ui/card";
 import { formatDateTime } from "@/lib/format";
 import { Bookmark, Eye, FolderOpen, Hammer, MessageCircleQuestion, Send, Trophy } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { STEP_SHORT } from "@/lib/application-plan";
 
 export const metadata = { title: "Candidatures" };
 export const dynamic = "force-dynamic";
@@ -47,7 +48,7 @@ export default async function AdminApplicationsPage(props: PageProps<"/admin/can
   const [{ data: items }, { data: prompts }, { data: journal }, { data: questions }] = await Promise.all([
     db
       .from("pipeline_items")
-      .select("stage, created_at, updated_at, updated_by, work_started_at, submitted_at, company_id, opportunity_id, companies!inner(name, is_demo)")
+      .select("stage, created_at, updated_at, updated_by, work_started_at, submitted_at, guide_done, docs_done, draft, company_id, opportunity_id, companies!inner(name, is_demo)")
       .in("stage", Object.keys(STAGE_LABEL) as never)
       .eq("companies.is_demo", false)
       .order("updated_at", { ascending: false })
@@ -98,11 +99,12 @@ export default async function AdminApplicationsPage(props: PageProps<"/admin/can
   ].slice(0, 300);
   const [{ data: cos }, { data: opps }, { data: users }] = await Promise.all([
     companyIds.length ? db.from("companies").select("id, name, is_demo").in("id", companyIds) : Promise.resolve({ data: [] as { id: string; name: string; is_demo: boolean }[] }),
-    oppIds.length ? db.from("opportunities").select("id, title").in("id", oppIds) : Promise.resolve({ data: [] as { id: string; title: string }[] }),
+    oppIds.length ? db.from("opportunities").select("id, title, response_deadline").in("id", oppIds) : Promise.resolve({ data: [] as { id: string; title: string; response_deadline: string | null }[] }),
     userIds.length ? db.from("users").select("id, full_name, email").in("id", userIds) : Promise.resolve({ data: [] as { id: string; full_name: string; email: string }[] }),
   ]);
   const co = new Map((cos ?? []).map((c) => [c.id, c]));
   const opp = new Map((opps ?? []).map((o) => [o.id, o.title]));
+  const deadlineOf = new Map((opps ?? []).map((o) => [o.id, o.response_deadline]));
   const userName = new Map((users ?? []).map((u) => [u.id, u.full_name || u.email]));
   const real = <T extends { company_id: string }>(list: T[]) => list.filter((x) => co.get(x.company_id) && !co.get(x.company_id)!.is_demo && !internal.has(x.company_id));
   const activity = real(journal ?? []);
@@ -206,6 +208,20 @@ export default async function AdminApplicationsPage(props: PageProps<"/admin/can
     ? await db.from("users").select("id, full_name, email, created_at, last_seen_at, is_demo, is_internal").in("id", memberIds)
     : { data: [] as { id: string; full_name: string; email: string; created_at: string; last_seen_at: string | null; is_demo: boolean; is_internal: boolean }[] };
   const companyName = new Map(rows.map((r) => [r.company_id, r.company?.name ?? ""]));
+  // Détail des dossiers ouverts : nombre de pièces demandées (fiche synthèse) et notes du journal
+  const openedOpps = [...new Set(rows.filter((r) => r.work_started_at || OPENED.includes(r.stage)).map((r) => r.opportunity_id))].slice(0, 300);
+  const [{ data: briefRows }, { data: noteRows }] = await Promise.all([
+    openedOpps.length ? db.from("tender_briefs").select("opportunity_id, content").in("opportunity_id", openedOpps) : Promise.resolve({ data: [] as { opportunity_id: string; content: unknown }[] }),
+    memberCompanies.length
+      ? db.from("application_journal").select("company_id, opportunity_id").eq("kind", "NOTE").in("company_id", memberCompanies).limit(3000)
+      : Promise.resolve({ data: [] as { company_id: string; opportunity_id: string }[] }),
+  ]);
+  const docsTotal = new Map((briefRows ?? []).map((b) => [b.opportunity_id, ((b.content as { documents?: unknown[] } | null)?.documents ?? []).length]));
+  const pairKey = (companyId: string, oppId: string) => `${companyId}:${oppId}`;
+  const notesOf = new Map<string, number>();
+  for (const n of noteRows ?? []) notesOf.set(pairKey(n.company_id, n.opportunity_id), (notesOf.get(pairKey(n.company_id, n.opportunity_id)) ?? 0) + 1);
+  const questionsOf = new Map<string, number>();
+  for (const q of asked) questionsOf.set(pairKey(q.company_id, q.opportunity_id), (questionsOf.get(pairKey(q.company_id, q.opportunity_id)) ?? 0) + 1);
   const perUser = (people ?? [])
     .filter((u) => !u.is_demo && !u.is_internal)
     .map((u) => {
@@ -227,6 +243,8 @@ export default async function AdminApplicationsPage(props: PageProps<"/admin/can
         kept: by(["INTERESTED"]),
         preparing: by(["RESPONSE_PREPARING"]),
         working: mine.filter((r) => r.work_started_at).length,
+        // Dossier le plus avancé : nombre d'étapes du guide franchies (sur 6)
+        bestSteps: Math.max(0, ...mine.filter((r) => r.work_started_at).map((r) => (r.guide_done ?? []).length)),
         sent: by(["RESPONSE_SENT", "DISCUSSION", "NEGOTIATION"]),
         won: by(["WON"]),
         lost: by(["LOST"]),
@@ -245,8 +263,17 @@ export default async function AdminApplicationsPage(props: PageProps<"/admin/can
   const perDay = days.map((d) => ({ d, apps: rows.filter((r) => dayKey(r.created_at) === d).length, steps: activity.filter((a) => dayKey(a.created_at) === d).length }));
   const maxDay = Math.max(1, ...perDay.map((x) => x.apps + x.steps));
 
+  // Consultées : toute offre gardée ou ouverte a d'abord été consultée ; les ouvertures de fiche ne sont
+  // mesurées que depuis peu, d'où l'union (sinon « 400 % des consultées »)
+  const viewerIds = [...new Set(realViews.map((v) => v.user_id as string))];
+  const { data: viewerMembers } = viewerIds.length ? await db.from("company_members").select("user_id, company_id").in("user_id", viewerIds) : { data: [] as { user_id: string; company_id: string }[] };
+  const consulted = new Set(rows.map((r) => `${r.company_id}:${r.opportunity_id}`));
+  for (const v of realViews) {
+    const cs = (viewerMembers ?? []).filter((m) => m.user_id === v.user_id).map((m) => m.company_id);
+    for (const c of cs.length ? cs : [`u-${v.user_id}`]) consulted.add(`${c}:${viewOpp(v)}`);
+  }
   const funnel = [
-    { label: "Consultées (« En savoir plus », 30 j)", value: viewed.size },
+    { label: "Consultées (« En savoir plus »)", value: consulted.size },
     { label: "Gardées ou dossiers ouverts", value: decided },
     { label: "Dossiers ouverts (« Oui, je prépare »)", value: opened.length },
     { label: "Travail réellement commencé", value: working.length },
@@ -399,15 +426,59 @@ export default async function AdminApplicationsPage(props: PageProps<"/admin/can
                           {u.company || "—"} · inscrit le {new Date(u.signup).toLocaleDateString("fr-FR")}
                         </span>
                       </summary>
-                      <ul className="mt-2 space-y-1">
-                        {u.offers.map((r) => (
-                          <li key={r.opportunity_id} className="flex items-start gap-2 text-xs">
-                            <span className="rounded-full bg-teal-50 px-2 py-0.5 font-semibold whitespace-nowrap text-teal-800 ring-1 ring-teal/20">{STAGE_LABEL[r.stage] ?? r.stage}</span>
-                            <Link href={`/opportunites/${r.opportunity_id}`} className="text-navy hover:underline">
-                              {opp.get(r.opportunity_id) ?? "Voir l'offre"}
-                            </Link>
-                          </li>
-                        ))}
+                      <ul className="mt-2 space-y-2">
+                        {u.offers.map((r) => {
+                          const done = (r.guide_done ?? []).map(Number);
+                          const next = STEP_SHORT.findIndex((_, i) => !done.includes(i));
+                          const detailed = Boolean(r.work_started_at) || OPENED.includes(r.stage);
+                          const dl = deadlineOf.get(r.opportunity_id);
+                          const daysLeft = dl ? Math.ceil((new Date(dl).getTime() - now) / DAY) : null;
+                          const docs = docsTotal.get(r.opportunity_id);
+                          const draftLen = (r.draft ?? "").trim().length;
+                          const notes = notesOf.get(pairKey(r.company_id, r.opportunity_id)) ?? 0;
+                          const qs = questionsOf.get(pairKey(r.company_id, r.opportunity_id)) ?? 0;
+                          return (
+                            <li key={r.opportunity_id} className="text-xs" data-testid="offer-detail">
+                              <div className="flex items-start gap-2">
+                                <span className="rounded-full bg-teal-50 px-2 py-0.5 font-semibold whitespace-nowrap text-teal-800 ring-1 ring-teal/20">{STAGE_LABEL[r.stage] ?? r.stage}</span>
+                                <Link href={`/opportunites/${r.opportunity_id}`} className="text-navy hover:underline">
+                                  {opp.get(r.opportunity_id) ?? "Voir l'offre"}
+                                </Link>
+                              </div>
+                              {detailed && (
+                                <div className="mt-1.5 ml-1 space-y-1.5 rounded-xl bg-canvas p-2.5 ring-1 ring-slate-200">
+                                  <p className="font-semibold text-navy">
+                                    Étapes franchies : {done.length}/{STEP_SHORT.length}
+                                    {next >= 0 && !SENT_STAGES.includes(r.stage) && <span className="font-normal text-slate-600"> · en cours : {STEP_SHORT[next]}</span>}
+                                  </p>
+                                  <div className="flex flex-wrap gap-1">
+                                    {STEP_SHORT.map((label, i) => (
+                                      <span
+                                        key={label}
+                                        className={cn(
+                                          "rounded-full px-2 py-0.5 ring-1",
+                                          done.includes(i) ? "bg-teal-50 font-semibold text-teal-800 ring-teal-200" : i === next && !SENT_STAGES.includes(r.stage) ? "bg-violet-50 font-semibold text-violet-800 ring-violet-200" : "bg-white text-slate-400 ring-slate-200",
+                                        )}
+                                      >
+                                        {done.includes(i) ? "✓ " : ""}
+                                        {label}
+                                      </span>
+                                    ))}
+                                  </div>
+                                  <p className="text-slate-600">
+                                    Pièces cochées : {(r.docs_done ?? []).length}
+                                    {docs ? `/${docs}` : ""} · Mémoire : {draftLen ? `${draftLen.toLocaleString("fr-FR")} caractères` : "pas commencé"} · Notes : {notes} · Questions à l&apos;assistant : {qs}
+                                  </p>
+                                  <p className="text-slate-500">
+                                    {r.work_started_at ? `Travail commencé le ${formatDateTime(r.work_started_at)}` : "Dossier ouvert, aucune action encore"}
+                                    {` · dernière modification le ${formatDateTime(r.updated_at)}`}
+                                    {daysLeft !== null ? (daysLeft >= 0 ? ` · date limite dans ${daysLeft} jour${daysLeft > 1 ? "s" : ""}` : " · date limite passée") : ""}
+                                  </p>
+                                </div>
+                              )}
+                            </li>
+                          );
+                        })}
                       </ul>
                     </details>
                   </td>
@@ -415,7 +486,10 @@ export default async function AdminApplicationsPage(props: PageProps<"/admin/can
                   <td className="px-3 py-2 text-center tabular-nums">{u.study || "—"}</td>
                   <td className="px-3 py-2 text-center tabular-nums">{u.kept || "—"}</td>
                   <td className="px-3 py-2 text-center tabular-nums">{u.preparing || "—"}</td>
-                  <td className="px-3 py-2 text-center tabular-nums">{u.working || "—"}</td>
+                  <td className="px-3 py-2 text-center tabular-nums">
+                    {u.working || "—"}
+                    {u.working > 0 && <span className="block text-xs whitespace-nowrap text-slate-500">jusqu&apos;à l&apos;étape {u.bestSteps}/{STEP_SHORT.length}</span>}
+                  </td>
                   <td className="px-3 py-2 text-center tabular-nums">{u.sent || "—"}</td>
                   <td className="px-3 py-2 text-center tabular-nums">{u.won || u.lost ? `${u.won} / ${u.lost}` : "—"}</td>
                   <td className="px-3 py-2 text-center tabular-nums">{u.questions || "—"}</td>
