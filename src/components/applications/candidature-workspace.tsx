@@ -145,14 +145,14 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
       window.removeEventListener("focus", onBack);
     };
   }, [stage]);
-  // Réponse à la fenêtre de retour : aide sur cette offre, à plus tard, ou d'autres offres
-  const answerReturn = (choice: "help" | "later" | "others") => {
+  // Réponse à la fenêtre de retour : même parcours que les boutons de décision de la page
+  const answerReturn = (choice: "prepare" | "later" | "applied" | "no") => {
     setReturnAsk(null);
-    if (choice === "help") {
-      if (discovery) prepare();
-    } else if (choice === "later") {
+    if (choice === "prepare") prepare();
+    else if (choice === "later") {
       if (!later) keep();
-    } else withdraw(false);
+    } else if (choice === "applied") act(() => markApplicationSent(data.id), "RESPONSE_SENT");
+    else withdraw(false);
   };
   const withdraw = (confirm: boolean) => {
     if (confirm && !window.confirm("Retirer cette offre de vos candidatures et retourner à vos recherches ?")) return;
@@ -227,39 +227,41 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
               </span>
               <div className="min-w-0">
                 <p id="return-title" className="font-heading text-lg font-bold text-navy sm:text-xl">
-                  Vous avez vu l&apos;annonce officielle. Que fait-on de cette offre ?
+                  Vous avez vu l&apos;annonce officielle. Alors, cette offre vous intéresse ?
                 </p>
                 <p className="mt-1 line-clamp-2 text-sm text-slate-500">{data.title}</p>
               </div>
             </div>
             <div className="mt-5 grid gap-2">
-              <button type="button" disabled={pending} onClick={() => answerReturn("help")} className="btn-shine flex items-center gap-3 rounded-2xl bg-gradient-to-r from-teal to-electric px-4 py-3.5 text-left font-semibold text-navy shadow-lg shadow-teal/20 transition hover:-translate-y-0.5" data-testid="return-help">
+              <button type="button" disabled={pending} onClick={() => answerReturn("prepare")} className="btn-shine flex items-center gap-3 rounded-2xl bg-gradient-to-r from-teal to-electric px-4 py-3.5 text-left font-semibold text-navy shadow-lg shadow-teal/20 transition hover:-translate-y-0.5" data-testid="return-prepare">
                 <ThumbsUp className="size-5 shrink-0" aria-hidden />
                 <span>
-                  Je continue sur cette offre, aidez-moi
-                  <span className="block text-xs font-normal text-navy/70">Elle reste dans « Mes candidatures » avec le suivi étape par étape</span>
+                  Oui, je prépare ma réponse
+                  <span className="block text-xs font-normal text-navy/70">Le guide étape par étape s&apos;ouvre ici</span>
                 </span>
               </button>
               <button type="button" disabled={pending} onClick={() => answerReturn("later")} className="flex items-center gap-3 rounded-2xl bg-white px-4 py-3.5 text-left font-semibold text-navy ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:ring-teal" data-testid="return-later">
                 <Bookmark className="size-5 shrink-0 text-teal-700" aria-hidden />
                 <span>
-                  Je la garde pour plus tard
+                  Oui, mais plus tard : suivez-la pour moi
                   <span className="block text-xs font-normal text-slate-500">
                     Gardée dans « Mes candidatures »{days !== null && days > 0 ? ", rappel par e-mail 7 jours puis 2 jours avant la date limite" : ""}
                   </span>
                 </span>
               </button>
-              <button type="button" disabled={pending} onClick={() => answerReturn("others")} className="flex items-center gap-3 rounded-2xl bg-white px-4 py-3.5 text-left font-semibold text-navy ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:ring-violet-300" data-testid="return-others">
-                <Search className="size-5 shrink-0 text-violet-600" aria-hidden />
+              <button type="button" disabled={pending} onClick={() => answerReturn("applied")} className="flex items-center gap-3 rounded-2xl bg-white px-4 py-3.5 text-left font-semibold text-navy ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:ring-teal" data-testid="return-applied">
+                <Send className="size-5 shrink-0 text-violet-600" aria-hidden />
                 <span>
-                  Voir d&apos;autres offres
-                  <span className="block text-xs font-normal text-slate-500">Celle-ci ne m&apos;intéresse pas : retour à mes recherches</span>
+                  J&apos;ai déjà postulé
+                  <span className="block text-xs font-normal text-slate-500">On suit le résultat avec vous</span>
                 </span>
               </button>
+              <button type="button" disabled={pending} onClick={() => answerReturn("no")} className="flex items-center gap-3 rounded-2xl px-4 py-3 text-left font-semibold text-slate-500 transition hover:bg-slate-50 hover:text-rose-700" data-testid="return-no">
+                <XCircle className="size-5 shrink-0" aria-hidden />
+                Non, ça ne m&apos;intéresse pas
+                <span className="ml-auto text-xs font-normal">retour à mes recherches</span>
+              </button>
             </div>
-            <Link href="/dashboard/candidatures" className="mt-4 flex items-center justify-center gap-1.5 text-sm font-semibold text-slate-500 transition hover:text-navy" data-testid="return-all">
-              <ArrowLeft className="size-4" aria-hidden /> Retour à toutes mes candidatures
-            </Link>
           </div>
         </div>
       )}
