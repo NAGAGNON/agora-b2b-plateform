@@ -194,7 +194,16 @@ ${RULES}`;
   let user = context;
   const issues: string[] = [];
   for (let attempt = 0; attempt < 2; attempt++) {
-    const note = await ask(DirectorNoteSchema, system, user, REPORT_MODEL, 4000);
+    // La réflexion du modèle compte dans la limite : marge large, et une réponse coupée (JSON
+    // incomplet) déclenche la seconde tentative au lieu d'arrêter la note
+    const note = await ask(DirectorNoteSchema, system, user, REPORT_MODEL, 16000).catch((e) => {
+      logServerError(`board ${key} (tentative ${attempt + 1})`, e);
+      return undefined;
+    });
+    if (note === undefined) {
+      if (attempt === 0) continue;
+      return { note: { constat: "Note indisponible aujourd'hui.", points: [], propositions: [] }, issues: ["réponse illisible deux fois de suite"] };
+    }
     if (!note) return { note: { constat: "Note indisponible aujourd'hui.", points: [], propositions: [] }, issues: ["note indisponible"] };
     const bad = [...inventedNumbers(noteFactText(note), allowed), ...note.propositions.flatMap((p) => inventedNumbers(proposalFactText(p), allowed))];
     if (!bad.length) return { note: { ...note, points: note.points.slice(0, 4), propositions: note.propositions.slice(0, 2) }, issues };
@@ -223,7 +232,7 @@ async function critiques(refs: Ref[], context: string, allowed: Set<string>) {
   const system = `Tu joues le rôle de contradicteur au comité de direction de LinkProB2B. Pour chaque proposition, le directeur le plus concerné (jamais son auteur) en fait la critique : le DAF conteste les dépenses et l'absence de retour mesurable, le CTO les délais et les risques techniques, le CMO l'impact sur la croissance, le CPO l'intérêt pour les utilisateurs. La critique est honnête : favorable si la proposition est solide, réservée ou défavorable sinon, toujours argumentée et fondée sur les chiffres.
 ${RULES}`;
   const list = refs.map((r) => ({ ref: r.ref, auteur: r.by, ...r.p }));
-  const out = await ask(CritiqueSchema, system, `${context}\n\nPROPOSITIONS DU JOUR :\n${JSON.stringify(list)}`, REPORT_MODEL, 4000).catch((e) => {
+  const out = await ask(CritiqueSchema, system, `${context}\n\nPROPOSITIONS DU JOUR :\n${JSON.stringify(list)}`, REPORT_MODEL, 16000).catch((e) => {
     logServerError("board critique", e);
     return null;
   });
@@ -247,7 +256,7 @@ ${RULES}`;
     try {
       let prompt = user;
       for (let attempt = 0; attempt < 2; attempt++) {
-        const arb = await ask(ArbitrageSchema, system, prompt, model, 8000);
+        const arb = await ask(ArbitrageSchema, system, prompt, model, 16000);
         if (!arb) break;
         const bad = inventedNumbers([arb.titre, arb.message_au_fondateur, ...arb.arbitrages.map((a) => a.raison)].join(" "), allowed);
         if (!bad.length) return { arb, model };
