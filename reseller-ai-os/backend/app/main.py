@@ -2,9 +2,9 @@ import logging
 from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI, Request
 from fastapi.responses import JSONResponse
-from .config import env
+from .config import env, is_serverless
 from .db import SessionLocal
-from .routers import core, finance_ai, operations, sourcing
+from .routers import core, cron, finance_ai, operations, sourcing
 from .security import require_auth
 from .services import agents, ai, automation, importer, inventory, photos, purchasing, sales, vinted, documents
 
@@ -15,20 +15,16 @@ logging.basicConfig(level=logging.INFO)
 async def lifespan(app: FastAPI):
     if not env().secret_key or not env().admin_password:
         logging.warning("SECRET_KEY et/ou ADMIN_PASSWORD non définis : la connexion sera impossible.")
-    db = SessionLocal()
-    try:
-        agents.seed(db)
-        automation.seed(db)
-        db.commit()
-    finally:
-        db.close()
-    automation.start()
+    cron.ensure_seeded()
+    if not is_serverless():  # en serverless, c'est /api/cron/tick (Vercel Cron) qui déclenche les tâches
+        automation.start()
     yield
     automation.stop()
 
 
 app = FastAPI(title="Reseller AI OS", lifespan=lifespan, docs_url="/api/docs", openapi_url="/api/openapi.json")
 app.include_router(core.public)
+app.include_router(cron.router)
 for r in (core.router, sourcing.router, operations.router, finance_ai.router):
     app.include_router(r, dependencies=[Depends(require_auth)])
 

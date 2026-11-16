@@ -269,3 +269,43 @@ def test_disabled_notification_kind_is_not_created(client):
     client.post("/api/sales", json={"item_id": item["id"], "sale_price": 20})
     kinds = {n["kind"] for n in client.get("/api/notifications").json()["items"]}
     assert "sale_made" not in kinds and "ship_due" in kinds
+
+
+def test_cron_tick_is_secret_protected_and_runs_due_jobs(client, monkeypatch):
+    from app.config import env
+    from app.main import app
+    from fastapi.testclient import TestClient
+    anon = TestClient(app)
+    assert anon.get("/api/cron/tick").status_code == 503  # pas de secret configuré
+    monkeypatch.setattr(env(), "cron_secret", "s3cret-s3cret")
+    assert anon.get("/api/cron/tick").status_code == 401
+    assert anon.get("/api/cron/tick", headers={"Authorization": "Bearer faux"}).status_code == 401
+    r = anon.get("/api/cron/tick", headers={"Authorization": "Bearer s3cret-s3cret"})
+    assert r.status_code == 200 and isinstance(r.json()["ran"], list)
+    # deuxième appel immédiat : rien n'est dû (les tâches viennent de tourner)
+    again = anon.get("/api/cron/tick", headers={"Authorization": "Bearer s3cret-s3cret"}).json()
+    assert not set(again["ran"]) & set(r.json()["ran"]) or all(k.endswith("_check") for k in again["ran"])
+
+
+def test_supabase_storage_backend(monkeypatch):
+    import httpx
+    from app.config import env
+    from app.services import storage
+    seen = []
+
+    def handler(req):
+        seen.append((req.method, str(req.url), req.headers.get("authorization"), req.headers.get("x-upsert")))
+        return httpx.Response(200, content=b"DATA" if req.method == "GET" else b"{}")
+
+    real = httpx.Client
+    monkeypatch.setattr(storage.httpx, "post", lambda url, **kw: real(transport=httpx.MockTransport(handler)).post(url, **kw))
+    monkeypatch.setattr(storage.httpx, "get", lambda url, **kw: real(transport=httpx.MockTransport(handler)).get(url, **kw))
+    monkeypatch.setattr(storage.httpx, "delete", lambda url, **kw: real(transport=httpx.MockTransport(handler)).delete(url, **kw))
+    e = env()
+    for k, v in (("storage_backend", "supabase"), ("supabase_url", "https://x.supabase.co"), ("supabase_service_key", "svc-key"), ("storage_bucket", "rai-files")):
+        monkeypatch.setattr(e, k, v)
+    storage.put("photos/1/a.jpg", b"DATA", "image/jpeg")
+    assert storage.get("photos/1/a.jpg") == b"DATA"
+    storage.delete("photos/1/a.jpg")
+    assert [m for m, *_ in seen] == ["POST", "GET", "DELETE"]
+    assert seen[0][1] == "https://x.supabase.co/storage/v1/object/rai-files/photos/1/a.jpg" and seen[0][2] == "Bearer svc-key" and seen[0][3] == "true"

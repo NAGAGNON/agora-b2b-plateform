@@ -36,6 +36,8 @@ def login(body: Login, request: Request, response: Response):
     if not check_password(body.password):
         _attempts[ip] = recent + [time.time()]
         raise HTTPException(401, "Mot de passe incorrect.")
+    from .cron import ensure_seeded
+    ensure_seeded()
     response.set_cookie(COOKIE, make_token(), httponly=True, samesite="lax", secure=env().cookie_secure, max_age=env().session_hours * 3600, path="/")
     return {"ok": True}
 

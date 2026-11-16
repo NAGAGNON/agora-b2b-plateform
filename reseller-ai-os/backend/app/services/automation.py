@@ -164,6 +164,30 @@ def stop():
         _scheduler = None
 
 
+def due_jobs(db: Session, at=None) -> list[str]:
+    """Tâches actives dont une échéance est passée depuis leur dernière exécution (mode serverless : un appel
+    périodique « tick » remplace le planificateur en mémoire). Une tâche jamais exécutée est due dès qu'une échéance
+    est tombée dans les dernières 24 h."""
+    at = at or now()
+    out = []
+    for job in db.query(AutomationJob).filter(AutomationJob.enabled.is_(True)).all():
+        baseline = job.last_run_at or (at - timedelta(days=1))
+        nxt = _trigger(job).get_next_fire_time(None, baseline)
+        if nxt is not None and nxt <= at and job.key in JOBS:
+            out.append(job.key)
+    return out
+
+
+def run_due(session_factory=SessionLocal) -> dict:
+    db = session_factory()
+    try:
+        keys = due_jobs(db)
+    finally:
+        db.close()
+    results = {k: run_job(k, trigger="schedule", session_factory=session_factory) for k in keys}
+    return {"ran": keys, "results": {k: v.get("status") for k, v in results.items()}}
+
+
 def calendar(db: Session, days: int = 14) -> dict:
     start_t, end_t = now(), now() + timedelta(days=days)
     upcoming = []

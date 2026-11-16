@@ -1,0 +1,9 @@
+tests
+storage
+.env
+.pytest_cache
+__pycache__
+migrations
+alembic.ini
+Dockerfile
+docker-entrypoint.sh

@@ -5,7 +5,8 @@ import type { NextConfig } from "next";
 const backend = process.env.BACKEND_URL ?? "http://127.0.0.1:8000";
 
 const nextConfig: NextConfig = {
-  output: "standalone",
+  // Docker : bundle autonome ; Vercel : build natif (pas de standalone)
+  output: process.env.VERCEL ? undefined : "standalone",
   // Racine de traçage = ce dossier (le dépôt contient d'autres projets) : server.js à la racine du bundle standalone
   outputFileTracingRoot: path.resolve(__dirname),
   poweredByHeader: false,

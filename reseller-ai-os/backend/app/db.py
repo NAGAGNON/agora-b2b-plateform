@@ -2,14 +2,19 @@ from typing import Annotated
 from fastapi import Depends
 from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
-from .config import env
+from sqlalchemy.pool import NullPool
+from .config import env, is_serverless
 
 
 class Base(DeclarativeBase):
     pass
 
 
-engine = create_engine(env().database_url, pool_pre_ping=True)
+if is_serverless():
+    # Fonctions serverless + pooler Supabase (mode transaction) : pas de pool local, pas de requêtes préparées.
+    engine = create_engine(env().database_url, poolclass=NullPool, connect_args={"prepare_threshold": None})
+else:
+    engine = create_engine(env().database_url, pool_pre_ping=True)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
 
 

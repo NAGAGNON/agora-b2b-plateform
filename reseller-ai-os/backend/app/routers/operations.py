@@ -2,7 +2,7 @@
 import io, zipfile
 from datetime import datetime
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import func
 from sqlalchemy.orm import object_session
@@ -10,7 +10,7 @@ from ..core.money import D, q2
 from ..db import DB
 from ..models import InventoryItem, ItemPhoto, Listing, Sale, Shipment, ShipmentEvent, VintedIncident, now
 from ..serialize import js, ser
-from ..services import events, inventory as inv, listing as listing_svc, photos, sales as sales_svc, vinted
+from ..services import events, inventory as inv, listing as listing_svc, photos, sales as sales_svc, storage, vinted
 
 router = APIRouter(prefix="/api", tags=["operations"])
 
@@ -135,7 +135,11 @@ async def upload_photo(iid: int, db: DB, file: UploadFile = File(...), label: st
 @router.get("/photos/{pid}/file")
 def photo_file(pid: int, db: DB):
     p = nf(db.get(ItemPhoto, pid), "Photo")
-    return FileResponse(photos.full_path(p.path), media_type="image/jpeg", headers={"Cache-Control": "private, max-age=3600"})
+    try:
+        data = storage.get(p.path)
+    except storage.StorageError as e:
+        raise HTTPException(404, str(e))
+    return Response(content=data, media_type="image/jpeg", headers={"Cache-Control": "private, max-age=3600"})
 
 
 class EditIn(BaseModel):
@@ -191,7 +195,7 @@ def photos_zip(iid: int, db: DB):
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w") as z:
         for n, p in enumerate(i.photos, 1):
-            z.write(photos.full_path(p.path), f"{i.sku}_{n:02d}.jpg")
+            z.writestr(f"{i.sku}_{n:02d}.jpg", storage.get(p.path))
     buf.seek(0)
     return StreamingResponse(buf, media_type="application/zip", headers={"Content-Disposition": f'attachment; filename="{i.sku}.zip"'})
 

@@ -13,6 +13,13 @@ class Env(BaseSettings):
     secret_key: str = ""
     anthropic_api_key: str = ""
     storage_dir: str = "storage"
+    # Stockage des fichiers : "local" (disque, Docker/VPS) ou "supabase" (Storage, hébergement serverless).
+    storage_backend: str = "local"
+    supabase_url: str = ""
+    supabase_service_key: str = ""
+    storage_bucket: str = "rai-files"
+    # Secret des appels planifiés (Vercel Cron envoie « Authorization: Bearer $CRON_SECRET »)
+    cron_secret: str = ""
     scheduler_enabled: bool = True
     cookie_secure: bool = False
     session_hours: int = 24 * 7
@@ -24,6 +31,11 @@ class Env(BaseSettings):
     smtp_from: str = ""
     allow_private_urls: bool = False  # SSRF : n'activer qu'en test
     timezone: str = "Europe/Paris"
+
+
+def is_serverless() -> bool:
+    import os
+    return bool(os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"))
 
 
 @lru_cache

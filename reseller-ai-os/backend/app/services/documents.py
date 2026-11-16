@@ -2,10 +2,9 @@
 rien n'est enregistré avant confirmation explicite de l'utilisateur."""
 import email, io, re, uuid
 from email import policy
-from pathlib import Path
 from pypdf import PdfReader
 from sqlalchemy.orm import Session
-from ..config import env
+from . import storage
 from ..core.money import D
 from ..models import Document
 from . import importer
@@ -85,11 +84,9 @@ def analyze(db: Session, filename: str, data: bytes) -> Document:
         parsed["lines"] = lines
         if not lines:
             parsed["note"] = f"Aucune ligne reconnue. Colonnes : {', '.join(cols)}"
-    root = Path(env().storage_dir).resolve() / "documents"
-    root.mkdir(parents=True, exist_ok=True)
     safe = re.sub(r"[^\w.\-]", "_", filename)[-80:]
-    rel = f"{uuid.uuid4().hex}_{safe}"
-    (root / rel).write_bytes(data)
+    rel = f"documents/{uuid.uuid4().hex}_{safe}"
+    storage.put(rel, data)
     doc = Document(filename=filename[:300], path=rel, kind=kind, extracted_text=text[:50000], parsed=parsed)
     db.add(doc)
     db.flush()
