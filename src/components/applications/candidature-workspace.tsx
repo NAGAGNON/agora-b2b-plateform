@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, useTransition } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import {
   AlertTriangle,
@@ -128,6 +129,12 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
   // Retour de l'annonce officielle (onglet de l'acheteur) : fenêtre obligatoire avec les questions de décision
   const leftForSource = useRef<number | null>(null);
   const [returnAsk, setReturnAsk] = useState<"ask" | null>(null);
+  // Fenêtre rendue à la racine de la page : au-dessus de l'en-tête et du bouton de l'assistant
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
   const goToSource = () => {
     leftForSource.current = Date.now();
   };
@@ -217,10 +224,10 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
 
   return (
     <div className="space-y-8 pb-16">
-      {returnAsk && (
+      {returnAsk && mounted && createPortal(
         // Fenêtre bloquante : pas de fermeture en cliquant à côté, il faut répondre
-        <div className="fixed inset-0 z-[90] flex items-end justify-center bg-navy/50 p-3 backdrop-blur-sm sm:items-center sm:p-6" role="dialog" aria-modal="true" aria-labelledby="return-title" data-testid="return-ask">
-          <div className="w-full max-w-lg animate-rise rounded-3xl bg-white p-5 shadow-2xl ring-1 ring-slate-200 sm:p-7">
+        <div className="fixed inset-0 z-[120] flex items-end justify-center bg-navy/50 p-3 backdrop-blur-sm sm:items-center sm:p-6" role="dialog" aria-modal="true" aria-labelledby="return-title" data-testid="return-ask">
+          <div className="max-h-[calc(100dvh-1.5rem)] w-full max-w-lg animate-rise overflow-y-auto rounded-3xl bg-white p-5 shadow-2xl ring-1 ring-slate-200 sm:p-7">
             <div className="flex items-start gap-3">
               <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-teal to-violet text-white shadow-lg shadow-teal/20">
                 <BellRing className="size-5" aria-hidden />
@@ -258,12 +265,15 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
               </button>
               <button type="button" disabled={pending} onClick={() => answerReturn("no")} className="flex items-center gap-3 rounded-2xl px-4 py-3 text-left font-semibold text-slate-500 transition hover:bg-slate-50 hover:text-rose-700" data-testid="return-no">
                 <XCircle className="size-5 shrink-0" aria-hidden />
-                Non, ça ne m&apos;intéresse pas
-                <span className="ml-auto text-xs font-normal">retour à mes recherches</span>
+                <span>
+                  Non, ça ne m&apos;intéresse pas
+                  <span className="block text-xs font-normal">Retour à mes recherches</span>
+                </span>
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
       {/* En-tête */}
       <section className="relative isolate overflow-hidden rounded-[2rem] bg-gradient-to-br from-sky via-white to-teal-50 p-5 shadow-sm ring-1 ring-slate-200 sm:p-10">
