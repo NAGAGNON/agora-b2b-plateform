@@ -28,6 +28,8 @@ export async function GET(request: NextRequest) {
     const firstGoogleLogin = searchParams.get("fournisseur") === "google" && Date.now() - new Date(data.user.created_at).getTime() < 5 * 60_000;
     // Bouton Google : l'acceptation des CGU est affichée sous le bouton, elle est enregistrée à la création du compte
     if (firstGoogleLogin) await createAdminClient().from("users").update({ terms_accepted_at: new Date().toISOString() }).eq("id", data.user.id).is("terms_accepted_at", null);
+    // Inscription par Google : comptée comme les inscriptions par formulaire dans la mesure d'audience
+    if (firstGoogleLogin) await supabase.rpc("track_event", { p_event_name: "create_account" });
     if (type === "signup" || type === "email" || firstGoogleLogin) await welcomeNewMember({ id: data.user.id, email: data.user.email }, next, searchParams.get("ref"), searchParams.get("v"));
     if (searchParams.get("fournisseur") === "google" && searchParams.get("ref")) await trackReferral(searchParams.get("ref"), firstGoogleLogin ? "SIGNUP" : "LOGIN", data.user.id);
   }

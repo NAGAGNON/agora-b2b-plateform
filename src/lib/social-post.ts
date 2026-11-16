@@ -43,7 +43,7 @@ export function renderSocialPost(f: SocialPostFacts, base = siteUrl()): string |
     lines.push(`À la une : « ${h.title} »${h.buyer ? ` (${h.buyer})` : ""}${h.deadline ? `, réponse avant le ${day(h.deadline)}` : ""}.`, "");
   }
   if (f.openTotal) lines.push(`${plural(f.openTotal, "opportunité est ouverte", "opportunités sont ouvertes")} en ce moment.`);
-  lines.push(`À consulter ici : ${base}/opportunites`, "", "#MarchésPublics #AppelsDOffres #B2B #PME #Entreprises");
+  lines.push(`À consulter ici : ${base}/opportunites?utm_source=linkedin-linkprob2b&utm_medium=social`, "", "#MarchésPublics #AppelsDOffres #B2B #PME #Entreprises");
   return lines.join("\n");
 }
 
