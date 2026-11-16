@@ -1,0 +1,11 @@
+export const OPP_STATUS: Record<string, string> = { new: "Nouveau", to_study: "À étudier", recommended: "Achat recommandé", validated: "Validé", rejected: "Écarté", purchased: "Acheté" };
+export const LEVEL: Record<string, string> = { low: "Faible", medium: "Moyen", high: "Élevé", unknown: "Inconnu" };
+export const COMPLIANCE: Record<string, string> = { ok: "Conforme", review: "À vérifier", forbidden: "Interdit", unknown: "Non évalué" };
+export const AVAIL: Record<string, string> = { in_stock: "Disponible", out_of_stock: "Rupture", unknown: "Inconnue" };
+export const CONDITION: Record<string, string> = { new_with_tags: "Neuf avec étiquette", new_without_tags: "Neuf sans étiquette", very_good: "Très bon état", good: "Bon état", satisfactory: "État satisfaisant" };
+export const LISTING_STATUS: Record<string, string> = { draft: "Brouillon", ready: "Prête", published: "Publiée", sold: "Vendue", removed: "Retirée" };
+export const SHIP_STATUS: Record<string, string> = { to_prepare: "À préparer", label_ready: "Étiquette prête", shipped: "Expédié", in_transit: "En transit", delivered: "Livré", problem: "Problème" };
+export const PAYMENT: Record<string, string> = { pending: "En attente", confirmed: "Confirmé", paid_out: "Versé", refunded: "Remboursé" };
+export const SOURCE_KIND: Record<string, string> = { csv_file: "Fichier CSV", csv_url: "CSV distant", json_url: "JSON / API" };
+export const EXP_CAT: Record<string, string> = { achats_fournisseurs: "Achats fournisseurs", expedition: "Frais d'expédition", emballage: "Emballages", frais_operationnels: "Frais opérationnels", abonnement: "Abonnements", retour: "Retours", remboursement: "Remboursements", autre: "Autres dépenses" };
+export const AGENT_STATUS: Record<string, string> = { idle: "Au repos", running: "En cours", error: "Erreur", disabled: "Désactivé" };

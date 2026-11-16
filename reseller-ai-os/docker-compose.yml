@@ -1,0 +1,87 @@
+# Reseller AI OS — déploiement VPS : PostgreSQL + API (FastAPI + planificateur) + interface (Next.js) + HTTPS (Caddy) + sauvegardes.
+# Pas de Redis/Celery : les tâches planifiées tournent dans l'API (APScheduler, un seul worker), ce qui suffit pour un usage
+# mono-utilisateur et supprime deux services à surveiller. Voir docs/ARCHITECTURE.md pour passer à Celery si le volume l'exige.
+name: reseller-ai-os
+
+x-logging: &logging
+  driver: json-file
+  options: { max-size: "10m", max-file: "5" }
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: reseller
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?définir POSTGRES_PASSWORD dans .env}
+      POSTGRES_DB: reseller
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U reseller -d reseller"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    logging: *logging
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      db: { condition: service_healthy }
+    environment:
+      DATABASE_URL: postgresql+psycopg://reseller:${POSTGRES_PASSWORD}@db:5432/reseller
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?définir ADMIN_PASSWORD dans .env}
+      SECRET_KEY: ${SECRET_KEY:?définir SECRET_KEY dans .env}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      TIMEZONE: ${TIMEZONE:-Europe/Paris}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+    volumes: [storage:/data/storage]
+    logging: *logging
+
+  frontend:
+    build:
+      context: ./frontend
+      args: { BACKEND_URL: "http://backend:8000" }
+    restart: unless-stopped
+    depends_on: [backend]
+    logging: *logging
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on: [frontend]
+    ports: ["80:80", "443:443"]
+    environment:
+      DOMAIN: ${DOMAIN:-localhost}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+    logging: *logging
+
+  backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    depends_on:
+      db: { condition: service_healthy }
+    environment:
+      PGHOST: db
+      PGUSER: reseller
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: reseller
+      RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-14}
+    volumes:
+      - ./backups:/backups
+      - storage:/data/storage:ro
+      - ./deploy/backup.sh:/backup.sh:ro
+    entrypoint: ["/bin/sh", "/backup.sh"]
+    logging: *logging
+
+volumes:
+  pgdata:
+  storage:
+  caddy_data:
