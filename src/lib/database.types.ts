@@ -2008,6 +2008,11 @@ isOneToOne: false
 "widen_sparse_alerts":
 { Args: Record<PropertyKey, never>; Returns: number
                            },
+"briefs_to_rewrite":
+{ Args: { "p_style": number,"p_limit"?: number }; Returns: {
+              "opportunity_id": string
+            }[]
+                           },
 "touch_visit":
 { Args: Record<PropertyKey, never>; Returns: undefined
                            },

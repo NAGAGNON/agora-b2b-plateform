@@ -7,58 +7,58 @@ export type GuideStep = { title: string; how: string[] };
 
 export const APPLICATION_GUIDE: GuideStep[] = [
   {
-    title: "Vérifier que vous pouvez candidater",
+    title: "Vérifier que vous pouvez répondre",
     how: [
-      "Relisez les conditions de la fiche : certifications ou qualifications exigées, chiffre d'affaires minimum, références, assurances.",
-      "S'il vous manque une exigence, vous pouvez répondre à plusieurs : en groupement avec une autre entreprise ou en faisant appel à un sous-traitant.",
-      "Ajoutez vos certifications à votre fiche entreprise : LinkProB2B les compare automatiquement aux exigences de chaque marché.",
+      "Regardez les conditions : certifications, chiffre d'affaires minimum, chantiers déjà réalisés, assurances.",
+      "Il vous manque quelque chose ? Répondez avec une autre entreprise (groupement) ou confiez-lui une partie du travail (sous-traitance).",
+      "Ajoutez vos certifications à votre fiche entreprise : LinkProB2B les compare pour vous à chaque offre.",
     ],
   },
   {
-    title: "Télécharger le dossier de consultation",
+    title: "Télécharger le dossier",
     how: [
-      "Le dossier complet (règlement de la consultation, cahier des charges, documents de prix) se télécharge sur la plateforme de l'acheteur, indiquée dans la fiche.",
-      "Créez un compte sur cette plateforme et téléchargez en étant identifié : vous serez prévenu des modifications et des réponses aux questions.",
-      "Lisez d'abord le règlement de la consultation : il précise les pièces à remettre, les critères de notation et la date limite.",
+      "Le dossier complet se télécharge sur le site de l'acheteur : bouton « Voir l'annonce officielle » en haut de cette page.",
+      "Créez un compte sur ce site avant de télécharger : vous serez prévenu si le dossier change.",
+      "Lisez d'abord le règlement de la consultation (le document qui fixe les règles) : il dit quoi remettre, comment l'offre est notée et avant quand.",
     ],
   },
   {
     title: "Poser vos questions et faire la visite",
     how: [
-      "Une question sur le dossier ? Posez-la sur la plateforme de l'acheteur, avant la date limite fixée pour les questions.",
-      "Si la visite est obligatoire, inscrivez-vous à temps et gardez l'attestation de visite : sans elle, l'offre peut être écartée.",
+      "Une question ? Posez-la sur le site de l'acheteur, avant la date limite des questions.",
+      "Visite obligatoire ? Inscrivez-vous à temps et gardez l'attestation de visite : sans elle, votre offre peut être refusée.",
     ],
   },
   {
-    title: "Rassembler les pièces administratives",
+    title: "Rassembler les pièces",
     how: [
-      "Le règlement de la consultation liste les pièces demandées : souvent le DUME (ou les formulaires DC1 et DC2), un extrait Kbis, les attestations sociales et fiscales et l'attestation d'assurance.",
-      "Vérifiez que chaque attestation est à jour, et signez les documents demandés.",
+      "Le règlement de la consultation donne la liste exacte. Souvent : le DUME (formulaire de candidature en ligne) ou les formulaires DC1 et DC2, un extrait Kbis, les attestations URSSAF et impôts, l'attestation d'assurance.",
+      "Vérifiez que chaque attestation est à jour, puis signez les documents demandés.",
     ],
   },
   {
-    title: "Rédiger le mémoire technique et chiffrer l'offre",
+    title: "Rédiger votre réponse et vos prix",
     how: [
-      "Reprenez les critères de notation un par un : chaque partie du mémoire technique doit répondre à un critère, dans le même ordre.",
-      "Soyez concret : méthode, planning, moyens humains et matériels, références similaires, mesures de sécurité et d'environnement demandées.",
-      "Remplissez les documents de prix fournis par l'acheteur sans les modifier, et relisez les totaux.",
+      "Le mémoire technique, c'est le document où vous expliquez comment vous ferez le travail. Suivez les critères de notation, dans le même ordre.",
+      "Soyez concret : méthode, planning, équipe, matériel, chantiers du même type déjà réalisés.",
+      "Remplissez les tableaux de prix de l'acheteur sans les modifier, puis vérifiez les totaux.",
     ],
   },
   {
-    title: "Déposer l'offre avant la date limite",
+    title: "Déposer avant la date limite",
     how: [
-      "Le dépôt se fait sur la plateforme de l'acheteur. N'attendez pas la dernière heure : l'envoi de fichiers lourds peut être long.",
-      "Une offre reçue après l'heure limite n'est pas examinée.",
-      "Conservez l'accusé de réception du dépôt, puis indiquez ici « Réponse envoyée ».",
+      "Déposez sur le site de l'acheteur. N'attendez pas la dernière heure : l'envoi des fichiers peut être long.",
+      "Une offre arrivée après l'heure limite n'est pas lue.",
+      "Gardez l'accusé de réception, puis cliquez ici sur « J'ai déposé ma réponse ».",
     ],
   },
 ];
 
 /** Conseils après une réponse non retenue. */
 export const LOST_ADVICE = [
-  "L'acheteur doit vous informer du rejet de votre offre et de ses motifs. Vous pouvez lui demander des précisions : le nom de l'entreprise retenue et les points forts et faibles de votre offre.",
-  "Ces retours sont précieux pour améliorer votre prochain mémoire technique.",
-  "Restez visible auprès de cet acheteur : suivez-le sur LinkProB2B pour être prévenu de ses prochains marchés.",
+  "L'acheteur doit vous dire pourquoi votre offre n'a pas été choisie. Demandez-lui le nom de l'entreprise retenue et les points forts et faibles de votre offre.",
+  "Ces retours vous aideront à faire mieux la prochaine fois.",
+  "Suivez cet acheteur sur LinkProB2B : vous serez prévenu de ses prochains appels d'offres.",
 ];
 
 type TemplateInput = { title: string; buyer: string | null; reference: string | null; company: string };

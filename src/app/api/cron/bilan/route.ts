@@ -9,6 +9,7 @@ import { sendDailyReportEmail } from "@/lib/daily-report-email";
 import { sendWeeklyReview } from "@/lib/weekly-review";
 import { runBoard, runBoardAlerts } from "@/lib/board";
 import { checkLaunchReadiness } from "@/lib/launch-readiness";
+import { rewriteBriefs } from "@/lib/tender-brief";
 
 // Rédaction du bilan complet (jusqu'à deux appels) puis envoi par e-mail
 export const maxDuration = 300;
@@ -34,6 +35,7 @@ function parisHour(now = new Date()): number {
  */
 async function run(req: Request) {
   if (!authorized(req)) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+  const started = Date.now();
   try {
     // Comité de direction (`comite=matin|soir|alertes`) : réunion du matin à 8 h et du soir à 19 h (heure
     // de Paris ; deux horaires UTC pour l'heure d'été et d'hiver, une seule réunion par jour) ; les alertes
@@ -42,7 +44,10 @@ async function run(req: Request) {
     if (comite === "alertes") {
       // Seuils du lancement payant fixés par le fondateur : alerte par e-mail quand ils sont tous atteints
       const lancement = await checkLaunchReadiness().catch((e) => (logServerError("launch readiness", e), { error: true }));
-      return NextResponse.json({ ok: true, lancement, ...(await runBoardAlerts()) });
+      const alertes = await runBoardAlerts();
+      // Fiches synthèse des offres ouvertes réécrites peu à peu en langage simple (temps restant du passage)
+      const fiches = await rewriteBriefs(undefined, { limit: 60, deadline: started + 200_000 }).catch((e) => (logServerError("rewrite briefs", e), { error: true }));
+      return NextResponse.json({ ok: true, lancement, fiches, ...alertes });
     }
     if (comite === "matin" || comite === "soir") {
       if (parisHour() < (comite === "matin" ? 8 : 19)) return NextResponse.json({ ok: true, skipped: "Avant l'heure de la réunion (heure de Paris)" });

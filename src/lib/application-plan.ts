@@ -10,7 +10,7 @@ const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDat
 
 /** Part du délai écoulée à la fin de chaque étape (0 = aujourd'hui, 1 = veille de la date limite). */
 const SHARE = [0, 0.1, 0.3, 0.55, 0.85, 1];
-const TITLES = ["Vérifier les conditions", "Télécharger le dossier", "Questions et visite", "Pièces prêtes", "Mémoire technique terminé", "Dépôt de l'offre"];
+const TITLES = ["Vérifier les conditions", "Télécharger le dossier", "Questions et visite", "Pièces prêtes", "Réponse rédigée", "Dépôt de l'offre"];
 
 export function applicationPlan(deadline: string | null, done: number[], now = new Date(), startedAt?: string | null): PlanItem[] {
   if (!deadline) return [];

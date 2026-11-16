@@ -13,16 +13,16 @@ import { logServerError } from "@/lib/errors";
  * l'avis BOAMP complet, puis conservée. Uniquement les faits écrits dans l'avis : rien n'est déduit.
  */
 const BriefBase = z.object({
-  summary: z.string().describe("Ce que veut l'acheteur, en 1 ou 2 phrases simples"),
-  deadline: z.string().nullable().describe("Date et heure limite de remise des offres, ex. « lundi 7 décembre 2026 à 12 h »"),
-  site_visit: z.string().nullable().describe("Visite : obligatoire ou non, dates et lieu ; null si l'avis n'en parle pas"),
-  duration: z.string().nullable().describe("Durée du marché ou délai d'exécution"),
-  pricing: z.string().nullable().describe("Forme des prix (forfaitaires, unitaires, accord-cadre…) ou montant estimé"),
-  lots: z.array(z.string()).describe("Un élément par lot : « Lot 1 · intitulé » ; vide s'il n'y a pas de lots"),
-  documents: z.array(z.string()).describe("Pièces et justificatifs demandés, une ligne courte chacun"),
-  judging: z.string().describe("Comment l'offre sera jugée (critères, pondérations, négociation) ; si renvoyé au règlement, le dire"),
-  todo: z.array(z.string()).max(6).describe("Actions concrètes à faire, dans l'ordre, avec les dates"),
-  warnings: z.array(z.string()).max(4).describe("Pièges réels tirés de l'avis (visite obligatoire, pas de variantes, prix forfaitaires, qualification exigée…)"),
+  summary: z.string().describe("Ce que veut l'acheteur, dit simplement : quel travail, où, pour combien de temps. 1 ou 2 phrases courtes"),
+  deadline: z.string().nullable().describe("Date et heure limite pour déposer l'offre, ex. « lundi 7 décembre 2026 à 12 h »"),
+  site_visit: z.string().nullable().describe("Visite des lieux : obligatoire ou non, date et lieu, en une phrase courte ; null si l'avis n'en parle pas"),
+  duration: z.string().nullable().describe("Durée du contrat ou délai pour faire le travail, en mots simples (ex. « 4 ans », « 6 mois de travaux »)"),
+  pricing: z.string().nullable().describe("Comment les prix sont fixés, en mots simples (ex. « Un prix fixe pour tout le chantier »), ou montant estimé ; null si l'avis n'en dit rien"),
+  lots: z.array(z.string()).describe("Un élément par lot (une partie du marché) : « Lot 1 · intitulé simple » ; vide s'il n'y a pas de lots"),
+  documents: z.array(z.string()).describe("Pièces à fournir, une ligne courte chacune ; chaque sigle est expliqué entre parenthèses (ex. « Kbis (extrait d'immatriculation de l'entreprise) »)"),
+  judging: z.string().describe("Comment l'offre sera notée, en 1 ou 2 phrases simples (ex. « Le prix compte pour 40 % de la note, la qualité du travail proposé pour 60 % ») ; si l'avis renvoie au règlement de la consultation, le dire simplement"),
+  todo: z.array(z.string()).max(6).describe("5 actions au plus, dans l'ordre ; chacune commence par un verbe (« Téléchargez… », « Inscrivez-vous… », « Déposez… ») et donne la date quand l'avis la donne"),
+  warnings: z.array(z.string()).max(4).describe("3 pièges réels au plus, tirés de l'avis et dits simplement (ex. « Visite obligatoire : sans elle, votre offre sera refusée »)"),
 });
 /** Préparer sa réponse : conditions pour candidater, dépôt, notation et conseils (tirés de l'avis uniquement). */
 const BriefExtra = z.object({
@@ -33,38 +33,60 @@ const BriefExtra = z.object({
   capacity: z
     .array(z.string())
     .max(6)
-    .describe("Autres conditions pour candidater écrites dans l'avis : chiffre d'affaires minimum, assurances, références similaires, effectifs, moyens ; une ligne courte chacune. Si l'avis renvoie ces conditions au règlement de la consultation, une seule ligne qui le dit"),
+    .describe("Autres conditions pour répondre écrites dans l'avis (chiffre d'affaires minimum, assurances, travaux déjà réalisés du même type, nombre de salariés, matériel) ; une ligne courte et simple chacune. Si l'avis renvoie ces conditions au règlement de la consultation, une seule ligne qui le dit"),
   submission: z
     .string()
     .nullable()
-    .describe("Où et comment déposer l'offre selon l'avis : nom de la plateforme ou du profil d'acheteur, dépôt électronique obligatoire, signature électronique ; null si l'avis n'en dit rien"),
+    .describe("Où et comment déposer l'offre, en 1 ou 2 phrases simples : nom du site de l'acheteur, dépôt en ligne obligatoire, signature électronique (expliquée) ; null si l'avis n'en dit rien"),
   submission_url: z.string().nullable().describe("Adresse internet du profil d'acheteur ou de la plateforme de dépôt, recopiée exactement depuis l'avis ; null si l'avis n'en donne pas"),
   criteria: z
     .array(z.object({ label: z.string(), weight: z.number().nullable() }))
     .max(8)
-    .describe("Critères de jugement des offres et leur pondération en pourcentage quand l'avis la donne (weight null sinon) ; liste vide si l'avis renvoie au règlement de la consultation"),
+    .describe("Critères de notation en mots simples (ex. « Prix », « Qualité du travail proposé », « Délai ») et leur poids en pourcentage quand l'avis le donne (weight null sinon) ; liste vide si l'avis renvoie au règlement de la consultation"),
   tips: z
     .array(z.string())
     .max(5)
-    .describe("Conseils concrets pour obtenir la meilleure note, déduits uniquement des critères, exigences et pièges de cet avis (ex. « La valeur technique compte pour 60 % : détaillez votre méthodologie et vos moyens humains, cités dans les critères »). Aucun conseil générique sans lien avec l'avis"),
+    .describe("3 conseils au plus, concrets et simples, pour obtenir la meilleure note, tirés uniquement des critères, exigences et pièges de cet avis (ex. « La qualité compte pour 60 % : expliquez en détail comment vous ferez le travail et avec qui »). Aucun conseil général sans lien avec l'avis"),
 });
 /** Schéma demandé lors de la préparation (tous les champs). */
 const BriefGenSchema = BriefBase.merge(BriefExtra);
+/**
+ * Style de rédaction des fiches. 2 : langage simple (mots de tous les jours, sigles expliqués, moins de
+ * lignes). Les fiches d'un style plus ancien restent affichées et sont réécrites peu à peu (rewriteBriefs).
+ */
+export const BRIEF_STYLE = 2;
 /** Fiche conservée : les fiches préparées avant l'ajout des rubriques « Préparer sa réponse » restent valides. */
-export const BriefSchema = BriefBase.merge(BriefExtra.partial());
+export const BriefSchema = BriefBase.merge(BriefExtra.partial()).extend({ style: z.number().optional() });
 export type TenderBrief = z.infer<typeof BriefSchema>;
 /** Fiche complète (avec les conditions pour candidater, le dépôt, la notation et les conseils) ? */
 export const isFullBrief = (b: TenderBrief | null | undefined): b is TenderBrief => Array.isArray(b?.certifications);
+/** Fiche complète et rédigée dans le style actuel (langage simple) ? */
+export const isCurrentBrief = (b: TenderBrief | null | undefined): b is TenderBrief => isFullBrief(b) && b.style === BRIEF_STYLE;
 
-const SYSTEM = `Tu rédiges des fiches synthèse d'appels d'offres publics pour des artisans et des PME françaises.
+const SYSTEM = `Tu rédiges des fiches synthèse d'appels d'offres publics pour des artisans et de petites entreprises françaises. Beaucoup n'ont jamais répondu à un marché public : écris pour quelqu'un qui découvre, comme si tu lui expliquais l'annonce de vive voix.
+
 Règles absolues :
 - Utilise UNIQUEMENT les informations écrites dans l'avis fourni. N'invente rien : ni date, ni montant, ni pièce, ni critère.
-- Si une information est absente, mets null (ou une liste vide). Pour les critères renvoyés au règlement de consultation, dis-le simplement.
-- Français simple, phrases courtes, aucun jargon inutile. Dates en toutes lettres avec le jour de la semaine quand elles sont connues.
-- Les « à faire » et « points d'attention » doivent découler directement de l'avis.
-- Certifications et conditions pour candidater : recopie uniquement celles que l'avis exige. Si l'avis n'en exige pas, liste vide.
+- Si une information est absente, mets null (ou une liste vide). N'écris jamais « non précisé » dans un champ.
+- Certifications et conditions pour répondre : uniquement celles que l'avis exige. Les certifications sont recopiées telles qu'elles sont écrites ; si l'avis n'en exige pas, liste vide.
 - Adresse de dépôt : uniquement une adresse internet écrite dans l'avis, recopiée à l'identique.
-- Conseils : chaque conseil s'appuie sur un critère, une exigence ou un piège présent dans l'avis. Jamais de promesse de résultat.`;
+- Conseils : chaque conseil s'appuie sur un critère, une exigence ou un piège présent dans l'avis. Jamais de promesse de résultat.
+
+Langage simple (très important) :
+- Des mots de tous les jours et des phrases courtes : une idée par phrase, 15 mots au plus.
+- L'essentiel seulement : une ligne de liste tient en une douzaine de mots. Ne répète pas la même information d'une rubrique à l'autre.
+- Les « à faire » commencent par un verbe (« Téléchargez… », « Inscrivez-vous… », « Déposez… ») et donnent la date quand l'avis la donne.
+- Remplace le jargon par des mots simples. Quand un terme officiel est utile (pour retrouver un document ou une pièce), explique-le entre parenthèses, en quelques mots, la première fois. Exemples :
+  « règlement de la consultation (le document qui fixe les règles de l'appel d'offres) » ; « cahier des charges (la description détaillée du travail) » ;
+  « DUME (formulaire de candidature en ligne) » ; « DC1 et DC2 (formulaires de candidature) » ; « Kbis (extrait d'immatriculation de l'entreprise) » ;
+  « mémoire technique (le document où vous expliquez comment vous ferez le travail) » ; « BPU (liste des prix à l'unité à remplir) » ; « DPGF (tableau des prix à remplir) » ;
+  « accord-cadre (contrat de plusieurs années : le travail est commandé au fur et à mesure) » ; « bons de commande (commandes passées au fur et à mesure) » ;
+  « variante (une autre solution que celle demandée) » ; « lot (une partie du marché : on peut répondre à un seul lot) » ;
+  « groupement (répondre à plusieurs entreprises ensemble) » ; « sous-traitance (confier une partie du travail à une autre entreprise) » ;
+  « profil d'acheteur (le site internet où l'acheteur publie le dossier et reçoit les offres) ».
+- Notation : dis ce qui compte et combien, sans le mot « pondération » (« Le prix compte pour 40 % de la note, la qualité du travail proposé pour 60 % »).
+- Dates en toutes lettres avec le jour de la semaine quand elles sont connues (« lundi 7 décembre 2026 à 12 h »).
+- Si l'avis renvoie une information au règlement de la consultation, dis-le en une phrase simple : « Le détail est dans le règlement de la consultation, à télécharger sur le site de l'acheteur ».`;
 
 /** Identifiant de l'avis BOAMP (« 26-108110 ») tiré de l'adresse de la source. */
 export function boampId(url: string | null | undefined): string | null {
@@ -134,24 +156,20 @@ export async function storedBrief(opportunityId: string, db = createAdminClient(
   return parsed.success ? parsed.data : null;
 }
 
-/**
- * Prépare (une seule fois) la fiche d'un appel d'offres issu du BOAMP. Renvoie null si l'offre n'a pas
- * d'avis BOAMP, si l'avis est introuvable ou si la clé du service de rédaction est absente.
- */
-export async function ensureBrief(opportunityId: string, { db = createAdminClient(), client }: { db?: ReturnType<typeof createAdminClient>; client?: Pick<Anthropic, "beta"> } = {}): Promise<TenderBrief | null> {
-  const existing = await storedBrief(opportunityId, db);
-  if (isFullBrief(existing)) return existing;
-  // Fiche ancienne (sans « Préparer sa réponse ») : préparée à nouveau, l'ancienne reste en secours
-  if (!process.env.ANTHROPIC_API_KEY && !client) return existing;
+type Generated = { brief: TenderBrief } | { reason: "no-key" | "no-source" | "no-notice" | "refusal" | "error" };
+
+/** Rédige la fiche depuis l'avis officiel (BOAMP, sinon TED) et l'enregistre. */
+async function generateBrief(opportunityId: string, existing: TenderBrief | null, db: ReturnType<typeof createAdminClient>, client?: Pick<Anthropic, "beta">): Promise<Generated> {
+  if (!process.env.ANTHROPIC_API_KEY && !client) return { reason: "no-key" };
   const { data: sources } = await db.from("opportunity_sources").select("original_url").eq("opportunity_id", opportunityId);
   // Avis BOAMP en priorité (le plus complet), sinon l'avis européen TED
   const idweb = (sources ?? []).map((s) => boampId(s.original_url)).find(Boolean);
   const ted = idweb ? null : (sources ?? []).map((s) => tedId(s.original_url)).find(Boolean);
-  if (!idweb && !ted) return existing;
+  if (!idweb && !ted) return { reason: "no-source" };
   const ref = idweb ? `BOAMP ${idweb}` : `TED ${ted}`;
   try {
     const text = idweb ? await boampNoticeText(idweb) : await tedNoticeText(ted!);
-    if (!text) return existing;
+    if (!text) return { reason: "no-notice" };
     const ai = client ?? new Anthropic({ timeout: 60_000, maxRetries: 1 });
     const response = await ai.beta.messages.parse({
       model: REPORT_MODEL,
@@ -161,17 +179,71 @@ export async function ensureBrief(opportunityId: string, { db = createAdminClien
       system: SYSTEM,
       messages: [{ role: "user", content: `Avis ${ref} :\n\n${text}` }],
     });
-    if (response.stop_reason === "refusal" || !response.parsed_output) return existing;
-    const brief = response.parsed_output;
+    if (response.stop_reason === "refusal" || !response.parsed_output) return { reason: "refusal" };
+    const brief: TenderBrief = { ...response.parsed_output, style: BRIEF_STYLE };
     // Adresse de dépôt : gardée seulement si elle figure telle quelle dans l'avis (jamais devinée)
     const url = brief.submission_url?.trim() ?? null;
     brief.submission_url = url && /^https?:\/\/[^\s]+$/i.test(url) && text.includes(url.replace(/\/$/, "")) ? url : null;
+    // Réécriture d'une fiche déjà suivie : les cases cochées par les membres (« à faire », pièces)
+    // désignent des lignes par leur rang, ces listes sont donc gardées telles quelles
+    if (existing) {
+      const { data: checked } = await db.from("pipeline_items").select("brief_done, docs_done").eq("opportunity_id", opportunityId);
+      if ((checked ?? []).some((p) => (p.brief_done ?? []).length > 0)) brief.todo = existing.todo;
+      if ((checked ?? []).some((p) => (p.docs_done ?? []).length > 0)) brief.documents = existing.documents;
+    }
     await db.from("tender_briefs").upsert({ opportunity_id: opportunityId, content: brief as never, source_ref: ref });
-    return brief;
+    return { brief };
   } catch (e) {
     logServerError("tender brief", e);
-    return existing;
+    return { reason: "error" };
   }
+}
+
+/**
+ * Prépare (une seule fois) la fiche d'un appel d'offres issu du BOAMP. Renvoie null si l'offre n'a pas
+ * d'avis BOAMP, si l'avis est introuvable ou si la clé du service de rédaction est absente.
+ * Une fiche complète d'un style plus ancien est renvoyée telle quelle (réécrite en arrière-plan).
+ */
+export async function ensureBrief(opportunityId: string, { db = createAdminClient(), client }: { db?: ReturnType<typeof createAdminClient>; client?: Pick<Anthropic, "beta"> } = {}): Promise<TenderBrief | null> {
+  const existing = await storedBrief(opportunityId, db);
+  if (isFullBrief(existing)) return existing;
+  // Fiche ancienne (sans « Préparer sa réponse ») : préparée à nouveau, l'ancienne reste en secours
+  const r = await generateBrief(opportunityId, existing, db, client);
+  return "brief" in r ? r.brief : existing;
+}
+
+/**
+ * Réécriture progressive en langage simple (style BRIEF_STYLE) des fiches des offres encore ouvertes :
+ * celles que des membres suivent d'abord, puis les dates limites les plus proches. Plusieurs fiches à
+ * la fois, dans la limite du temps donné ; une fiche dont l'avis est introuvable est retentée le lendemain.
+ */
+export async function rewriteBriefs(
+  db = createAdminClient(),
+  { limit = 60, deadline = Date.now() + 180_000, concurrency = 3, client }: { limit?: number; deadline?: number; concurrency?: number; client?: Pick<Anthropic, "beta"> } = {},
+) {
+  if (!process.env.ANTHROPIC_API_KEY && !client) return { rewritten: 0, skipped: "Clé du service de rédaction absente" };
+  const { data, error } = await db.rpc("briefs_to_rewrite", { p_style: BRIEF_STYLE, p_limit: limit });
+  if (error) throw error;
+  const queue = (data ?? []).map((r) => r.opportunity_id);
+  if (!queue.length) return { rewritten: 0, skipped: "Toutes les fiches ouvertes sont à jour" };
+  let rewritten = 0;
+  let failed = 0;
+  const worker = async () => {
+    while (queue.length && Date.now() < deadline) {
+      const id = queue.shift()!;
+      const r = await generateBrief(id, await storedBrief(id, db), db, client);
+      if ("brief" in r) {
+        rewritten++;
+        continue;
+      }
+      failed++;
+      // Échec (avis introuvable, refus, erreur) : l'ancienne fiche reste affichée, nouvel essai le lendemain
+      const { data: row } = await db.from("tender_briefs").select("content").eq("opportunity_id", id).maybeSingle();
+      if (row) await db.from("tender_briefs").update({ content: { ...(row.content as Record<string, unknown>), rewrite_failed_at: new Date().toISOString() } as never }).eq("opportunity_id", id);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.max(1, concurrency) }, worker));
+  return { rewritten, failed, remaining: queue.length };
 }
 
 /**

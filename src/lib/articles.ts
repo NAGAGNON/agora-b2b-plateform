@@ -243,6 +243,7 @@ Règles absolues :
 - Si une information n'est pas dans les faits, ne l'évoque pas.
 - Pas de conseil juridique personnalisé ; des conseils pratiques généraux pour répondre à un marché sont permis, sans chiffres.
 - Ton neutre et factuel, pas de superlatifs ni de promesses.
+- Français simple : phrases courtes, mots de tous les jours. Un terme officiel utile est expliqué entre parenthèses la première fois (ex. « accord-cadre (contrat de plusieurs années : le travail est commandé au fur et à mesure) »).
 - Mentionne que les données proviennent de BOAMP et TED et qu'elles sont à jour à la date indiquée.
 - N'écris aucune adresse web : les liens sont ajoutés automatiquement sous l'article.
 - Ne parle jamais de la manière dont l'article est rédigé (ni intelligence artificielle, ni outil, ni automatisation).
