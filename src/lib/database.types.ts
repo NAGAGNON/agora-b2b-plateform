@@ -343,6 +343,39 @@ isOneToOne: false
                   Relationships: [
                     
                   ]
+                },"board_sessions": {
+                  Row: {
+                    "alert_key": string | null,"ceo_message": string | null,"day": string,"emailed_at": string | null,"error": string | null,"finished_at": string | null,"id": string,"kind": string,"started_at": string,"status": string,"title": string | null
+                  }
+                  Insert: {
+                    "alert_key"?: string | null,"ceo_message"?: string | null,"day": string,"emailed_at"?: string | null,"error"?: string | null,"finished_at"?: string | null,"id"?: string,"kind": string,"started_at"?: string,"status"?: string,"title"?: string | null
+                  }
+                  Update: {
+                    "alert_key"?: string | null,"ceo_message"?: string | null,"day"?: string,"emailed_at"?: string | null,"error"?: string | null,"finished_at"?: string | null,"id"?: string,"kind"?: string,"started_at"?: string,"status"?: string,"title"?: string | null
+                  }
+                  Relationships: []
+                },"board_decisions": {
+                  Row: {
+                    "budget_eur": number | null,"ceo_reason": string | null,"ceo_verdict": string | null,"check_after_days": number | null,"created_at": string,"critic": string | null,"critic_opinion": string | null,"critique": string | null,"data_used": string | null,"decision": string,"expected": string | null,"founder_comment": string | null,"founder_decided_at": string | null,"founder_id": string | null,"id": string,"justification": string,"metric": string | null,"problem": string,"proposer": string,"risks": string | null,"session_id": string,"status": string,"target": string | null,"updated_at": string,"urgency": string
+                  }
+                  Insert: {
+                    "budget_eur"?: number | null,"ceo_reason"?: string | null,"ceo_verdict"?: string | null,"check_after_days"?: number | null,"created_at"?: string,"critic"?: string | null,"critic_opinion"?: string | null,"critique"?: string | null,"data_used"?: string | null,"decision": string,"expected"?: string | null,"founder_comment"?: string | null,"founder_decided_at"?: string | null,"founder_id"?: string | null,"id"?: string,"justification": string,"metric"?: string | null,"problem": string,"proposer": string,"risks"?: string | null,"session_id": string,"status"?: string,"target"?: string | null,"updated_at"?: string,"urgency"?: string
+                  }
+                  Update: {
+                    "budget_eur"?: number | null,"ceo_reason"?: string | null,"ceo_verdict"?: string | null,"check_after_days"?: number | null,"created_at"?: string,"critic"?: string | null,"critic_opinion"?: string | null,"critique"?: string | null,"data_used"?: string | null,"decision"?: string,"expected"?: string | null,"founder_comment"?: string | null,"founder_decided_at"?: string | null,"founder_id"?: string | null,"id"?: string,"justification"?: string,"metric"?: string | null,"problem"?: string,"proposer"?: string,"risks"?: string | null,"session_id"?: string,"status"?: string,"target"?: string | null,"updated_at"?: string,"urgency"?: string
+                  }
+                  Relationships: []
+                },"board_messages": {
+                  Row: {
+                    "author": string,"content": NonNullable<Json>,"created_at": string,"decision_id": string | null,"id": number,"kind": string,"session_id": string | null
+                  }
+                  Insert: {
+                    "author": string,"content": NonNullable<Json>,"created_at"?: string,"decision_id"?: string | null,"id"?: number,"kind": string,"session_id"?: string | null
+                  }
+                  Update: {
+                    "author"?: string,"content"?: NonNullable<Json>,"created_at"?: string,"decision_id"?: string | null,"id"?: number,"kind"?: string,"session_id"?: string | null
+                  }
+                  Relationships: []
                 },"weekly_reviews": {
                   Row: {
                     "emailed_at": string | null,"error": string | null,"facts": NonNullable<Json>,"generated_at": string,"model": string | null,"summary": Json | null,"week_start": string

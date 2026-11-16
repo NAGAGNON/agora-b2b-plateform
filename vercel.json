@@ -58,6 +58,26 @@
       "schedule": "0 7 * * 1"
     },
     {
+      "path": "/api/cron/bilan?comite=matin",
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/bilan?comite=matin",
+      "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/cron/bilan?comite=soir",
+      "schedule": "0 17 * * *"
+    },
+    {
+      "path": "/api/cron/bilan?comite=soir",
+      "schedule": "0 18 * * *"
+    },
+    {
+      "path": "/api/cron/bilan?comite=alertes",
+      "schedule": "30 */3 * * *"
+    },
+    {
       "path": "/api/cron/envoi?passe=6",
       "schedule": "30 6 * * *"
     },

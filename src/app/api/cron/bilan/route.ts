@@ -7,6 +7,7 @@ import { logServerError } from "@/lib/errors";
 import { generateDailyReport } from "@/lib/daily-report";
 import { sendDailyReportEmail } from "@/lib/daily-report-email";
 import { sendWeeklyReview } from "@/lib/weekly-review";
+import { runBoard, runBoardAlerts } from "@/lib/board";
 
 // Rédaction du bilan complet (jusqu'à deux appels) puis envoi par e-mail
 export const maxDuration = 300;
@@ -33,6 +34,16 @@ function parisHour(now = new Date()): number {
 async function run(req: Request) {
   if (!authorized(req)) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
   try {
+    // Comité de direction (`comite=matin|soir|alertes`) : réunion du matin à 8 h et du soir à 19 h (heure
+    // de Paris ; deux horaires UTC pour l'heure d'été et d'hiver, une seule réunion par jour) ; les alertes
+    // sont vérifiées plusieurs fois par jour et déclenchent une réunion exceptionnelle si besoin
+    const comite = new URL(req.url).searchParams.get("comite");
+    if (comite === "alertes") return NextResponse.json({ ok: true, ...(await runBoardAlerts()) });
+    if (comite === "matin" || comite === "soir") {
+      if (parisHour() < (comite === "matin" ? 8 : 19)) return NextResponse.json({ ok: true, skipped: "Avant l'heure de la réunion (heure de Paris)" });
+      const r = await runBoard({ kind: comite === "matin" ? "MATIN" : "SOIR" });
+      return NextResponse.json({ ok: true, ...r });
+    }
     // Analyste du lundi (`semaine=1`) : le lundi à 8 h, heure de Paris (tâche planifiée à 6 h et 7 h UTC
     // pour couvrir l'heure d'été et d'hiver) ; envoyé une seule fois par semaine
     if (new URL(req.url).searchParams.get("semaine") === "1") {
