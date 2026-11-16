@@ -26,7 +26,7 @@ type DB = ReturnType<typeof createAdminClient>;
 const OPENED = ["RESPONSE_PREPARING", "RESPONSE_SENT", "DISCUSSION", "NEGOTIATION", "WON", "LOST"];
 
 /** Chiffres d'une fenêtre [from, to[ — comptes de l'équipe et de démonstration exclus. */
-async function windowNumbers(db: DB, from: Date, to: Date, excluded: Set<string>) {
+export async function windowNumbers(db: DB, from: Date, to: Date, excluded: Set<string>) {
   const f = from.toISOString();
   const t = to.toISOString();
   const count = async (q: PromiseLike<{ count: number | null }>) => (await q).count ?? 0;

@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, Building2, ClipboardCheck, FileStack, Flag, History, Settings, Users, UserPlus, Database, RefreshCw, Tags, Inbox, Mail, Newspaper, Megaphone, Send, TrendingUp, Handshake, Activity, MousePointerClick, Repeat, MessageSquareQuote, UserCheck, Target, MailX, ClipboardList } from "lucide-react";
+import { BarChart3, Building2, ClipboardCheck, FileStack, Flag, History, Settings, Users, UserPlus, Database, RefreshCw, Tags, Inbox, Mail, Newspaper, Megaphone, Send, TrendingUp, Handshake, Activity, MousePointerClick, Repeat, MessageSquareQuote, UserCheck, Target, MailX, ClipboardList, Gavel } from "lucide-react";
 import { cn } from "@/lib/cn";
 
 const LINKS = [
   { href: "/admin", label: "Vue d'ensemble", icon: BarChart3, exact: true },
+  { href: "/admin/comite", label: "Comité de direction", icon: Gavel, admin: true },
   { href: "/admin/moderation", label: "Modération", icon: ClipboardCheck, badge: "pending" },
   { href: "/admin/opportunites", label: "Opportunités", icon: FileStack },
   { href: "/admin/inscriptions", label: "Inscriptions", icon: UserPlus, admin: true },

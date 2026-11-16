@@ -55,6 +55,7 @@ export default async function AdminHome(props: PageProps<"/admin">) {
   const { data: teamCompanies } = (team ?? []).length
     ? await admin.from("company_members").select("company_id, companies!inner(is_demo)").in("user_id", (team ?? []).map((u) => u.id)).eq("companies.is_demo", true)
     : { data: [] as { company_id: string }[] };
+  const { count: boardPending } = session.isAdmin ? await admin.from("board_decisions").select("id", { count: "exact", head: true }).eq("status", "A_VALIDER") : { count: 0 };
   const realDemo = Math.max(0, (s.demo_records ?? 0) - new Set((teamCompanies ?? []).map((c) => c.company_id)).size);
   return (
     <div className="space-y-8">
@@ -64,6 +65,13 @@ export default async function AdminHome(props: PageProps<"/admin">) {
         <h1 className="text-2xl font-bold">Vue d&apos;ensemble</h1>
         <p className="mt-1 text-slate-600">Indicateurs calculés en temps réel sur la base de données — aucune valeur estimée.</p>
       </div>
+      {(boardPending ?? 0) > 0 && (
+        <Notice tone="info" title="Comité de direction">
+          <Link href="/admin/comite" className="font-semibold underline">
+            {boardPending} décision{(boardPending ?? 0) > 1 ? "s attendent" : " attend"} votre validation
+          </Link>
+        </Notice>
+      )}
       {session.isAdmin && <AtAGlance periodKey={typeof sp.bref === "string" ? sp.bref : undefined} now={nowMs()} />}
       {session.isAdmin && <WeeklyReviewCard />}
       {realDemo > 0 && (
