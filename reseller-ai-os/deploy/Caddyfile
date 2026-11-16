@@ -1,0 +1,11 @@
+# HTTPS automatique (Let's Encrypt) si DOMAIN est un nom de domaine pointant vers le VPS ; « localhost » = certificat local.
+{$DOMAIN:localhost} {
+	encode gzip
+	reverse_proxy frontend:3000
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy same-origin
+	}
+}

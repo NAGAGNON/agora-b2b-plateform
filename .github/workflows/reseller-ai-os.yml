@@ -1,0 +1,35 @@
+name: Reseller AI OS
+on:
+  push:
+    paths: ["reseller-ai-os/**", ".github/workflows/reseller-ai-os.yml"]
+  pull_request:
+    paths: ["reseller-ai-os/**", ".github/workflows/reseller-ai-os.yml"]
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_USER: reseller, POSTGRES_PASSWORD: reseller, POSTGRES_DB: reseller_test }
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U reseller" --health-interval 5s --health-timeout 5s --health-retries 10
+    defaults: { run: { working-directory: reseller-ai-os/backend } }
+    env:
+      DATABASE_URL: postgresql+psycopg://reseller:reseller@localhost:5432/reseller_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.13", cache: pip, cache-dependency-path: reseller-ai-os/backend/requirements.txt }
+      - run: pip install -r requirements.txt
+      - run: pytest -q
+  frontend:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: reseller-ai-os/frontend } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: reseller-ai-os/frontend/package-lock.json }
+      - run: npm ci
+      - run: npx eslint src
+      - run: npm run build
