@@ -36,6 +36,7 @@ import {
   ThumbsUp,
   XCircle,
   Bookmark,
+  BellRing,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import type { TenderBrief } from "@/lib/tender-brief";
@@ -124,6 +125,35 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
       }
     });
   };
+  // Retour de l'annonce officielle (onglet de l'acheteur) : fenêtre obligatoire avec les questions de décision
+  const leftForSource = useRef<number | null>(null);
+  const [returnAsk, setReturnAsk] = useState<"ask" | null>(null);
+  const goToSource = () => {
+    leftForSource.current = Date.now();
+  };
+  useEffect(() => {
+    const onBack = () => {
+      if (document.visibilityState !== "visible" || leftForSource.current === null) return;
+      const away = Date.now() - leftForSource.current;
+      leftForSource.current = null;
+      if (away >= 3000 && ["DETECTED", "QUALIFIED", "INTERESTED"].includes(stage)) setReturnAsk("ask");
+    };
+    document.addEventListener("visibilitychange", onBack);
+    window.addEventListener("focus", onBack);
+    return () => {
+      document.removeEventListener("visibilitychange", onBack);
+      window.removeEventListener("focus", onBack);
+    };
+  }, [stage]);
+  // Réponse à la fenêtre de retour : même parcours que les boutons de décision de la page
+  const answerReturn = (choice: "prepare" | "later" | "applied" | "no") => {
+    setReturnAsk(null);
+    if (choice === "prepare") prepare();
+    else if (choice === "later") {
+      if (!later) keep();
+    } else if (choice === "applied") act(() => markApplicationSent(data.id), "RESPONSE_SENT");
+    else withdraw(false);
+  };
   const withdraw = (confirm: boolean) => {
     if (confirm && !window.confirm("Retirer cette offre de vos candidatures et retourner à vos recherches ?")) return;
     start(async () => {
@@ -187,11 +217,78 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
 
   return (
     <div className="space-y-8 pb-16">
+      {returnAsk && (
+        // Fenêtre bloquante : pas de fermeture en cliquant à côté, il faut répondre
+        <div className="fixed inset-0 z-[90] flex items-end justify-center bg-navy/50 p-3 backdrop-blur-sm sm:items-center sm:p-6" role="dialog" aria-modal="true" aria-labelledby="return-title" data-testid="return-ask">
+          <div className="w-full max-w-lg animate-rise rounded-3xl bg-white p-5 shadow-2xl ring-1 ring-slate-200 sm:p-7">
+            <div className="flex items-start gap-3">
+              <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-teal to-violet text-white shadow-lg shadow-teal/20">
+                <BellRing className="size-5" aria-hidden />
+              </span>
+              <div className="min-w-0">
+                <p id="return-title" className="font-heading text-lg font-bold text-navy sm:text-xl">
+                  Vous avez vu l&apos;annonce officielle. Alors, cette offre vous intéresse ?
+                </p>
+                <p className="mt-1 line-clamp-2 text-sm text-slate-500">{data.title}</p>
+              </div>
+            </div>
+            <div className="mt-5 grid gap-2">
+              <button type="button" disabled={pending} onClick={() => answerReturn("prepare")} className="btn-shine flex items-center gap-3 rounded-2xl bg-gradient-to-r from-teal to-electric px-4 py-3.5 text-left font-semibold text-navy shadow-lg shadow-teal/20 transition hover:-translate-y-0.5" data-testid="return-prepare">
+                <ThumbsUp className="size-5 shrink-0" aria-hidden />
+                <span>
+                  Oui, je prépare ma réponse
+                  <span className="block text-xs font-normal text-navy/70">Le guide étape par étape s&apos;ouvre ici</span>
+                </span>
+              </button>
+              <button type="button" disabled={pending} onClick={() => answerReturn("later")} className="flex items-center gap-3 rounded-2xl bg-white px-4 py-3.5 text-left font-semibold text-navy ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:ring-teal" data-testid="return-later">
+                <Bookmark className="size-5 shrink-0 text-teal-700" aria-hidden />
+                <span>
+                  Oui, mais plus tard : suivez-la pour moi
+                  <span className="block text-xs font-normal text-slate-500">
+                    Gardée dans « Mes candidatures »{days !== null && days > 0 ? ", rappel par e-mail 7 jours puis 2 jours avant la date limite" : ""}
+                  </span>
+                </span>
+              </button>
+              <button type="button" disabled={pending} onClick={() => answerReturn("applied")} className="flex items-center gap-3 rounded-2xl bg-white px-4 py-3.5 text-left font-semibold text-navy ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:ring-teal" data-testid="return-applied">
+                <Send className="size-5 shrink-0 text-violet-600" aria-hidden />
+                <span>
+                  J&apos;ai déjà postulé
+                  <span className="block text-xs font-normal text-slate-500">On suit le résultat avec vous</span>
+                </span>
+              </button>
+              <button type="button" disabled={pending} onClick={() => answerReturn("no")} className="flex items-center gap-3 rounded-2xl px-4 py-3 text-left font-semibold text-slate-500 transition hover:bg-slate-50 hover:text-rose-700" data-testid="return-no">
+                <XCircle className="size-5 shrink-0" aria-hidden />
+                Non, ça ne m&apos;intéresse pas
+                <span className="ml-auto text-xs font-normal">retour à mes recherches</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* En-tête */}
       <section className="relative isolate overflow-hidden rounded-[2rem] bg-gradient-to-br from-sky via-white to-teal-50 p-5 shadow-sm ring-1 ring-slate-200 sm:p-10">
         <div aria-hidden className="bg-tech-grid-light pointer-events-none absolute inset-0 -z-10 opacity-70" />
         <div aria-hidden className="pointer-events-none absolute -top-24 -right-16 -z-10 size-80 animate-aurora rounded-full bg-teal/25 blur-3xl" />
         <div aria-hidden className="pointer-events-none absolute -bottom-32 left-1/3 -z-10 size-80 animate-aurora rounded-full bg-violet/15 blur-3xl [animation-delay:-6s]" />
+        {data.hasSource && (
+          <a
+            href={`/go/${data.id}`}
+            target="_blank"
+            rel="noopener noreferrer nofollow"
+            onClick={goToSource}
+            data-testid="official-top"
+            className="group mb-6 flex animate-rise items-center gap-3 rounded-2xl bg-navy p-3 pr-4 text-white shadow-lg shadow-navy/20 ring-1 ring-navy transition hover:-translate-y-0.5 hover:shadow-xl sm:mb-8 sm:p-4"
+          >
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-teal to-electric text-navy">
+              <ExternalLink className="size-5" aria-hidden />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block font-semibold">Voir l&apos;annonce officielle{data.sourceLabel ? ` (${data.sourceLabel})` : ""}</span>
+              <span className="block text-xs text-white/70 sm:text-sm">Le dossier complet sur le site de l&apos;acheteur · s&apos;ouvre dans un nouvel onglet, cette page reste ouverte</span>
+            </span>
+            <span className="hidden shrink-0 rounded-lg bg-white/10 px-3 py-1.5 text-sm font-semibold ring-1 ring-white/20 transition group-hover:bg-white/20 sm:inline">Ouvrir ↗</span>
+          </a>
+        )}
         <div className="flex flex-col gap-8 lg:flex-row lg:items-center">
           <div className="min-w-0 flex-1">
             <p className="inline-flex animate-rise items-center gap-2 rounded-full bg-white/80 px-3 py-1 text-xs font-bold tracking-wide text-teal-700 uppercase shadow-sm ring-1 ring-teal/20">
@@ -407,7 +504,7 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
               {(b) => (
                 <div className="space-y-4">
                   <InfoCard icon={FolderDown} title="Où trouver le dossier" tone="teal">
-                    <p>{b.submission ?? "Sur la plateforme de l'acheteur, indiquée dans l'annonce officielle (lien en bas de cette page)."}</p>
+                    <p>{b.submission ?? "Sur la plateforme de l'acheteur, indiquée dans l'annonce officielle (lien en haut de cette page)."}</p>
                     {b.submission_url && (
                       <a
                         href={b.submission_url}
@@ -569,6 +666,7 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
                   href={`/go/${data.id}`}
                   target="_blank"
                   rel="noopener noreferrer nofollow"
+                  onClick={goToSource}
                   className="btn-shine inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-teal to-electric px-5 py-3 font-semibold text-navy shadow-lg shadow-teal/25 transition hover:-translate-y-0.5 active:scale-[0.98]"
                 >
                   <ExternalLink className="size-4" aria-hidden /> Voir l&apos;annonce officielle
