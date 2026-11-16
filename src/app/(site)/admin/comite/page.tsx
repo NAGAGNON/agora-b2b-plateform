@@ -73,7 +73,7 @@ function StatusChip({ status }: { status: string }) {
 }
 
 /** Fiche de décision complète (problème, justification, données, risques, critique, avis du CEO). */
-function DecisionCard({ d, actions }: { d: Decision; actions?: boolean }) {
+function DecisionCard({ d, actions, work = [] }: { d: Decision; actions?: boolean; work?: Message[] }) {
   const rows: [string, string | null][] = [
     ["Problème identifié", d.problem],
     ["Justification", d.justification],
@@ -133,6 +133,24 @@ function DecisionCard({ d, actions }: { d: Decision; actions?: boolean }) {
               <p className="mt-1 text-slate-700">{d.founder_comment}</p>
             </div>
           )}
+          {work.length > 0 && (
+            <div className="rounded-xl bg-sky p-3 text-sm ring-1 ring-slate-200">
+              <p className="text-xs font-semibold text-navy">Mise en œuvre</p>
+              <ul className="mt-1 space-y-2">
+                {work.map((w) => (
+                  <li key={w.id} className="text-slate-700">
+                    <span className="text-xs text-slate-500">{formatDateTime(w.created_at)} · </span>
+                    <span className="whitespace-pre-line">{String(w.content.texte ?? "")}</span>
+                    {typeof w.content.lien === "string" && (
+                      <a href={w.content.lien} className="ml-1 font-semibold text-teal-700 underline" target="_blank" rel="noreferrer">
+                        voir
+                      </a>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           {actions && <DecisionActions id={d.id} />}
         </div>
       </div>
@@ -144,11 +162,15 @@ export default async function BoardPage(props: { searchParams: Promise<Record<st
   await requireAdmin();
   const sp = await props.searchParams;
   const db = createAdminClient();
-  const [{ data: sessions }, { data: pendingRaw }, { data: journalRaw }] = await Promise.all([
+  const [{ data: sessions }, { data: pendingRaw }, { data: journalRaw }, { data: workRaw }] = await Promise.all([
     db.from("board_sessions").select("id, day, kind, started_at, status, title, ceo_message, error").order("started_at", { ascending: false }).limit(12),
     db.from("board_decisions").select("*").in("status", ["A_VALIDER", "PLUS_INFO"]).order("created_at", { ascending: false }).limit(30),
     db.from("board_decisions").select("*").order("created_at", { ascending: false }).limit(60),
+    // Suivi de la mise en œuvre des décisions validées (développement, livrables)
+    db.from("board_messages").select("id, author, kind, decision_id, created_at, content").eq("kind", "SYSTEME").not("decision_id", "is", null).order("id").limit(300),
   ]);
+  const work = (workRaw ?? []) as unknown as Message[];
+  const workOf = (id: string) => work.filter((w) => w.decision_id === id);
   const pending = (pendingRaw ?? []) as Decision[];
   const toValidate = pending.filter((d) => d.status === "A_VALIDER");
   const waitingInfo = pending.filter((d) => d.status === "PLUS_INFO");
@@ -270,7 +292,7 @@ export default async function BoardPage(props: { searchParams: Promise<Record<st
               <div className="space-y-4">
                 <h3 className="font-heading text-base font-bold text-navy">Propositions, critiques et arbitrages</h3>
                 {sessionDecisions.map((d) => (
-                  <DecisionCard key={d.id} d={d} />
+                  <DecisionCard key={d.id} d={d} work={workOf(d.id)} />
                 ))}
               </div>
             )}
@@ -303,6 +325,11 @@ export default async function BoardPage(props: { searchParams: Promise<Record<st
                     {AUTHOR_LABEL[d.proposer] ?? d.proposer} · {formatDateTime(d.created_at)}
                     {d.founder_comment ? ` · votre commentaire : « ${d.founder_comment} »` : ""}
                   </p>
+                  {workOf(d.id).slice(-1).map((w) => (
+                    <p key={w.id} className="mt-1 text-xs text-teal-800">
+                      Mise en œuvre : {String(w.content.texte ?? "").slice(0, 220)}
+                    </p>
+                  ))}
                 </div>
                 <StatusChip status={d.status} />
               </li>
