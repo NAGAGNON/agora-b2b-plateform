@@ -4,6 +4,7 @@ import { requireAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { AUTHOR_LABEL, STATUS } from "@/lib/board-core";
 import { KIND_LABEL, type BoardKind } from "@/lib/board";
+import { launchReadiness } from "@/lib/launch-readiness";
 import { DecisionActions, ConvokeForm } from "@/components/board/decision-actions";
 import { formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/cn";
@@ -162,12 +163,13 @@ export default async function BoardPage(props: { searchParams: Promise<Record<st
   await requireAdmin();
   const sp = await props.searchParams;
   const db = createAdminClient();
-  const [{ data: sessions }, { data: pendingRaw }, { data: journalRaw }, { data: workRaw }] = await Promise.all([
+  const [{ data: sessions }, { data: pendingRaw }, { data: journalRaw }, { data: workRaw }, launch] = await Promise.all([
     db.from("board_sessions").select("id, day, kind, started_at, status, title, ceo_message, error").order("started_at", { ascending: false }).limit(12),
     db.from("board_decisions").select("*").in("status", ["A_VALIDER", "PLUS_INFO"]).order("created_at", { ascending: false }).limit(30),
     db.from("board_decisions").select("*").order("created_at", { ascending: false }).limit(60),
     // Suivi de la mise en œuvre des décisions validées (développement, livrables)
     db.from("board_messages").select("id, author, kind, decision_id, created_at, content").eq("kind", "SYSTEME").not("decision_id", "is", null).order("id").limit(300),
+    launchReadiness().catch(() => null),
   ]);
   const work = (workRaw ?? []) as unknown as Message[];
   const workOf = (id: string) => work.filter((w) => w.decision_id === id);
@@ -211,6 +213,29 @@ export default async function BoardPage(props: { searchParams: Promise<Record<st
           </div>
         </div>
       </section>
+
+      {/* Seuils du lancement payant */}
+      {launch && (
+        <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200 sm:p-6" data-testid="launch-thresholds">
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
+            <h2 className="font-heading text-lg font-bold text-navy">Seuils du lancement payant</h2>
+            <p className={cn("text-sm font-semibold", launch.pret ? "text-teal-700" : "text-slate-500")}>
+              {launch.pret ? "Tous atteints : la décision vous revient" : `${launch.atteints} sur ${launch.criteres.length} atteints · alerte par e-mail dès que tout est atteint`}
+            </p>
+          </div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            {launch.criteres.map((c) => (
+              <div key={c.libelle} className={cn("rounded-2xl p-4 ring-1", c.atteint ? "bg-teal-50 ring-teal-200" : "bg-slate-50 ring-slate-200")}>
+                <p className="text-xs font-semibold text-slate-500">{c.libelle}</p>
+                <p className="mt-1 font-heading text-xl font-bold text-navy">{c.actuel}</p>
+                <p className="mt-0.5 text-xs text-slate-500">
+                  {c.atteint ? "✓ atteint · " : ""}seuil : {c.seuil}
+                </p>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* À valider */}
       <section data-testid="to-validate">

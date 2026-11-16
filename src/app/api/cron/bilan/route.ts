@@ -8,6 +8,7 @@ import { generateDailyReport } from "@/lib/daily-report";
 import { sendDailyReportEmail } from "@/lib/daily-report-email";
 import { sendWeeklyReview } from "@/lib/weekly-review";
 import { runBoard, runBoardAlerts } from "@/lib/board";
+import { checkLaunchReadiness } from "@/lib/launch-readiness";
 
 // Rédaction du bilan complet (jusqu'à deux appels) puis envoi par e-mail
 export const maxDuration = 300;
@@ -38,7 +39,11 @@ async function run(req: Request) {
     // de Paris ; deux horaires UTC pour l'heure d'été et d'hiver, une seule réunion par jour) ; les alertes
     // sont vérifiées plusieurs fois par jour et déclenchent une réunion exceptionnelle si besoin
     const comite = new URL(req.url).searchParams.get("comite");
-    if (comite === "alertes") return NextResponse.json({ ok: true, ...(await runBoardAlerts()) });
+    if (comite === "alertes") {
+      // Seuils du lancement payant fixés par le fondateur : alerte par e-mail quand ils sont tous atteints
+      const lancement = await checkLaunchReadiness().catch((e) => (logServerError("launch readiness", e), { error: true }));
+      return NextResponse.json({ ok: true, lancement, ...(await runBoardAlerts()) });
+    }
     if (comite === "matin" || comite === "soir") {
       if (parisHour() < (comite === "matin" ? 8 : 19)) return NextResponse.json({ ok: true, skipped: "Avant l'heure de la réunion (heure de Paris)" });
       const r = await runBoard({ kind: comite === "matin" ? "MATIN" : "SOIR" });

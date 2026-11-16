@@ -7,6 +7,7 @@ import { buildDailyFacts, parisToday, REPORT_MODEL } from "@/lib/daily-report";
 import { boardDecisionToken, type BoardVerdict } from "@/lib/board-token";
 import { reportRecipients } from "@/lib/daily-report-email";
 import { latestWeeklyReview, windowNumbers } from "@/lib/weekly-review";
+import { launchReadiness } from "@/lib/launch-readiness";
 import { stripeMode } from "@/lib/billing/stripe";
 import { sendEmail } from "@/lib/email/send";
 import { escapeHtml } from "@/lib/email/templates";
@@ -78,7 +79,7 @@ async function boardFacts(db: DB, now: Date, kind: BoardKind) {
   const iso = now.toISOString();
   const count = async (q: PromiseLike<{ count: number | null }>) => (await q).count ?? 0;
   const safe = <T,>(p: Promise<T>, fallback: T) => p.catch((e) => (logServerError("board facts", e), fallback));
-  const [report, liveToday, cur, prev, month, weekly, companies, subs, totals, failedEmails, failedRuns, briefs, openOpps, briefsOpen, needsOpen, interests7, favorites7, alerts7, reportsOpen, contactOpen, testimonials] = await Promise.all([
+  const [report, liveToday, cur, prev, month, weekly, launch, companies, subs, totals, failedEmails, failedRuns, briefs, openOpps, briefsOpen, needsOpen, interests7, favorites7, alerts7, reportsOpen, contactOpen, testimonials] = await Promise.all([
     db.from("daily_reports").select("day, facts").lt("day", today).order("day", { ascending: false }).limit(1).maybeSingle(),
     // Le soir et en réunion exceptionnelle : la journée en cours, en direct
     kind === "MATIN" ? Promise.resolve(null) : safe(buildDailyFacts(now).then(scrub), null),
@@ -86,6 +87,7 @@ async function boardFacts(db: DB, now: Date, kind: BoardKind) {
     windowNumbers(db, new Date(now.getTime() - 14 * DAY), new Date(now.getTime() - 7 * DAY), excluded),
     windowNumbers(db, new Date(now.getTime() - 30 * DAY), now, excluded),
     safe(latestWeeklyReview(), null),
+    safe(launchReadiness(now), null),
     db.from("companies").select("plan_code, trial_ends_at, created_at").eq("is_demo", false).eq("status", "ACTIVE"),
     db.from("subscriptions").select("plan_code, status, unit_amount_cents, billing_interval, cancel_at_period_end").in("status", ["active", "trialing", "past_due"]),
     count(db.from("users").select("id", { count: "exact", head: true }).eq("is_internal", false).eq("is_demo", false)),
@@ -119,6 +121,9 @@ async function boardFacts(db: DB, now: Date, kind: BoardKind) {
     journee_en_cours: liveToday ?? "réunion du matin : la journée commence, voir le bilan de la veille",
     bilan_de_la_veille: report.data ? { journee: report.data.day, chiffres: scrub(report.data.facts) } : "indisponible",
     tendance: { "7_derniers_jours": cur, "7_jours_precedents": prev, "30_derniers_jours": month },
+    seuils_du_lancement_payant_fixes_par_le_fondateur: launch
+      ? { tous_atteints: launch.pret, criteres: launch.criteres.map((c) => ({ critere: c.libelle, actuel: c.actuel, seuil: c.seuil, atteint: c.atteint })) }
+      : "indisponible",
     dernier_bilan_hebdomadaire: weekly ? { semaine: weekly.facts.semaine, chiffres: weekly.facts.chiffres } : null,
     plateforme: {
       inscrits_au_total: totals,
