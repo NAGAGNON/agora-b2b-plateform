@@ -141,8 +141,9 @@ export async function buildDailyFacts(now = new Date()) {
     db.from("source_sync_runs").select("status, fetched, created, updated, errors, source:external_sources(name)").gte("started_at", iso),
     count(db.from("opportunities").select("id", { count: "exact", head: true }).gte("created_at", iso)),
     db.from("articles").select("title, slug").eq("status", "PUBLISHED").gte("published_at", iso),
-    count(db.from("users").select("id", { count: "exact", head: true }).gte("created_at", iso)),
-    count(db.from("companies").select("id", { count: "exact", head: true }).gte("created_at", iso)),
+    // Chiffre de référence des inscriptions : comptes créés, hors comptes de l'équipe et de test
+    count(db.from("users").select("id", { count: "exact", head: true }).eq("is_internal", false).eq("is_demo", false).gte("created_at", iso)),
+    count(db.from("companies").select("id", { count: "exact", head: true }).eq("is_demo", false).gte("created_at", iso)),
     db.from("subscriptions").select("plan_code, status").gte("created_at", iso),
     db.from("platform_settings").select("value").eq("key", "private.cron").maybeSingle(),
     db.from("outreach_settings").select("dry_run, require_validation, daily_send_cap, total_daily_send_cap, need_daily_send_cap, hourly_send_cap, send_ramp_enabled, send_ramp_target").eq("id", true).maybeSingle(),

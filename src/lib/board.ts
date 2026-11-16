@@ -46,6 +46,22 @@ function scrub(facts: unknown): unknown {
   const g = f.google_articles_inscriptions as { inscriptions_du_jour?: Record<string, unknown> } | undefined;
   if (g?.inscriptions_du_jour) delete g.inscriptions_du_jour.liste;
   delete f.besoins_publies;
+  // Compteurs nommés sans ambiguïté : un seul chiffre d'inscriptions de référence (comptes créés)
+  const v = f.actions_des_visiteurs as Record<string, unknown> | undefined;
+  if (v && "inscriptions" in v) {
+    v.formulaires_d_inscription_suivis_dans_le_navigateur_indicatif = v.inscriptions;
+    delete v.inscriptions;
+  }
+  const fid = f.fidelite as Record<string, unknown> | null | undefined;
+  if (fid && "inscrits_venus_aujourdhui" in fid) {
+    fid.membres_deja_inscrits_venus_sur_le_site_aujourdhui = fid.inscrits_venus_aujourdhui;
+    delete fid.inscrits_venus_aujourdhui;
+  }
+  const p = f.plateforme as Record<string, unknown> | undefined;
+  if (p && "nouveaux_comptes" in p) {
+    p.inscriptions_reference = p.nouveaux_comptes;
+    delete p.nouveaux_comptes;
+  }
   return f;
 }
 
@@ -92,6 +108,11 @@ async function boardFacts(db: DB, now: Date, kind: BoardKind) {
   const active = (subs.data ?? []).filter((s) => s.status === "active");
   const monthly = active.reduce((sum, s) => sum + (s.billing_interval === "year" ? (s.unit_amount_cents ?? 0) / 12 : (s.unit_amount_cents ?? 0)), 0);
   return {
+    definitions: {
+      inscriptions:
+        "Chiffre de référence unique : comptes créés, hors comptes de l'équipe et de test (« inscriptions_reference » pour une journée, « inscrits » dans la tendance, « nombre » dans inscriptions_du_jour). « formulaires_d_inscription_suivis_dans_le_navigateur_indicatif » n'est qu'un indicateur de suivi (bloqueurs de publicité, connexions Google) : ne pas l'utiliser comme nombre d'inscriptions. « membres_deja_inscrits_venus_sur_le_site_aujourdhui » compte des visites de membres, pas des inscriptions.",
+      periodes: "La tendance compte des jours glissants (les 7 ou 30 derniers jours jusqu'à maintenant) ; le bilan hebdomadaire compte du lundi au dimanche : un écart d'une unité entre les deux est normal.",
+    },
     type_de_reunion: KIND_LABEL[kind],
     date: today,
     heure: new Intl.DateTimeFormat("fr-FR", { timeZone: "Europe/Paris", hour: "2-digit", minute: "2-digit" }).format(now),

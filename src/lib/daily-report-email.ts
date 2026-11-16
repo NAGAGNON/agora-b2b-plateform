@@ -156,7 +156,7 @@ export function renderDailyReportEmail(row: ReportRow, { socialPost = null, grow
           ["Revenus dans les 7 jours après leur inscription", rate(fid.taux_de_retour_7_jours_pct, fid.inscrits_revenus_sous_7_jours, fid.inscrits_d_au_moins_7_jours)],
           ["Revenus dans les 30 jours après leur inscription", rate(fid.taux_de_retour_30_jours_pct, fid.inscrits_revenus_sous_30_jours, fid.inscrits_d_au_moins_30_jours)],
           ["Inscrits venus sur leur espace ces 7 derniers jours", n(fid.inscrits_actifs_7_derniers_jours)],
-          ["Inscrits venus aujourd'hui", n(fid.inscrits_venus_aujourdhui)],
+          ["Membres déjà inscrits venus aujourd'hui", n(fid.inscrits_venus_aujourdhui)],
         ],
       ),
     );
