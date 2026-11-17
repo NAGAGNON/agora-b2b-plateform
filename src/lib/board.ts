@@ -114,6 +114,8 @@ async function boardFacts(db: DB, now: Date, kind: BoardKind) {
       inscriptions:
         "Chiffre de référence unique : comptes créés, hors comptes de l'équipe et de test (« inscriptions_reference » pour une journée, « inscrits » dans la tendance, « nombre » dans inscriptions_du_jour). « formulaires_d_inscription_suivis_dans_le_navigateur_indicatif » n'est qu'un indicateur de suivi (bloqueurs de publicité, connexions Google) : ne pas l'utiliser comme nombre d'inscriptions. « membres_deja_inscrits_venus_sur_le_site_aujourdhui » compte des visites de membres, pas des inscriptions.",
       periodes: "La tendance compte des jours glissants (les 7 ou 30 derniers jours jusqu'à maintenant) ; le bilan hebdomadaire compte du lundi au dimanche : un écart d'une unité entre les deux est normal.",
+      offres_consultees:
+        "Consultations de fiches d'offres par des membres connectés, hors équipe. Les consultations sans compte (avant le 31 octobre 2026, surtout des robots d'indexation) ne sont plus comptées.",
     },
     type_de_reunion: KIND_LABEL[kind],
     date: today,
