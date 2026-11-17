@@ -145,23 +145,44 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
     () => true,
     () => false,
   );
+  // Départ mémorisé aussi dans l'onglet (sessionStorage) : sur téléphone, le navigateur recharge souvent la
+  // page au retour (ou l'annonce s'ouvre dans le même onglet puis « retour ») et la mémoire de la page est perdue
+  const leftKey = `lp-left-source-${data.id}`;
   const goToSource = () => {
     leftForSource.current = Date.now();
+    try {
+      sessionStorage.setItem(leftKey, String(leftForSource.current));
+    } catch {
+      // stockage indisponible : la mémoire de la page suffit sur ordinateur
+    }
   };
   useEffect(() => {
     const onBack = () => {
-      if (document.visibilityState !== "visible" || leftForSource.current === null) return;
-      const away = Date.now() - leftForSource.current;
+      if (document.visibilityState !== "visible") return;
+      let left = leftForSource.current;
+      try {
+        left ??= Number(sessionStorage.getItem(leftKey)) || null;
+        sessionStorage.removeItem(leftKey);
+      } catch {
+        // stockage indisponible
+      }
       leftForSource.current = null;
-      if (away >= 3000 && ["DETECTED", "QUALIFIED", "INTERESTED"].includes(stage)) setReturnAsk("ask");
+      if (left === null) return;
+      const away = Date.now() - left;
+      // Retour entre 3 secondes et 2 heures après le départ vers l'annonce
+      if (away >= 3000 && away < 2 * 3_600_000 && ["DETECTED", "QUALIFIED", "INTERESTED"].includes(stage)) setReturnAsk("ask");
     };
+    // Page rechargée au retour : vérification dès l'affichage
+    onBack();
     document.addEventListener("visibilitychange", onBack);
     window.addEventListener("focus", onBack);
+    window.addEventListener("pageshow", onBack);
     return () => {
       document.removeEventListener("visibilitychange", onBack);
       window.removeEventListener("focus", onBack);
+      window.removeEventListener("pageshow", onBack);
     };
-  }, [stage]);
+  }, [stage, leftKey]);
   // Réponse à la fenêtre de retour : même parcours que les boutons de décision de la page
   const answerReturn = (choice: "prepare" | "later" | "applied" | "no") => {
     setReturnAsk(null);
