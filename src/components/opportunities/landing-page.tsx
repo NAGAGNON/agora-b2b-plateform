@@ -16,6 +16,7 @@ import { AlertLeadForm } from "@/components/alert-lead-form";
 import { regionBySlug } from "@/lib/geo";
 import { PageHero } from "@/components/layout/page-hero";
 import { familyPhoto, sectorFamilySlug } from "@/components/opportunities/sector-visual";
+import { LandingInsights } from "@/components/opportunities/landing-insights";
 
 export async function landingMetadata(landing: Landing, path: string, sp: RawSearchParams): Promise<Metadata> {
   const { total } = await searchOpportunities(parseOpportunityFilters(landing.fixed), 1);
@@ -106,6 +107,7 @@ export async function LandingPage({ landing, path, sp }: { landing: Landing; pat
       )}
       {filters.page === 1 && <FeaturedNeeds sector={filters.sector} department={filters.department} region={filters.region ? (regionBySlug(filters.region)?.name ?? null) : null} />}
       <OpportunityResults filters={filters} rawParams={sp} basePath={path} />
+      {filters.page === 1 && <LandingInsights landing={landing} />}
       {landing.related && landing.related.links.length > 0 && (
         <section className="mt-8" aria-labelledby="related-landings">
           <h2 id="related-landings" className="text-lg font-bold">
