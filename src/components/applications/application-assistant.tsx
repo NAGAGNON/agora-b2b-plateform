@@ -53,25 +53,6 @@ export function ApplicationAssistant({
     () => false,
   );
   const input = useRef<HTMLTextAreaElement>(null);
-  // Bulle d'invitation à côté du bouton : une seule fois par candidature, quelques secondes après l'arrivée,
-  // seulement si aucune question n'a encore été posée ; fermée d'un clic (mémorisé dans le navigateur)
-  const [hint, setHint] = useState(false);
-  const hintKey = `lp-assist-hint-${id}`;
-  useEffect(() => {
-    if (initial.length > 0) return;
-    try {
-      if (localStorage.getItem(hintKey)) return;
-    } catch {
-      return;
-    }
-    const t = setTimeout(() => {
-      setHint(true);
-      try {
-        localStorage.setItem(hintKey, "1");
-      } catch {}
-    }, 2500);
-    return () => clearTimeout(t);
-  }, [hintKey, initial.length]);
 
   useEffect(() => {
     if (open) end.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -86,7 +67,6 @@ export function ApplicationAssistant({
   const ask = (q: string) => {
     const question = q.trim();
     if (question.length < 3 || pending) return;
-    setHint(false);
     setOpen(true);
     setError(null);
     setWaiting(question);
@@ -102,7 +82,6 @@ export function ApplicationAssistant({
     });
   };
   const openPanel = () => {
-    setHint(false);
     setOpen(true);
     setTimeout(() => input.current?.focus(), 250);
   };
@@ -126,27 +105,6 @@ export function ApplicationAssistant({
       {mounted &&
         createPortal(
           <>
-            {/* Petite étiquette d'invitation, à gauche du bouton : discrète, une ligne */}
-            {!open && hint && (
-              <div
-                role="status"
-                data-testid="assistant-hint"
-                className="fixed right-[3.75rem] bottom-[1.15rem] z-[60] flex max-w-[calc(100vw-5rem)] animate-rise items-center gap-1 rounded-full bg-white py-1 pr-1 pl-3 text-xs shadow-lg shadow-navy/10 ring-1 ring-violet-200 sm:right-[4.25rem] sm:bottom-[1.65rem]"
-              >
-                <button type="button" onClick={openPanel} className="truncate font-medium text-navy">
-                  Une question sur cette offre ? <span className="text-violet-700 underline underline-offset-2">Demandez-moi</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setHint(false)}
-                  className="shrink-0 rounded-full p-1 text-slate-400 transition hover:bg-slate-100 hover:text-navy"
-                  aria-label="Fermer l'invitation"
-                >
-                  <X className="size-3" aria-hidden />
-                </button>
-              </div>
-            )}
-
             {/* Petit bouton rond, toujours à portée de main */}
             {!open && (
               <button
@@ -158,7 +116,6 @@ export function ApplicationAssistant({
                 className="fixed right-4 bottom-4 z-[60] flex size-10 animate-rise items-center justify-center rounded-full bg-gradient-to-br from-violet to-teal text-white shadow-lg shadow-violet/25 transition hover:scale-105 active:scale-95 sm:right-6 sm:bottom-6"
               >
                 <MessageCircleQuestion className="size-5" aria-hidden />
-                {hint && <span aria-hidden className="absolute -top-0.5 -right-0.5 size-2.5 animate-pulse rounded-full bg-teal ring-2 ring-white" />}
               </button>
             )}
 
