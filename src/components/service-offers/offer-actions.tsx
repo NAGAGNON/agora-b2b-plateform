@@ -2,7 +2,7 @@
 
 import { useActionState, useState, useTransition } from "react";
 import { Archive, RotateCcw, Send } from "lucide-react";
-import { contactServiceOffer, moderateServiceOffer, setServiceOfferStatus, suggestServiceOffer } from "@/app/actions/service-offers";
+import { contactServiceOffer, convertNeedToServiceOffer, moderateServiceOffer, setServiceOfferStatus } from "@/app/actions/service-offers";
 import type { ActionResult } from "@/lib/validation";
 import { Textarea } from "@/components/ui/form";
 import { SubmitButton } from "@/components/ui/submit-button";
@@ -91,27 +91,32 @@ export function ModerateOfferButton({ id, removed }: { id: string; removed: bool
   );
 }
 
-/** Équipe : proposer à l'entreprise de republier son besoin (offre de services) en disponibilité. */
-export function SuggestOfferButton({ opportunityId }: { opportunityId: string }) {
+/** Équipe : recatégoriser en disponibilité un besoin qui présente en fait les services de l'entreprise. */
+export function ConvertNeedButton({ opportunityId }: { opportunityId: string }) {
   const [pending, start] = useTransition();
-  const [sent, setSent] = useState(false);
+  const [done, setDone] = useState<string | null>(null);
   const toast = useToast();
-  if (sent) return <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">Proposition envoyée</span>;
+  if (done)
+    return (
+      <a href={`/disponibilites/${done}`} className="rounded-full bg-teal-50 px-3 py-1 text-xs font-bold text-teal-800 ring-1 ring-teal/30">
+        Recatégorisé · voir
+      </a>
+    );
   return (
     <button
       type="button"
       disabled={pending}
       onClick={() => {
-        if (!window.confirm("Envoyer à cette entreprise une notification (et un e-mail) lui proposant de republier son texte en disponibilité ?")) return;
+        if (!window.confirm("Déplacer cette publication dans « Disponibilités » ? Son texte est repris tel quel, le besoin est archivé (rien n'est supprimé) et l'entreprise est prévenue.")) return;
         start(async () => {
-          const r = await suggestServiceOffer(opportunityId);
+          const r = await convertNeedToServiceOffer(opportunityId);
           toast(r.ok ? (r.message ?? "C'est fait.") : r.error, r.ok ? undefined : "error");
-          if (r.ok) setSent(true);
+          if (r.ok && r.data) setDone(r.data.id);
         });
       }}
       className="rounded-lg bg-navy px-3 py-1.5 text-sm font-semibold text-white transition hover:-translate-y-0.5 disabled:opacity-50"
     >
-      Proposer la disponibilité
+      Recatégoriser en disponibilité
     </button>
   );
 }

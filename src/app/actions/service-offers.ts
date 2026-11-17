@@ -117,29 +117,19 @@ export async function moderateServiceOffer(id: string, action: "REMOVE" | "RESTO
 }
 
 /**
- * Équipe : proposer à l'entreprise qui a publié un besoin ressemblant à une offre de services de le
- * republier en disponibilité (notification en ligne et par e-mail, avec son texte repris). Le besoin
- * n'est pas modifié : l'entreprise décide.
+ * Équipe : recatégoriser en disponibilité un « besoin » qui présente en fait les services de
+ * l'entreprise (texte repris tel quel, besoin archivé sans rien supprimer, entreprise prévenue).
  */
-export async function suggestServiceOffer(opportunityId: string): Promise<ActionResult> {
+export async function convertNeedToServiceOffer(opportunityId: string): Promise<ActionResult<{ id: string }>> {
   const session = await getSession();
-  if (!session?.isAdmin) return { ok: false, error: "Action réservée aux administrateurs." };
+  if (!session?.isStaff) return { ok: false, error: "Action réservée à l'équipe." };
   if (!z.uuid().safeParse(opportunityId).success) return { ok: false, error: "Besoin introuvable." };
   const db = createAdminClient();
-  const { data: o } = await db.from("opportunities").select("id, title, company_id, origin").eq("id", opportunityId).maybeSingle();
-  if (!o || o.origin !== "INTERNAL" || !o.company_id) return { ok: false, error: "Besoin introuvable." };
-  const { data: done } = await db.from("audit_logs").select("id").eq("action", "service_offer.suggested").eq("entity_id", opportunityId).limit(1);
-  if (done?.length) return { ok: false, error: "Déjà proposé à cette entreprise." };
-  const { error } = await db.rpc("notify_company", {
-    p_company_id: o.company_id,
-    p_type: "service_offer_suggested",
-    p_title: "Vous proposez vos services ? Publiez une disponibilité",
-    p_body: `« ${o.title} » présente ce que vous proposez. Publiez-le comme disponibilité : les entreprises qui cherchent un prestataire vous trouveront et vous écriront. Votre texte est déjà repris.`,
-    p_link: `/disponibilites/publier?depuis=${o.id}`,
-  });
-  if (error) return actionError(error);
-  await db.from("audit_logs").insert({ action: "service_offer.suggested", entity_type: "opportunity", entity_id: o.id, actor_user_id: session.userId, metadata: {} });
+  const { data, error } = await db.rpc("convert_need_to_service_offer", { p_opportunity_id: opportunityId });
+  if (error || !data) return actionError(error);
   flushEmailsAfterResponse();
+  refresh(data);
   revalidatePath("/admin/disponibilites");
-  return { ok: true, message: "Proposition envoyée à l'entreprise." };
+  revalidatePath("/opportunites");
+  return { ok: true, message: "Recatégorisé en disponibilité.", data: { id: data } };
 }

@@ -2045,6 +2045,9 @@ isOneToOne: false
 "widen_sparse_alerts":
 { Args: Record<PropertyKey, never>; Returns: number
                            },
+"convert_need_to_service_offer":
+{ Args: { "p_opportunity_id": string,"p_note"?: string }; Returns: string
+                           },
 "contact_service_offer":
 { Args: { "p_offer_id": string,"p_company_id": string,"p_body": string }; Returns: string
                            },

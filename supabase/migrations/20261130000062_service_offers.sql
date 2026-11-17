@@ -143,3 +143,40 @@ end;
 $$;
 revoke all on function public.contact_service_offer(uuid, uuid, text) from public, anon;
 grant execute on function public.contact_service_offer(uuid, uuid, text) to authenticated;
+
+-- Recatégoriser un « besoin » qui présente en fait les services de l'entreprise : la disponibilité est
+-- créée avec son texte, repris tel quel ; le besoin est archivé (rien n'est supprimé) ; l'entreprise est
+-- prévenue. Utilisé par la relecture automatique et par l'équipe.
+create or replace function public.convert_need_to_service_offer(p_opportunity_id uuid, p_note text default null)
+returns uuid language plpgsql security definer set search_path = '' as $$
+declare o record; v_id uuid; v_text text;
+begin
+  select * into o from public.opportunities where id = p_opportunity_id for update;
+  if o.id is null or o.origin <> 'INTERNAL' or o.company_id is null then
+    raise exception 'Besoin introuvable' using errcode = 'P0002';
+  end if;
+  select id into v_id from public.service_offers where from_opportunity_id = p_opportunity_id limit 1;
+  if v_id is not null then
+    return v_id;
+  end if;
+  perform public.trusted();
+  v_text := btrim(coalesce(nullif(btrim(o.description), ''), nullif(btrim(o.summary), ''), o.title));
+  if char_length(v_text) < 20 then
+    v_text := btrim(o.title) || '. ' || v_text;
+  end if;
+  insert into public.service_offers (company_id, created_by, title, description, sector_slug, department_code, city, nationwide, from_opportunity_id)
+  values (o.company_id, o.created_by, left(btrim(o.title), 140), left(v_text, 3000), o.sector_slug, o.department_code, o.city, o.department_code is null, o.id)
+  returning id into v_id;
+  update public.opportunities
+     set status = 'ARCHIVED',
+         moderation_note = coalesce(nullif(btrim(p_note), ''), 'Cette publication présente vos services : elle est maintenant dans « Disponibilités ».')
+   where id = p_opportunity_id;
+  perform public.log_audit('service_offer.converted', 'opportunity', p_opportunity_id::text, jsonb_build_object('service_offer_id', v_id, 'from', o.status));
+  perform public.notify_company(o.company_id, 'service_offer_converted', 'Votre publication est maintenant une disponibilité',
+    left(o.title, 120) || ' : elle présente ce que vous proposez. Elle apparaît donc dans « Disponibilités », où les entreprises qui cherchent un prestataire vous trouvent et vous écrivent.',
+    '/disponibilites/' || v_id);
+  return v_id;
+end;
+$$;
+revoke all on function public.convert_need_to_service_offer(uuid, text) from public, anon, authenticated;
+grant execute on function public.convert_need_to_service_offer(uuid, text) to service_role;
