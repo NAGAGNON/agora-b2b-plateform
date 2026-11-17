@@ -64,6 +64,7 @@ type Window = {
   daily: { day: string; visits: number; page_views: number; seo: number; outreach: number }[];
 };
 
+const AI_HINT = "chatgpt";
 const channelVisits = (w: Window, prefix: string) => w.channels.filter((c) => c.channel.startsWith(prefix)).reduce((s, c) => s + c.visits, 0);
 
 /** Impact des envois ciblés pour chaque besoin ouvert publié par un client. */
@@ -157,6 +158,13 @@ export async function buildDailyFacts(now = new Date()) {
   const t = todayW.data as unknown as Window;
   const y = yesterdayW.data as unknown as Window | null;
   const w = weekW.data as unknown as Window | null;
+  // Inscriptions du jour arrivées depuis un assistant IA (lien étiqueté chatgpt.com, perplexity…)
+  const { data: newUsers } = await db.from("users").select("signup_visit").eq("is_internal", false).eq("is_demo", false).gte("created_at", iso).not("signup_visit", "is", null).limit(500);
+  const visits = (newUsers ?? []).map((u) => u.signup_visit).filter((v): v is string => Boolean(v));
+  const { data: aiViews } = visits.length
+    ? await db.from("page_views").select("session_id").in("session_id", visits).or(`source.ilike.%${AI_HINT}%,referrer_host.ilike.%${AI_HINT}%,source.ilike.%perplexity%,referrer_host.ilike.%perplexity%,source.ilike.%copilot%,source.ilike.%gemini%`)
+    : { data: [] };
+  const aiSignups = new Set((aiViews ?? []).map((v) => v.session_id)).size;
 
   const evCount: Record<string, number> = {};
   for (const e of events.data ?? []) evCount[e.type] = (evCount[e.type] ?? 0) + 1;
@@ -272,6 +280,11 @@ export async function buildDailyFacts(now = new Date()) {
     },
     referencement_naturel: {
       visites_depuis_les_moteurs_aujourdhui: channelVisits(t, "Moteurs"),
+      // ChatGPT, Perplexity… : visites et inscriptions venues des assistants IA
+      visites_depuis_les_assistants_ia_aujourdhui: channelVisits(t, "Assistants IA"),
+      visites_depuis_les_assistants_ia_hier: y ? channelVisits(y, "Assistants IA") : null,
+      visites_depuis_les_assistants_ia_par_jour_sur_7_jours: w ? Math.round(channelVisits(w, "Assistants IA") / 7) : null,
+      inscriptions_venues_des_assistants_ia_aujourdhui: aiSignups,
       articles_publies_aujourdhui: (articles.data ?? []).map((a) => a.title),
       vues_des_analyses: t.sections.find((s) => s.section.startsWith("Analyses"))?.views ?? 0,
       vues_des_pages_regions_secteurs: t.sections.find((s) => s.section.startsWith("Pages régions"))?.views ?? 0,

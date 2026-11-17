@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { GUIDES } from "@/content/guides";
 import { ContentPage } from "@/components/content-page";
 import { ARTICLE_AUTHOR, pageMetadata } from "@/lib/seo";
-import { JsonLd, articleLd, breadcrumbLd } from "@/components/json-ld";
+import { JsonLd, articleLd, breadcrumbLd, faqLd } from "@/components/json-ld";
 
 export function generateStaticParams() {
   return GUIDES.map((g) => ({ slug: g.slug }));
@@ -29,6 +29,7 @@ export default async function GuidePage(props: PageProps<"/ressources/[slug]">) 
             { name: "Ressources", path: "/ressources" },
             { name: g.title, path: `/ressources/${g.slug}` },
           ]),
+          ...(g.faq?.length ? [faqLd(g.faq)] : []),
         ]}
       />
       {g.sections.map((s) => (
@@ -44,6 +45,17 @@ export default async function GuidePage(props: PageProps<"/ressources/[slug]">) 
           )}
         </section>
       ))}
+      {g.faq && g.faq.length > 0 && (
+        <section>
+          <h2>Questions fréquentes</h2>
+          {g.faq.map((q) => (
+            <div key={q.question}>
+              <h3>{q.question}</h3>
+              <p>{q.answer}</p>
+            </div>
+          ))}
+        </section>
+      )}
       <p className="mt-10 border-t border-slate-200 pt-4 text-sm text-slate-500">
         Rédigé par <strong className="text-navy">{ARTICLE_AUTHOR}</strong>
       </p>

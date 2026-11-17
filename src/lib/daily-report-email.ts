@@ -194,6 +194,7 @@ export function renderDailyReportEmail(row: ReportRow, { socialPost = null, grow
         ["Visites", n(a.visites), n(y?.visites), n(w?.visites_par_jour)],
         ["Pages vues", n(a.pages_vues), n(y?.pages_vues), "—"],
         ["Visites depuis les moteurs", n(f.referencement_naturel.visites_depuis_les_moteurs_aujourdhui), n(y?.visites_moteurs_de_recherche), n(w?.visites_moteurs_par_jour)],
+        ["Visites depuis ChatGPT et autres IA", n(f.referencement_naturel.visites_depuis_les_assistants_ia_aujourdhui), n(f.referencement_naturel.visites_depuis_les_assistants_ia_hier), n(f.referencement_naturel.visites_depuis_les_assistants_ia_par_jour_sur_7_jours)],
         ["Pages par visite", String(a.pages_par_visite).replace(".", ","), "—", "—"],
         ["Durée moyenne (s)", n(a.duree_moyenne_secondes), "—", "—"],
         ["Taux de rebond (%)", n(a.taux_de_rebond_pourcent), "—", "—"],
@@ -203,6 +204,7 @@ export function renderDailyReportEmail(row: ReportRow, { socialPost = null, grow
   parts.push(table(["Canal d'arrivée", "Visites"], a.canaux.map((c) => [c.canal, n(c.visites)])));
   parts.push(table(["Page la plus vue", "Vues"], a.pages_les_plus_vues.map((x) => [x.page, n(x.vues)])));
   parts.push(table(["Page d'entrée", "Visites"], a.pages_d_entree.map((x) => [x.page, n(x.visites)])));
+  if ((f.referencement_naturel.inscriptions_venues_des_assistants_ia_aujourdhui ?? 0) > 0) parts.push(muted(`Inscriptions venues de ChatGPT ou d'un autre assistant IA aujourd'hui : ${n(f.referencement_naturel.inscriptions_venues_des_assistants_ia_aujourdhui)}`));
   if (a.moteurs_de_recherche.length) parts.push(muted(`Moteurs de recherche : ${a.moteurs_de_recherche.map((m) => `${m.moteur} (${n(m.visites)})`).join(" · ")}`));
   if (a.heure_la_plus_active !== null) parts.push(muted(`Heure la plus active : ${a.heure_la_plus_active} h`));
   const v = f.actions_des_visiteurs;
