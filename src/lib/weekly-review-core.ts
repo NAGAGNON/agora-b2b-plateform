@@ -81,3 +81,6 @@ export function fallbackSummary(facts: WeeklyFacts): WeeklySummary {
     actions: [],
   };
 }
+
+/** Jour calendaire à Paris (AAAA-MM-JJ) d'un horodatage. */
+export const parisDate = (iso: string) => new Date(iso).toLocaleDateString("sv-SE", { timeZone: "Europe/Paris" });

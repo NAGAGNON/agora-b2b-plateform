@@ -3,6 +3,7 @@ import { ClipboardList, Eye, FileStack, FolderOpen, Mail, MessageCircleQuestion,
 import { createAdminClient } from "@/lib/supabase/admin";
 import { formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/cn";
+import { parisDate } from "@/lib/weekly-review-core";
 
 const DAY = 86_400_000;
 export const GLANCE_PERIODS = [
@@ -47,7 +48,8 @@ export async function AtAGlance({ periodKey, now }: { periodKey: string | undefi
   ]);
   const newUsers = notTeam(signups.data).length;
   const people = notTeam(visitors.data);
-  const returning = people.filter((u) => u.created_at < since);
+  // Revenu = vu sur le site un autre jour (heure de Paris) que celui de son inscription
+  const returning = people.filter((u) => u.last_seen_at && parisDate(u.last_seen_at) > parisDate(u.created_at));
   const OPENED = ["RESPONSE_PREPARING", "RESPONSE_SENT", "DISCUSSION", "NEGOTIATION", "WON", "LOST"];
   const realItems = notTeam((items.data ?? []).map((i) => ({ ...i, user_id: i.updated_by })));
   const opened = realItems.filter((i) => i.created_at >= since && OPENED.includes(i.stage)).length;
