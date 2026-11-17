@@ -15,6 +15,9 @@ export default function SuppliersPage() {
       <h2>Ce que vous pouvez faire</h2>
       <ul>
         <li>Présenter votre entreprise : secteurs, compétences, zone d&apos;intervention, certifications ;</li>
+        <li>
+          Annoncer vos <Link href="/disponibilites">disponibilités</Link> : ce que vous pouvez faire, où et à partir de quand. Les entreprises qui cherchent un prestataire vous écrivent ;
+        </li>
         <li>Rechercher des opportunités par mots-clés, secteur, ville et rayon, type et date limite ;</li>
         <li>Consulter chaque jour les nouveaux appels d&apos;offres et besoins d&apos;entreprises, partout en France ;</li>
         <li>Recevoir des recommandations expliquées (secteur, région, département, compétences communes) ;</li>
