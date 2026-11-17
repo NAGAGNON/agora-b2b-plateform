@@ -164,6 +164,13 @@ begin
   if char_length(v_text) < 20 then
     v_text := btrim(o.title) || '. ' || v_text;
   end if;
+  -- Texte trop long : coupé à la fin du dernier paragraphe complet (sinon du dernier mot), jamais au milieu
+  if char_length(v_text) > 3000 then
+    v_text := coalesce(
+      substring(left(v_text, 3000) from '^(.*\S)\s*\n\s*\n'),
+      substring(left(v_text, 3000) from '^(.*\S)\s'),
+      left(v_text, 3000));
+  end if;
   insert into public.service_offers (company_id, created_by, title, description, sector_slug, department_code, city, nationwide, from_opportunity_id)
   values (o.company_id, o.created_by, left(btrim(o.title), 140), left(v_text, 3000), o.sector_slug, o.department_code, o.city, o.department_code is null, o.id)
   returning id into v_id;

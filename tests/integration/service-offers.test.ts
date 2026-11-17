@@ -81,6 +81,17 @@ describe("disponibilités", () => {
     // Deuxième appel : la même disponibilité, pas de doublon
     const { data: again } = await admin.rpc("convert_need_to_service_offer", { p_opportunity_id: need.id });
     expect(again).toBe(offer);
+    // Texte trop long pour une disponibilité : coupé à la fin du dernier paragraphe complet
+    const long = `${"Nous assurons la relation client de nos clients. ".repeat(58)}Fin du dernier paragraphe complet.\n\nSignature avec un site et une adresse qui dépassent la limite ${"x".repeat(120)}`;
+    const { data: need2 } = await seller
+      .from("opportunities")
+      .insert({ type: "NEED", status: "PENDING_REVIEW", visibility: "PUBLIC", title: `IT ${RUN} Centre d'appels à votre service`, description: long, company_id: sellerCompany, department_code: "29" })
+      .select("id")
+      .single();
+    const { data: offer2 } = await admin.rpc("convert_need_to_service_offer", { p_opportunity_id: need2!.id });
+    const { data: s2 } = await admin.from("service_offers").select("description").eq("id", offer2!).single();
+    expect(s2!.description.length).toBeLessThanOrEqual(3000);
+    expect(s2!.description.endsWith("Fin du dernier paragraphe complet.")).toBe(true);
     // Réservé à l'équipe (tâches automatiques)
     const { error: denied } = await seller.rpc("convert_need_to_service_offer", { p_opportunity_id: need.id });
     expect(denied).not.toBeNull();
