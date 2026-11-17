@@ -13,6 +13,7 @@ import type { Json } from "@/lib/database.types";
 import {
   fallbackSummary,
   frWeek,
+  parisDate,
   unknownNumbers,
   variation,
   weekDays,
@@ -32,7 +33,7 @@ export async function windowNumbers(db: DB, from: Date, to: Date, excluded: Set<
   const count = async (q: PromiseLike<{ count: number | null }>) => (await q).count ?? 0;
   const [users, events, items, questions, needs, emails, companies] = await Promise.all([
     selectAll((a, b) => db.from("users").select("id").gte("created_at", f).lt("created_at", t).order("id").range(a, b)),
-    selectAll((a, b) => db.from("analytics_events").select("user_id, event_name").in("event_name", ["view_opportunity", "view_application"]).gte("created_at", f).lt("created_at", t).order("id").range(a, b)),
+    selectAll((a, b) => db.from("analytics_events").select("user_id, event_name, created_at").in("event_name", ["view_opportunity", "view_application"]).gte("created_at", f).lt("created_at", t).order("id").range(a, b)),
     selectAll((a, b) => db.from("pipeline_items").select("id, stage, created_at, work_started_at, companies!inner(is_demo)").eq("companies.is_demo", false).or(`and(created_at.gte.${f},created_at.lt.${t}),and(work_started_at.gte.${f},work_started_at.lt.${t})`).order("id").range(a, b)),
     selectAll((a, b) => db.from("application_questions").select("user_id").gte("created_at", f).lt("created_at", t).order("id").range(a, b)),
     count(db.from("opportunities").select("id", { count: "exact", head: true }).eq("origin", "INTERNAL").eq("is_demo", false).gte("created_at", f).lt("created_at", t)),
@@ -44,8 +45,22 @@ export async function windowNumbers(db: DB, from: Date, to: Date, excluded: Set<
   // d'indexation, jusqu'à 12 000 par jour) faussaient les totaux sur 30 jours
   const realEvents = events.filter((e) => e.user_id && !excluded.has(e.user_id));
   const newUsers = new Set(users.filter((u) => !excluded.has(u.id)).map((u) => u.id));
-  // Membres déjà inscrits avant la semaine et venus consulter des offres pendant la semaine
-  const returning = new Set(realEvents.filter((e) => e.user_id && !newUsers.has(e.user_id)).map((e) => e.user_id as string));
+  // Membres revenus : venus consulter des offres pendant la période un AUTRE jour (heure de Paris) que
+  // celui de leur inscription. Une visite le jour même de l'inscription ne compte pas ; un membre inscrit
+  // pendant la période qui revient un jour suivant compte (avant : seuls les inscrits d'avant la période
+  // comptaient, si bien que le chiffre baissait quand la période s'allongeait : 3 sur 30 jours, 7 sur 7).
+  const ids = [...new Set(realEvents.map((e) => e.user_id as string))];
+  const signupDay = new Map<string, string>();
+  for (let i = 0; i < ids.length; i += 200) {
+    const { data } = await db.from("users").select("id, created_at").in("id", ids.slice(i, i + 200));
+    for (const u of data ?? []) signupDay.set(u.id, parisDate(u.created_at));
+  }
+  const returning = new Set(
+    realEvents.filter((e) => {
+      const day = signupDay.get(e.user_id as string);
+      return day !== undefined && parisDate(e.created_at) > day;
+    }).map((e) => e.user_id as string),
+  );
   return {
     inscrits: newUsers.size,
     entreprises: companies,
