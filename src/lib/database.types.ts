@@ -295,13 +295,13 @@ isOneToOne: true
                   ]
                 },"conversations": {
                   Row: {
-                    "buyer_company_id": string,"created_at": string,"created_by": string | null,"id": string,"last_message_at": string,"opportunity_id": string | null,"subject": string | null,"supplier_company_id": string
+                    "buyer_company_id": string,"created_at": string,"created_by": string | null,"id": string,"last_message_at": string,"opportunity_id": string | null,"service_offer_id": string | null,"subject": string | null,"supplier_company_id": string
                   }
                   Insert: {
-                    "buyer_company_id": string,"created_at"?: string,"created_by"?: string | null,"id"?: string,"last_message_at"?: string,"opportunity_id"?: string | null,"subject"?: string | null,"supplier_company_id": string
+                    "buyer_company_id": string,"created_at"?: string,"created_by"?: string | null,"id"?: string,"last_message_at"?: string,"opportunity_id"?: string | null,"service_offer_id"?: string | null,"subject"?: string | null,"supplier_company_id": string
                   }
                   Update: {
-                    "buyer_company_id"?: string,"created_at"?: string,"created_by"?: string | null,"id"?: string,"last_message_at"?: string,"opportunity_id"?: string | null,"subject"?: string | null,"supplier_company_id"?: string
+                    "buyer_company_id"?: string,"created_at"?: string,"created_by"?: string | null,"id"?: string,"last_message_at"?: string,"opportunity_id"?: string | null,"service_offer_id"?: string | null,"subject"?: string | null,"supplier_company_id"?: string
                   }
                   Relationships: [
                     {
@@ -321,6 +321,12 @@ isOneToOne: false
       columns: ["opportunity_id"]
 isOneToOne: false
       referencedRelation: "opportunities"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "conversations_service_offer_id_fkey"
+      columns: ["service_offer_id"]
+isOneToOne: false
+      referencedRelation: "service_offers"
       referencedColumns: ["id"]
     },{
       foreignKeyName: "conversations_supplier_company_id_fkey"
@@ -667,6 +673,37 @@ isOneToOne: false
                     "day"?: string,"searches"?: number,"user_id"?: string
                   }
                   Relationships: []
+                },"service_offers": {
+                  Row: {
+                    "available_from": string | null,"available_until": string | null,"capacity": string | null,"city": string | null,"company_id": string,"created_at": string,"created_by": string | null,"department_code": string | null,"description": string,"expires_at": string,"from_opportunity_id": string | null,"id": string,"is_demo": boolean,"nationwide": boolean,"published_at": string,"removed_reason": string | null,"sector_slug": string | null,"status": string,"title": string,"updated_at": string
+                  }
+                  Insert: {
+                    "available_from"?: string | null,"available_until"?: string | null,"capacity"?: string | null,"city"?: string | null,"company_id": string,"created_at"?: string,"created_by"?: string | null,"department_code"?: string | null,"description": string,"expires_at"?: string,"from_opportunity_id"?: string | null,"id"?: string,"is_demo"?: boolean,"nationwide"?: boolean,"published_at"?: string,"removed_reason"?: string | null,"sector_slug"?: string | null,"status"?: string,"title": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "available_from"?: string | null,"available_until"?: string | null,"capacity"?: string | null,"city"?: string | null,"company_id"?: string,"created_at"?: string,"created_by"?: string | null,"department_code"?: string | null,"description"?: string,"expires_at"?: string,"from_opportunity_id"?: string | null,"id"?: string,"is_demo"?: boolean,"nationwide"?: boolean,"published_at"?: string,"removed_reason"?: string | null,"sector_slug"?: string | null,"status"?: string,"title"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "service_offers_company_id_fkey"
+      columns: ["company_id"]
+isOneToOne: false
+      referencedRelation: "companies"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "service_offers_sector_slug_fkey"
+      columns: ["sector_slug"]
+isOneToOne: false
+      referencedRelation: "sectors"
+      referencedColumns: ["slug"]
+    },{
+      foreignKeyName: "service_offers_department_code_fkey"
+      columns: ["department_code"]
+isOneToOne: false
+      referencedRelation: "departments"
+      referencedColumns: ["code"]
+    }
+                  ]
                 },"tender_briefs": {
                   Row: {
                     "content": Json,"created_at": string,"opportunity_id": string,"source_ref": string | null
@@ -2007,6 +2044,9 @@ isOneToOne: false
                            },
 "widen_sparse_alerts":
 { Args: Record<PropertyKey, never>; Returns: number
+                           },
+"contact_service_offer":
+{ Args: { "p_offer_id": string,"p_company_id": string,"p_body": string }; Returns: string
                            },
 "briefs_to_rewrite":
 { Args: { "p_style": number,"p_limit"?: number }; Returns: {

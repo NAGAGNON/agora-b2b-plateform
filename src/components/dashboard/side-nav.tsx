@@ -20,6 +20,7 @@ import {
   Mail,
   Users,
   Megaphone,
+  CalendarCheck2,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 
@@ -31,6 +32,7 @@ const GROUPS = [
       { href: "/dashboard/opportunites", label: "Opportunités", icon: FileStack },
       { href: "/dashboard/recommandations", label: "Recommandations", icon: Sparkles },
       { href: "/dashboard/candidatures", label: "Mes candidatures", icon: ClipboardList },
+      { href: "/dashboard/disponibilites", label: "Mes disponibilités", icon: CalendarCheck2 },
       { href: "/dashboard/pipeline", label: "Pipeline", icon: KanbanSquare },
       { href: "/dashboard/favoris", label: "Favoris", icon: Heart },
     ],

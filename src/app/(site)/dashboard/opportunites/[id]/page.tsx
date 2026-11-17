@@ -88,6 +88,13 @@ export default async function ManageOpportunityPage(props: PageProps<"/dashboard
       {o.moderation_note && ["CHANGES_REQUESTED", "REJECTED", "SUSPENDED"].includes(o.status) && (
         <Notice tone={o.status === "CHANGES_REQUESTED" ? "warning" : "error"} title="Message de la modération">
           {o.moderation_note}
+          {/disponibilit/i.test(o.moderation_note) && (
+            <span className="mt-2 block">
+              <Link href={`/disponibilites/publier?depuis=${o.id}`} className="font-semibold underline">
+                Publier ce texte comme disponibilité
+              </Link>
+            </span>
+          )}
         </Notice>
       )}
 

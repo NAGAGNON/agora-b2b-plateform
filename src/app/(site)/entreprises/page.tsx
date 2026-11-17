@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { FeaturedStrip } from "@/components/featured-strip";
 import { requireAccount } from "@/lib/members-only";
 import { Directory } from "@/components/companies/directory";
@@ -74,6 +75,21 @@ export default async function DirectoryPage(props: PageProps<"/entreprises">) {
         </div>
       </section>
       <div className="container-page py-8 sm:py-10">
+      <Link
+        href="/disponibilites"
+        className="group mb-6 flex items-center gap-3 rounded-2xl bg-gradient-to-r from-teal-50 to-white p-4 ring-1 ring-teal/30 transition hover:-translate-y-0.5 hover:shadow-md"
+        data-testid="directory-available"
+      >
+        <span className="relative flex size-3 shrink-0" aria-hidden>
+          <span className="absolute inline-flex size-full animate-ping rounded-full bg-teal opacity-60" />
+          <span className="relative inline-flex size-3 rounded-full bg-teal" />
+        </span>
+        <span className="min-w-0 flex-1 text-sm">
+          <span className="font-semibold text-navy">Besoin d&apos;un prestataire rapidement ?</span>{" "}
+          <span className="text-slate-600">Voyez les entreprises qui se disent disponibles en ce moment, près de chez vous.</span>
+        </span>
+        <span className="shrink-0 text-sm font-semibold text-teal-700 group-hover:underline">Disponibilités →</span>
+      </Link>
       <FeaturedStrip kind="COMPANY" />
       <Directory filters={cf} rawParams={sp} basePath="/entreprises" />
       <section aria-label="Référencer votre entreprise" className="relative mt-12 overflow-hidden rounded-3xl bg-navy p-6 text-white shadow-xl sm:p-8">

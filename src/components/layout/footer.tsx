@@ -9,6 +9,7 @@ const COLUMNS = [
       { href: "/opportunites", label: "Explorer les opportunités" },
       { href: "/publier", label: "Publier un besoin" },
       { href: "/entreprises", label: "Annuaire des entreprises" },
+      { href: "/disponibilites", label: "Entreprises disponibles" },
       { href: "/comment-ca-marche", label: "Comment ça marche" },
     ],
   },

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, Building2, ClipboardCheck, FileStack, Flag, History, Settings, Users, UserPlus, Database, RefreshCw, Tags, Inbox, Mail, Newspaper, Megaphone, Send, TrendingUp, Handshake, Activity, MousePointerClick, Repeat, MessageSquareQuote, UserCheck, Target, MailX, ClipboardList, Gavel } from "lucide-react";
+import { BarChart3, Building2, ClipboardCheck, FileStack, Flag, History, Settings, Users, UserPlus, Database, RefreshCw, Tags, Inbox, Mail, Newspaper, Megaphone, Send, TrendingUp, Handshake, Activity, MousePointerClick, Repeat, MessageSquareQuote, UserCheck, Target, MailX, ClipboardList, Gavel, CalendarCheck2 } from "lucide-react";
 import { cn } from "@/lib/cn";
 
 const LINKS = [
@@ -26,6 +26,7 @@ const LINKS = [
   { href: "/admin/sources", label: "Sources externes", icon: Database, admin: true },
   { href: "/admin/synchronisations", label: "Synchronisations", icon: RefreshCw },
   { href: "/admin/besoins", label: "Besoins et mise en relation", icon: Handshake, admin: true },
+  { href: "/admin/disponibilites", label: "Disponibilités", icon: CalendarCheck2 },
   { href: "/admin/reponses", label: "Intérêts et réponses", icon: Inbox },
   { href: "/admin/referentiels", label: "Secteurs et zones", icon: Tags, admin: true },
   { href: "/admin/strategie", label: "Stratégie automatique", icon: TrendingUp, admin: true },
