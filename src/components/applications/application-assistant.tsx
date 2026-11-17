@@ -9,6 +9,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import {
+  ArrowLeft,
   ArrowUp,
   Copy,
   MessageCircleQuestion,
@@ -30,10 +31,13 @@ export function ApplicationAssistant({
   id,
   initial,
   suggestions,
+  backTo,
 }: {
   id: string;
   initial: AssistantMessage[];
   suggestions: string[];
+  /** Après une réponse : ramener la personne à l'étape de sa candidature où elle en est. */
+  backTo?: { label: string; onBack: () => void };
 }) {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<AssistantMessage[]>(initial);
@@ -84,66 +88,34 @@ export function ApplicationAssistant({
 
   return (
     <>
-      {/* Encart dans la page */}
-      <section
-        className="plan-in relative overflow-hidden rounded-3xl bg-gradient-to-br from-violet-50 via-white to-teal-50 p-6 shadow-sm ring-1 ring-violet-200/70 sm:p-8"
+      {/* Rappel discret dans la page : une ligne */}
+      <button
+        type="button"
+        onClick={openPanel}
         data-testid="assistant-card"
+        className="flex w-full items-center gap-3 rounded-2xl bg-white px-4 py-3 text-left text-sm shadow-sm ring-1 ring-slate-200 transition hover:ring-violet-300"
       >
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -top-16 -right-10 size-48 animate-aurora rounded-full bg-violet/20 blur-3xl"
-        />
-        <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center">
-          <div className="flex min-w-0 flex-1 items-start gap-4">
-            <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-violet to-teal text-white shadow-lg shadow-violet/25">
-              <MessageCircleQuestion className="size-6" aria-hidden />
-            </span>
-            <div className="min-w-0">
-              <h2 className="font-heading text-xl font-bold text-navy">
-                Une question sur cet appel d&apos;offres ?
-              </h2>
-              <p className="mt-1 text-slate-600">
-                L&apos;assistant LinkProB2B lit l&apos;avis officiel et votre
-                fiche entreprise pour vous répondre en quelques secondes.
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={openPanel}
-            className="btn-shine inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-navy px-5 py-3 font-semibold text-white shadow-lg shadow-navy/20 transition hover:-translate-y-0.5 active:scale-[0.98]"
-          >
-            <Sparkles className="size-4 text-teal-200" aria-hidden /> Poser ma
-            question
-          </button>
-        </div>
-        <div className="relative mt-5 flex flex-wrap gap-2">
-          {suggestions.map((s) => (
-            <button
-              key={s}
-              type="button"
-              onClick={() => ask(s)}
-              className="rounded-full bg-white px-3.5 py-2 text-left text-sm font-medium text-navy shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:ring-violet-300"
-            >
-              {s}
-            </button>
-          ))}
-        </div>
-      </section>
+        <MessageCircleQuestion className="size-5 shrink-0 text-violet-600" aria-hidden />
+        <span className="min-w-0 flex-1 text-slate-600">
+          Une question sur cet appel d&apos;offres ? <span className="font-semibold text-navy">L&apos;assistant vous répond.</span>
+        </span>
+        <Sparkles className="size-4 shrink-0 text-teal-600" aria-hidden />
+      </button>
 
       {mounted &&
         createPortal(
           <>
-            {/* Bouton flottant, toujours à portée de main */}
+            {/* Petit bouton rond, toujours à portée de main */}
             {!open && (
               <button
                 type="button"
                 onClick={openPanel}
                 data-testid="assistant-fab"
                 aria-label="Une question sur cet appel d'offres ?"
-                className="fixed right-4 bottom-4 z-[60] inline-flex animate-rise items-center gap-2 rounded-full bg-gradient-to-r from-violet to-teal p-3.5 font-semibold text-white shadow-2xl shadow-violet/30 transition hover:-translate-y-0.5 active:scale-[0.97] sm:right-6 sm:bottom-6 sm:px-5"
+                title="Une question sur cet appel d'offres ?"
+                className="fixed right-4 bottom-4 z-[60] flex size-10 animate-rise items-center justify-center rounded-full bg-gradient-to-br from-violet to-teal text-white shadow-lg shadow-violet/25 transition hover:scale-105 active:scale-95 sm:right-6 sm:bottom-6"
               >
-                <MessageCircleQuestion className="size-5" aria-hidden /> <span className="hidden sm:inline">Une question ?</span>
+                <MessageCircleQuestion className="size-5" aria-hidden />
               </button>
             )}
 
@@ -232,6 +204,23 @@ export function ApplicationAssistant({
                     />
                   ))}
                   {waiting && <Exchange question={waiting} answer={null} />}
+                  {/* Réponse reçue : retour direct à la candidature, à l'étape en cours */}
+                  {!waiting && messages.length > 0 && backTo && (
+                    <div className="animate-rise rounded-2xl bg-gradient-to-br from-teal-50 to-white p-4 ring-1 ring-teal/30" data-testid="assistant-back">
+                      <p className="text-sm text-slate-600">C&apos;est plus clair ? Revenez à votre candidature pour avancer.</p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOpen(false);
+                          setTimeout(backTo.onBack, 320);
+                        }}
+                        className="btn-shine mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-navy px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-navy/20 transition hover:-translate-y-0.5 active:scale-[0.98]"
+                      >
+                        <ArrowLeft className="size-4" aria-hidden /> Retour à ma candidature
+                      </button>
+                      <p className="mt-2 text-center text-xs font-medium text-teal-800">{backTo.label}</p>
+                    </div>
+                  )}
                   {error && (
                     <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700 ring-1 ring-rose-200">
                       {error}
