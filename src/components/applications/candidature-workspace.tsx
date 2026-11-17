@@ -253,6 +253,12 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
     setOpenStep(i);
     setTimeout(() => document.getElementById(`etape-${i + 1}`)?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
   };
+  // Retour depuis l'assistant : l'étape ouverte, sinon la prochaine à faire, sinon le haut de la candidature
+  const backStep = discovery || sent ? -1 : openStep >= 0 ? openStep : APPLICATION_GUIDE.findIndex((_, i) => !done.includes(i));
+  const backTo =
+    backStep >= 0
+      ? { label: `Étape ${backStep + 1} : ${APPLICATION_GUIDE[backStep].title}`, onBack: () => scrollTo(backStep) }
+      : { label: "En haut de votre candidature", onBack: () => window.scrollTo({ top: 0, behavior: "smooth" }) };
 
   const visitHot = Boolean(brief?.site_visit && /obligatoire/i.test(brief.site_visit));
   const facts = [
@@ -672,7 +678,7 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
           {stage !== "DETECTED" && <Journal id={data.id} initial={data.journal} />}
 
           {/* Une question ? L'assistant répond à partir de l'avis */}
-          <ApplicationAssistant id={data.id} initial={data.questions} suggestions={assistantSuggestions(brief, data.mine)} />
+          <ApplicationAssistant id={data.id} initial={data.questions} suggestions={assistantSuggestions(brief, data.mine)} backTo={backTo} />
 
           {/* Fin de page : l'annonce officielle */}
           {data.hasSource && (

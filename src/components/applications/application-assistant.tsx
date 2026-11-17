@@ -9,6 +9,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import {
+  ArrowLeft,
   ArrowUp,
   Copy,
   MessageCircleQuestion,
@@ -30,10 +31,13 @@ export function ApplicationAssistant({
   id,
   initial,
   suggestions,
+  backTo,
 }: {
   id: string;
   initial: AssistantMessage[];
   suggestions: string[];
+  /** Après une réponse : ramener la personne à l'étape de sa candidature où elle en est. */
+  backTo?: { label: string; onBack: () => void };
 }) {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<AssistantMessage[]>(initial);
@@ -297,6 +301,23 @@ export function ApplicationAssistant({
                     />
                   ))}
                   {waiting && <Exchange question={waiting} answer={null} />}
+                  {/* Réponse reçue : retour direct à la candidature, à l'étape en cours */}
+                  {!waiting && messages.length > 0 && backTo && (
+                    <div className="animate-rise rounded-2xl bg-gradient-to-br from-teal-50 to-white p-4 ring-1 ring-teal/30" data-testid="assistant-back">
+                      <p className="text-sm text-slate-600">C&apos;est plus clair ? Revenez à votre candidature pour avancer.</p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOpen(false);
+                          setTimeout(backTo.onBack, 320);
+                        }}
+                        className="btn-shine mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-navy px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-navy/20 transition hover:-translate-y-0.5 active:scale-[0.98]"
+                      >
+                        <ArrowLeft className="size-4" aria-hidden /> Retour à ma candidature
+                      </button>
+                      <p className="mt-2 text-center text-xs font-medium text-teal-800">{backTo.label}</p>
+                    </div>
+                  )}
                   {error && (
                     <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700 ring-1 ring-rose-200">
                       {error}
