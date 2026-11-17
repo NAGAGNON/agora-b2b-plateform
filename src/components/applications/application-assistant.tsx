@@ -109,110 +109,56 @@ export function ApplicationAssistant({
 
   return (
     <>
-      {/* Encart dans la page */}
-      <section
-        className="plan-in relative overflow-hidden rounded-3xl bg-gradient-to-br from-violet-50 via-white to-teal-50 p-6 shadow-sm ring-1 ring-violet-200/70 sm:p-8"
+      {/* Rappel discret dans la page : une ligne */}
+      <button
+        type="button"
+        onClick={openPanel}
         data-testid="assistant-card"
+        className="flex w-full items-center gap-3 rounded-2xl bg-white px-4 py-3 text-left text-sm shadow-sm ring-1 ring-slate-200 transition hover:ring-violet-300"
       >
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -top-16 -right-10 size-48 animate-aurora rounded-full bg-violet/20 blur-3xl"
-        />
-        <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center">
-          <div className="flex min-w-0 flex-1 items-start gap-4">
-            <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-violet to-teal text-white shadow-lg shadow-violet/25">
-              <MessageCircleQuestion className="size-6" aria-hidden />
-            </span>
-            <div className="min-w-0">
-              <h2 className="font-heading text-xl font-bold text-navy">
-                Une question sur cet appel d&apos;offres ?
-              </h2>
-              <p className="mt-1 text-slate-600">
-                L&apos;assistant LinkProB2B lit l&apos;avis officiel et votre
-                fiche entreprise pour vous répondre en quelques secondes.
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={openPanel}
-            className="btn-shine inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-navy px-5 py-3 font-semibold text-white shadow-lg shadow-navy/20 transition hover:-translate-y-0.5 active:scale-[0.98]"
-          >
-            <Sparkles className="size-4 text-teal-200" aria-hidden /> Poser ma
-            question
-          </button>
-        </div>
-        <div className="relative mt-5 flex flex-wrap gap-2">
-          {suggestions.map((s) => (
-            <button
-              key={s}
-              type="button"
-              onClick={() => ask(s)}
-              className="rounded-full bg-white px-3.5 py-2 text-left text-sm font-medium text-navy shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:ring-violet-300"
-            >
-              {s}
-            </button>
-          ))}
-        </div>
-      </section>
+        <MessageCircleQuestion className="size-5 shrink-0 text-violet-600" aria-hidden />
+        <span className="min-w-0 flex-1 text-slate-600">
+          Une question sur cet appel d&apos;offres ? <span className="font-semibold text-navy">L&apos;assistant vous répond.</span>
+        </span>
+        <Sparkles className="size-4 shrink-0 text-teal-600" aria-hidden />
+      </button>
 
       {mounted &&
         createPortal(
           <>
-            {/* Bulle d'invitation, au-dessus du bouton */}
+            {/* Petite étiquette d'invitation, à gauche du bouton : discrète, une ligne */}
             {!open && hint && (
               <div
                 role="status"
                 data-testid="assistant-hint"
-                className="fixed right-4 bottom-20 z-[60] w-[min(17rem,calc(100vw-2rem))] sm:w-80 animate-rise sm:right-6 sm:bottom-24"
+                className="fixed right-[3.75rem] bottom-[1.15rem] z-[60] flex max-w-[calc(100vw-5rem)] animate-rise items-center gap-1 rounded-full bg-white py-1 pr-1 pl-3 text-xs shadow-lg shadow-navy/10 ring-1 ring-violet-200 sm:right-[4.25rem] sm:bottom-[1.65rem]"
               >
-                <div className="relative rounded-2xl rounded-br-md bg-white p-3 pr-8 sm:p-4 sm:pr-9 shadow-2xl shadow-navy/15 ring-1 ring-violet-200">
-                  <button
-                    type="button"
-                    onClick={() => setHint(false)}
-                    className="absolute top-2 right-2 rounded-lg p-1 text-slate-400 transition hover:bg-slate-100 hover:text-navy"
-                    aria-label="Fermer l'invitation"
-                  >
-                    <X className="size-4" aria-hidden />
-                  </button>
-                  <button type="button" onClick={openPanel} className="flex items-start gap-3 text-left">
-                    <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet to-teal text-white sm:size-9">
-                      <Sparkles className="size-4" aria-hidden />
-                    </span>
-                    <span>
-                      <span className="block text-sm font-semibold text-navy sm:text-base">Une question sur cette offre ?</span>
-                      <span className="mt-0.5 block text-xs text-slate-600 sm:text-sm">Demandez-moi directement<span className="hidden sm:inline"> : je lis l&apos;avis officiel pour vous répondre</span>.</span>
-                    </span>
-                  </button>
-                  {suggestions.length > 0 && (
-                    <div className="mt-2.5 flex flex-col gap-1.5 sm:mt-3">
-                      {suggestions.slice(0, 2).map((s, i) => (
-                        <button
-                          key={s}
-                          type="button"
-                          onClick={() => ask(s)}
-                          className={cn("rounded-xl bg-violet-50/70 px-3 py-1.5 text-left text-xs font-medium sm:py-2 sm:text-sm", i > 0 && "hidden sm:block", "text-navy ring-1 ring-violet-200/70 transition hover:bg-violet-100")}
-                        >
-                          {s}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                <button type="button" onClick={openPanel} className="truncate font-medium text-navy">
+                  Une question sur cette offre ? <span className="text-violet-700 underline underline-offset-2">Demandez-moi</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setHint(false)}
+                  className="shrink-0 rounded-full p-1 text-slate-400 transition hover:bg-slate-100 hover:text-navy"
+                  aria-label="Fermer l'invitation"
+                >
+                  <X className="size-3" aria-hidden />
+                </button>
               </div>
             )}
 
-            {/* Bouton flottant, toujours à portée de main */}
+            {/* Petit bouton rond, toujours à portée de main */}
             {!open && (
               <button
                 type="button"
                 onClick={openPanel}
                 data-testid="assistant-fab"
                 aria-label="Une question sur cet appel d'offres ?"
-                className="fixed right-4 bottom-4 z-[60] inline-flex animate-rise items-center gap-2 rounded-full bg-gradient-to-r from-violet to-teal py-3 pr-4 pl-3.5 font-semibold text-white shadow-2xl shadow-violet/30 transition hover:-translate-y-0.5 active:scale-[0.97] sm:right-6 sm:bottom-6 sm:px-5"
+                title="Une question sur cet appel d'offres ?"
+                className="fixed right-4 bottom-4 z-[60] flex size-10 animate-rise items-center justify-center rounded-full bg-gradient-to-br from-violet to-teal text-white shadow-lg shadow-violet/25 transition hover:scale-105 active:scale-95 sm:right-6 sm:bottom-6"
               >
-                {hint && <span aria-hidden className="absolute inset-0 -z-10 animate-ping rounded-full bg-violet/40" />}
-                <MessageCircleQuestion className="size-5" aria-hidden /> <span className="text-sm sm:text-base">Une question ?</span>
+                <MessageCircleQuestion className="size-5" aria-hidden />
+                {hint && <span aria-hidden className="absolute -top-0.5 -right-0.5 size-2.5 animate-pulse rounded-full bg-teal ring-2 ring-white" />}
               </button>
             )}
 

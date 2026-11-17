@@ -16,11 +16,11 @@ test("assistant de candidature : bulle d'invitation, ouverture du panneau, pas d
   await page.goto(href!);
   await page.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith("lp-assist-hint-")).forEach((k) => localStorage.removeItem(k)));
   await page.reload();
-  await expect(page.getByTestId("assistant-fab")).toContainText("Une question ?");
+  await expect(page.getByTestId("assistant-fab")).toHaveAttribute("aria-label", /Une question/);
   const hint = page.getByTestId("assistant-hint");
   await expect(hint).toBeVisible({ timeout: 10_000 });
   await expect(hint).toContainText("Une question sur cette offre ?");
-  await hint.getByText("Demandez-moi directement", { exact: false }).click();
+  await hint.getByText("Demandez-moi").click();
   await expect(page.getByTestId("assistant-panel")).toBeInViewport();
   await page.keyboard.press("Escape");
   // Déjà vue : plus de bulle au retour sur la même candidature
