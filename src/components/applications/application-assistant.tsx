@@ -49,6 +49,25 @@ export function ApplicationAssistant({
     () => false,
   );
   const input = useRef<HTMLTextAreaElement>(null);
+  // Bulle d'invitation à côté du bouton : une seule fois par candidature, quelques secondes après l'arrivée,
+  // seulement si aucune question n'a encore été posée ; fermée d'un clic (mémorisé dans le navigateur)
+  const [hint, setHint] = useState(false);
+  const hintKey = `lp-assist-hint-${id}`;
+  useEffect(() => {
+    if (initial.length > 0) return;
+    try {
+      if (localStorage.getItem(hintKey)) return;
+    } catch {
+      return;
+    }
+    const t = setTimeout(() => {
+      setHint(true);
+      try {
+        localStorage.setItem(hintKey, "1");
+      } catch {}
+    }, 2500);
+    return () => clearTimeout(t);
+  }, [hintKey, initial.length]);
 
   useEffect(() => {
     if (open) end.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -63,6 +82,7 @@ export function ApplicationAssistant({
   const ask = (q: string) => {
     const question = q.trim();
     if (question.length < 3 || pending) return;
+    setHint(false);
     setOpen(true);
     setError(null);
     setWaiting(question);
@@ -78,6 +98,7 @@ export function ApplicationAssistant({
     });
   };
   const openPanel = () => {
+    setHint(false);
     setOpen(true);
     setTimeout(() => input.current?.focus(), 250);
   };
@@ -134,6 +155,49 @@ export function ApplicationAssistant({
       {mounted &&
         createPortal(
           <>
+            {/* Bulle d'invitation, au-dessus du bouton */}
+            {!open && hint && (
+              <div
+                role="status"
+                data-testid="assistant-hint"
+                className="fixed right-4 bottom-20 z-[60] w-[min(17rem,calc(100vw-2rem))] sm:w-80 animate-rise sm:right-6 sm:bottom-24"
+              >
+                <div className="relative rounded-2xl rounded-br-md bg-white p-3 pr-8 sm:p-4 sm:pr-9 shadow-2xl shadow-navy/15 ring-1 ring-violet-200">
+                  <button
+                    type="button"
+                    onClick={() => setHint(false)}
+                    className="absolute top-2 right-2 rounded-lg p-1 text-slate-400 transition hover:bg-slate-100 hover:text-navy"
+                    aria-label="Fermer l'invitation"
+                  >
+                    <X className="size-4" aria-hidden />
+                  </button>
+                  <button type="button" onClick={openPanel} className="flex items-start gap-3 text-left">
+                    <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet to-teal text-white sm:size-9">
+                      <Sparkles className="size-4" aria-hidden />
+                    </span>
+                    <span>
+                      <span className="block text-sm font-semibold text-navy sm:text-base">Une question sur cette offre ?</span>
+                      <span className="mt-0.5 block text-xs text-slate-600 sm:text-sm">Demandez-moi directement<span className="hidden sm:inline"> : je lis l&apos;avis officiel pour vous répondre</span>.</span>
+                    </span>
+                  </button>
+                  {suggestions.length > 0 && (
+                    <div className="mt-2.5 flex flex-col gap-1.5 sm:mt-3">
+                      {suggestions.slice(0, 2).map((s, i) => (
+                        <button
+                          key={s}
+                          type="button"
+                          onClick={() => ask(s)}
+                          className={cn("rounded-xl bg-violet-50/70 px-3 py-1.5 text-left text-xs font-medium sm:py-2 sm:text-sm", i > 0 && "hidden sm:block", "text-navy ring-1 ring-violet-200/70 transition hover:bg-violet-100")}
+                        >
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Bouton flottant, toujours à portée de main */}
             {!open && (
               <button
@@ -141,9 +205,10 @@ export function ApplicationAssistant({
                 onClick={openPanel}
                 data-testid="assistant-fab"
                 aria-label="Une question sur cet appel d'offres ?"
-                className="fixed right-4 bottom-4 z-[60] inline-flex animate-rise items-center gap-2 rounded-full bg-gradient-to-r from-violet to-teal p-3.5 font-semibold text-white shadow-2xl shadow-violet/30 transition hover:-translate-y-0.5 active:scale-[0.97] sm:right-6 sm:bottom-6 sm:px-5"
+                className="fixed right-4 bottom-4 z-[60] inline-flex animate-rise items-center gap-2 rounded-full bg-gradient-to-r from-violet to-teal py-3 pr-4 pl-3.5 font-semibold text-white shadow-2xl shadow-violet/30 transition hover:-translate-y-0.5 active:scale-[0.97] sm:right-6 sm:bottom-6 sm:px-5"
               >
-                <MessageCircleQuestion className="size-5" aria-hidden /> <span className="hidden sm:inline">Une question ?</span>
+                {hint && <span aria-hidden className="absolute inset-0 -z-10 animate-ping rounded-full bg-violet/40" />}
+                <MessageCircleQuestion className="size-5" aria-hidden /> <span className="text-sm sm:text-base">Une question ?</span>
               </button>
             )}
 
