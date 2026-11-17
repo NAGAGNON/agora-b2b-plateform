@@ -14,7 +14,7 @@ type DB = SupabaseClient<Database>;
 
 /** Décision de relecture d'un besoin publié. */
 export const ReviewSchema = z.object({
-  decision: z.enum(["APPROVE", "REQUEST_CHANGES", "MANUAL"]),
+  decision: z.enum(["APPROVE", "REQUEST_CHANGES", "SERVICE_OFFER", "MANUAL"]),
   /** Message à l'auteur (demande de précisions) ou note interne (relecture par l'équipe) */
   reason: z.string(),
   /** Secteur le plus juste (slug de la liste) quand celui choisi ne correspond pas au besoin, sinon null */
@@ -26,8 +26,9 @@ const SYSTEM = `Tu relis, pour l'équipe de LinkProB2B (plateforme française de
 
 Décisions possibles :
 - APPROVE : besoin professionnel réel et compréhensible (achat de prestation, de travaux, de fournitures, recherche de sous-traitant ou de partenaire) : une entreprise du métier peut comprendre ce qui est demandé et y répondre. Ne sois pas pointilleux : un besoin court mais clair est approuvé.
-- REQUEST_CHANGES : besoin professionnel légitime mais trop vague pour qu'une entreprise puisse répondre (on ne comprend pas ce qui est demandé), ou qui contient un numéro de téléphone ou une adresse e-mail personnelle dans le texte (les échanges passent par la messagerie de la plateforme). reason = message poli à l'auteur, en français, qui dit précisément quoi préciser ou retirer (2 à 3 phrases, signé implicitement par « l'équipe LinkProB2B », sans jamais parler de robot, d'automate ni d'intelligence artificielle).
-- MANUAL : tout ce qui n'est pas clairement un besoin professionnel légitime : publicité ou offre de service déguisée (l'auteur vend au lieu d'acheter), offre d'emploi ou recrutement, demande de particulier, contenu illégal, trompeur, arnaque, financement douteux, contenu choquant, texte incohérent ou de test. reason = note interne courte pour l'équipe.
+- REQUEST_CHANGES : besoin professionnel légitime mais trop vague pour qu'une entreprise puisse répondre (on ne comprend pas ce qui est demandé), ou qui contient un numéro de téléphone ou une adresse e-mail personnelle dans le texte (les échanges passent par la messagerie de la plateforme). reason = message poli à l'auteur, en français simple, qui dit précisément quoi préciser ou retirer (2 à 3 phrases, signé implicitement par « l'équipe LinkProB2B », sans jamais parler de robot, d'automate ni d'intelligence artificielle).
+- SERVICE_OFFER : l'entreprise présente ses propres services au lieu d'acheter (elle vend, se présente comme prestataire, cherche des clients, des marchés ou des chantiers). Ce n'est pas un besoin : la publication est déplacée dans « Disponibilités », avec son texte. reason = message poli à l'auteur en français simple, 1 à 2 phrases, qui explique que sa publication présente ses services et qu'elle apparaît donc dans « Disponibilités », où les entreprises qui cherchent un prestataire le trouvent et lui écrivent.
+- MANUAL : tout ce qui n'est pas clairement un besoin professionnel légitime ni une simple présentation de services : publicité sans rapport, offre d'emploi ou recrutement, demande de particulier, contenu illégal, trompeur, arnaque, financement douteux, contenu choquant, texte incohérent ou de test. reason = note interne courte pour l'équipe.
 
 better_sector : si le secteur choisi par l'auteur ne correspond manifestement pas au métier demandé, donne le slug le plus juste parmi la liste fournie ; sinon null. N'invente jamais de slug.
 
@@ -92,6 +93,13 @@ export async function autoModerateNeed(db: DB, id: string, { client }: { client?
     if (!process.env.ANTHROPIC_API_KEY && !client) return { id, decision: "SKIPPED", note: "Relecture automatique indisponible (clé absente)" };
     const { data: sectors } = await db.from("sectors").select("slug, label").order("label");
     const review = await reviewNeed(need, sectors ?? [], client);
+    if (review.decision === "SERVICE_OFFER") {
+      // Présentation de services publiée comme besoin : déplacée dans « Disponibilités » (texte repris, besoin archivé, auteur prévenu)
+      const { error } = await db.rpc("convert_need_to_service_offer", { p_opportunity_id: id, p_note: review.reason });
+      if (error) throw error;
+      if (env.emailTransport) await processEmailOutbox(40).catch(() => undefined);
+      return { id, decision: "SERVICE_OFFER", note: review.reason };
+    }
     if (review.decision === "MANUAL") {
       // Laissé à l'équipe : noté une fois, pour ne pas relire ce besoin à chaque passage
       await db.from("audit_logs").insert({ action: "moderation.auto.manual", entity_type: "opportunity", entity_id: id, metadata: { reason: review.reason } });

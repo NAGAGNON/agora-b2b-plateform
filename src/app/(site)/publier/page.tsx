@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CheckCircle2, ShieldCheck, Clock, Users } from "lucide-react";
+import { ArrowRight, CheckCircle2, ShieldCheck, Clock, Users, Megaphone } from "lucide-react";
 import { PublishWizard, type WizardValues } from "@/components/opportunities/publish-wizard";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/format";
@@ -110,7 +110,14 @@ export default async function PublishPage(props: { searchParams: Promise<{ parte
                 </ButtonLink>
               </>
             )}
-            <p className="mt-6 text-sm text-slate-500">
+            <p className="mt-6 rounded-xl bg-teal-50 px-4 py-3 text-sm text-slate-700 ring-1 ring-teal/30">
+              Vous proposez plutôt vos services ?{" "}
+              <Link href="/disponibilites" className="font-semibold text-teal-700 underline">
+                Annoncez une disponibilité
+              </Link>
+              .
+            </p>
+            <p className="mt-4 text-sm text-slate-500">
               Consultez les{" "}
               <Link href="/cgu" className="underline">
                 règles de publication
@@ -128,9 +135,23 @@ export default async function PublishPage(props: { searchParams: Promise<{ parte
   return (
     <div className="container-page max-w-4xl py-8 sm:py-12">
       <h1 className="text-2xl font-bold sm:text-3xl">Publier un besoin</h1>
-      <p className="mt-1 mb-8 text-slate-600">
-        Au nom de <strong className="text-navy">{session.activeCompany.company.name}</strong>.
+      <p className="mt-1 text-slate-600">
+        Au nom de <strong className="text-navy">{session.activeCompany.company.name}</strong>. Un besoin, c&apos;est quand vous cherchez une entreprise pour faire un travail ou vous fournir.
       </p>
+      <Link
+        href="/disponibilites/publier"
+        className="group mt-5 mb-8 flex items-center gap-3 rounded-2xl bg-gradient-to-r from-teal-50 to-white p-4 ring-1 ring-teal/30 transition hover:-translate-y-0.5 hover:shadow-md"
+        data-testid="offer-instead"
+      >
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-teal text-white">
+          <Megaphone className="size-5" aria-hidden />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block font-semibold text-navy">Vous proposez plutôt vos services ?</span>
+          <span className="block text-sm text-slate-600">Annoncez une disponibilité : les entreprises qui cherchent un prestataire vous trouveront et vous écriront.</span>
+        </span>
+        <ArrowRight className="size-5 shrink-0 text-teal-700 transition group-hover:translate-x-1" aria-hidden />
+      </Link>
       {suspended ? (
         <Notice tone="error">Votre entreprise est suspendue : la publication est désactivée. Contactez l&apos;équipe LinkProB2B.</Notice>
       ) : (

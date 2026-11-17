@@ -39,7 +39,10 @@ export async function windowNumbers(db: DB, from: Date, to: Date, excluded: Set<
     count(db.from("email_outbox").select("id", { count: "exact", head: true }).eq("status", "SENT").gte("sent_at", f).lt("sent_at", t)),
     count(db.from("companies").select("id", { count: "exact", head: true }).eq("is_demo", false).gte("created_at", f).lt("created_at", t)),
   ]);
-  const realEvents = events.filter((e) => !e.user_id || !excluded.has(e.user_id));
+  // Consultations des membres connectés seulement (hors équipe) : les fiches d'offres sont réservées aux
+  // membres depuis le 31 octobre 2026 ; les consultations sans compte d'avant (surtout des robots
+  // d'indexation, jusqu'à 12 000 par jour) faussaient les totaux sur 30 jours
+  const realEvents = events.filter((e) => e.user_id && !excluded.has(e.user_id));
   const newUsers = new Set(users.filter((u) => !excluded.has(u.id)).map((u) => u.id));
   // Membres déjà inscrits avant la semaine et venus consulter des offres pendant la semaine
   const returning = new Set(realEvents.filter((e) => e.user_id && !newUsers.has(e.user_id)).map((e) => e.user_id as string));

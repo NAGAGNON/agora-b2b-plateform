@@ -55,6 +55,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   };
   // Opportunités encore ouvertes (date limite non dépassée), un seul fichier : 50 000 adresses au plus
   const nowIso = new Date().toISOString();
+  // Disponibilités en ligne des entreprises (hors démonstration)
+  const { data: offers } = await db.from("service_offers").select("id, updated_at").eq("status", "PUBLISHED").eq("is_demo", false).gt("expires_at", nowIso).limit(2000);
+  for (const o of offers ?? []) entries.push({ url: `${base}/disponibilites/${o.id}`, lastModified: new Date(o.updated_at), changeFrequency: "weekly", priority: 0.4 });
   const [{ data: opps }, { data: companies }, { data: sectorRows }, { data: deptRows }, { data: articles }, { data: counts }] = await Promise.all([
     paged(
       (from, to) =>

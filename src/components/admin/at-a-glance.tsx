@@ -55,7 +55,8 @@ export async function AtAGlance({ periodKey, now }: { periodKey: string | undefi
   const tiles = [
     { label: ["nouvel inscrit", "nouveaux inscrits"], value: newUsers, icon: UserPlus, href: "/admin/inscriptions" },
     { label: ["inscrit revenu", "inscrits revenus"], value: returning.length, icon: Users, href: "/admin/fidelite" },
-    { label: ["offre vue", "offres vues"], value: (offerViews.data ?? []).length, icon: Eye, href: null },
+    // Consultations des membres connectés (hors équipe), comme dans les bilans
+    { label: ["offre vue", "offres vues"], value: notTeam((offerViews.data ?? []).filter((v) => v.user_id)).length, icon: Eye, href: null },
     { label: ["fiche de candidature ouverte", "fiches de candidature ouvertes"], value: notTeam(appViews.data).length, icon: ClipboardList, href: "/admin/candidatures" },
     { label: ["dossier ouvert", "dossiers ouverts"], value: opened, icon: FolderOpen, href: "/admin/candidatures", sub: `${working} avec travail commencé` },
     { label: ["question à l'assistant", "questions à l'assistant"], value: notTeam(questions.data).length, icon: MessageCircleQuestion, href: "/admin/candidatures" },

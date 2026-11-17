@@ -18,7 +18,7 @@ export default async function ConversationPage(props: PageProps<"/dashboard/mess
   const supabase = await createClient();
   const { data: conv } = await supabase
     .from("conversations")
-    .select("id, subject, opportunity_id, buyer_company_id, supplier_company_id, buyer:companies!conversations_buyer_company_id_fkey(name, slug), supplier:companies!conversations_supplier_company_id_fkey(name, slug)")
+    .select("id, subject, opportunity_id, service_offer_id, buyer_company_id, supplier_company_id, buyer:companies!conversations_buyer_company_id_fkey(name, slug), supplier:companies!conversations_supplier_company_id_fkey(name, slug)")
     .eq("id", id)
     .maybeSingle();
   if (!conv) notFound();
@@ -56,6 +56,14 @@ export default async function ConversationPage(props: PageProps<"/dashboard/mess
           <p className="truncate text-sm text-slate-500">
             À propos de :{" "}
             <Link href={iAmBuyer ? `/dashboard/opportunites/${conv.opportunity_id}` : `/opportunites/${conv.opportunity_id}`} className="text-teal-700 hover:underline">
+              {conv.subject}
+            </Link>
+          </p>
+        )}
+        {!conv.opportunity_id && conv.service_offer_id && (
+          <p className="truncate text-sm text-slate-500">
+            À propos de la disponibilité :{" "}
+            <Link href={`/disponibilites/${conv.service_offer_id}`} className="text-teal-700 hover:underline">
               {conv.subject}
             </Link>
           </p>

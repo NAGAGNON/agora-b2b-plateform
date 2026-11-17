@@ -11,6 +11,8 @@ import { CompanyLogo } from "@/components/companies/company-card";
 import { OpportunityCard } from "@/components/opportunities/opportunity-card";
 import { FavoriteButton } from "@/components/opportunities/favorite-button";
 import { FollowButton } from "@/components/companies/follow-button";
+import { companyServiceOffers } from "@/lib/queries/service-offers";
+import { availabilityLabel } from "@/lib/service-offers-core";
 import { ReportButton } from "@/components/report-button";
 import { Badge } from "@/components/ui/badge";
 import { Notice } from "@/components/ui/notice";
@@ -88,6 +90,8 @@ export default async function CompanyPage(props: PageProps<"/entreprises/[slug]"
 
   const supabase = await createClient();
   const myCompany = session?.activeCompany?.company.id;
+  // Disponibilités en ligne de l'entreprise (ce qu'elle peut faire en ce moment)
+  const available = await companyServiceOffers(c.id).catch(() => []);
   const [{ data: opps }, fav, { data: photos }, followRow, { data: followers }] = await Promise.all([
     supabase
       .from("opportunities")
@@ -185,6 +189,23 @@ export default async function CompanyPage(props: PageProps<"/entreprises/[slug]"
               </div>
             </header>
 
+            {available.length > 0 && (
+              <section className="mt-8 rounded-2xl bg-gradient-to-br from-teal-50 to-white p-5 ring-1 ring-teal/30" aria-labelledby="disponible" data-testid="company-available">
+                <h2 id="disponible" className="flex items-center gap-2 text-lg font-bold text-navy">
+                  <span className="size-2 animate-pulse rounded-full bg-teal" aria-hidden /> Disponible en ce moment
+                </h2>
+                <ul className="mt-3 space-y-2">
+                  {available.map((a) => (
+                    <li key={a.id}>
+                      <Link href={`/disponibilites/${a.id}`} className="group flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 rounded-xl bg-white px-4 py-3 ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:ring-teal">
+                        <span className="font-semibold text-navy group-hover:underline">{a.title}</span>
+                        <span className="text-xs text-slate-500">{availabilityLabel(a.available_from, a.available_until)}</span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
             {profile?.description && (
               <section className="mt-8">
                 <h2 className="mb-2 text-lg font-bold">Présentation</h2>
