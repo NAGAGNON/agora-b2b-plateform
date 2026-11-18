@@ -57,6 +57,7 @@ import { regionByName } from "@/lib/geo";
 import { AlertLeadForm } from "@/components/alert-lead-form";
 import { MIN_INDEXABLE } from "@/lib/landing";
 import { getSession } from "@/lib/auth";
+import { CompanySetupBanner } from "@/components/dashboard/company-setup-banner";
 import { createClient } from "@/lib/supabase/server";
 import { track } from "@/lib/analytics";
 import { pageMetadata, siteUrl } from "@/lib/seo";
@@ -557,6 +558,8 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
   return (
     <div className="bg-slate-50/60">
       <div className="container-page py-6 sm:py-10">
+        {/* Inscrit sans fiche entreprise (plus de la moitié des nouveaux inscrits) : métier et ville en 30 s, retour ici ensuite */}
+        {session && session.memberships.length === 0 && <CompanySetupBanner openCount={0} suite={`/opportunites/${o.id}`} />}
         <JsonLd
           data={breadcrumbLd([...crumbs, { name: o.title, path: `/opportunites/${o.id}` }])}
         />

@@ -8,6 +8,7 @@ import { Notice } from "@/components/ui/notice";
 import { requireSession } from "@/lib/auth";
 import { getDepartments, getPlaces, getSectors } from "@/lib/queries/platform";
 import { PRIVATE_METADATA } from "@/lib/seo";
+import { safeInternalPath } from "@/lib/safe-path";
 
 export const metadata = { ...PRIVATE_METADATA, title: "Créer mon entreprise" };
 
@@ -49,6 +50,14 @@ export default async function OnboardingCompanyPage(props: PageProps<"/onboardin
           <ExpressCompanyForm sectors={sectors} places={places} next={next} freeLaunch={await freeLaunch()} baseLabel={await baseReachLabel()} />
         </div>
         <p className="mt-6 text-center text-sm text-slate-600">
+          {next && (
+            <>
+              <Link href={safeInternalPath(next)} className="font-semibold text-slate-700 underline" data-testid="onboarding-skip">
+                Passer cette étape
+              </Link>
+              {" · "}
+            </>
+          )}
           SIREN, présentation, références : vous les ajouterez quand vous voudrez.{" "}
           <Link href={`/onboarding/entreprise${qs({ complet: "1" })}`} className="font-semibold text-teal-700 underline">
             Remplir le formulaire complet
