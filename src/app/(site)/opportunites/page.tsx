@@ -10,7 +10,6 @@ import { searchOpportunities } from "@/lib/queries/opportunities";
 import { PAGE_SIZE } from "@/lib/constants";
 import { parseOpportunityFilters } from "@/lib/search-params";
 import { listingIndexing, pageMetadata } from "@/lib/seo";
-import { track } from "@/lib/analytics";
 import { getPlatformStats } from "@/lib/queries/platform";
 import { FreshnessBar } from "@/components/opportunities/freshness";
 import { PageHero } from "@/components/layout/page-hero";
@@ -45,9 +44,6 @@ export default async function OpportunitiesPage(props: PageProps<"/opportunites"
     if ((filters.page - 1) * PAGE_SIZE >= total) notFound();
   }
   const searching = Boolean(filters.q) || Object.keys(sp).some((k) => k !== "page");
-  if (searching) {
-    void track("search_opportunities", { has_query: Boolean(filters.q), sector: filters.sector ?? null, region: filters.region ?? null, department: filters.department ?? null });
-  }
   // Offre Gratuite (après la phase de lancement) : nombre de recherches par semaine limité ; au-delà,
   // l'essai Pro ou l'offre de lancement est proposé à la place des résultats
   const h = await headers();
@@ -82,7 +78,7 @@ export default async function OpportunitiesPage(props: PageProps<"/opportunites"
         <FeaturedNeeds sector={filters.sector} department={filters.department} region={filters.region ? (regionBySlug(filters.region)?.name ?? null) : null} />
       )}
       {allowed ? (
-        <OpportunityResults filters={filters} rawParams={sp} basePath="/opportunites" />
+        <OpportunityResults filters={filters} rawParams={sp} basePath="/opportunites" trackSearch={searching} />
       ) : (
         <UpgradeGate
           session={await getSession()}

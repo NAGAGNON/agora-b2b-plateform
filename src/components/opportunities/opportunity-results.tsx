@@ -10,6 +10,7 @@ import { Pagination } from "@/components/ui/pagination";
 import { EmptyState, ErrorState } from "@/components/ui/states";
 import { ButtonLink } from "@/components/ui/button";
 import { searchOpportunities } from "@/lib/queries/opportunities";
+import { track } from "@/lib/analytics";
 import { getDepartments, getPlaces, getSectorLabels } from "@/lib/queries/platform";
 import { ActiveFilters, FilterHeader, FilterSubmit, withoutParam, type ActiveFilter } from "@/components/ui/filters";
 import { REGIONS } from "@/lib/geo";
@@ -21,7 +22,7 @@ import { COMPANY_SIZE_LABELS, OPPORTUNITY_TYPE_LABELS, PAGE_SIZE, sectorLabel } 
 const dateInDays = (n: number) => new Date(Date.now() + n * 86_400_000).toISOString().slice(0, 10);
 
 /** Liste de résultats + filtres, partagée par /opportunites et les pages secteur / département. */
-export async function OpportunityResults({ filters, rawParams, basePath }: { filters: OpportunityFilters; rawParams: RawSearchParams; basePath: string }) {
+export async function OpportunityResults({ filters, rawParams, basePath, trackSearch = false }: { filters: OpportunityFilters; rawParams: RawSearchParams; basePath: string; trackSearch?: boolean }) {
   const [{ rows, total, error }, departments, places, session, labels] = await Promise.all([
     searchOpportunities(filters),
     getDepartments(),
@@ -29,6 +30,10 @@ export async function OpportunityResults({ filters, rawParams, basePath }: { fil
     getSession(),
     getSectorLabels(),
   ]);
+  // Recherche d'un membre : mesurée avec son nombre de résultats (part des recherches sans résultat)
+  if (trackSearch && !error) {
+    void track("search_opportunities", { has_query: Boolean(filters.q), sector: filters.sector ?? null, region: filters.region ?? null, department: filters.department ?? null, results: total });
+  }
   // Filtres présents dans l'adresse, en pastilles retirables (le secteur d'une page secteur n'en fait pas partie)
   const has = (k: string) => rawParams[k] !== undefined && rawParams[k] !== "";
   const off = (k: string, v?: string) => withoutParam(basePath, rawParams, k, v);
