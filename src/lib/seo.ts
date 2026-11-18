@@ -43,8 +43,11 @@ export function pageMetadata({ title, description, path, noindex = false }: { ti
  * propre, pour que les anciennes annonces restent atteignables) ; toute autre combinaison de
  * filtres n'est pas indexée (pages dupliquées).
  */
+const TRACKING_PARAM = /^(utm_[a-z]+|gclid|gbraid|wbraid|fbclid|msclkid|ref|_vercel_share)$/;
+
 export function listingIndexing(path: string, sp: Record<string, string | string[] | undefined>): { path: string; filtered: boolean } {
-  const keys = Object.keys(sp).filter((k) => sp[k] !== undefined && sp[k] !== "");
+  // Paramètres de suivi (publicité, réseaux sociaux, liens de partage) : ce n'est pas un filtre, la page reste indexable
+  const keys = Object.keys(sp).filter((k) => sp[k] !== undefined && sp[k] !== "" && !TRACKING_PARAM.test(k));
   const page = typeof sp.page === "string" && /^\d{1,4}$/.test(sp.page) ? Number(sp.page) : null;
   // Au-delà de la page 500 (limite de la recherche), la page reprendrait la 500e : non indexée
   if (keys.length === 1 && keys[0] === "page" && page !== null && page <= 500) return { path: page > 1 ? `${path}?page=${page}` : path, filtered: false };

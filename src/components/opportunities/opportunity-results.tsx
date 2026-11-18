@@ -10,6 +10,7 @@ import { Pagination } from "@/components/ui/pagination";
 import { EmptyState, ErrorState } from "@/components/ui/states";
 import { ButtonLink } from "@/components/ui/button";
 import { searchOpportunities } from "@/lib/queries/opportunities";
+import { correctQuery } from "@/lib/search-suggest";
 import { track } from "@/lib/analytics";
 import { getDepartments, getPlaces, getSectorLabels } from "@/lib/queries/platform";
 import { ActiveFilters, FilterHeader, FilterSubmit, withoutParam, type ActiveFilter } from "@/components/ui/filters";
@@ -23,16 +24,30 @@ const dateInDays = (n: number) => new Date(Date.now() + n * 86_400_000).toISOStr
 
 /** Liste de résultats + filtres, partagée par /opportunites et les pages secteur / département. */
 export async function OpportunityResults({ filters, rawParams, basePath, trackSearch = false }: { filters: OpportunityFilters; rawParams: RawSearchParams; basePath: string; trackSearch?: boolean }) {
-  const [{ rows, total, error }, departments, places, session, labels] = await Promise.all([
+  const [first, departments, places, session, labels] = await Promise.all([
     searchOpportunities(filters),
     getDepartments(),
     getPlaces(),
     getSession(),
     getSectorLabels(),
   ]);
+  // Aucun résultat à cause d'une faute de frappe (« nétoyage ») : la recherche corrigée est montrée
+  let { rows, total } = first;
+  const { error } = first;
+  let corrected: string | null = null;
+  if (!error && total === 0 && filters.q) {
+    const fixed = correctQuery(filters.q);
+    if (fixed) {
+      const retry = await searchOpportunities({ ...filters, q: fixed });
+      if (!retry.error && retry.total > 0) {
+        ({ rows, total } = retry);
+        corrected = fixed;
+      }
+    }
+  }
   // Recherche d'un membre : mesurée avec son nombre de résultats (part des recherches sans résultat)
   if (trackSearch && !error) {
-    void track("search_opportunities", { has_query: Boolean(filters.q), sector: filters.sector ?? null, region: filters.region ?? null, department: filters.department ?? null, results: total });
+    void track("search_opportunities", { has_query: Boolean(filters.q), sector: filters.sector ?? null, region: filters.region ?? null, department: filters.department ?? null, results: first.total, ...(corrected ? { corrected: true } : {}) });
   }
   // Filtres présents dans l'adresse, en pastilles retirables (le secteur d'une page secteur n'en fait pas partie)
   const has = (k: string) => rawParams[k] !== undefined && rawParams[k] !== "";
@@ -130,6 +145,11 @@ export async function OpportunityResults({ filters, rawParams, basePath, trackSe
         <div className="mt-3">
           <SearchActions query={query.toString()} signedIn={Boolean(session)} alertHref={`/dashboard/alertes?${alertParams.toString()}`} />
         </div>
+        {corrected && (
+          <p className="mt-4 rounded-xl bg-sky/60 px-4 py-3 text-sm text-slate-700" data-testid="search-corrected">
+            Aucune offre pour « {filters.q} ». Résultats pour <strong className="text-navy">« {corrected} »</strong>.
+          </p>
+        )}
         <div className="mt-6">
           {error ? (
             <ErrorState description="La recherche n'a pas pu aboutir. Veuillez réessayer dans un instant." />
@@ -170,7 +190,7 @@ export async function OpportunityResults({ filters, rawParams, basePath, trackSe
               ))}
             </div>
           )}
-          <Pagination page={filters.page} pageCount={pageCount} basePath={basePath} params={rawParams} />
+          <Pagination page={filters.page} pageCount={pageCount} basePath={basePath} params={corrected ? { ...rawParams, q: corrected } : rawParams} />
         </div>
       </div>
     </div>

@@ -28,3 +28,33 @@ describe("suggestions de recherche", () => {
     expect(suggest("e", src)).toEqual([]);
   });
 });
+
+describe("fautes de frappe et noms de métiers", () => {
+  it("distance d'édition", async () => {
+    const { editDistance } = await import("@/lib/search-suggest");
+    expect(editDistance("netoyage", "nettoyage")).toBe(1);
+    expect(editDistance("plombier", "plombier")).toBe(0);
+  });
+  it("corrige une recherche mal orthographiée, laisse une recherche correcte", async () => {
+    const { correctQuery } = await import("@/lib/search-suggest");
+    expect(correctQuery("nétoyage")).toBe("nettoyage");
+    expect(correctQuery("maconerie")).toBe("maçonnerie");
+    expect(correctQuery("electrisité")).toBe("électricité");
+    expect(correctQuery("nettoyage de bureaux")).toBeNull();
+    expect(correctQuery("plombier")).toBeNull();
+    // Mots courts : pas de correction hasardeuse
+    expect(correctQuery("BTP")).toBeNull();
+  });
+  it("la petite barre propose les métiers et tolère une faute", () => {
+    expect(suggest("plomb", src).map((s) => s.label)).toContain("plombier");
+    expect(suggest("netoy", src).some((s) => s.label === "nettoyage")).toBe(true);
+  });
+});
+
+describe("indexation des listes", () => {
+  it("les paramètres de suivi (publicité, partage) ne rendent pas la page « filtrée »", async () => {
+    const { listingIndexing } = await import("@/lib/seo");
+    expect(listingIndexing("/opportunites/nettoyage-proprete", { utm_source: "google", gclid: "x" })).toEqual({ path: "/opportunites/nettoyage-proprete", filtered: false });
+    expect(listingIndexing("/opportunites/nettoyage-proprete", { q: "vitres" }).filtered).toBe(true);
+  });
+});
