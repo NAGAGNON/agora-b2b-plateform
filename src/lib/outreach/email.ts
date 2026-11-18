@@ -191,7 +191,7 @@ ${facts(pairs)}
 export type CompanyPresentationInput = {
   companyName: string;
   subject: string;
-  presented: { name: string; tagline: string | null; city: string | null; activities: string[]; description: string | null; url: string; sectorSlug: string | null };
+  presented: { name: string; tagline: string | null; city: string | null; activities: string[]; description: string | null; url: string; sectorSlug: string | null; headline?: string | null; points?: string[] };
   unsubscribeUrl: string;
   pixelUrl?: string;
   siteUrl: string;
@@ -210,7 +210,8 @@ export function renderCompanyPresentationEmail(i: CompanyPresentationInput): { s
   const pairs = [p.activities.length ? ["Activité", p.activities.join(", ")] : null, p.city ? ["Localisation", p.city] : null].filter((x): x is [string, string] => Boolean(x));
   const card = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:4px 0 18px;border:1px solid ${C.border};border-left:4px solid ${C.teal};border-radius:12px;background:${C.soft}"><tr><td style="padding:18px 20px">
 <p style="margin:0 0 6px;font-size:18px;line-height:24px;font-weight:800;color:${C.navy}">${escapeHtml(p.name)}</p>
-${p.tagline ? `<p style="margin:0 0 8px;font-size:14px;line-height:21px;color:${C.slate}">${escapeHtml(p.tagline)}</p>` : ""}
+${p.headline ? `<p style="margin:0 0 8px;font-size:15px;line-height:22px;font-weight:700;color:${C.navy}">${escapeHtml(p.headline)}</p>` : p.tagline ? `<p style="margin:0 0 8px;font-size:14px;line-height:21px;color:${C.slate}">${escapeHtml(p.tagline)}</p>` : ""}
+${p.points?.length ? `<ul style="margin:0 0 10px;padding-left:18px;font-size:14px;line-height:22px;color:${C.slate}">${p.points.map((x) => `<li>${escapeHtml(x)}</li>`).join("")}</ul>` : ""}
 ${p.description ? `<p style="margin:0;font-size:14px;line-height:22px;color:${C.slate}">${escapeHtml(p.description)}</p>` : ""}
 ${facts(pairs)}
 </td></tr></table>`;
@@ -236,7 +237,8 @@ ${facts(pairs)}
     intro,
     "",
     `• ${p.name}`,
-    ...(p.tagline ? [`  ${p.tagline}`] : []),
+    ...(p.headline ? [`  ${p.headline}`] : p.tagline ? [`  ${p.tagline}`] : []),
+    ...(p.points ?? []).map((x) => `  - ${x}`),
     ...(p.description ? [`  ${p.description}`] : []),
     ...pairs.map(([k, v]) => `  ${k} : ${v}`),
     "",

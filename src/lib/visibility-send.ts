@@ -17,9 +17,11 @@ const parisDay = (d = new Date()) => d.toLocaleDateString("sv-SE", { timeZone: "
 export async function queueBoostPresentations(db: Db = createAdminClient()) {
   const settings = await loadSettings(db);
   const today = parisDay();
-  const { data: boosts } = await db.from("visibility_boosts").select("*").eq("status", "ACTIVE").eq("target", "COMPANY").gt("daily_presentations", 0).limit(50);
+  const { data: all } = await db.from("visibility_boosts").select("*").eq("status", "ACTIVE").eq("target", "COMPANY").gt("daily_presentations", 0).limit(50);
+  // Annonce personnalisée : aucun e-mail tant qu'elle n'est pas validée par l'équipe (ou si elle est à corriger)
+  const boosts = (all ?? []).filter((b) => !b.ad_status || b.ad_status === "APPROVED");
   let queued = 0;
-  for (const b of boosts ?? []) {
+  for (const b of boosts) {
     try {
       const { data: pres } = await db.from("boost_presentations").select("created_at").eq("boost_id", b.id).gte("created_at", new Date(Date.now() - 2 * 86_400_000).toISOString());
       const doneToday = (pres ?? []).filter((p) => parisDay(new Date(p.created_at)) === today).length;
@@ -45,6 +47,9 @@ export async function queueBoostPresentations(db: Db = createAdminClient()) {
           description: prof?.description ?? null,
           activities: (prof?.sectors ?? []).map((s) => label.get(s) ?? s).slice(0, 3),
           sectorSlug: prof?.sectors?.[0] ?? null,
+          ...(b.ad_status === "APPROVED" && b.ad_title
+            ? { headline: b.ad_title, points: b.ad_points ?? [], description: b.ad_text ?? prof?.description ?? null }
+            : {}),
         };
         const { data: created, error } = await db
           .from("outreach_campaigns")
