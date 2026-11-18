@@ -2002,6 +2002,9 @@ isOneToOne: false
 "public_prospect_reach":
 { Args: Record<PropertyKey, never>; Returns: Json
                            },
+"process_visibility_nudges":
+{ Args: { "p_limit"?: number }; Returns: number
+                           },
 "process_visibility_boosts":
 { Args: { "p_limit"?: number }; Returns: Json
                            },

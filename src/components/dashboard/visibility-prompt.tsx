@@ -7,7 +7,7 @@ import { freeLaunch } from "@/lib/billing/entitlements";
  * Proposition de l'offre « Visibilité » (entreprise ou besoin publié) : discrète, une seule ligne, tant
  * qu'aucune demande n'a été faite pour cette cible.
  */
-export async function VisibilityPrompt({ companyId, opportunityId }: { companyId: string; opportunityId?: string }) {
+export async function VisibilityPrompt({ companyId, opportunityId, welcome = false }: { companyId: string; opportunityId?: string; welcome?: boolean }) {
   const supabase = await createClient();
   let q = supabase.from("visibility_boosts").select("id", { count: "exact", head: true }).eq("company_id", companyId);
   q = opportunityId ? q.eq("opportunity_id", opportunityId) : q.is("opportunity_id", null);
@@ -23,7 +23,7 @@ export async function VisibilityPrompt({ companyId, opportunityId }: { companyId
         <Megaphone className="size-5" aria-hidden />
       </span>
       <span className="flex-1 text-sm">
-        <strong className="block text-base">{opportunityId ? "Faites connaître votre besoin à plus d'entreprises" : "Faites connaître votre entreprise"}</strong>
+        <strong className="block text-base">{opportunityId ? "Faites connaître votre besoin à plus d'entreprises" : welcome ? "Votre entreprise est créée : faites-la connaître dès maintenant" : "Faites connaître votre entreprise"}</strong>
         <span className="text-slate-300">
           {opportunityId ? "Choisissez combien d'entreprises du métier sont prévenues chaque jour, et affichez-le « À la une »." : "Présentation chaque jour à des entreprises ciblées et affichage « À la une » de l'annuaire."}
           {free && " Gratuit pendant la phase de lancement."}

@@ -17,7 +17,7 @@ export function siteUrl(): string {
 
 /** Pages publiques fixes (plan du site, et signalement IndexNow des nouvelles pages). */
 // Recherche des opportunités et annuaire réservés aux membres : hors plan du site (redirection vers l'inscription)
-export const STATIC_PATHS = ["", "/publier", "/disponibilites", "/comment-ca-marche", "/ressources", "/analyses", "/acheteurs", "/fournisseurs", "/demandeurs", "/ingenieurs-affaires", "/faq", "/a-propos", "/tarifs", "/contact", "/mentions-legales", "/cgu", "/confidentialite", "/cookies", "/conditions-abonnement"];
+export const STATIC_PATHS = ["", "/publier", "/disponibilites", "/comment-ca-marche", "/ressources", "/analyses", "/acheteurs", "/fournisseurs", "/prospection", "/demandeurs", "/ingenieurs-affaires", "/faq", "/a-propos", "/tarifs", "/contact", "/mentions-legales", "/cgu", "/confidentialite", "/cookies", "/conditions-abonnement"];
 
 /** Métadonnées d'une page publique indexable (title, description, canonical, Open Graph). */
 // Aperçu par défaut (src/app/opengraph-image.tsx) : repris sur chaque page, sauf celles qui ont le leur

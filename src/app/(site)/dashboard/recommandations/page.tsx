@@ -12,6 +12,7 @@ import { RecommendationList, SCORING_RULES } from "@/components/dashboard/recomm
 import { hasFullAccess } from "@/lib/billing/entitlements";
 import { UpgradePrompt } from "@/components/billing/upgrade-prompt";
 import { Notice } from "@/components/ui/notice";
+import { VisibilityPrompt } from "@/components/dashboard/visibility-prompt";
 import { founderOffer, founderOpen } from "@/lib/billing/founder";
 
 const FREE_PREVIEW = 3;
@@ -67,6 +68,7 @@ export default async function RecommendationsPage(props: PageProps<"/dashboard/r
           encore plus précises.
         </Notice>
       )}
+      {sp.bienvenue === "1" && <VisibilityPrompt companyId={company.id} welcome />}
       {noSkills && (
         <Notice tone="info" title="Des recommandations plus précises">
           Ajoutez vos compétences (ex. : plomberie, électricité, nettoyage de bureaux) : chaque compétence citée dans une offre la fait remonter.{" "}
