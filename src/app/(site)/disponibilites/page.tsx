@@ -1,3 +1,4 @@
+import { CampaignCompanies } from "@/components/campaign-companies";
 import Link from "next/link";
 import { CalendarCheck2, Megaphone, Search } from "lucide-react";
 import { PageHero } from "@/components/layout/page-hero";
@@ -44,6 +45,7 @@ export default async function ServiceOffersPage(props: PageProps<"/disponibilite
       </PageHero>
 
       <div className="container-page py-8 sm:py-12">
+        <CampaignCompanies sector={sector} title="Entreprises mises en avant" limit={4} />
         <form method="get" className="flex flex-col gap-3 rounded-3xl bg-white p-4 shadow-sm ring-1 ring-slate-200 sm:flex-row sm:items-end sm:p-5" role="search" aria-label="Filtrer les disponibilités">
           <label className="flex-1 text-sm font-semibold text-navy">
             Métier

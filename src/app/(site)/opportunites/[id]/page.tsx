@@ -44,6 +44,7 @@ import { visitorRpc } from "@/lib/queries/public-cache";
 import { buyerSlug } from "@/lib/buyer-slug";
 import { fitReasons, getFitProfile } from "@/lib/fit";
 import { buyerRegistryUrl } from "@/components/buyers/buyer-official";
+import { CampaignCompanies } from "@/components/campaign-companies";
 import { ShareLinks } from "@/components/share-links";
 import { cookies, headers } from "next/headers";
 import { OfferAccessGate } from "@/components/opportunities/offer-access-gate";
@@ -822,6 +823,9 @@ async function PartnersBlock({ sector, department, external }: { sector: string 
         <Link href={`/entreprises/${sector}`} className={buttonClasses({ variant: "outline", size: "sm", className: "min-h-9 h-auto! max-w-full py-1.5 text-left whitespace-normal!" })}>
           Voir les entreprises — {sectorLabel(sector, labels)}
         </Link>
+      </div>
+      <div className="mt-4">
+        <CampaignCompanies sector={sector} title="Entreprises disponibles dans ce métier" />
       </div>
       {rows.length > 0 ? (
         <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">

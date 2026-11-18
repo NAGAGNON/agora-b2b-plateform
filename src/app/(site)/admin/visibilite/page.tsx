@@ -1,6 +1,6 @@
 import { requireAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { ReviewBoostButtons, StopBoostButton } from "@/components/dashboard/boost-actions";
+import { ReviewAdButtons, ReviewBoostButtons, StopBoostButton } from "@/components/dashboard/boost-actions";
 import { BOOST_STATUS_LABEL } from "@/lib/visibility";
 import { formatDateTime } from "@/lib/format";
 import { formatEuros } from "@/lib/billing/plans";
@@ -24,6 +24,7 @@ export default async function VisibilityAdminPage() {
   const presented = new Map<string, number>();
   for (const r of counts ?? []) presented.set(r.boost_id, (presented.get(r.boost_id) ?? 0) + 1);
   const pending = list.filter((b) => b.status === "PENDING");
+  const ads = list.filter((b) => b.ad_status === "PENDING_REVIEW" && b.status === "ACTIVE");
   return (
     <div className="space-y-6">
       <div>
@@ -33,6 +34,38 @@ export default async function VisibilityAdminPage() {
           {pending.length > 0 && ` ${pending.length} demande(s) en attente.`}
         </p>
       </div>
+      <section aria-labelledby="annonces" className="rounded-2xl bg-white p-5 ring-1 ring-slate-200">
+        <h2 id="annonces" className="text-lg font-bold text-navy">
+          Annonces à relire {ads.length > 0 && <span className="ml-1 rounded-full bg-teal px-2 py-0.5 text-sm text-navy">{ads.length}</span>}
+        </h2>
+        <p className="mt-1 text-sm text-slate-600">Aucun e-mail ne part tant que l&apos;annonce n&apos;est pas validée. Les présentations dans l&apos;espace des membres continuent.</p>
+        {!ads.length ? (
+          <p className="mt-3 text-sm text-slate-500">Aucune annonce en attente.</p>
+        ) : (
+          <ul className="mt-4 space-y-4">
+            {ads.map((b) => (
+              <li key={b.id} className="rounded-xl border border-slate-200 border-l-4 border-l-teal p-4" data-testid="ad-review">
+                <p className="text-xs text-slate-500">
+                  {company.get(b.company_id)?.name ?? "—"} · {formatDateTime(b.created_at)}
+                  {b.objective && ` · objectif : ${b.objective === "CLIENTS" ? "clients" : b.objective === "SOUS_TRAITANTS" ? "sous-traitants" : "partenaires"}`}
+                </p>
+                <p className="mt-1 font-bold text-navy">{b.ad_title}</p>
+                {b.ad_points?.length > 0 && (
+                  <ul className="mt-1 list-disc pl-5 text-sm text-slate-700">
+                    {b.ad_points.map((x, i) => (
+                      <li key={i}>{x}</li>
+                    ))}
+                  </ul>
+                )}
+                {b.ad_text && <p className="mt-1 text-sm whitespace-pre-line text-slate-700">{b.ad_text}</p>}
+                <div className="mt-3">
+                  <ReviewAdButtons id={b.id} />
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
       <div className="overflow-x-auto rounded-2xl bg-white ring-1 ring-slate-200">
         <table className="w-full min-w-[56rem] text-sm">
           <thead>

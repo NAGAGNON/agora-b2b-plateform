@@ -1,8 +1,8 @@
 "use client";
 
 import { useActionState, useEffect, useState, useTransition } from "react";
-import { Building2, CalendarDays, Check, Crown, Gift, Mail, Megaphone, Rocket, Sparkles, Target as TargetIcon, Users, X, Zap } from "lucide-react";
-import { boostAudience, requestBoost } from "@/app/actions/visibility";
+import { Building2, CalendarDays, Check, Crown, Eye, Gift, Mail, Megaphone, MousePointerClick, PenLine, Rocket, Sparkles, Target as TargetIcon, Users, X, Zap } from "lucide-react";
+import { boostAudience, improveCampaignAd, requestBoost } from "@/app/actions/visibility";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { Notice } from "@/components/ui/notice";
 import { SelectMenu } from "@/components/ui/select-menu";
@@ -14,6 +14,11 @@ import {
   FEATURED_OPTIONS,
   INTENSIVE_DAILY,
   PRESENTATION_DAY_PRICE,
+  AD_LIMITS,
+  FORMULAS,
+  OBJECTIVES,
+  adIssues,
+  campaignEstimate,
   boostPriceWithIncluded,
   totalPresentations,
   type Daily,
@@ -88,6 +93,9 @@ export function BoostForm({
   includedPlan,
   options,
   baseLabel,
+  adDefaults,
+  rates,
+  profileChecks = [],
 }: {
   targets: Target[];
   freeLaunch: boolean;
@@ -97,6 +105,12 @@ export function BoostForm({
   includedPlan: string;
   options: TargetingOptions;
   baseLabel?: string | null;
+  /** Annonce pré-remplie depuis la fiche de l'entreprise */
+  adDefaults: { company: string; city: string | null; title: string; text: string; points: string[] };
+  /** Taux réels d'ouverture et de clic des derniers envois du site (estimation honnête) */
+  rates: { open: number; click: number } | null;
+  /** Éléments de la fiche entreprise utiles à la campagne (logo, présentation, métier, ville) */
+  profileChecks?: { label: string; ok: boolean }[];
 }) {
   const [state, action] = useActionState(requestBoost, null);
   const [target, setTarget] = useState(defaultTarget && targets.some((t) => t.value === defaultTarget) ? defaultTarget : (targets[0]?.value ?? "COMPANY"));
@@ -108,6 +122,23 @@ export function BoostForm({
   const [sizes, setSizes] = useState<string[]>([]);
   const [kinds, setKinds] = useState<string[]>([]);
   const [audience, setAudience] = useState<Audience>(initialAudience);
+  const [objective, setObjective] = useState<string>("CLIENTS");
+  const [adTitle, setAdTitle] = useState(adDefaults.title);
+  const [adPoints, setAdPoints] = useState<string[]>([0, 1, 2].map((i) => adDefaults.points[i] ?? ""));
+  const [adText, setAdText] = useState(adDefaults.text);
+  const [improving, startImprove] = useTransition();
+  const [improveMsg, setImproveMsg] = useState<string | null>(null);
+  const improve = () =>
+    startImprove(async () => {
+      setImproveMsg(null);
+      const r = await improveCampaignAd({ title: adTitle, points: adPoints, text: adText, objective });
+      if (r.ok && r.data) {
+        setAdTitle(r.data.title);
+        setAdPoints([0, 1, 2].map((i) => r.data!.points[i] ?? ""));
+        setAdText(r.data.text);
+        setImproveMsg("Texte amélioré : relisez-le et modifiez-le si besoin.");
+      } else setImproveMsg(r.ok ? null : r.error);
+    });
   const [counting, startCount] = useTransition();
   const need = target !== "COMPANY";
   const filtered = sectors.length + regions.length + sizes.length + kinds.length > 0;
@@ -116,6 +147,9 @@ export function BoostForm({
   const total = totalPresentations(daily, duration);
   const { price, covered } = boostPriceWithIncluded(daily, featured, duration, includedLeft);
   const fullPrice = boostPriceWithIncluded(daily, featured, duration, 0).price;
+  const formula = FORMULAS.find((f) => f.daily === daily && f.duration === duration && f.featured === featured)?.key ?? null;
+  const estimate = campaignEstimate(need ? total : Math.min(total, reach || total), rates);
+  const issues = need ? [] : adIssues({ title: adTitle, points: adPoints.filter(Boolean), text: adText });
 
   // Audience réelle recalculée à chaque changement de ciblage
   useEffect(() => {
@@ -130,7 +164,7 @@ export function BoostForm({
         <span className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-teal text-navy shadow-lg shadow-teal/30">
           <Rocket className="size-7" aria-hidden />
         </span>
-        <p className="mt-4 font-heading text-xl font-extrabold text-navy">Demande envoyée</p>
+        <p className="mt-4 font-heading text-xl font-extrabold text-navy">Campagne lancée</p>
         <p className="mt-1 text-slate-600">{state.message}</p>
       </div>
     );
@@ -149,7 +183,26 @@ export function BoostForm({
             {baseLabel}, en plus des entreprises inscrites sur LinkProB2B.
           </p>
         )}
-        <Step n={1} icon={Building2} title="Que voulez-vous faire connaître ?">
+        <Step n={1} icon={Building2} title="Votre objectif" hint="On fait votre prospection pour vous : dites-nous ce que vous cherchez et ce que vous voulez faire connaître.">
+          <input type="hidden" name="objective" value={objective} />
+          <div role="radiogroup" aria-label="Objectif" className="mb-4 grid gap-2 sm:grid-cols-3">
+            {OBJECTIVES.map((o) => (
+              <button
+                key={o.value}
+                type="button"
+                role="radio"
+                aria-checked={objective === o.value}
+                onClick={() => setObjective(o.value)}
+                className={cn(
+                  "rounded-2xl p-3 text-left ring-1 transition-all duration-200 active:scale-[0.98]",
+                  objective === o.value ? "bg-navy text-white shadow-lg ring-navy" : "bg-white text-navy ring-slate-200 hover:ring-teal",
+                )}
+              >
+                <span className="block text-sm font-bold">{o.label}</span>
+                <span className={cn("text-xs", objective === o.value ? "text-slate-300" : "text-slate-500")}>{o.hint}</span>
+              </button>
+            ))}
+          </div>
           <label htmlFor="boost-target" className="sr-only">
             Cible
           </label>
@@ -238,7 +291,44 @@ export function BoostForm({
           </Step>
         )}
 
-        <Step n={3} icon={Zap} title="Combien d'entreprises chaque jour ?" delay={160}>
+        <Step n={3} icon={Zap} title="Votre formule" hint="Choisissez une formule prête, ou réglez vous-même le nombre d'entreprises par jour." delay={160}>
+          <div role="radiogroup" aria-label="Formule" className="mb-4 grid gap-2 sm:grid-cols-3">
+            {FORMULAS.map((f) => {
+              const on = formula === f.key;
+              return (
+                <button
+                  key={f.key}
+                  type="button"
+                  role="radio"
+                  aria-checked={on}
+                  onClick={() => {
+                    setDaily(f.daily);
+                    setDuration(f.duration);
+                    setFeatured(f.featured);
+                  }}
+                  className={cn(
+                    "relative rounded-2xl p-3 text-left ring-1 transition-all duration-200 active:scale-[0.98]",
+                    on ? "bg-gradient-to-br from-teal-600 to-teal-800 text-white shadow-xl ring-teal-700" : "bg-white text-navy ring-slate-200 hover:ring-teal",
+                  )}
+                >
+                  {f.recommended && <span className="absolute -top-2 right-2 rounded-full bg-navy px-2 py-0.5 text-[10px] font-bold text-white shadow">Conseillée</span>}
+                  <span className="block font-heading text-lg font-extrabold">{f.label}</span>
+                  <span className={cn("block text-xs", on ? "text-teal-50" : "text-slate-500")}>
+                    {nf(f.daily * f.duration)} entreprises en {f.duration} jours{f.featured ? ` + ${f.featured} j « À la une »` : ""}
+                  </span>
+                  <span className={cn("mt-1 block text-xs font-bold", on ? "text-white" : "text-teal-700")}>
+                    {freeLaunch ? "Offert pendant le lancement" : `${formatEuros(boostPriceWithIncluded(f.daily, f.featured, f.duration, 0).price)} HT`}
+                  </span>
+                  {!freeLaunch && (
+                    <span className={cn("block text-[11px]", on ? "text-teal-50" : "text-slate-500")}>
+                      soit {formatEuros(Math.round((boostPriceWithIncluded(f.daily, f.featured, f.duration, 0).price / (f.daily * f.duration)) * 100) / 100)} par entreprise présentée
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+          <p className="mb-2 text-[11px] font-bold tracking-wider text-slate-500 uppercase">Ou choisissez le nombre d&apos;entreprises par jour</p>
           <div role="radiogroup" aria-label="Présentations par jour" className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             {DAILY_OPTIONS.map((o) => {
               const on = daily === o;
@@ -306,6 +396,90 @@ export function BoostForm({
             ))}
           </div>
         </Step>
+
+        {!need && (
+          <Step n={5} icon={PenLine} title="Votre annonce" hint="Pré-remplie depuis votre fiche : modifiez-la librement. Relue par notre équipe avant les premiers e-mails." delay={320}>
+            {profileChecks.length > 0 && profileChecks.some((c) => !c.ok) && (
+              <div className="mb-5 rounded-2xl bg-sky/60 p-4 text-sm" data-testid="profile-ready">
+                <p className="font-semibold text-navy">
+                  Votre fiche est prête à {Math.round((profileChecks.filter((c) => c.ok).length / profileChecks.length) * 100)} % : les entreprises présentées cliquent vers elle.
+                </p>
+                <ul className="mt-2 grid gap-1 sm:grid-cols-2">
+                  {profileChecks.map((c) => (
+                    <li key={c.label} className={cn("flex items-center gap-1.5", c.ok ? "text-slate-500" : "text-navy")}>
+                      {c.ok ? <Check className="size-4 text-teal-700" aria-hidden /> : <X className="size-4 text-rose-600" aria-hidden />} {c.label}
+                    </li>
+                  ))}
+                </ul>
+                <a href="/dashboard/entreprise" className="mt-2 inline-block font-semibold text-teal-700 underline">
+                  Compléter ma fiche
+                </a>
+              </div>
+            )}
+            <div className="grid gap-5 xl:grid-cols-2">
+              <div className="space-y-3">
+                <label className="block">
+                  <span className="mb-1 block text-xs font-semibold text-slate-600">Titre ({adTitle.length}/{AD_LIMITS.title})</span>
+                  <input name="ad_title" value={adTitle} onChange={(e) => setAdTitle(e.target.value.slice(0, AD_LIMITS.title))} className="h-11 w-full rounded-xl border border-slate-300 px-3 text-sm text-navy focus:border-teal focus:ring-2 focus:ring-teal/30 focus:outline-none" />
+                </label>
+                <fieldset>
+                  <legend className="mb-1 text-xs font-semibold text-slate-600">3 points forts (facultatif)</legend>
+                  <div className="space-y-2">
+                    {adPoints.map((v, i) => (
+                      <input
+                        key={i}
+                        name="ad_point"
+                        value={v}
+                        aria-label={`Point fort ${i + 1}`}
+                        placeholder={["ex. Intervention sous 48 h", "ex. Certifié RGE", "ex. 15 ans d'expérience"][i]}
+                        onChange={(e) => setAdPoints((p) => p.map((x, j) => (j === i ? e.target.value.slice(0, AD_LIMITS.point) : x)))}
+                        className="h-10 w-full rounded-xl border border-slate-300 px-3 text-sm text-navy focus:border-teal focus:ring-2 focus:ring-teal/30 focus:outline-none"
+                      />
+                    ))}
+                  </div>
+                </fieldset>
+                <label className="block">
+                  <span className="mb-1 block text-xs font-semibold text-slate-600">Présentation ({adText.length}/{AD_LIMITS.text})</span>
+                  <textarea name="ad_text" rows={4} value={adText} onChange={(e) => setAdText(e.target.value.slice(0, AD_LIMITS.text))} className="w-full rounded-xl border border-slate-300 p-3 text-sm text-navy focus:border-teal focus:ring-2 focus:ring-teal/30 focus:outline-none" />
+                </label>
+                <button
+                  type="button"
+                  onClick={improve}
+                  disabled={improving}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-violet-50 px-3 py-2 text-sm font-semibold text-violet-800 ring-1 ring-violet-200 transition hover:bg-violet-100 disabled:opacity-60"
+                >
+                  <Sparkles className="size-4" aria-hidden /> {improving ? "Amélioration…" : "Améliorer mon texte"}
+                </button>
+                {improveMsg && <p className="text-xs text-slate-600">{improveMsg}</p>}
+                {issues.length > 0 && (
+                  <Notice tone="error" title="À corriger avant de lancer">
+                    {issues[0]}
+                  </Notice>
+                )}
+              </div>
+              <div>
+                <p className="mb-2 flex items-center gap-1.5 text-[11px] font-bold tracking-wider text-slate-500 uppercase">
+                  <Eye className="size-3.5" aria-hidden /> Ce que recevront les entreprises
+                </p>
+                <div className="rounded-2xl border border-slate-200 border-l-4 border-l-teal bg-slate-50 p-4" data-testid="ad-preview">
+                  <p className="font-heading text-base font-extrabold text-navy">{adDefaults.company}</p>
+                  {adTitle && <p className="mt-1 text-sm font-bold text-navy">{adTitle}</p>}
+                  {adPoints.some(Boolean) && (
+                    <ul className="mt-2 list-disc space-y-0.5 pl-5 text-sm text-slate-600">
+                      {adPoints.filter(Boolean).map((p, i) => (
+                        <li key={i}>{p}</li>
+                      ))}
+                    </ul>
+                  )}
+                  {adText && <p className="mt-2 text-sm whitespace-pre-line text-slate-600">{adText}</p>}
+                  {adDefaults.city && <p className="mt-2 text-xs text-slate-500">Localisation : {adDefaults.city}</p>}
+                  <span className="mt-3 inline-block rounded-lg bg-navy px-3 py-1.5 text-xs font-bold text-white">DÉCOUVRIR L&apos;ENTREPRISE</span>
+                </div>
+                <p className="mt-2 text-xs text-slate-500">Les entreprises vous écrivent par la messagerie de LinkProB2B : ni lien ni coordonnées dans l&apos;annonce.</p>
+              </div>
+            </div>
+          </Step>
+        )}
       </div>
 
       <aside className="h-fit lg:sticky lg:top-24">
@@ -313,7 +487,7 @@ export function BoostForm({
           <div className="relative overflow-hidden rounded-[1.4rem] bg-navy p-6 text-white">
             <div aria-hidden className="pointer-events-none absolute -top-16 -right-16 size-48 rounded-full bg-teal/30 blur-3xl" />
             <p className="flex items-center gap-2 text-sm font-semibold text-teal">
-              <Megaphone className="size-4" aria-hidden /> Votre visibilité
+              <Megaphone className="size-4" aria-hidden /> Votre campagne
             </p>
             <ul className="mt-4 space-y-3 text-sm">
               {daily > 0 && (
@@ -334,9 +508,31 @@ export function BoostForm({
                   <Crown className="mt-0.5 size-4 shrink-0 text-teal" aria-hidden /> {featured} jours « À la une »
                 </li>
               )}
+              {estimate && daily > 0 && (
+                <>
+                  <li className="flex gap-2">
+                    <Eye className="mt-0.5 size-4 shrink-0 text-teal" aria-hidden />
+                    <span>
+                      Environ <strong className="text-white">{nf(estimate.opens.low)} à {nf(estimate.opens.high)}</strong> la liront
+                    </span>
+                  </li>
+                  <li className="flex gap-2">
+                    <MousePointerClick className="mt-0.5 size-4 shrink-0 text-teal" aria-hidden />
+                    <span>
+                      Environ <strong className="text-white">{nf(estimate.visits.low)} à {nf(estimate.visits.high)}</strong> iront voir votre fiche
+                    </span>
+                  </li>
+                </>
+              )}
               <li className="flex gap-2">
                 <Check className="mt-0.5 size-4 shrink-0 text-teal" aria-hidden /> Suivi jour après jour ici même
               </li>
+              {daily > 0 && !need && (
+                <li className="flex gap-2">
+                  <Check className="mt-0.5 size-4 shrink-0 text-teal" aria-hidden />
+                  <span>Garantie : si le nombre d&apos;entreprises prévu n&apos;est pas atteint, la campagne est prolongée gratuitement.</span>
+                </li>
+              )}
             </ul>
             {covered > 0 && (
               <p className="mt-4 flex items-start gap-2 rounded-xl bg-white/10 p-3 text-xs text-teal-100">
@@ -365,10 +561,13 @@ export function BoostForm({
                 {state.error}
               </Notice>
             )}
-            <SubmitButton full size="lg" className="btn-shine mt-5" pendingLabel="Envoi…">
-              Lancer ma visibilité
+            <SubmitButton full size="lg" className="btn-shine mt-5" pendingLabel="Envoi…" disabled={issues.length > 0}>
+              {freeLaunch ? "Lancer ma campagne gratuitement" : "Lancer ma campagne"}
             </SubmitButton>
-            <p className="mt-3 text-center text-xs text-slate-400">Démarre tout de suite. Suivi jour après jour ici même.</p>
+            <p className="mt-3 text-center text-xs text-slate-400">
+              {estimate ? "Estimation tirée de nos derniers envois, sans garantie de résultat. " : ""}
+              {need ? "Démarre tout de suite." : "Démarre tout de suite ; e-mails envoyés après la relecture de votre annonce."}
+            </p>
           </div>
         </div>
       </aside>

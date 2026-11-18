@@ -814,13 +814,13 @@ isOneToOne: false
                   Relationships: []
                 },"visibility_boosts": {
                   Row: {
-                    "id": string,"company_id": string,"target": string,"opportunity_id": string | null,"daily_presentations": number,"featured_days": number,"duration_days": number,"price_ht": number,"free_launch": boolean,"status": string,"starts_at": string | null,"ends_at": string | null,"featured_until": string | null,"requested_by": string | null,"reviewed_by": string | null,"reviewed_at": string | null,"note": string | null,"created_at": string,"targeting": Json,"included_presentations": number
+                    "id": string,"company_id": string,"target": string,"opportunity_id": string | null,"daily_presentations": number,"featured_days": number,"duration_days": number,"price_ht": number,"free_launch": boolean,"status": string,"starts_at": string | null,"ends_at": string | null,"featured_until": string | null,"requested_by": string | null,"reviewed_by": string | null,"reviewed_at": string | null,"note": string | null,"created_at": string,"targeting": Json,"included_presentations": number,"objective": string | null,"ad_title": string | null,"ad_points": string[],"ad_text": string | null,"ad_status": string | null,"ad_review_note": string | null,"ad_reviewed_at": string | null,"guarantee_extended_days": number
                   }
                   Insert: {
-                    "id"?: string,"company_id": string,"target": string,"opportunity_id"?: string | null,"daily_presentations"?: number,"featured_days"?: number,"duration_days"?: number,"price_ht"?: number,"free_launch"?: boolean,"status"?: string,"starts_at"?: string | null,"ends_at"?: string | null,"featured_until"?: string | null,"requested_by"?: string | null,"reviewed_by"?: string | null,"reviewed_at"?: string | null,"note"?: string | null,"created_at"?: string,"targeting"?: Json,"included_presentations"?: number
+                    "id"?: string,"company_id": string,"target": string,"opportunity_id"?: string | null,"daily_presentations"?: number,"featured_days"?: number,"duration_days"?: number,"price_ht"?: number,"free_launch"?: boolean,"status"?: string,"starts_at"?: string | null,"ends_at"?: string | null,"featured_until"?: string | null,"requested_by"?: string | null,"reviewed_by"?: string | null,"reviewed_at"?: string | null,"note"?: string | null,"created_at"?: string,"targeting"?: Json,"included_presentations"?: number,"objective"?: string | null,"ad_title"?: string | null,"ad_points"?: string[],"ad_text"?: string | null,"ad_status"?: string | null,"ad_review_note"?: string | null,"ad_reviewed_at"?: string | null,"guarantee_extended_days"?: number
                   }
                   Update: {
-                    "id"?: string,"company_id"?: string,"target"?: string,"opportunity_id"?: string | null,"daily_presentations"?: number,"featured_days"?: number,"duration_days"?: number,"price_ht"?: number,"free_launch"?: boolean,"status"?: string,"starts_at"?: string | null,"ends_at"?: string | null,"featured_until"?: string | null,"requested_by"?: string | null,"reviewed_by"?: string | null,"reviewed_at"?: string | null,"note"?: string | null,"created_at"?: string,"targeting"?: Json,"included_presentations"?: number
+                    "id"?: string,"company_id"?: string,"target"?: string,"opportunity_id"?: string | null,"daily_presentations"?: number,"featured_days"?: number,"duration_days"?: number,"price_ht"?: number,"free_launch"?: boolean,"status"?: string,"starts_at"?: string | null,"ends_at"?: string | null,"featured_until"?: string | null,"requested_by"?: string | null,"reviewed_by"?: string | null,"reviewed_at"?: string | null,"note"?: string | null,"created_at"?: string,"targeting"?: Json,"included_presentations"?: number,"objective"?: string | null,"ad_title"?: string | null,"ad_points"?: string[],"ad_text"?: string | null,"ad_status"?: string | null,"ad_review_note"?: string | null,"ad_reviewed_at"?: string | null,"guarantee_extended_days"?: number
                   }
                   Relationships: []
                 },"boost_presentations": {
@@ -1968,6 +1968,12 @@ isOneToOne: false
                            },
 "process_pioneer_rewards":
 { Args: { "p_limit"?: number }; Returns: Json
+                           },
+"extend_underdelivered_boosts":
+{ Args: Record<PropertyKey, never>; Returns: number
+                           },
+"campaign_companies":
+{ Args: { "p_sector"?: string | null; "p_limit"?: number }; Returns: { "id": string,"name": string,"slug": string,"city": string | null,"logo_path": string | null,"tagline": string | null,"ad_title": string | null }[]
                            },
 "request_visibility_boost":
 { Args: { "p_company_id": string; "p_target": string; "p_opportunity_id": string | null; "p_daily": number; "p_featured_days": number; "p_duration_days": number; "p_price_ht": number; "p_targeting"?: Json }; Returns: string

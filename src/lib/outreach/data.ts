@@ -262,7 +262,18 @@ export function windowStart(days: number): Date {
 }
 
 /** Fiche de l'entreprise présentée (offre « Visibilité »), enregistrée sur la campagne au moment de sa création. */
-export type PresentedCompany = { name: string; slug: string; tagline: string | null; city: string | null; activities: string[]; description: string | null; sectorSlug: string | null };
+export type PresentedCompany = {
+  name: string;
+  slug: string;
+  tagline: string | null;
+  city: string | null;
+  activities: string[];
+  description: string | null;
+  sectorSlug: string | null;
+  /** Annonce de la campagne, relue et validée par l'équipe (sinon : fiche de l'entreprise) */
+  headline?: string | null;
+  points?: string[];
+};
 
 /** E-mail de présentation d'une entreprise inscrite (offre « Visibilité » en cours). */
 function buildPresentationEmail(b: RecipientBundle, { withPixel }: { withPixel: boolean }) {
