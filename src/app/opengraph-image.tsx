@@ -15,10 +15,8 @@ export default function Image() {
   return new ImageResponse(
     (
       <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between", backgroundColor: NAVY, color: "white", padding: 72, fontFamily: "sans-serif" }}>
-        <div style={{ display: "flex", fontSize: 44, fontWeight: 700 }}>
-          <span>LinkPro</span>
-          <span style={{ color: TEAL }}>B2B</span>
-        </div>
+        {/* Nom en un seul mot (règle de marque) : un seul bloc de texte, sans espace possible entre « LinkPro » et « B2B » */}
+        <div style={{ display: "flex", fontSize: 44, fontWeight: 700 }}>LinkProB2B</div>
         <div style={{ display: "flex", flexDirection: "column" }}>
           <div style={{ display: "flex", fontSize: 60, fontWeight: 800, lineHeight: 1.1 }}>Appels d&apos;offres et opportunités B2B partout en France</div>
           <div style={{ display: "flex", fontSize: 30, color: "#CBD5E1", marginTop: 24 }}>Marchés publics (BOAMP, TED) et besoins d&apos;entreprises, par secteur et par région.</div>
