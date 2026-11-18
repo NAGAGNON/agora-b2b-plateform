@@ -37,6 +37,8 @@ export function organizationLd() {
         "LinkProB2B rassemble les appels d'offres publics et les besoins des entreprises en France, et aide les PME, artisans et prestataires à trouver des clients et des partenaires.",
       // Profils officiels : à compléter quand chaque fiche d'annuaire est publique (G2, Crunchbase, Capterra…)
       sameAs: SAME_AS,
+      // Fondateur (validé par lui le 19/11)
+      founder: { "@type": "Person", name: "Guy Roland YEO", jobTitle: "Fondateur" },
       knowsAbout: ["Appels d'offres", "Marchés publics", "Prospection B2B", "Mise en relation entre entreprises"],
       areaServed: { "@type": "Country", name: "France" },
     },
