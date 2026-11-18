@@ -1,3 +1,4 @@
+import { freeLaunch } from "@/lib/billing/entitlements";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
@@ -71,6 +72,17 @@ export default async function ServiceOfferPage(props: PageProps<"/disponibilites
               </Link>
               .
             </Notice>
+          )}
+          {sp.publiee === "1" && mine && (
+            <div className="flex flex-col gap-3 rounded-2xl bg-gradient-to-br from-navy to-teal-800 p-5 text-white shadow-lg sm:flex-row sm:items-center" data-testid="campaign-cta">
+              <p className="flex-1 text-sm">
+                <strong className="block text-base">Faites-la connaître : on fait votre prospection pour vous</strong>
+                Votre entreprise présentée chaque jour aux entreprises de votre métier et de votre zone.{(await freeLaunch()) ? " Gratuit pendant le lancement." : ""}
+              </p>
+              <Link href="/dashboard/visibilite" className="inline-flex h-11 shrink-0 items-center justify-center rounded-xl bg-teal px-4 text-sm font-bold text-navy shadow-md">
+                Lancer ma campagne
+              </Link>
+            </div>
           )}
           {state !== "online" && (
             <Notice tone="warning" title={state === "removed" ? "Retirée par la modération" : state === "archived" ? "Retirée du site" : "Expirée"}>

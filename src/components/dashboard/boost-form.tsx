@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useState, useTransition } from "react";
 import { Building2, CalendarDays, Check, Crown, Eye, Gift, Mail, Megaphone, MousePointerClick, PenLine, Rocket, Sparkles, Target as TargetIcon, Users, X, Zap } from "lucide-react";
-import { boostAudience, requestBoost } from "@/app/actions/visibility";
+import { boostAudience, improveCampaignAd, requestBoost } from "@/app/actions/visibility";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { Notice } from "@/components/ui/notice";
 import { SelectMenu } from "@/components/ui/select-menu";
@@ -95,6 +95,7 @@ export function BoostForm({
   baseLabel,
   adDefaults,
   rates,
+  profileChecks = [],
 }: {
   targets: Target[];
   freeLaunch: boolean;
@@ -108,6 +109,8 @@ export function BoostForm({
   adDefaults: { company: string; city: string | null; title: string; text: string; points: string[] };
   /** Taux réels d'ouverture et de clic des derniers envois du site (estimation honnête) */
   rates: { open: number; click: number } | null;
+  /** Éléments de la fiche entreprise utiles à la campagne (logo, présentation, métier, ville) */
+  profileChecks?: { label: string; ok: boolean }[];
 }) {
   const [state, action] = useActionState(requestBoost, null);
   const [target, setTarget] = useState(defaultTarget && targets.some((t) => t.value === defaultTarget) ? defaultTarget : (targets[0]?.value ?? "COMPANY"));
@@ -123,6 +126,19 @@ export function BoostForm({
   const [adTitle, setAdTitle] = useState(adDefaults.title);
   const [adPoints, setAdPoints] = useState<string[]>([0, 1, 2].map((i) => adDefaults.points[i] ?? ""));
   const [adText, setAdText] = useState(adDefaults.text);
+  const [improving, startImprove] = useTransition();
+  const [improveMsg, setImproveMsg] = useState<string | null>(null);
+  const improve = () =>
+    startImprove(async () => {
+      setImproveMsg(null);
+      const r = await improveCampaignAd({ title: adTitle, points: adPoints, text: adText, objective });
+      if (r.ok && r.data) {
+        setAdTitle(r.data.title);
+        setAdPoints([0, 1, 2].map((i) => r.data!.points[i] ?? ""));
+        setAdText(r.data.text);
+        setImproveMsg("Texte amélioré : relisez-le et modifiez-le si besoin.");
+      } else setImproveMsg(r.ok ? null : r.error);
+    });
   const [counting, startCount] = useTransition();
   const need = target !== "COMPANY";
   const filtered = sectors.length + regions.length + sizes.length + kinds.length > 0;
@@ -303,6 +319,11 @@ export function BoostForm({
                   <span className={cn("mt-1 block text-xs font-bold", on ? "text-white" : "text-teal-700")}>
                     {freeLaunch ? "Offert pendant le lancement" : `${formatEuros(boostPriceWithIncluded(f.daily, f.featured, f.duration, 0).price)} HT`}
                   </span>
+                  {!freeLaunch && (
+                    <span className={cn("block text-[11px]", on ? "text-teal-50" : "text-slate-500")}>
+                      soit {formatEuros(Math.round((boostPriceWithIncluded(f.daily, f.featured, f.duration, 0).price / (f.daily * f.duration)) * 100) / 100)} par entreprise présentée
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -378,6 +399,23 @@ export function BoostForm({
 
         {!need && (
           <Step n={5} icon={PenLine} title="Votre annonce" hint="Pré-remplie depuis votre fiche : modifiez-la librement. Relue par notre équipe avant les premiers e-mails." delay={320}>
+            {profileChecks.length > 0 && profileChecks.some((c) => !c.ok) && (
+              <div className="mb-5 rounded-2xl bg-sky/60 p-4 text-sm" data-testid="profile-ready">
+                <p className="font-semibold text-navy">
+                  Votre fiche est prête à {Math.round((profileChecks.filter((c) => c.ok).length / profileChecks.length) * 100)} % : les entreprises présentées cliquent vers elle.
+                </p>
+                <ul className="mt-2 grid gap-1 sm:grid-cols-2">
+                  {profileChecks.map((c) => (
+                    <li key={c.label} className={cn("flex items-center gap-1.5", c.ok ? "text-slate-500" : "text-navy")}>
+                      {c.ok ? <Check className="size-4 text-teal-700" aria-hidden /> : <X className="size-4 text-rose-600" aria-hidden />} {c.label}
+                    </li>
+                  ))}
+                </ul>
+                <a href="/dashboard/entreprise" className="mt-2 inline-block font-semibold text-teal-700 underline">
+                  Compléter ma fiche
+                </a>
+              </div>
+            )}
             <div className="grid gap-5 xl:grid-cols-2">
               <div className="space-y-3">
                 <label className="block">
@@ -404,6 +442,15 @@ export function BoostForm({
                   <span className="mb-1 block text-xs font-semibold text-slate-600">Présentation ({adText.length}/{AD_LIMITS.text})</span>
                   <textarea name="ad_text" rows={4} value={adText} onChange={(e) => setAdText(e.target.value.slice(0, AD_LIMITS.text))} className="w-full rounded-xl border border-slate-300 p-3 text-sm text-navy focus:border-teal focus:ring-2 focus:ring-teal/30 focus:outline-none" />
                 </label>
+                <button
+                  type="button"
+                  onClick={improve}
+                  disabled={improving}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-violet-50 px-3 py-2 text-sm font-semibold text-violet-800 ring-1 ring-violet-200 transition hover:bg-violet-100 disabled:opacity-60"
+                >
+                  <Sparkles className="size-4" aria-hidden /> {improving ? "Amélioration…" : "Améliorer mon texte"}
+                </button>
+                {improveMsg && <p className="text-xs text-slate-600">{improveMsg}</p>}
                 {issues.length > 0 && (
                   <Notice tone="error" title="À corriger avant de lancer">
                     {issues[0]}
@@ -480,6 +527,12 @@ export function BoostForm({
               <li className="flex gap-2">
                 <Check className="mt-0.5 size-4 shrink-0 text-teal" aria-hidden /> Suivi jour après jour ici même
               </li>
+              {daily > 0 && !need && (
+                <li className="flex gap-2">
+                  <Check className="mt-0.5 size-4 shrink-0 text-teal" aria-hidden />
+                  <span>Garantie : si le nombre d&apos;entreprises prévu n&apos;est pas atteint, la campagne est prolongée gratuitement.</span>
+                </li>
+              )}
             </ul>
             {covered > 0 && (
               <p className="mt-4 flex items-start gap-2 rounded-xl bg-white/10 p-3 text-xs text-teal-100">

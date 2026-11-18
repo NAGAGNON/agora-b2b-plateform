@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarDays, Crown, Eye, Mail, Megaphone, Target, Users } from "lucide-react";
+import { CalendarDays, Crown, Eye, Mail, Megaphone, MessageSquare, Target, Users } from "lucide-react";
 import { DashboardPageHeader } from "@/components/dashboard/page-header";
 import { Notice } from "@/components/ui/notice";
 import { BoostForm, type TargetingOptions } from "@/components/dashboard/boost-form";
@@ -54,7 +54,7 @@ export default async function VisibilityPage(props: PageProps<"/dashboard/visibi
   // Annonce pré-remplie depuis la fiche ; taux réels des derniers envois pour une estimation honnête
   const [{ data: prof }, { data: co }, rates] = await Promise.all([
     supabase.from("company_profiles").select("tagline, description, sectors").eq("company_id", company.id).maybeSingle(),
-    supabase.from("companies").select("name, city").eq("id", company.id).single(),
+    supabase.from("companies").select("name, city, logo_path").eq("id", company.id).single(),
     recentEmailRates(admin),
   ]);
   const firstSector = prof?.sectors?.[0];
@@ -65,6 +65,13 @@ export default async function VisibilityPage(props: PageProps<"/dashboard/visibi
     text: (prof?.description ?? "").replace(/\s+/g, " ").trim().slice(0, 400),
     points: [] as string[],
   };
+  // Fiche prête ? Les entreprises présentées cliquent vers elle : une fiche complète donne de meilleurs résultats
+  const profileChecks = [
+    { label: "Logo", ok: Boolean(co?.logo_path) },
+    { label: "Présentation de l'activité (80 caractères au moins)", ok: (prof?.description ?? "").trim().length >= 80 },
+    { label: "Métier", ok: (prof?.sectors ?? []).length > 0 },
+    { label: "Ville", ok: Boolean(co?.city) },
+  ];
   const aud = (audienceRaw.data ?? {}) as { members?: number; prospects?: number };
   const titles = new Map((needs ?? []).map((n) => [n.id, n.title]));
   const sectorLabel = new Map(sectors.map((s) => [s.slug, s.label]));
@@ -75,6 +82,8 @@ export default async function VisibilityPage(props: PageProps<"/dashboard/visibi
     kinds: Object.entries(COMPANY_KIND_LABELS).map(([value, label]) => ({ value, label })),
   };
 
+  const { data: members } = await admin.from("company_members").select("user_id").eq("company_id", company.id);
+  const memberIds = (members ?? []).map((m) => m.user_id).filter(Boolean);
   // Suivi réel par offre : présentations par jour (14 derniers jours), vues depuis le démarrage
   const now = nowMs();
   const stats = new Map(
@@ -91,12 +100,19 @@ export default async function VisibilityPage(props: PageProps<"/dashboard/visibi
           // E-mails lus (ouverture ou clic) et clics vers la fiche, par entreprise destinataire
           const { data: ev } = camp ? await admin.from("outreach_events").select("recipient_id, type").eq("campaign_id", camp.id).in("type", ["OPEN", "CLICK"]).limit(20_000) : { data: [] };
           const read = new Set((ev ?? []).map((e) => e.recipient_id)).size;
+          // Messages reçus depuis le début : conversations ouvertes par d'autres entreprises
+          const { count: messages } = await admin
+            .from("conversations")
+            .select("id", { count: "exact", head: true })
+            .or(`buyer_company_id.eq.${company.id},supplier_company_id.eq.${company.id}`)
+            .gte("created_at", b.starts_at!)
+            .not("created_by", "in", `(${memberIds.join(",") || "00000000-0000-0000-0000-000000000000"})`);
           const clicks = new Set((ev ?? []).filter((e) => e.type === "CLICK").map((e) => e.recipient_id)).size;
           const days = Array.from({ length: 14 }, (_, i) => {
             const d = new Date(now - (13 - i) * DAY).toISOString().slice(0, 10);
             return { d, n: (pres ?? []).filter((p) => p.created_at.slice(0, 10) === d).length };
           });
-          return [b.id, { members: (pres ?? []).filter((p) => !p.prospect_id).length, emails: (pres ?? []).filter((p) => p.prospect_id).length, views: views ?? 0, read, clicks, days }] as const;
+          return [b.id, { members: (pres ?? []).filter((p) => !p.prospect_id).length, emails: (pres ?? []).filter((p) => p.prospect_id).length, views: views ?? 0, read, clicks, messages: messages ?? 0, days }] as const;
         }),
     ),
   );
@@ -138,6 +154,7 @@ export default async function VisibilityPage(props: PageProps<"/dashboard/visibi
           defaultTarget={typeof sp.cible === "string" ? sp.cible : undefined}
           adDefaults={adDefaults}
           rates={rates}
+          profileChecks={profileChecks}
         />
       ) : (
         <Notice tone="info">Seul un administrateur de l&apos;entreprise peut lancer une campagne.</Notice>
@@ -230,6 +247,7 @@ export default async function VisibilityPage(props: PageProps<"/dashboard/visibi
                             { icon: Eye, l: "E-mails lus", v: s.read },
                             { icon: Eye, l: "Clics vers votre fiche", v: s.clicks },
                             { icon: Eye, l: b.opportunity_id ? "Vues du besoin" : "Vues de votre fiche", v: s.views },
+                            { icon: MessageSquare, l: "Messages reçus", v: s.messages },
                             { icon: CalendarDays, l: "Jours écoulés", v: `${elapsed} / ${b.duration_days}` },
                           ].map(({ icon: Icon, l, v }) => (
                             <div key={l} className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">

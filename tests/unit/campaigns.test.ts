@@ -49,3 +49,17 @@ describe("campagnes de visibilité", () => {
     expect(mail.text).toContain("- Intervention sous 48 h");
   });
 });
+
+describe("aide à la rédaction de l'annonce", () => {
+  const fake = (text: string) => ({ messages: { create: async () => ({ content: [{ type: "text", text }] }) } }) as never;
+  it("reprend la version proposée quand elle respecte les règles", async () => {
+    const { improveAd } = await import("@/lib/campaign-ad-writer");
+    const out = await improveAd({ title: "maintenance", points: [], text: "on fait de la maintenance de compresseurs" }, { company: "X", city: null, objective: "Trouver des clients" }, fake('{"title":"Maintenance de compresseurs","points":["Dépannage sur site"],"text":"Nous assurons la maintenance de vos compresseurs."}'));
+    expect(out).toEqual({ title: "Maintenance de compresseurs", points: ["Dépannage sur site"], text: "Nous assurons la maintenance de vos compresseurs." });
+  });
+  it("refuse une version qui ajoute un lien ou une promesse", async () => {
+    const { improveAd } = await import("@/lib/campaign-ad-writer");
+    expect(await improveAd({ title: "Maintenance", points: [], text: "Compresseurs" }, { company: "X", city: null, objective: "" }, fake('{"title":"Maintenance garanti","points":[],"text":"Voir www.x.fr"}'))).toBeNull();
+    expect(await improveAd({ title: "Maintenance", points: [], text: "Compresseurs" }, { company: "X", city: null, objective: "" }, fake("pas du json"))).toBeNull();
+  });
+});

@@ -194,3 +194,25 @@ export async function updateBoostAd(_prev: ActionResult | null, fd: FormData): P
   revalidatePath("/admin/visibilite");
   return { ok: true, message: "Annonce renvoyée en relecture." };
 }
+
+/** « Améliorer mon texte » : version plus claire de l'annonce, sans rien inventer (l'entreprise garde la main). */
+export async function improveCampaignAd(input: { title: string; points: string[]; text: string; objective: string }): Promise<ActionResult<{ title: string; points: string[]; text: string }>> {
+  const session = await requireCompany("/dashboard/visibilite");
+  if (!(await rateLimit("campaign-ad-improve", 8, 3600))) return { ok: false, error: "Vous avez beaucoup utilisé l'aide à la rédaction : réessayez dans une heure." };
+  const ad = {
+    title: String(input.title ?? "").slice(0, AD_LIMITS.title),
+    points: (input.points ?? []).map((x) => String(x).slice(0, AD_LIMITS.point)).filter(Boolean).slice(0, 3),
+    text: String(input.text ?? "").slice(0, AD_LIMITS.text),
+  };
+  if ((ad.title + ad.text).trim().length < 15) return { ok: false, error: "Écrivez d'abord quelques mots sur votre activité." };
+  try {
+    const { improveAd } = await import("@/lib/campaign-ad-writer");
+    const co = session.activeCompany.company;
+    const out = await improveAd(ad, { company: co.name, city: null, objective: OBJECTIVES.find((o) => o.value === input.objective)?.label ?? "Trouver des clients" });
+    if (!out) return { ok: false, error: "L'aide à la rédaction n'a pas pu proposer de version : votre texte reste tel quel." };
+    return { ok: true, data: out };
+  } catch (e) {
+    logServerError("campaign ad improve", e);
+    return { ok: false, error: "L'aide à la rédaction est indisponible pour le moment." };
+  }
+}

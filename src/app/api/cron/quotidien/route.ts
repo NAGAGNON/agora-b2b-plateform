@@ -118,10 +118,12 @@ async function run(req: Request) {
   });
   // Offre « Visibilité » (démarrage automatique) : fins d'offre et présentations du jour
   await step("visibilite", async () => {
+    // Garantie : campagne arrivée à terme sans le nombre prévu d'entreprises présentées → prolongée une fois
+    const { data: prolongees } = await createAdminClient().rpc("extend_underdelivered_boosts");
     const { data, error } = await createAdminClient().rpc("process_visibility_boosts", { p_limit: 50 });
     if (error) throw error;
     // Puis présentations par e-mail aux entreprises de la base (file d'envoi de l'Outreach)
-    return { ...(data as object), ...(await queueBoostPresentations()) };
+    return { ...(data as object), prolongees_garantie: prolongees ?? 0, ...(await queueBoostPresentations()) };
   });
   // Annonce du service « Visibilité » (inactive tant que le propriétaire ne l'a pas validée ; le mardi)
   await step("candidatures-resultat", async () => processApplicationReminders());
