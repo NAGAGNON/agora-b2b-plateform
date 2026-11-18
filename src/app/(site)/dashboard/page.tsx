@@ -151,7 +151,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
 
       <PioneerBadge userId={session.userId} now={nowMs()} />
       <TrialInvite userId={session.userId} companyId={cid} />
-      <VisibilityPrompt companyId={cid} />
+      <VisibilityPrompt companyId={cid} welcome={Boolean(sp.bienvenue)} />
       <SinceLastVisit userId={session.userId} companyId={cid} supplier={supplier} since={previousVisit(session.profile, nowMs())} now={nowMs()} includeDemo={await showDemoData()} />
       <NextActions companyId={cid} userId={session.userId} buyer={buyer} supplier={supplier} now={nowMs()} />
       <TeamCard companyId={cid} isAdmin={session.activeCompany?.role === "COMPANY_ADMIN"} />

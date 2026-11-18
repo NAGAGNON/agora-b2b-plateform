@@ -125,6 +125,12 @@ async function run(req: Request) {
     // Puis présentations par e-mail aux entreprises de la base (file d'envoi de l'Outreach)
     return { ...(data as object), prolongees_garantie: prolongees ?? 0, ...(await queueBoostPresentations()) };
   });
+  // Rappel dans le site (notification, pas d'e-mail) : fiche prête ou aucun contact depuis 14 jours
+  await step("visibilite-rappel", async () => {
+    const { data, error } = await createAdminClient().rpc("process_visibility_nudges", { p_limit: 100 });
+    if (error) throw error;
+    return { notifications: data ?? 0 };
+  });
   // Annonce du service « Visibilité » (inactive tant que le propriétaire ne l'a pas validée ; le mardi)
   await step("candidatures-resultat", async () => processApplicationReminders());
   await step("annonce-visibilite", async () => {
