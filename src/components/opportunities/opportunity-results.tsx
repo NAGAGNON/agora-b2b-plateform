@@ -105,8 +105,6 @@ export async function OpportunityResults({ filters, rawParams, basePath, trackSe
     ...(myDept ? [{ key: "zone", label: `Mon département · ${departments.find((d) => d.code === myDept)?.name ?? myDept}`, icon: "zone" as const, set: { departement: myDept } }] : []),
     { key: "nouveau", label: "Nouvelles (7 jours)", icon: "nouveau", set: { publiee: "7" } },
     { key: "echeance", label: "Clôture sous 15 jours", icon: "echeance", set: { echeance: in15 } },
-    { key: "besoins", label: "Besoins d'entreprises", icon: "besoins", set: { origine: "INTERNAL" } },
-    { key: "publics", label: "Marchés publics", icon: "publics", set: { origine: "EXTERNAL" } },
   ];
 
   return (

@@ -73,10 +73,6 @@ export default async function OpportunitiesPage(props: PageProps<"/opportunites"
         <FreshnessBar stats={await getPlatformStats()} className="mt-5" />
       </PageHero>
       <div className="container-page py-8 sm:py-10">
-      {filters.page === 1 && filters.origin !== "EXTERNAL" && <FeaturedStrip kind="NEED" />}
-      {filters.page === 1 && !filters.q && filters.origin !== "EXTERNAL" && (
-        <FeaturedNeeds sector={filters.sector} department={filters.department} region={filters.region ? (regionBySlug(filters.region)?.name ?? null) : null} />
-      )}
       {allowed ? (
         <OpportunityResults filters={filters} rawParams={sp} basePath="/opportunites" trackSearch={searching} />
       ) : (
@@ -87,6 +83,13 @@ export default async function OpportunitiesPage(props: PageProps<"/opportunites"
           reason="Avec Pro, vos recherches sont illimitées."
           suite={`/opportunites?${new URLSearchParams(Object.entries(sp).flatMap(([k, v]) => (typeof v === "string" ? [[k, v]] : [])))}`}
         />
+      )}
+      {/* Les besoins d'entreprises mis en avant viennent après les résultats : la recherche d'abord */}
+      {filters.page === 1 && filters.origin !== "EXTERNAL" && (
+        <div className="mt-12 space-y-8">
+          <FeaturedStrip kind="NEED" />
+          {!filters.q && <FeaturedNeeds sector={filters.sector} department={filters.department} region={filters.region ? (regionBySlug(filters.region)?.name ?? null) : null} />}
+        </div>
       )}
       </div>
     </>

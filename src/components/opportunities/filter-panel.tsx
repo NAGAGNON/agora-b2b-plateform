@@ -1,4 +1,4 @@
-import { Briefcase, CalendarClock, Compass, Factory, Layers, MapPin, Search, Wrench } from "lucide-react";
+import { Briefcase, CalendarClock, Compass, Factory, Layers, MapPin, Wrench } from "lucide-react";
 import { OPPORTUNITY_TYPE_LABELS, COMPANY_SIZE_LABELS, type OpportunityType, type CompanySize } from "@/lib/constants";
 import type { OpportunityFilters } from "@/lib/search-params";
 import { getPublicSources, getSectors } from "@/lib/queries/platform";
@@ -22,14 +22,7 @@ export async function FilterFields({ f, departments, places, idPrefix }: { f: Op
   const placeName = (f.place && places.find((p) => p.slug === f.place)?.name) ?? f.place ?? "";
   return (
     <div>
-      <FilterSection title="Recherche" icon={<Search className="size-4" />} active={Boolean(f.q)}>
-        <label htmlFor={id("q")} className="sr-only">
-          Mots-clés
-        </label>
-        <FilterInput key={f.q ?? ""} id={id("q")} name="q" defaultValue={f.q} placeholder="ex. maintenance compresseurs" icon={<Search />} />
-      </FilterSection>
-
-      <FilterSection title="Secteur d'activité" icon={<Factory className="size-4" />} active={Boolean(f.sector)}>
+      <FilterSection title="Votre métier" icon={<Factory className="size-4" />} active={Boolean(f.sector)}>
         <label htmlFor={id("secteur")} className="sr-only">
           Secteur d&apos;activité
         </label>
@@ -47,19 +40,12 @@ export async function FilterFields({ f, departments, places, idPrefix }: { f: Op
         </FilterSelect>
       </FilterSection>
 
-      <FilterSection title="Type d'opportunité" icon={<Briefcase className="size-4" />} active={f.types.length > 0}>
-        <ChipGroup label="Type d'opportunité">
-          {(Object.keys(OPPORTUNITY_TYPE_LABELS) as OpportunityType[]).map((t) => (
-            <Chip key={t} type="checkbox" name="type" value={t} checked={f.types.includes(t)}>
-              {OPPORTUNITY_TYPE_LABELS[t]}
-            </Chip>
-          ))}
-        </ChipGroup>
+      <FilterSection title="Provenance" icon={<Briefcase className="size-4" />} active={Boolean(f.origin)}>
         <ChipGroup label="Provenance">
           {[
-            ["", "Toutes provenances"],
+            ["", "Tout"],
             ["INTERNAL", "Besoins d'entreprises"],
-            ["EXTERNAL", "Marchés publics et externes"],
+            ["EXTERNAL", "Marchés publics"],
           ].map(([v, l]) => (
             <Chip key={v} name="origine" value={v} checked={(f.origin ?? "") === v}>
               {l}
@@ -68,7 +54,7 @@ export async function FilterFields({ f, departments, places, idPrefix }: { f: Op
         </ChipGroup>
       </FilterSection>
 
-      <FilterSection title="Localisation" icon={<MapPin className="size-4" />} active={Boolean(f.region || f.department || f.city || f.place)}>
+      <FilterSection title="Où ?" icon={<MapPin className="size-4" />} active={Boolean(f.region || f.department)}>
         <div>
           <SubLabel htmlFor={id("region")}>Région</SubLabel>
           <FilterSelect id={id("region")} name="region" defaultValue={f.region ?? ""}>
@@ -97,40 +83,9 @@ export async function FilterFields({ f, departments, places, idPrefix }: { f: Op
             ))}
           </FilterSelect>
         </div>
-        <div>
-          <SubLabel htmlFor={id("ville")}>Ville ou code postal</SubLabel>
-          <FilterInput id={id("ville")} name="ville" defaultValue={f.city} placeholder="ex. Lyon ou 69003" icon={<MapPin />} />
-        </div>
-        <div>
-          <SubLabel htmlFor={id("lieu")}>Autour d&apos;une ville</SubLabel>
-          <div className="grid grid-cols-[1fr_6.5rem] gap-2">
-            <FilterInput id={id("lieu")} name="lieu" defaultValue={placeName} placeholder="ex. Nantes" autoComplete="address-level2" icon={<Compass />} />
-            <label htmlFor={id("rayon")} className="sr-only">
-              Rayon
-            </label>
-            <FilterSelect id={id("rayon")} name="rayon" defaultValue={String(f.radius ?? 50)}>
-              {[10, 25, 50, 100, 200].map((r) => (
-                <option key={r} value={r}>
-                  {r} km
-                </option>
-              ))}
-            </FilterSelect>
-          </div>
-        </div>
       </FilterSection>
 
-      <FilterSection title="Dates et statut" icon={<CalendarClock className="size-4" />} active={f.status !== "OPEN" || Boolean(f.publishedWithin || f.deadlineBefore)}>
-        <ChipGroup label="Statut">
-          {[
-            ["OPEN", "Ouvertes"],
-            ["CLOSED", "Clôturées"],
-            ["ALL", "Toutes"],
-          ].map(([v, l]) => (
-            <Chip key={v} name="statut" value={v} checked={f.status === v}>
-              {l}
-            </Chip>
-          ))}
-        </ChipGroup>
+      <FilterSection title="Quand ?" icon={<CalendarClock className="size-4" />} active={Boolean(f.publishedWithin || f.deadlineBefore)}>
         <div>
           <p className="mb-1.5 text-xs font-medium text-slate-500">Publiées depuis</p>
           <ChipGroup label="Publiées depuis">
@@ -156,8 +111,52 @@ export async function FilterFields({ f, departments, places, idPrefix }: { f: Op
         title="Plus de critères"
         icon={<Layers className="size-4" />}
         defaultOpen={false}
-        active={Boolean(f.size || f.skills.length || f.source)}
+        active={Boolean(f.size || f.skills.length || f.source || f.types.length || f.status !== "OPEN" || f.city || f.place)}
       >
+        <div>
+          <p className="mb-1.5 text-xs font-medium text-slate-500">Type d&apos;opportunité</p>
+        <ChipGroup label="Type d'opportunité">
+          {(Object.keys(OPPORTUNITY_TYPE_LABELS) as OpportunityType[]).map((t) => (
+            <Chip key={t} type="checkbox" name="type" value={t} checked={f.types.includes(t)}>
+              {OPPORTUNITY_TYPE_LABELS[t]}
+            </Chip>
+          ))}
+        </ChipGroup>
+        </div>
+        <div>
+          <p className="mb-1.5 text-xs font-medium text-slate-500">Statut</p>
+        <ChipGroup label="Statut">
+          {[
+            ["OPEN", "Ouvertes"],
+            ["CLOSED", "Clôturées"],
+            ["ALL", "Toutes"],
+          ].map(([v, l]) => (
+            <Chip key={v} name="statut" value={v} checked={f.status === v}>
+              {l}
+            </Chip>
+          ))}
+        </ChipGroup>
+        </div>
+        <div>
+          <SubLabel htmlFor={id("ville")}>Ville ou code postal</SubLabel>
+          <FilterInput id={id("ville")} name="ville" defaultValue={f.city} placeholder="ex. Lyon ou 69003" icon={<MapPin />} />
+        </div>
+        <div>
+          <SubLabel htmlFor={id("lieu")}>Autour d&apos;une ville</SubLabel>
+          <div className="grid grid-cols-[1fr_6.5rem] gap-2">
+            <FilterInput id={id("lieu")} name="lieu" defaultValue={placeName} placeholder="ex. Nantes" autoComplete="address-level2" icon={<Compass />} />
+            <label htmlFor={id("rayon")} className="sr-only">
+              Rayon
+            </label>
+            <FilterSelect id={id("rayon")} name="rayon" defaultValue={String(f.radius ?? 50)}>
+              {[10, 25, 50, 100, 200].map((r) => (
+                <option key={r} value={r}>
+                  {r} km
+                </option>
+              ))}
+            </FilterSelect>
+          </div>
+        </div>
         <div>
           <p className="mb-1.5 text-xs font-medium text-slate-500">Taille de l&apos;entreprise</p>
           <ChipGroup label="Taille d'entreprise">
@@ -189,6 +188,7 @@ export async function FilterFields({ f, departments, places, idPrefix }: { f: Op
           </div>
         )}
       </FilterSection>
+      {f.q && <input type="hidden" name="q" value={f.q} />}
       <input type="hidden" name="tri" value={f.sort} />
     </div>
   );

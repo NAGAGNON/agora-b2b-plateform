@@ -28,8 +28,9 @@ function toggleHref(basePath: string, raw: RawSearchParams, set: Record<string, 
 export function QuickFilters({ items, basePath, raw }: { items: QuickFilter[]; basePath: string; raw: RawSearchParams }) {
   if (!items.length) return null;
   return (
-    <nav aria-label="Filtres rapides" className="-mx-4 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden">
-      <ul className="flex w-max gap-2 sm:w-auto sm:flex-wrap">
+    // Sur plusieurs lignes, sans défilement horizontal (le glissement sur téléphone faisait bouger la page)
+    <nav aria-label="Filtres rapides">
+      <ul className="flex flex-wrap gap-2">
         {items.map((f) => {
           const on = Object.entries(f.set).every(([k, v]) => raw[k] === v);
           const Icon = on ? Check : ICONS[f.icon];
@@ -39,8 +40,8 @@ export function QuickFilters({ items, basePath, raw }: { items: QuickFilter[]; b
                 href={toggleHref(basePath, raw, f.set, on)}
                 aria-current={on ? "true" : undefined}
                 scroll={false}
-                className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-sm font-semibold whitespace-nowrap transition ${
-                  on ? "bg-navy text-white shadow-md hover:bg-navy-900" : "bg-white text-slate-700 ring-1 ring-slate-200 hover:-translate-y-px hover:text-navy hover:ring-teal/50"
+                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-semibold whitespace-nowrap sm:px-3.5 sm:py-2 transition ${
+                  on ? "bg-navy text-white shadow-md hover:bg-navy-900" : "bg-white text-slate-700 ring-1 ring-slate-200 hover:text-navy hover:ring-teal/50"
                 }`}
               >
                 <Icon className={`size-4 ${on ? "text-teal-300" : "text-teal-700"}`} aria-hidden />
