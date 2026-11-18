@@ -58,14 +58,6 @@
       "schedule": "0 7 * * 1"
     },
     {
-      "path": "/api/cron/bilan?comite=matin",
-      "schedule": "0 6 * * *"
-    },
-    {
-      "path": "/api/cron/bilan?comite=matin",
-      "schedule": "0 7 * * *"
-    },
-    {
       "path": "/api/cron/bilan?comite=soir",
       "schedule": "0 17 * * *"
     },
