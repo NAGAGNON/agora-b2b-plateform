@@ -28,6 +28,7 @@ ${GUIDES.map((g) => `- [${g.title}](${base}/ressources/${g.slug}) : ${g.descript
 ## Pour comprendre le service
 - [Comment ça marche](${base}/comment-ca-marche)
 - [Pour les fournisseurs](${base}/fournisseurs)
+- [On fait votre prospection pour vous : campagnes de visibilité](${base}/prospection) : votre entreprise présentée chaque jour à des entreprises ciblées (métier, région, taille), avec suivi des lectures, clics et messages
 - [Pour les demandeurs](${base}/demandeurs)
 - [Questions fréquentes](${base}/faq)
 - [Tarifs](${base}/tarifs)

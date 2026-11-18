@@ -38,6 +38,10 @@ export default function SuppliersPage() {
         <Link href="/tarifs">tarifs</Link>.
       </p>
       <p>
+        Vous voulez être présenté directement à des entreprises ciblées ? Découvrez les{" "}
+        <Link href="/prospection">campagnes de visibilité : on fait votre prospection pour vous</Link>.
+      </p>
+      <p>
         Vous êtes ingénieur d&apos;affaires ? Retrouvez vos outils étape par étape sur l&apos;
         <Link href="/ingenieurs-affaires">espace ingénieurs d&apos;affaires</Link>.
       </p>

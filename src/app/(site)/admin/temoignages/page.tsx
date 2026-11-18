@@ -13,10 +13,13 @@ const STATUS: Record<string, string> = { PENDING: "À relire", APPROVED: "Publi�
 export default async function TestimonialsAdminPage() {
   await requireAdmin();
   const db = createAdminClient();
-  const [{ data: rows }, { count: asked }] = await Promise.all([
+  const [{ data: rows }, { count: asked }, { count: yes }, { count: no }] = await Promise.all([
     db.from("testimonials").select("id, author_name, author_role, company_name, quote, rating, consent_publish, status, created_at, user_id").order("created_at", { ascending: false }).limit(200),
     db.from("testimonial_requests").select("user_id", { count: "exact", head: true }),
+    db.from("app_satisfaction").select("user_id", { count: "exact", head: true }).eq("liked", true),
+    db.from("app_satisfaction").select("user_id", { count: "exact", head: true }).eq("liked", false),
   ]);
+  const answers = (yes ?? 0) + (no ?? 0);
   const list = rows ?? [];
   const { data: users } = list.length ? await db.from("users").select("id, email").in("id", list.map((t) => t.user_id)) : { data: [] };
   const emails = new Map((users ?? []).map((u) => [u.id, u.email]));
@@ -28,6 +31,18 @@ export default async function TestimonialsAdminPage() {
         <p className="mt-1 text-sm text-slate-600">
           {asked ?? 0} demande(s) d&apos;avis envoyée(s) aux membres les plus actifs · {list.length} avis reçu(s) · {published} publié(s). La section de l&apos;accueil
           s&apos;affiche à partir de {MIN_TESTIMONIALS} avis publiés.
+        </p>
+      </div>
+      <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+        <p className="text-sm font-semibold text-navy">« Vous appréciez LinkProB2B ? »</p>
+        <p className="mt-1 text-sm text-slate-600">
+          {answers ? (
+            <>
+              <strong className="text-2xl text-navy">{Math.round(((yes ?? 0) / answers) * 100)} %</strong> de oui · {yes ?? 0} oui, {no ?? 0} non ({answers} réponse(s))
+            </>
+          ) : (
+            "Aucune réponse pour le moment (question posée aux membres inscrits depuis 7 jours)."
+          )}
         </p>
       </div>
       {list.length === 0 && <p className="rounded-xl bg-white p-6 text-sm text-slate-600 ring-1 ring-slate-200">Aucun avis pour le moment.</p>}

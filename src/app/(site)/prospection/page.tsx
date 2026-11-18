@@ -4,6 +4,15 @@ import { ButtonLink } from "@/components/ui/button";
 import { pageMetadata } from "@/lib/seo";
 import { FORMULAS } from "@/lib/visibility";
 import { freeLaunch } from "@/lib/billing/entitlements";
+import { JsonLd, breadcrumbLd } from "@/components/json-ld";
+import { siteUrl } from "@/lib/seo";
+
+const FAQ = [
+  { q: "Qui reçoit ma présentation ?", a: "Les entreprises que vous ciblez : par région, métier, taille et type d'entreprise. Le nombre d'entreprises correspondantes s'affiche pendant que vous choisissez." },
+  { q: "Comment les entreprises me contactent-elles ?", a: "Par la messagerie de LinkProB2B : votre annonce ne contient ni téléphone ni e-mail, et chaque message arrive dans votre espace." },
+  { q: "Que se passe-t-il si ma campagne n'atteint pas le nombre d'entreprises prévu ?", a: "Elle est prolongée une fois, automatiquement, pour compléter les présentations manquantes." },
+  { q: "Puis-je suivre les résultats ?", a: "Oui : votre espace indique combien d'entreprises ont reçu votre présentation, l'ont lue, ont cliqué sur votre fiche et vous ont écrit." },
+];
 
 export const metadata = pageMetadata({
   title: "On fait votre prospection pour vous",
@@ -65,6 +74,14 @@ export default async function ProspectionPage() {
         automatiquement.
       </p>
 
+      <h2>Questions fréquentes</h2>
+      {FAQ.map((f) => (
+        <div key={f.q}>
+          <h3>{f.q}</h3>
+          <p>{f.a}</p>
+        </div>
+      ))}
+
       <h2>Ce que nous ne faisons pas</h2>
       <ul>
         <li>Pas de promesse de résultat ni de « clients garantis » ;</li>
@@ -78,6 +95,29 @@ export default async function ProspectionPage() {
           Voir les tarifs
         </ButtonLink>
       </div>
+      <JsonLd
+        data={[
+          breadcrumbLd([
+            { name: "Accueil", path: "/" },
+            { name: "On fait votre prospection pour vous", path: "/prospection" },
+          ]),
+          {
+            "@context": "https://schema.org",
+            "@type": "Service",
+            name: "Campagnes de visibilité B2B",
+            serviceType: "Prospection B2B",
+            areaServed: { "@type": "Country", name: "France" },
+            provider: { "@type": "Organization", name: "LinkProB2B", url: siteUrl() },
+            url: `${siteUrl()}/prospection`,
+            description: "Présentation quotidienne de votre entreprise à des entreprises ciblées (métier, région, taille), avec suivi des lectures, clics et messages.",
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "FAQPage",
+            mainEntity: FAQ.map((f) => ({ "@type": "Question", name: f.q, acceptedAnswer: { "@type": "Answer", text: f.a } })),
+          },
+        ]}
+      />
       <p className="mt-4 text-sm">
         Déjà inscrit ? <Link href="/dashboard/visibilite">Créer ma campagne</Link>
       </p>
