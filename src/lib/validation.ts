@@ -111,10 +111,12 @@ export const companySchema = z.object({
   size: companySize,
   city: optionalText(120),
   postalCode,
-  siren: z.preprocess(
-    (v) => (typeof v === "string" ? v.replace(/\s/g, "") || undefined : v),
-    z.string().regex(/^\d{9}$/, "Le SIREN comporte 9 chiffres").optional(),
-  ),
+  // Création : un SIREN absent ou mal saisi ne bloque jamais (demande du fondateur, 18/11) ; il est ignoré
+  // et un bandeau du tableau de bord demande de le renseigner ensuite
+  siren: z.preprocess((v) => {
+    const d = typeof v === "string" ? v.replace(/\s/g, "") : "";
+    return /^\d{9}$/.test(d) ? d : undefined;
+  }, z.string().optional()),
   website: optionalUrl,
   tagline: optionalText(160),
   description: optionalText(4000),

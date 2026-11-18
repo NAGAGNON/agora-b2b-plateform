@@ -3,9 +3,10 @@ import { TeamCard } from "@/components/dashboard/team-card";
 import { ArrowRight, BellRing, Briefcase, Megaphone, FileStack, Handshake, Heart, Inbox, Send, Sparkles, Users } from "lucide-react";
 import { requireSession } from "@/lib/auth";
 import { MemberProofCompact } from "@/components/home/member-proof";
-import { FeedbackPrompt } from "@/components/dashboard/feedback-prompt";
+import { FeedbackPrompt, SatisfactionAsk } from "@/components/dashboard/feedback-prompt";
 import { PioneerBadge } from "@/components/dashboard/pioneer-badge";
 import { VisibilityPrompt } from "@/components/dashboard/visibility-prompt";
+import { SirenPrompt } from "@/components/dashboard/siren-prompt";
 import { TrialInvite } from "@/components/dashboard/trial-invite";
 import { PreciseAlertPrompt } from "@/components/dashboard/precise-alert-prompt";
 import { createClient } from "@/lib/supabase/server";
@@ -150,6 +151,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
       />
 
       <PioneerBadge userId={session.userId} now={nowMs()} />
+      <SirenPrompt companyId={cid} />
       <TrialInvite userId={session.userId} companyId={cid} />
       <VisibilityPrompt companyId={cid} welcome={Boolean(sp.bienvenue)} />
       <SinceLastVisit userId={session.userId} companyId={cid} supplier={supplier} since={previousVisit(session.profile, nowMs())} now={nowMs()} includeDemo={await showDemoData()} />
@@ -310,6 +312,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
         </section>
       )}
       <FeedbackPrompt userId={session.userId} createdAt={session.profile.created_at} now={nowMs()} />
+      <SatisfactionAsk userId={session.userId} createdAt={session.profile.created_at} now={nowMs()} />
     </div>
   );
 }

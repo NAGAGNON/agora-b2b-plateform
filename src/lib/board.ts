@@ -314,6 +314,14 @@ ${RULES}`;
 
 const VERDICT_STATUS = { a_valider: "A_VALIDER", refusee: "REFUSEE_CEO", plus_d_infos: "PLUS_INFO" } as const;
 
+/** Lundi soir : le rapport de l'analyste de la semaine devient le sujet de la réunion (demande du fondateur, 18/11). */
+async function mondayAnalystReport(db: DB, now: Date, kind: BoardKind) {
+  if (kind !== "SOIR") return null;
+  if (new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Paris", weekday: "short" }).format(now) !== "Mon") return null;
+  const { data } = await db.from("weekly_reviews").select("week_start, facts, summary").order("week_start", { ascending: false }).limit(1).maybeSingle();
+  return data ?? null;
+}
+
 /**
  * Réunit le comité : notes des 4 directeurs, critiques, arbitrage du CEO, puis enregistrement intégral
  * (interventions, décisions) et bilan par e-mail. MATIN et SOIR : une fois par jour chacune ;
@@ -331,9 +339,9 @@ export async function runBoard({ now = new Date(), kind, reason = null, alertKey
   const sid = session.id;
   try {
     if (reason) await db.from("board_messages").insert({ session_id: sid, author: alertKey ? "SYSTEME" : "FONDATEUR", kind: alertKey ? "SYSTEME" : "FONDATEUR", content: { texte: reason } });
-    const [facts, memory] = await Promise.all([boardFacts(db, now, kind), boardMemory(db, now)]);
+    const [facts, memory, weekly] = await Promise.all([boardFacts(db, now, kind), boardMemory(db, now), mondayAnalystReport(db, now, kind)]);
     const allowed = allowedNumbers(facts, memory);
-    const context = `DONNÉES RÉELLES DU JOUR :\n${JSON.stringify(facts)}\n\nMÉMOIRE DU COMITÉ (décisions des 30 derniers jours, commentaires du fondateur) :\n${JSON.stringify(memory)}${reason ? `\n\n${alertKey ? "RÉUNION EXCEPTIONNELLE DÉCLENCHÉE PAR UNE ALERTE" : "RÉUNION DEMANDÉE PAR LE FONDATEUR"}, motif : ${reason}. Traite ce sujet en priorité.` : ""}`;
+    const context = `DONNÉES RÉELLES DU JOUR :\n${JSON.stringify(facts)}\n\nMÉMOIRE DU COMITÉ (décisions des 30 derniers jours, commentaires du fondateur) :\n${JSON.stringify(memory)}${reason ? `\n\n${alertKey ? "RÉUNION EXCEPTIONNELLE DÉCLENCHÉE PAR UNE ALERTE" : "RÉUNION DEMANDÉE PAR LE FONDATEUR"}, motif : ${reason}. Traite ce sujet en priorité.` : ""}${weekly ? `\n\nSUJET DE LA RÉUNION DU LUNDI SOIR (demande du fondateur) : le rapport de l'analyste de la semaine ci-dessous. Discutez-le point par point et tirez-en vos décisions.\n${JSON.stringify(weekly)}` : ""}`;
 
     // 1. Notes des directeurs (en parallèle)
     const results = await Promise.all(DIRECTOR_KEYS.map(async (k) => [k, await directorNote(k, context, allowed).catch((e) => (logServerError(`board ${k}`, e), { note: { constat: "Note indisponible aujourd'hui.", points: [], propositions: [] }, issues: ["note indisponible"] }))] as const));

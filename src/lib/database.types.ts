@@ -117,7 +117,9 @@ isOneToOne: false
                   Relationships: [
                     
                   ]
-                },"audit_logs": {
+                },"app_satisfaction":
+{ Row: { user_id: string; company_id: string | null; liked: boolean; answered_at: string }; Insert: { user_id: string; company_id?: string | null; liked: boolean; answered_at?: string }; Update: { user_id?: string; company_id?: string | null; liked?: boolean; answered_at?: string }; Relationships: [] },
+"audit_logs": {
                   Row: {
                     "action": string,"actor_user_id": string | null,"created_at": string,"entity_id": string | null,"entity_type": string,"id": number,"metadata": NonNullable<Json>
                   }

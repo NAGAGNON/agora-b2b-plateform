@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { companySchema, contactSchema, formDataToObject, opportunitySchema, parseForm, signUpSchema } from "@/lib/validation";
+import { companySchema, companyProfileSchema, contactSchema, formDataToObject, opportunitySchema, parseForm, signUpSchema } from "@/lib/validation";
 
 const future = new Date(Date.now() + 20 * 86_400_000).toISOString().slice(0, 10);
 const past = new Date(Date.now() - 2 * 86_400_000).toISOString().slice(0, 10);
@@ -81,7 +81,12 @@ describe("entreprise", () => {
       expect(r.data.siren).toBe("123456789");
       expect(r.data.website).toBe("https://acme.fr");
     }
-    expect(companySchema.safeParse({ name: "ACME", kind: "SUPPLIER", siren: "12345" }).success).toBe(false);
+    // SIREN mal saisi à la création : jamais bloquant, il est ignoré (bandeau du tableau de bord ensuite)
+    const bad = companySchema.safeParse({ name: "ACME", kind: "SUPPLIER", siren: "12345" });
+    expect(bad.success).toBe(true);
+    if (bad.success) expect(bad.data.siren).toBeUndefined();
+    // À la modification de la fiche, le format reste contrôlé
+    expect(companyProfileSchema.safeParse({ name: "ACME", kind: "SUPPLIER", siren: "12345" }).success).toBe(false);
     // Existence du secteur garantie par la clé étrangère en base ; ici, seul le format est validé.
     expect(companySchema.safeParse({ name: "ACME", kind: "SUPPLIER", sectors: ["Pas Un Slug!"] }).success).toBe(false);
   });

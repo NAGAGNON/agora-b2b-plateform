@@ -52,8 +52,8 @@ export default async function CompanySettingsPage() {
       />
       {!company.verified_at && (
         <Notice tone="info" title="Vérification de l'entreprise">
-          Le badge « Entreprise vérifiée » est attribué par l&apos;équipe LinkProB2B après contrôle (SIREN, existence de l&apos;entreprise). Renseignez votre
-          SIREN et contactez-nous pour en faire la demande.
+          Renseignez votre SIREN (9 chiffres) ci-dessous : il est contrôlé automatiquement dans l&apos;annuaire officiel des entreprises, et le badge
+          « Entreprise vérifiée » s&apos;affiche si le nom correspond.
         </Notice>
       )}
       {isAdmin && (

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { MessageSquareQuote } from "lucide-react";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { SatisfactionToast } from "@/components/dashboard/satisfaction-toast";
 
 const DAY = 86_400_000;
 
@@ -21,4 +22,12 @@ export async function FeedbackPrompt({ userId, createdAt, now }: { userId: strin
       </Link>
     </p>
   );
+}
+
+/** « Vous appréciez LinkProB2B ? » : membres inscrits depuis 7 jours ou plus, tant qu'ils n'ont pas répondu. */
+export async function SatisfactionAsk({ userId, createdAt, now }: { userId: string; createdAt: string; now: number }) {
+  if (now - new Date(createdAt).getTime() < 7 * DAY) return null;
+  const { count } = await createAdminClient().from("app_satisfaction").select("user_id", { count: "exact", head: true }).eq("user_id", userId);
+  if (count) return null;
+  return <SatisfactionToast />;
 }

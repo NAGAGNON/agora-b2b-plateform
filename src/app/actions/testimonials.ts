@@ -60,3 +60,18 @@ export async function reviewTestimonial(fd: FormData) {
   revalidatePath("/admin/temoignages");
   revalidatePath("/");
 }
+
+/** Réponse à « Vous appréciez LinkProB2B ? » : une seule par membre (la première est gardée). */
+export async function answerSatisfaction(liked: boolean): Promise<ActionResult> {
+  const session = await getSession();
+  if (!session) return { ok: false, error: "Session expirée." };
+  if (!(await rateLimit("satisfaction", 5, 3600))) return { ok: false, error: "Trop d'envois." };
+  const { error } = await createAdminClient()
+    .from("app_satisfaction")
+    .upsert({ user_id: session.userId, company_id: session.activeCompany?.company.id ?? null, liked: Boolean(liked) }, { onConflict: "user_id", ignoreDuplicates: true });
+  if (error) {
+    logServerError("satisfaction", error);
+    return { ok: false, error: "Réponse non enregistrée." };
+  }
+  return { ok: true, message: "Merci !" };
+}
