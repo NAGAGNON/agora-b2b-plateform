@@ -104,6 +104,20 @@ export function OpportunitySearch({ initial = "" }: { initial?: string }) {
     });
   };
 
+  // Fermeture des suggestions au toucher / clic en dehors de la recherche seulement : faire défiler la
+  // liste sur téléphone ne la ferme plus (le champ perd le focus pendant le glissement)
+  const formRef = useRef<HTMLFormElement>(null);
+  const touching = useRef(false);
+  useEffect(() => {
+    if (!open) return;
+    const outside = (e: PointerEvent) => {
+      touching.current = Boolean(formRef.current?.contains(e.target as Node));
+      if (!touching.current) setOpen(false);
+    };
+    document.addEventListener("pointerdown", outside);
+    return () => document.removeEventListener("pointerdown", outside);
+  }, [open]);
+
   useEffect(
     () => () => {
       if (timer.current) clearTimeout(timer.current);
@@ -126,6 +140,7 @@ export function OpportunitySearch({ initial = "" }: { initial?: string }) {
         setOpen(false);
         go(q);
       }}
+      ref={formRef}
       className="relative max-w-3xl"
     >
       {Array.from(params.entries())
@@ -173,7 +188,10 @@ export function OpportunitySearch({ initial = "" }: { initial?: string }) {
             }
           }}
           onFocus={() => items.length > 0 && q.trim().length >= 2 && setOpen(true)}
-          onBlur={() => setTimeout(() => setOpen(false), 150)}
+          // Clavier (Tab) : fermeture quand le focus quitte la recherche ; au toucher, voir l'écouteur ci-dessus
+          onBlur={(e) => {
+            if (!formRef.current?.contains(e.relatedTarget as Node | null) && !touching.current) setOpen(false);
+          }}
           placeholder="Métier, mot-clé, ville…"
           className="h-12 min-w-0 flex-1 bg-transparent text-base text-navy placeholder:text-slate-400 focus:outline-none"
         />
@@ -212,10 +230,9 @@ export function OpportunitySearch({ initial = "" }: { initial?: string }) {
                 id={`${listId}-${i}`}
                 role="option"
                 aria-selected={i === active}
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  choose(s);
-                }}
+                // Souris : garder le champ actif ; choix au clic (au toucher, un glissement fait défiler sans choisir)
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => choose(s)}
                 onMouseEnter={() => setActive(i)}
                 className={`flex cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition ${i === active ? "bg-teal-50 text-navy" : "text-slate-700"}`}
               >
@@ -232,7 +249,7 @@ export function OpportunitySearch({ initial = "" }: { initial?: string }) {
         </ul>
       )}
 
-      <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
+      <div className="mt-3 hidden flex-wrap items-center gap-2 text-sm sm:flex">
         <span className="text-slate-500">Idées :</span>
         {IDEAS.map((idea) => (
           <button
