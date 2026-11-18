@@ -18,6 +18,7 @@ import { Suspense } from "react";
 import { UpgradeGate } from "@/components/billing/upsell";
 import { createClient } from "@/lib/supabase/server";
 import { getSession } from "@/lib/auth";
+import { CompanySetupBanner } from "@/components/dashboard/company-setup-banner";
 
 export async function generateMetadata(props: PageProps<"/opportunites">) {
   const sp = await props.searchParams;
@@ -73,6 +74,7 @@ export default async function OpportunitiesPage(props: PageProps<"/opportunites"
         <FreshnessBar stats={await getPlatformStats()} className="mt-5" />
       </PageHero>
       <div className="container-page py-8 sm:py-10">
+      {await getSession().then((s) => (s && s.memberships.length === 0 ? <CompanySetupBanner openCount={0} suite="/opportunites" /> : null))}
       {allowed ? (
         <OpportunityResults filters={filters} rawParams={sp} basePath="/opportunites" trackSearch={searching} />
       ) : (
