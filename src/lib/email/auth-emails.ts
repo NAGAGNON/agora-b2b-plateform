@@ -74,6 +74,7 @@ export const companyCreatedLayout = ({ name }: { name: string; slug?: string | n
     "Les appels d'offres et les besoins d'entreprises qui correspondent à votre métier vous seront proposés dans votre espace.",
     "Aucune action n'est nécessaire de votre part : cet e-mail est une simple confirmation.",
   ],
+  cta: { label: "Accéder à mon espace entreprise", url: `${env.siteUrl}/dashboard/entreprise` },
   footer: "Vous n'êtes pas à l'origine de cette création ? Répondez à cet e-mail.",
 });
 
