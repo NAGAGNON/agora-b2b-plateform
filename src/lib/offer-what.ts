@@ -21,6 +21,8 @@ function lowerFirst(s: string) {
 export function offerWhat(o: { title: string; summary: string | null; description: string | null; external_buyer_name?: string | null }): string | null {
   if (!isGenericSummary(o.summary)) return o.summary;
   const desc = o.description ?? "";
+  // Description libre sans « Objet : » (besoin rédigé par l'acheteur) : elle dit déjà ce qu'il veut, on l'affiche telle quelle
+  if (desc.trim() && !/Objet\s*:/i.test(desc)) return null;
   const objet = (desc.match(/Objet\s*:\s*(.+)/i)?.[1] ?? o.title).trim().replace(/\.+$/, "");
   const type = desc.match(/Type de marché\s*:\s*([a-zé]+)/i)?.[1]?.toLowerCase() ?? o.summary?.match(/Marché de ([a-zé]+)/i)?.[1]?.toLowerCase() ?? "";
   const buyer = o.external_buyer_name?.trim() || o.summary?.split(" — ")[0]?.trim() || "L'acheteur";

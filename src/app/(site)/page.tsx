@@ -61,8 +61,9 @@ export default async function HomePage(props: PageProps<"/">) {
   // Base lente ou indisponible : chaque bloc a sa valeur de repli, la page s'affiche toujours
   const safe = <T, F = T>(p: PromiseLike<T>, fallback: F): Promise<T | F> => Promise.resolve(p).catch(() => fallback);
   const trial = await cardTrial().catch(() => ({ enabled: false, days: 7 }));
-  const [sectors, latest, stats, { data: growth }, labels, { total: needsTotal, rows: needsRows }, memberCompanies, activity] = await Promise.all([
+  const [sectors, { data: analyses }, latest, stats, { data: growth }, labels, { total: needsTotal, rows: needsRows }, memberCompanies, activity] = await Promise.all([
     safe(getSectors(), []),
+    safe(supabase.from("articles").select("slug, title, published_at").eq("status", "PUBLISHED").order("published_at", { ascending: false }).limit(3), { data: null }),
     // Même calcul que la page « Explorer les opportunités » (opportunités ouvertes), trois plus récentes en aperçu
     safe(searchOpportunities(parseOpportunityFilters({ tri: "recent" }), 3), { rows: [], total: 0, error: true as const }),
     safe(getPlatformStats(), null),
@@ -356,6 +357,30 @@ export default async function HomePage(props: PageProps<"/">) {
           </ul>
         </div>
       </section>
+
+      {/* Dernières analyses de marché (liens simples) */}
+      {analyses && analyses.length > 0 && (
+        <section className="cv-auto container-page py-12 sm:py-16" aria-labelledby="analyses">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <h2 id="analyses" className="text-2xl font-extrabold sm:text-3xl">
+              Analyses des marchés
+            </h2>
+            <Link href="/analyses" className="inline-flex items-center gap-1 text-sm font-semibold text-teal-700 hover:underline">
+              Toutes les analyses <ArrowRight className="size-4" aria-hidden />
+            </Link>
+          </div>
+          <ul className="mt-5 grid gap-3 sm:grid-cols-3">
+            {analyses.map((a) => (
+              <li key={a.slug}>
+                <Link href={`/analyses/${a.slug}`} className="group block h-full rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+                  {a.published_at && <p className="text-xs text-slate-500">{formatDate(a.published_at)}</p>}
+                  <p className="mt-1 font-semibold text-navy group-hover:text-teal-700">{a.title}</p>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
 
 

@@ -19,4 +19,7 @@ describe("Ce que cherche l'acheteur", () => {
   it("travaux, majuscules et sigles", () => {
     expect(offerWhat({ title: "REHABILITATION DES BLOCS SANITAIRES", summary: "OPAC — Marché de travaux", description: null })).toBe("OPAC cherche une entreprise de travaux pour : rehabilitation des blocs sanitaires.");
   });
+  it("laisse la description libre quand l'avis n'a pas de ligne « Objet »", () => {
+    expect(offerWhat({ title: "Travaux électriques", summary: null, description: "Remplacement des tableaux électriques de l'école." })).toBeNull();
+  });
 });
