@@ -48,7 +48,10 @@ export function renderSignupNotice(u: {
   const html = `<!doctype html><html lang="fr"><body style="margin:0;background:#E8F4FD;font-family:Inter,Arial,sans-serif">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:24px 8px">
 <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#ffffff;border-radius:12px">
-<tr><td style="background:#0B1F3A;border-radius:12px 12px 0 0;padding:16px 24px;color:#ffffff;font-weight:700;font-size:17px">LinkPro<span style="color:#14B8A6">B2B</span> — nouvel inscrit</td></tr>
+<tr><td style="background:#0B1F3A;border-radius:12px 12px 0 0;padding:16px 24px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+<td valign="middle"><a href="${siteUrl()}" style="text-decoration:none"><img src="${siteUrl()}/brand/logo-white.png" width="160" height="32" alt="LinkProB2B" style="display:block;border:0;width:160px;height:32px;color:#ffffff;font-size:18px;font-weight:700"></a></td>
+<td valign="middle" align="right" style="color:#99f6e4;font-size:14px;font-weight:600">${u.company ? "Entreprise renseignée" : "Nouvel inscrit"}</td>
+</tr></table></td></tr>
 <tr><td style="padding:20px 24px"><table role="presentation" cellpadding="0" cellspacing="0" style="font-size:14px;line-height:22px;color:#0f172a">
 ${rows.map(([k, v]) => `<tr><td style="padding:4px 16px 4px 0;color:#64748b;white-space:nowrap">${esc(k)}</td><td style="padding:4px 0;font-weight:600">${esc(v)}</td></tr>`).join("")}
 </table>${linksHtml}<p style="margin:20px 0 0"><a href="${admin}" style="color:#0d9488;font-weight:600">Ouvrir le tableau de bord</a></p></td></tr></table></td></tr></table></body></html>`;
