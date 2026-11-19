@@ -40,9 +40,9 @@ import { HeroVideo } from "@/components/home/hero-video";
 import { DirectoryShowcase } from "@/components/home/directory-showcase";
 
 export const metadata = pageMetadata({
-  title: "LinkProB2B — Appels d'offres et opportunités B2B en France",
+  title: "LinkProB2B — Trouvez des opportunités B2B, gagnez du temps",
   description:
-    "Appels d'offres publics (BOAMP, TED) et besoins d'entreprises partout en France : recherche par secteur et région, alertes par e-mail. Inscription gratuite.",
+    "Appels d'offres publics et besoins d'entreprises triés pour votre métier, aide à la réponse et prospection B2B. Gagnez du temps, développez votre activité. Gratuit.",
   path: "/",
 });
 
@@ -111,10 +111,10 @@ export default async function HomePage(props: PageProps<"/">) {
                 {openCount ? `${nf(openCount)} opportunité${openCount > 1 ? "s" : ""} disponible${openCount > 1 ? "s" : ""} aujourd'hui partout en France` : "Opportunités B2B partout en France"}
               </p>
               <h1 className="mt-5 animate-rise text-4xl leading-[1.05] font-extrabold text-navy [animation-delay:120ms] sm:text-6xl">
-                Les bonnes <span className="text-gradient-dark">opportunités</span> commencent ici.
+                Trouvez des <span className="text-gradient-dark">opportunités</span>. Gagnez du temps. Développez votre activité.
               </h1>
               <p className="mt-5 max-w-xl animate-rise text-lg text-slate-700 [animation-delay:300ms]">
-                Trouvez les bons marchés, évaluez vos chances de répondre et pilotez vos candidatures jusqu&apos;au résultat.
+                Les appels d&apos;offres publics et les besoins d&apos;entreprises de votre métier, triés pour vous. Nous vous aidons à y répondre, et nous présentons votre entreprise à celles qui peuvent devenir vos clients.
               </p>
               <div className="mt-8 flex animate-rise flex-col gap-3 [animation-delay:500ms] sm:flex-row">
                 <TrackedButtonLink cta="home_hero_opportunites" href="/opportunites" size="lg" className="sm:px-8">

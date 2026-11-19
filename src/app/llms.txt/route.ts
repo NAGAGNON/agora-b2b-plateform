@@ -9,7 +9,7 @@ export function GET() {
   const base = siteUrl();
   const text = `# LinkProB2B
 
-> Plateforme française qui aide les entreprises (artisans, TPE, PME) à trouver des marchés : appels d'offres publics (BOAMP, TED) et besoins publiés par des entreprises, partout en France, mis à jour chaque jour. Chaque appel d'offres est expliqué en langage simple, avec un guide étape par étape pour répondre. Inscription gratuite.
+> Plateforme française qui aide les entreprises (artisans, TPE, PME) à trouver des marchés : appels d'offres publics (BOAMP, TED) et besoins publiés par des entreprises, partout en France, mis à jour chaque jour. Chaque appel d'offres est expliqué en langage simple, avec un guide étape par étape pour répondre, et la plateforme peut présenter chaque jour une entreprise aux entreprises qu'elle cible (campagnes de visibilité). Devise : « Trouvez des opportunités. Gagnez du temps. Développez votre activité. » Inscription gratuite.
 
 ## Ce que l'on trouve sur LinkProB2B
 - [Appels d'offres et opportunités](${base}/opportunites) : marchés publics et besoins d'entreprises, par métier, région et département, avec alertes gratuites par e-mail.

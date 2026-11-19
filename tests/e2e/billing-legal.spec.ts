@@ -28,8 +28,8 @@ test("page Tarifs : trois offres, prix HT, comparatif et appels à l'action", as
 test("page d'accueil : message et appels à l'action", async ({ browser }) => {
   const page = await newPage(browser);
   await page.goto("/");
-  await expect(page.getByRole("heading", { level: 1 })).toContainText("Les bonnes opportunités commencent ici.");
-  await expect(page.getByText("Trouvez les bons marchés, évaluez vos chances de répondre et pilotez vos candidatures jusqu'au résultat.")).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("Trouvez des opportunités. Gagnez du temps. Développez votre activité.");
+  await expect(page.getByText("Les appels d'offres publics et les besoins d'entreprises de votre métier, triés pour vous.", { exact: false })).toBeVisible();
   await expect(page.getByText("Gratuit · Sans carte bancaire · Des opportunités partout en France", { exact: false })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Trouvez les marchés de votre secteur" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Découvrir les opportunités" }).first()).toHaveAttribute("href", "/opportunites");
