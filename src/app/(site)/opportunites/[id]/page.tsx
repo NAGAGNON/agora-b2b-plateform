@@ -49,7 +49,9 @@ import { ShareLinks } from "@/components/share-links";
 import { cookies, headers } from "next/headers";
 import { OfferAccessGate } from "@/components/opportunities/offer-access-gate";
 import { GuideButton } from "@/components/applications/guide-button";
-import { boampId, storedBrief, tedId } from "@/lib/tender-brief";
+import { boampId, ensureBrief, storedBrief, tedId } from "@/lib/tender-brief";
+import { offerWhat } from "@/lib/offer-what";
+import { after } from "next/server";
 import { NeedContactForm } from "@/components/opportunities/need-contact-form";
 import { OUTREACH_COOKIE, outreachVisitor, track as trackOutreach } from "@/lib/outreach/tracking";
 import { getSectorLabels, showDemoData, getLocationLabel, getDepartments, getOpenCounts } from "@/lib/queries/platform";
@@ -271,7 +273,7 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
             budget: o.budget_visible ? formatBudget(o.budget_min, o.budget_max) : null,
             // Avis public collecté (BOAMP, TED…) : début du descriptif en aperçu ; besoin d'entreprise : son résumé
             excerpt: o.origin === "EXTERNAL" ? gateExcerpt(o.description) : needOpen ? o.summary : null,
-            summary: notice?.summary ?? null,
+            summary: notice?.summary ?? (o.origin === "EXTERNAL" ? offerWhat(o) : null),
             reference: notice?.reference ?? null,
             cpv: o.origin === "EXTERNAL" ? (o.cpv_codes ?? []).slice(0, 4) : [],
           }}
@@ -333,7 +335,11 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
   // « En savoir plus », qui ouvre la fiche de candidature (conditions, pièces, dépôt et annonce officielle).
   if (external) {
     const guided = isOpen && !o.is_demo;
-    const what = brief?.summary ?? o.summary ?? (o.description ? clip(o.description.replace(/\s+/g, " ").trim(), 260) : null);
+    // Fiche synthèse rédigée : sa phrase « ce que veut l'acheteur ». Sinon, phrase claire tirée de l'avis
+    // (le résumé de collecte « Acheteur — Marché de services » ne disait rien du besoin), et la fiche est
+    // préparée en arrière-plan pour les membres connectés, pour les visites suivantes.
+    const what = brief?.summary ?? offerWhat(o) ?? (o.description ? clip(o.description.replace(/\s+/g, " ").trim(), 260) : null);
+    if (!brief?.summary && guided && session) after(() => ensureBrief(o.id).catch(() => null));
     const days = o.response_deadline ? Math.ceil((new Date(o.response_deadline).getTime() - new Date().getTime()) / 86_400_000) : null;
     const where = [(await getLocationLabel())(o.city, o.department_code), o.region].filter(Boolean).join(" · ") || null;
     const trade = o.sector_slug ? sectorLabel(o.sector_slug, await getSectorLabels()) : null;
