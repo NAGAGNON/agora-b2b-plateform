@@ -104,9 +104,16 @@ export async function getUserActivity(db: Db, userIds: string[], since: string, 
         str(p.sector) ? (sectorLabels[p.sector as string] ?? (p.sector as string)) : null,
         str(p.region) ? (regionBySlug(p.region as string)?.name ?? (p.region as string)) : null,
         str(p.department) ? `dép. ${p.department}` : null,
+        str(p.city) ? `ville ${p.city}` : null,
+        p.origin === "INTERNAL" ? "besoins d'entreprises seulement" : p.origin === "EXTERNAL" ? "marchés publics seulement" : null,
+        str(p.types) ? `${String(p.types).split(",").length} type(s) d'offre cochés` : null,
+        str(p.size) ? `taille ${p.size}` : null,
+        typeof p.skills === "number" ? `${p.skills} compétence(s)` : null,
       ].filter(Boolean);
       const results = typeof p.results === "number" ? ` → ${p.results} résultat${p.results > 1 ? "s" : ""}` : "";
-      extra = { detail: `${parts.length ? parts.join(" · ") : "sans filtre"}${results}` };
+      // Recherche vide : ce que le site a proposé à la place (mesuré depuis le 19/11)
+      const proposed = p.results === 0 && "nearby" in p ? (str(p.nearby) ? ` · offres proches proposées : ${p.nearby}` : " · aucune offre proche trouvée") : "";
+      extra = { detail: `${parts.length ? parts.join(" · ") : "sans filtre"}${results}${proposed}` };
     } else if (e.event_name === "view_company" && str(p.company_id)) {
       extra = { detail: company.get(p.company_id as string) ?? null, href: slug.get(p.company_id as string) ? `/entreprises/${slug.get(p.company_id as string)}` : null };
     } else if (e.event_name === "save_favorite") {
