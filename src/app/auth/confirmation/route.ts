@@ -37,9 +37,10 @@ export async function GET(request: NextRequest) {
   // Nouvel inscrit sans page demandée : directement à la fiche entreprise (30 secondes), qui fait marcher
   // le site pour lui ; une page précise (offre, acheteur) reste prioritaire
   const isNew = type === "signup" || type === "email" || (searchParams.get("fournisseur") === "google" && Boolean(data.user) && Date.now() - new Date(data.user!.created_at).getTime() < 5 * 60_000);
-  if (isNew && !searchParams.get("suite") && data.user) {
+  if (isNew && data.user && !next.startsWith("/onboarding")) {
     const { count } = await supabase.from("company_members").select("company_id", { count: "exact", head: true }).eq("user_id", data.user.id);
-    if (!count) return NextResponse.redirect(new URL("/onboarding/entreprise?bienvenue=1", origin));
+    // Page demandée (offre, acheteur) gardée en « suite » : ouverte juste après la fiche express, ou en la passant
+    if (!count) return NextResponse.redirect(new URL(`/onboarding/entreprise?${new URLSearchParams({ bienvenue: "1", ...(searchParams.get("suite") ? { suite: next } : {}) })}`, origin));
   }
   return NextResponse.redirect(new URL(next, origin));
 }

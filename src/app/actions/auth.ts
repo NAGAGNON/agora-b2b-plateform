@@ -65,6 +65,10 @@ export async function signUp(_prev: ActionResult | null, formData: FormData): Pr
   };
   // Offre (ou page) à ouvrir après l'inscription : parcours « e-mail de prospection »
   const next = safeNext(formData.get("suite"), "/onboarding/entreprise");
+  // Nouvel inscrit : d'abord la fiche express (métier et ville, 30 s) avec retour à la page demandée et un lien
+  // « Passer cette étape » ; sans elle, le site ne trie rien pour lui (35 inscrits sur 66 sans fiche au 18/11).
+  // Le parcours « e-mail de prospection » (cas 0 ci-dessous) garde l'ouverture directe de l'offre.
+  const landing = /^\/(onboarding|dashboard|essai)/.test(next) ? next : `/onboarding/entreprise?${new URLSearchParams({ suite: next })}`;
   const exists = { ok: false as const, error: "Un compte existe déjà avec cette adresse. Connectez-vous ou réinitialisez votre mot de passe." };
   const weak = { ok: false as const, error: "Mot de passe trop faible.", fieldErrors: { password: "Mot de passe trop faible ou trop courant." } };
   const failed = { ok: false as const, error: "L'inscription n'a pas pu aboutir. Veuillez réessayer." };
@@ -118,7 +122,7 @@ export async function signUp(_prev: ActionResult | null, formData: FormData): Pr
     await supabase.rpc("track_event", { p_event_name: "create_account" });
     await trackSignupReferral(formData.get("ref"), created.user?.id ?? null);
     if (created.user) await welcomeNewMember({ id: created.user.id, email: parsed.data.email }, next, formData.get("ref"), formData.get("visite"));
-    redirect(next);
+    redirect(landing);
   }
 
   // 2. Prévisualisation / développement sans fournisseur e-mail : activation immédiate.
@@ -141,7 +145,7 @@ export async function signUp(_prev: ActionResult | null, formData: FormData): Pr
     await supabase.rpc("track_event", { p_event_name: "create_account" });
     await trackSignupReferral(formData.get("ref"), created.user?.id ?? null);
     if (created.user) await welcomeNewMember({ id: created.user.id, email: parsed.data.email }, next, formData.get("ref"), formData.get("visite"));
-    redirect(next);
+    redirect(landing);
   }
 
   // 3. Production sans Resend : service d'envoi configuré dans Supabase (SMTP du projet).
@@ -168,7 +172,7 @@ export async function signUp(_prev: ActionResult | null, formData: FormData): Pr
     return { ok: true, message };
   }
   await bootstrapInitialAdmin(parsed.data.email);
-  redirect(next);
+  redirect(landing);
 }
 
 export async function signOut() {
