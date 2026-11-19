@@ -48,11 +48,29 @@ export async function OpportunityResults({ filters, rawParams, basePath, trackSe
   // Toujours rien : on élargit tout seul (jamais de page vide). D'abord les mots cherchés partout en France
   // et dans tous les secteurs, puis la zone et le secteur choisis sans les mots.
   let nearby: { rows: typeof rows; label: string } | null = null;
-  if (!error && total === 0 && filters.origin !== "INTERNAL") {
+  if (!error && total === 0) {
     const hasPlace = Boolean(filters.region || filters.department || filters.city || filters.place);
     const tries: { f: typeof filters; label: string }[] = [];
+    const loose = { ...filters, city: undefined, place: undefined, source: undefined, size: undefined, types: [], publishedSince: undefined, publishedWithin: undefined, deadlineBefore: undefined, skills: [], status: "OPEN" as const, page: 1 };
+    const sectorName = filters.sector ? sectorLabel(filters.sector, labels) : null;
+    const deptRow = filters.department ? departments.find((d) => d.code === filters.department) : null;
+    const regionSlug = filters.region ?? (deptRow?.region ? REGIONS.find((x) => x.name === deptRow.region)?.slug : undefined);
+    const regionName = regionSlug ? REGIONS.find((x) => x.slug === regionSlug)?.name : null;
+    const where = sectorName ? `${sectorName}, ` : "";
+    // Sans mot-clé : on retire d'abord les filtres secondaires, puis on élargit la zone
+    if (!filters.q) {
+      const extra = Boolean(filters.city || filters.place || filters.size || filters.types.length || filters.publishedWithin || filters.deadlineBefore || filters.skills.length || filters.status !== "OPEN");
+      if (extra && (filters.department || filters.region || filters.sector))
+        tries.push({ f: { ...loose, origin: filters.origin }, label: `${where}${deptRow ? `${deptRow.name} (${deptRow.code})` : (regionName ?? "même zone")}, sans les autres filtres` });
+      if (filters.department && regionSlug)
+        tries.push({ f: { ...loose, origin: filters.origin, department: undefined, region: regionSlug }, label: `${where}dans toute la région ${regionName}` });
+      if (filters.sector && (filters.department || filters.region))
+        tries.push({ f: { ...loose, origin: filters.origin, department: undefined, region: undefined }, label: `${where}partout en France` });
+      // Besoins d'entreprises introuvables : les marchés publics du même métier et de la même zone
+      if (filters.origin === "INTERNAL") tries.push({ f: { ...loose, origin: undefined }, label: `appels d'offres et besoins, ${where}${deptRow ? deptRow.name : (regionName ?? "même zone")}` });
+    }
     if (filters.q && (hasPlace || filters.sector || filters.types.length || filters.publishedWithin || filters.deadlineBefore))
-      tries.push({ f: { ...filters, region: undefined, department: undefined, city: undefined, place: undefined, sector: undefined, types: [], publishedWithin: undefined, deadlineBefore: undefined, page: 1 }, label: `« ${corrected ?? filters.q} » partout en France` });
+      tries.push({ f: { ...filters, region: undefined, department: undefined, city: undefined, place: undefined, sector: undefined, types: [], publishedSince: undefined, publishedWithin: undefined, deadlineBefore: undefined, page: 1 }, label: `« ${corrected ?? filters.q} » partout en France` });
     if (filters.q && (hasPlace || filters.sector)) tries.push({ f: { ...filters, q: undefined, page: 1 }, label: "dans la même zone et le même secteur, sans les mots cherchés" });
     if (filters.q && filters.q.trim().split(/\s+/).length > 1) {
       const longest = filters.q.trim().split(/\s+/).sort((a, b) => b.length - a.length)[0];
@@ -68,7 +86,25 @@ export async function OpportunityResults({ filters, rawParams, basePath, trackSe
   }
   // Recherche d'un membre : mesurée avec son nombre de résultats (part des recherches sans résultat)
   if (trackSearch && !error) {
-    void track("search_opportunities", { has_query: Boolean(filters.q), sector: filters.sector ?? null, region: filters.region ?? null, department: filters.department ?? null, results: first.total, ...(corrected ? { corrected: true } : {}) });
+    // Tous les filtres actifs sont notés, pour comprendre les recherches sans résultat
+    void track("search_opportunities", {
+      has_query: Boolean(filters.q),
+      sector: filters.sector ?? null,
+      region: filters.region ?? null,
+      department: filters.department ?? null,
+      results: first.total,
+      ...(corrected ? { corrected: true } : {}),
+      ...(filters.city ? { city: filters.city } : {}),
+      ...(filters.place ? { place: filters.place, radius: filters.radius ?? null } : {}),
+      ...(filters.origin ? { origin: filters.origin } : {}),
+      ...(filters.types.length ? { types: filters.types.join(",") } : {}),
+      ...(filters.size ? { size: filters.size } : {}),
+      ...(filters.skills.length ? { skills: filters.skills.length } : {}),
+      ...(filters.status !== "OPEN" ? { status: filters.status } : {}),
+      ...(filters.publishedWithin ? { published_within: filters.publishedWithin } : {}),
+      ...(filters.deadlineBefore ? { deadline_before: true } : {}),
+      ...(first.total === 0 ? { nearby: nearby?.label ?? null } : {}),
+    });
   }
   // Filtres présents dans l'adresse, en pastilles retirables (le secteur d'une page secteur n'en fait pas partie)
   const has = (k: string) => rawParams[k] !== undefined && rawParams[k] !== "";
