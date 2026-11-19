@@ -54,6 +54,29 @@ describe("environnement applicatif", () => {
     expect(env.emailFrom).toBe("X <a@b.fr>");
   });
 
+  it("EMAIL_TRANSPORT=resend : Resend en priorité, expéditeur du domaine, réponse vers la boîte suivie", async () => {
+    vi.stubEnv("SMTP_HOST", "smtp.gmail.com");
+    vi.stubEnv("SMTP_USER", "fondateur@gmail.com");
+    vi.stubEnv("SMTP_PASSWORD", "x");
+    vi.stubEnv("RESEND_API_KEY", "re_test");
+    vi.stubEnv("EMAIL_FROM", "");
+    vi.stubEnv("RESEND_FROM", "");
+    vi.stubEnv("EMAIL_REPLY_TO", "");
+    expect(env.emailTransport).toBe("smtp");
+    vi.stubEnv("EMAIL_TRANSPORT", "resend");
+    expect(env.emailTransport).toBe("resend");
+    expect(env.resendFrom).toBe("LinkProB2B <notifications@linkprob2b.com>");
+    expect(env.emailReplyTo).toBe("fondateur@gmail.com");
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ id: "e1" }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const r = await sendEmail({ to: "a@b.fr", subject: "S", html: "<p>x</p>", text: "x", fromName: "LinkProB2B | Veille commerciale", headers: { "List-Unsubscribe": "<https://x>" } });
+    expect(r.status).toBe("SENT");
+    const body = JSON.parse((fetchMock.mock.calls[0] as unknown as [string, RequestInit])[1].body as string);
+    expect(body.from).toBe('"LinkProB2B | Veille commerciale" <notifications@linkprob2b.com>');
+    expect(body.reply_to).toBe("fondateur@gmail.com");
+    expect(body.headers["List-Unsubscribe"]).toBe("<https://x>");
+  });
+
   it("normalise l'adresse du premier administrateur", () => {
     vi.stubEnv("INITIAL_ADMIN_EMAIL", "  Moi@Entreprise.FR ");
     expect(env.initialAdminEmail).toBe("moi@entreprise.fr");
