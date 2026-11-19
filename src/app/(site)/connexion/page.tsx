@@ -34,7 +34,7 @@ export default async function LoginPage(props: PageProps<"/connexion">) {
     >
       {sp.erreur === "lien" && (
         <Notice tone="error" className="mb-4">
-          Ce lien n&apos;est plus valide (déjà utilisé ou expiré). Connectez-vous, ou demandez un nouveau lien via{" "}
+          Ce lien n&apos;est plus valide : il a déjà servi, il a plus d&apos;une heure, ou un e-mail plus récent l&apos;a remplacé. Utilisez le lien du dernier e-mail reçu, ou demandez-en un nouveau via{" "}
           <Link href="/mot-de-passe-oublie" className="font-semibold underline">
             mot de passe oublié
           </Link>
