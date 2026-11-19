@@ -8,3 +8,16 @@ test("recherche sans mot-clé et sans résultat : des offres proches sont propos
   await expect(page.getByTestId("nearby-results")).toBeVisible();
   await expect(page.getByTestId("nearby-results")).toContainText("sans les autres filtres");
 });
+
+test("mots cherchés + « besoins d'entreprises » sans résultat : les appels d'offres avec ces mots sont proposés", async ({ page }) => {
+  await login(page, "fournisseur@demo.linkprob2b.test");
+  await page.goto("/opportunites?q=maintenance&origine=INTERNAL&type=MISSION&type=PRIVATE_TENDER");
+  await expect(page.getByTestId("nearby-results")).toBeVisible();
+  await expect(page.getByTestId("nearby-results")).toContainText("« maintenance »");
+});
+
+test("recherche impossible (mot inconnu) : jamais de page vide, les dernières offres sont proposées", async ({ page }) => {
+  await login(page, "fournisseur@demo.linkprob2b.test");
+  await page.goto("/opportunites?q=zzqxwv");
+  await expect(page.getByTestId("nearby-results")).toBeVisible();
+});
