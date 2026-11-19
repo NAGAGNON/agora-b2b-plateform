@@ -79,7 +79,7 @@ export async function WeeklyReviewCard() {
                 </ol>
               </div>
             )}
-            {row.error && <p className="text-xs text-slate-400">{row.error}</p>}
+            {row.error && <p className="text-xs text-slate-500">{row.error}</p>}
           </div>
           <div className="min-w-0 overflow-x-auto">
             <table className="w-full text-sm">
