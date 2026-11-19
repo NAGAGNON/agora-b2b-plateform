@@ -17,6 +17,9 @@ export function breadcrumbLd(items: { name: string; path: string }[]) {
   };
 }
 
+/** Profils officiels de LinkProB2B sur d'autres sites (seulement les fiches publiques et vérifiées). */
+export const SAME_AS = ["https://www.linkedin.com/company/linkprob2b/"];
+
 export function organizationLd() {
   const base = siteUrl();
   return [
@@ -29,8 +32,13 @@ export function organizationLd() {
       alternateName: ["Link Pro B2B", "LinkPro B2B", "Linkprob2b"],
       url: base,
       logo: `${base}/brand/logo.png`,
+      // Même description que sur les annuaires (LinkedIn, G2, Crunchbase…), pour que tous disent la même chose
       description:
-        "Plateforme B2B française qui recense les appels d'offres et marchés publics (BOAMP, TED) et les besoins publiés par les entreprises, et met en relation les entreprises qui ont un besoin avec celles capables d'y répondre.",
+        "LinkProB2B rassemble les appels d'offres publics et les besoins des entreprises en France, et aide les PME, artisans et prestataires à trouver des clients et des partenaires.",
+      // Profils officiels : à compléter quand chaque fiche d'annuaire est publique (G2, Crunchbase, Capterra…)
+      sameAs: SAME_AS,
+      // Fondateur (validé par lui le 19/11)
+      founder: { "@type": "Person", name: "Guy Roland YEO", jobTitle: "Fondateur" },
       knowsAbout: ["Appels d'offres", "Marchés publics", "Prospection B2B", "Mise en relation entre entreprises"],
       areaServed: { "@type": "Country", name: "France" },
     },

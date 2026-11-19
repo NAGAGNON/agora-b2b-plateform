@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Logo } from "@/components/logo";
 import { SLOGAN } from "@/lib/constants";
+import { SAME_AS } from "@/components/json-ld";
 
 const COLUMNS = [
   {
@@ -74,7 +75,12 @@ export function Footer() {
       </div>
       <div className="border-t border-white/10">
         <div className="container-page flex flex-col gap-2 py-4 text-xs text-slate-400 sm:flex-row sm:items-center sm:justify-between">
-          <p>© {new Date().getFullYear()} LinkProB2B.</p>
+          <p>
+            © {new Date().getFullYear()} LinkProB2B.{" "}
+            <a href={SAME_AS[0]} target="_blank" rel="noopener" className="ml-2 font-semibold text-slate-300 hover:text-white hover:underline">
+              LinkedIn
+            </a>
+          </p>
           <nav aria-label="Liens légaux" className="flex flex-wrap gap-x-4 gap-y-1">
             <Link href="/mentions-legales" className="hover:text-white hover:underline">Mentions légales</Link>
             <Link href="/cgu" className="hover:text-white hover:underline">CGU</Link>
