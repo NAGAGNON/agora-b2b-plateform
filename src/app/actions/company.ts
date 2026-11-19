@@ -17,6 +17,7 @@ import { autoLogoFor } from "@/lib/company-logos";
 import { createStarterAlert } from "@/lib/starter-alert";
 import { notifyAdminsOfCompany } from "@/lib/signup-notify";
 import { sendCompanyCreated } from "@/lib/email/auth-emails";
+import { correctTypos } from "@/lib/spell";
 import { autoVerifyCompany } from "@/lib/company-verify";
 import { alertTermsFor, SKILL_CATALOG } from "@/lib/skill-catalog";
 import { ALLOWED_LOGO_TYPES, MAX_LOGO_BYTES } from "@/lib/constants";
@@ -100,7 +101,7 @@ export async function createCompanyExpress(_prev: ActionResult | null, fd: FormD
   // Compétences : cases du catalogue de ce métier, puis saisie libre (séparées par des virgules)
   const catalog = new Set((SKILL_CATALOG[d.sector] ?? []).map((s) => s.label));
   const picked = fd.getAll("skill").map(String).filter((s) => catalog.has(s));
-  const typed = (d.speciality ?? "").split(/[,;\n]/).map((x) => x.trim()).filter((x) => x.length >= 2);
+  const typed = (d.speciality ?? "").split(/[,;\n]/).map((x) => correctTypos(x.trim())).filter((x) => x.length >= 2);
   const skills = [...new Set([...picked, ...typed])].slice(0, 12);
   // Ciblage précis : au moins une compétence (c'est elle qui choisit les offres envoyées)
   if (!skills.length || !alertTermsFor(skills).terms.length)
