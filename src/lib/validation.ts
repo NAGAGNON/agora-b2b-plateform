@@ -1,6 +1,7 @@
 import { REGIONS } from "@/lib/geo";
 import { z } from "zod";
 import { splitList } from "@/lib/format";
+import { correctTypos } from "@/lib/spell";
 
 /** Champ texte optionnel : chaîne vide → undefined. */
 const optionalText = (max: number) =>
@@ -39,6 +40,9 @@ const optionalDate = z.preprocess(
 const checkbox = z.preprocess((v) => v === "on" || v === "true" || v === true, z.boolean());
 
 const listField = (max = 30) => z.preprocess((v) => (Array.isArray(v) ? v : splitList(String(v ?? ""), max)), z.array(z.string()).max(max));
+/** Compétences saisies : fautes de frappe corrigées (« Eau potalbe » → « Eau potable »), doublons retirés. */
+const skillList = (max = 30) =>
+  z.preprocess((v) => [...new Set((Array.isArray(v) ? v.map(String) : splitList(String(v ?? ""), max)).map((x) => correctTypos(x.trim())).filter(Boolean))], z.array(z.string()).max(max));
 
 const optionalUrl = z.preprocess(
   (v) => {
@@ -121,7 +125,7 @@ export const companySchema = z.object({
   tagline: optionalText(160),
   description: optionalText(4000),
   sectors: sectorList,
-  skills: listField(30),
+  skills: skillList(30),
 });
 
 export const companyProfileSchema = z.object({
@@ -139,7 +143,7 @@ export const companyProfileSchema = z.object({
   tagline: optionalText(160),
   description: optionalText(4000),
   sectors: sectorList,
-  skills: listField(30),
+  skills: skillList(30),
   interventionZone: optionalText(300),
   interventionRadiusKm: optionalInt(0, 2000),
   certifications: listField(20),
@@ -185,7 +189,7 @@ export const opportunitySchema = z
     budgetVisible: checkbox,
     startDate: optionalDate,
     responseDeadline: optionalDate,
-    skills: listField(20),
+    skills: skillList(20),
     services: optionalText(4000),
     constraints: optionalText(4000),
     criteria: optionalText(4000),
@@ -247,11 +251,11 @@ export const alertSchema = z.object({
     (v) => (v === "" ? undefined : v),
     z.enum(["NEED", "QUOTE_REQUEST", "PRIVATE_CONSULTATION", "PRIVATE_TENDER", "EXTERNAL_OPPORTUNITY", "PUBLIC_TENDER"]).optional(),
   ),
-  keywords: optionalText(200),
+  keywords: z.preprocess((v) => (typeof v === "string" ? correctTypos(v) : v), optionalText(200)),
   frequency: z.enum(["IMMEDIATE", "DAILY", "WEEKLY"]),
   placeSlug: z.preprocess((v) => (v === "" ? undefined : v), z.string().regex(/^[a-z0-9-]{1,80}$/, { error: "Ville invalide" }).optional()),
   radiusKm: z.preprocess((v) => (v === "" || v == null ? undefined : v), z.coerce.number().int().min(5).max(300).optional()),
-  skills: listField(10),
+  skills: skillList(10),
   companySize: z.preprocess((v) => (v === "" ? undefined : v), z.enum(["INDEPENDANT", "TPE", "PME", "ETI", "GE"]).optional()),
   includeExternal: z.preprocess((v) => v === "on" || v === "true", z.boolean()),
   // Alerte précise (facultatif)
