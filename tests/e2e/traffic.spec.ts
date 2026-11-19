@@ -65,7 +65,7 @@ test("boutons de partage d'une offre ouverte", async ({ browser }) => {
   const page = await memberPage(browser);
   await page.goto(`/opportunites/${id}`);
   const offer = encodeURIComponent(`/opportunites/${id}`);
-  await expect(page.getByRole("link", { name: /LinkedIn/ })).toHaveAttribute("href", new RegExp(`linkedin\\.com/sharing/share-offsite/\\?url=.*${offer}`));
+  await expect(page.locator("#contenu").getByRole("link", { name: /LinkedIn/ })).toHaveAttribute("href", new RegExp(`linkedin\\.com/sharing/share-offsite/\\?url=.*${offer}`));
   await expect(page.getByRole("link", { name: /WhatsApp/ })).toHaveAttribute("href", new RegExp(`^https://wa\\.me/\\?text=.*${offer}`));
   await expect(page.getByRole("link", { name: "E-mail", exact: true })).toHaveAttribute("href", /^mailto:\?subject=/);
 });
