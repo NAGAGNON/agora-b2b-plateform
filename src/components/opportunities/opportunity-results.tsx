@@ -67,10 +67,15 @@ export async function OpportunityResults({ filters, rawParams, basePath, trackSe
       if (filters.sector && (filters.department || filters.region))
         tries.push({ f: { ...loose, origin: filters.origin, department: undefined, region: undefined }, label: `${where}partout en France` });
       // Besoins d'entreprises introuvables : les marchés publics du même métier et de la même zone
-      if (filters.origin === "INTERNAL") tries.push({ f: { ...loose, origin: undefined }, label: `appels d'offres et besoins, ${where}${deptRow ? deptRow.name : (regionName ?? "même zone")}` });
+      if (filters.origin === "INTERNAL" && (filters.sector || filters.department || filters.region)) tries.push({ f: { ...loose, origin: undefined }, label: `appels d'offres et besoins, ${where}${deptRow ? deptRow.name : (regionName ?? "même zone")}` });
     }
-    if (filters.q && (hasPlace || filters.sector || filters.types.length || filters.publishedWithin || filters.deadlineBefore))
-      tries.push({ f: { ...filters, region: undefined, department: undefined, city: undefined, place: undefined, sector: undefined, types: [], publishedSince: undefined, publishedWithin: undefined, deadlineBefore: undefined, page: 1 }, label: `« ${corrected ?? filters.q} » partout en France` });
+    // Mots cherchés avec des filtres qui ne donnent rien (zone, secteur, types, « besoins d'entreprises », taille…) :
+    // les mêmes mots sans aucun filtre
+    if (filters.q && (hasPlace || filters.sector || filters.types.length || filters.origin || filters.size || filters.skills.length || filters.publishedWithin || filters.deadlineBefore || filters.status !== "OPEN"))
+      tries.push({
+        f: { ...filters, region: undefined, department: undefined, city: undefined, place: undefined, sector: undefined, types: [], origin: undefined, size: undefined, skills: [], source: undefined, status: "OPEN", publishedSince: undefined, publishedWithin: undefined, deadlineBefore: undefined, page: 1 },
+        label: filters.origin === "INTERNAL" ? `« ${corrected ?? filters.q} » dans les appels d'offres (aucun besoin d'entreprise pour ces mots)` : `« ${corrected ?? filters.q} », sans les autres filtres`,
+      });
     if (filters.q && (hasPlace || filters.sector)) tries.push({ f: { ...filters, q: undefined, page: 1 }, label: "dans la même zone et le même secteur, sans les mots cherchés" });
     if (filters.q && filters.q.trim().split(/\s+/).length > 1) {
       const longest = filters.q.trim().split(/\s+/).sort((a, b) => b.length - a.length)[0];
@@ -208,7 +213,7 @@ export async function OpportunityResults({ filters, rawParams, basePath, trackSe
         <div className="mt-6">
           {error ? (
             <ErrorState description="La recherche n'a pas pu aboutir. Veuillez réessayer dans un instant." />
-          ) : rows.length === 0 && filters.origin === "INTERNAL" ? (
+          ) : rows.length === 0 && filters.origin === "INTERNAL" && !nearby ? (
             <EmptyState
               icon={<SearchX className="size-6" aria-hidden />}
               title={session ? "Aucun besoin d'entreprise ouvert pour ces critères" : "Aucun besoin d'entreprise visible pour le moment"}
