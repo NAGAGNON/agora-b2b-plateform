@@ -28,5 +28,12 @@ export function RouteProgress() {
     return () => document.removeEventListener("click", onClick);
   }, []);
 
+  // Sécurité : si la page ne change pas (lien annulé, erreur réseau), la barre disparaît d'elle-même
+  useEffect(() => {
+    if (!loading) return;
+    const t = setTimeout(() => setLoading(false), 8000);
+    return () => clearTimeout(t);
+  }, [loading]);
+
   return loading ? <div className="route-progress" aria-hidden /> : null;
 }
