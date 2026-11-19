@@ -62,6 +62,59 @@ export const welcomeLayout = ({ offers = [], alertName = null }: WelcomeExtras =
   footer: "Vous n'êtes pas à l'origine de cette inscription ? Répondez à cet e-mail : le compte sera supprimé.",
 });
 
+/** E-mail envoyé quand un membre crée la fiche de son entreprise (une seule fois par entreprise). */
+export const companyCreatedSubject = (name: string) => `Votre entreprise ${name} est créée sur LinkProB2B`;
+
+export const companyCreatedLayout = ({ name, slug, hasSiren }: { name: string; slug: string | null; hasSiren: boolean }): Layout => ({
+  kicker: "Entreprise créée",
+  hero: "equipe",
+  title: `${name} est maintenant sur LinkProB2B`,
+  paragraphs: [
+    `La fiche de votre entreprise ${name} est enregistrée. Vous pouvez la consulter et la compléter à tout moment depuis votre espace.`,
+    "Nous vous proposons les appels d'offres et les besoins d'entreprises qui correspondent à votre métier : ils sont rassemblés dans « Offres pour moi ».",
+    ...(hasSiren ? [] : ["Pensez à ajouter votre numéro SIREN depuis votre tableau de bord : il rassure les entreprises qui consultent votre fiche."]),
+    "Plus votre présentation est précise (métier, compétences, zone d'intervention), plus les offres proposées sont justes.",
+  ],
+  list: slug ? [{ label: "Voir la fiche de mon entreprise", url: `${env.siteUrl}/entreprises/${slug}` }] : undefined,
+  cta: { label: "Voir les offres pour moi", url: `${env.siteUrl}/dashboard/recommandations` },
+  footer: "Vous n'êtes pas à l'origine de cette création ? Répondez à cet e-mail.",
+});
+
+/**
+ * Confirme au membre la création de son entreprise. Une seule fois par entreprise et par membre
+ * (vérifié dans le journal des envois). Jamais bloquant.
+ */
+export async function sendCompanyCreated(userId: string, companyId: string): Promise<void> {
+  if (!appSendsAuthEmails()) return;
+  try {
+    const db = createAdminClient();
+    const [{ data: u }, { data: co }] = await Promise.all([
+      db.from("users").select("email, is_demo").eq("id", userId).maybeSingle(),
+      db.from("companies").select("name, slug, siren, is_demo").eq("id", companyId).maybeSingle(),
+    ]);
+    if (!u?.email || u.is_demo || !co || co.is_demo) return;
+    const { count } = await db.from("email_outbox").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("template", "company_created").contains("payload", { company_id: companyId });
+    if (count) return;
+    const layout = companyCreatedLayout({ name: co.name, slug: co.slug, hasSiren: Boolean(co.siren) });
+    const subject = companyCreatedSubject(co.name);
+    const { html, text } = renderEmail(layout);
+    const result = await sendEmail({ to: u.email, subject, html, text, idempotencyKey: `company-created-${companyId}-${userId}` });
+    await db.from("email_outbox").insert({
+      user_id: userId,
+      to_email: u.email,
+      template: "company_created",
+      subject,
+      payload: { title: layout.title, company_id: companyId },
+      status: result.status,
+      attempts: 1,
+      last_error: result.error ?? null,
+      sent_at: result.status === "SENT" ? new Date().toISOString() : null,
+    });
+  } catch (e) {
+    logServerError("company created email", e);
+  }
+}
+
 export const appSendsAuthEmails = () => env.emailTransport !== null;
 
 function confirmationUrl(tokenHash: string, type: "signup" | "recovery" | "magiclink", suite: string) {
