@@ -196,7 +196,7 @@ export async function requestPasswordReset(_prev: ActionResult | null, formData:
     });
   }
   // Réponse identique que le compte existe ou non (pas d'énumération).
-  return { ok: true, message: "Si un compte existe pour cette adresse, un e-mail de réinitialisation vient d'être envoyé." };
+  return { ok: true, message: "Si un compte existe pour cette adresse, un e-mail de réinitialisation vient d'être envoyé. Cliquez sur le lien dans l'heure : une nouvelle demande remplace les liens précédents." };
 }
 
 export async function updatePassword(_prev: ActionResult | null, formData: FormData): Promise<ActionResult> {

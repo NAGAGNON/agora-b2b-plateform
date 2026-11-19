@@ -38,7 +38,7 @@ export const recoveryLayout = (url: string): Layout => ({
   title: "Réinitialiser votre mot de passe",
   paragraphs: [
     "Une demande de réinitialisation du mot de passe a été faite pour votre compte LinkProB2B.",
-    "Ce lien est valable 1 heure et ne peut être utilisé qu'une seule fois.",
+    "Ce lien est valable 1 heure et ne peut être utilisé qu'une seule fois. Si vous faites une nouvelle demande, seul le lien du dernier e-mail reçu fonctionne.",
   ],
   cta: { label: "Choisir un nouveau mot de passe", url },
   footer: "Vous n'êtes pas à l'origine de cette demande ? Ignorez cet e-mail : votre mot de passe reste inchangé.",
