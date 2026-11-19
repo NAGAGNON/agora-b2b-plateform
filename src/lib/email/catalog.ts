@@ -1,6 +1,6 @@
 import "server-only";
 import { env } from "@/lib/env";
-import { AUTH_SUBJECTS, recoveryLayout, signupLayout, welcomeLayout } from "@/lib/email/auth-emails";
+import { AUTH_SUBJECTS, companyCreatedLayout, companyCreatedSubject, recoveryLayout, signupLayout, welcomeLayout } from "@/lib/email/auth-emails";
 import { notificationLayout, type NotificationPayload } from "@/lib/email/outbox";
 import type { renderEmail } from "@/lib/email/templates";
 
@@ -15,6 +15,7 @@ export function emailCatalog(): Entry[] {
   return [
     { key: "auth_confirm_signup", label: "Vérification de l'adresse e-mail", trigger: "Inscription", subject: AUTH_SUBJECTS.signup, layout: signupLayout(link) },
     { key: "welcome", label: "Bienvenue", trigger: "Adresse confirmée", subject: AUTH_SUBJECTS.welcome, layout: welcomeLayout() },
+    { key: "company_created", label: "Entreprise créée", trigger: "Un membre crée la fiche de son entreprise (une fois par entreprise)", subject: companyCreatedSubject("Entreprise exemple"), layout: companyCreatedLayout({ name: "Entreprise exemple", slug: "entreprise-exemple", hasSiren: false }) },
     { key: "auth_recovery", label: "Récupération du mot de passe", trigger: "Mot de passe oublié", subject: AUTH_SUBJECTS.recovery, layout: recoveryLayout(link.replace("signup", "recovery")) },
     n("opportunity_published", "Publication validée", "Modération : approbation", { title: "Votre besoin est publié", body: "« Maintenance préventive de deux compresseurs » est visible des fournisseurs.", link: "/dashboard/opportunites/exemple" }),
     n("opportunity_changes_requested", "Modifications demandées", "Modération : demande de modification", { title: "Modifications demandées sur votre publication", body: "Motif : précisez le périmètre et la date limite.", link: "/dashboard/opportunites/exemple" }),
