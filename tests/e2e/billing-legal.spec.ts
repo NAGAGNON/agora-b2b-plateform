@@ -5,7 +5,7 @@ test("page Tarifs : trois offres, prix HT, comparatif et appels à l'action", as
   const page = await newPage(browser);
   await page.goto("/tarifs");
   await expect(page.getByText("Pendant la phase de lancement, toutes les fonctionnalités sont gratuites pour les inscrits.", { exact: false })).toBeVisible();
-  await expect(page.getByText("Offre prévue : pas encore proposée à l'achat.").first()).toBeVisible();
+  await expect(page.getByText("Bientôt disponible. En attendant, l'inscription est gratuite.").first()).toBeVisible();
   for (const name of ["Gratuit", "Pro", "Business"]) await expect(page.getByRole("heading", { name, exact: true })).toBeVisible();
   await expect(page.getByText("Recommandé", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("Le plus populaire")).toHaveCount(0);

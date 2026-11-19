@@ -83,7 +83,7 @@ function PlanCard({ p, index, yearly, launch, paidOpen, trialDays }: { p: PlanIn
       ? "Commencer avec l'offre Gratuite"
       : free || paidOpen
         ? p.cta
-        : "Ouverture prochaine — commencer gratuitement";
+        : "Commencer gratuitement";
   const monthly = yearly && !free ? yearlyMonthlyHT(p) : p.priceHT;
   const highlights = launch && free && !trialDays ? LAUNCH_HIGHLIGHTS : p.highlights;
 
@@ -135,7 +135,7 @@ function PlanCard({ p, index, yearly, launch, paidOpen, trialDays }: { p: PlanIn
         </p>
       )}
       {launch && !free && !trialDays && (
-        <p className={cn("mt-3 rounded-xl px-3 py-2 text-sm font-medium", dark ? "bg-white/10 text-slate-200" : "bg-slate-100 text-slate-700")}>Offre prévue : pas encore proposée à l&apos;achat.</p>
+        <p className={cn("mt-3 rounded-xl px-3 py-2 text-sm font-medium", dark ? "bg-white/10 text-slate-200" : "bg-slate-100 text-slate-700")}>Bientôt disponible. En attendant, l&apos;inscription est gratuite.</p>
       )}
 
       <ul className="mt-6 flex-1 space-y-3 text-sm">
