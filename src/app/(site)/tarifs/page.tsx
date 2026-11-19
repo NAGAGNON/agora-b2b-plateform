@@ -1,6 +1,5 @@
 import Link from "next/link";
-import Image from "next/image";
-import { ArrowRight, BellRing, ChevronDown, FileText, Lock, Radar, ShieldCheck, Sparkles, Target, Zap } from "lucide-react";
+import { ArrowRight, ChevronDown, Lock, Radar, ShieldCheck, Zap } from "lucide-react";
 import { freeLaunch } from "@/lib/billing/entitlements";
 import { cardTrial } from "@/lib/billing/card-trial";
 import { FOUNDER_PRICE_HT, founderOffer, founderOpen, founderSeatsTaken, seatsLeft } from "@/lib/billing/founder";
@@ -20,24 +19,6 @@ export const metadata = pageMetadata({
   path: "/tarifs",
 });
 
-const VALUE = [
-  {
-    icon: FileText,
-    title: "Chaque appel d'offres résumé en 30 secondes",
-    text: "Ce que veut l'acheteur, les critères de choix, les pièces à fournir, la date limite : vous savez tout de suite s'il vaut la peine d'y répondre.",
-    image: "/images/illustrations/plans.webp",
-    wide: true,
-  },
-  { icon: Sparkles, title: "Les besoins d'entreprises en avant-première", text: "Vous les voyez avant les autres, et vous êtes proposé en premier aux clients.", image: "/images/illustrations/poignee-de-main.webp" },
-  { icon: BellRing, title: "Votre veille, chaque matin", text: "Les nouveaux marchés de votre métier et de votre zone, du lundi au vendredi.", image: "/images/illustrations/ordinateurs.webp" },
-  {
-    icon: Target,
-    title: "Un pipeline pour ne rien laisser passer",
-    text: "De la découverte à la signature : étapes, relances et dates limites au même endroit.",
-    image: "/images/illustrations/tableau-de-bord.webp",
-    wide: true,
-  },
-];
 
 export default async function PricingPage() {
   // Paiement réel seulement en mode LIVE : sinon les offres payantes sont annoncées, pas vendues
@@ -130,29 +111,6 @@ export default async function PricingPage() {
         </ul>
       </section>
 
-      {/* Ce que Pro change concrètement */}
-      <section aria-labelledby="valeur" className="cv-auto container-page py-16 sm:py-24">
-        <p className="text-center text-sm font-semibold tracking-wide text-teal-700 uppercase">En pratique</p>
-        <h2 id="valeur" className="mx-auto mt-2 max-w-2xl text-center font-heading text-3xl font-extrabold text-navy sm:text-4xl">
-          Moins de temps à chercher, plus de temps à répondre
-        </h2>
-        <div className="mt-12 grid gap-5 md:grid-cols-3">
-          {VALUE.map(({ icon: Icon, title, text, image, wide }) => (
-            <article
-              key={title}
-              className={`reveal group relative isolate flex min-h-64 flex-col justify-end overflow-hidden rounded-3xl bg-navy p-7 text-white shadow-lg ${wide ? "md:col-span-2" : ""}`}
-            >
-              <Image src={image} alt="" fill unoptimized sizes="(min-width: 768px) 60vw, 100vw" className="-z-20 object-cover opacity-50 transition-transform duration-700 group-hover:scale-105" />
-              <div aria-hidden className="absolute inset-0 -z-10 bg-gradient-to-t from-navy via-navy/85 to-navy/30" />
-              <span className="flex size-12 items-center justify-center rounded-2xl bg-teal text-navy shadow-lg shadow-teal/30 transition-transform duration-300 group-hover:-translate-y-1">
-                <Icon className="size-6" aria-hidden />
-              </span>
-              <h3 className="mt-5 font-heading text-xl font-extrabold text-white">{title}</h3>
-              <p className="mt-2 max-w-lg text-slate-200">{text}</p>
-            </article>
-          ))}
-        </div>
-      </section>
 
       <Testimonials />
 
@@ -166,7 +124,16 @@ export default async function PricingPage() {
             Limites prévues après la phase de lancement. Aujourd&apos;hui, les inscrits ont accès à toutes les fonctionnalités, sans limite commerciale.
           </p>
         )}
-        <ComparisonTable />
+        {/* Tableau détaillé replié : les cartes ci-dessus suffisent pour choisir */}
+        <details className="group mt-6 rounded-3xl bg-white shadow-sm ring-1 ring-slate-200">
+          <summary className="cursor-pointer list-none px-5 py-4 text-center font-semibold text-teal-700 [&::-webkit-details-marker]:hidden">
+            <span className="group-open:hidden">Afficher le tableau détaillé</span>
+            <span className="hidden group-open:inline">Masquer le tableau détaillé</span>
+          </summary>
+          <div className="border-t border-slate-100 p-2 sm:p-4">
+            <ComparisonTable />
+          </div>
+        </details>
       </section>
 
       {/* Questions fréquentes */}
