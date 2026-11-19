@@ -82,6 +82,12 @@ export function OfferAccessGate({
               ? "Cette offre vous a été recommandée personnellement. Créez votre compte gratuitement pour voir les détails et accéder à l'offre."
               : "Inscription gratuite en moins d'une minute : vous accédez à l'offre complète et recevez les nouvelles offres de votre métier."}
           </p>
+          {!contact && (
+            // Bouton visible dès le premier écran (sur téléphone, le formulaire complet est plus bas)
+            <a href={go("inscription")} data-testid="gate-top-signup" className={buttonClasses({ size: "lg", className: "mt-5 w-full sm:w-auto" })}>
+              Voir l&apos;offre complète, inscription gratuite
+            </a>
+          )}
 
           <section aria-label="Offre recommandée" className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-5">
             {offer.sector && (
