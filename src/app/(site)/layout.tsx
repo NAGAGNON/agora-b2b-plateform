@@ -8,12 +8,16 @@ import { GuidedAssistant } from "@/components/assistant/guided-assistant";
 import { ApplicationPromptCard } from "@/components/applications/application-prompt";
 import { ReturnPointTracker } from "@/components/applications/return-point";
 import { Suspense } from "react";
+import { RouteProgress } from "@/components/layout/route-progress";
 import { getSession } from "@/lib/auth";
 
 export default async function SiteLayout({ children }: { children: React.ReactNode }) {
   const [demo, session] = await Promise.all([hasDemoData(), getSession()]);
   return (
     <>
+      <Suspense fallback={null}>
+        <RouteProgress />
+      </Suspense>
       {demo && <DemoBanner />}
       <Header />
       <main id="contenu" className="flex-1">

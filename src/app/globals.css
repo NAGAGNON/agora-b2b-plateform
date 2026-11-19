@@ -505,3 +505,63 @@
     animation: none;
   }
 }
+
+/* ===== Animations 2026 (sobres) ===== */
+/* Mot clé du slogan : couleurs qui glissent doucement (un seul élément, coût négligeable) */
+.text-flow {
+  background: linear-gradient(90deg, #0f766e, #0e7490, #6d28d9, #0e7490, #0f766e);
+  background-size: 300% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  animation: text-flow 8s ease-in-out infinite !important;
+}
+@keyframes text-flow {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+/* Slogan : les trois phrases apparaissent l'une après l'autre */
+.word-in {
+  display: inline-block;
+  animation: word-in 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+@keyframes word-in {
+  from { opacity: 0; transform: translateY(14px); filter: blur(4px); }
+  to { opacity: 1; transform: none; filter: none; }
+}
+/* Lien du menu : soulignement qui se dessine au survol */
+.nav-underline { position: relative; }
+.nav-underline::after {
+  content: "";
+  position: absolute;
+  left: 0.75rem;
+  right: 0.75rem;
+  bottom: 0.3rem;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--color-teal);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.25s ease;
+}
+.nav-underline:hover::after,
+.nav-underline[aria-current="page"]::after { transform: scaleX(1); }
+/* Barre de progression fine en haut de page pendant un changement de page */
+.route-progress {
+  position: fixed;
+  inset: 0 0 auto 0;
+  height: 3px;
+  z-index: 60;
+  background: linear-gradient(90deg, var(--color-teal), #0e7490, #6d28d9);
+  transform-origin: left;
+  animation: route-progress 1.2s cubic-bezier(0.2, 0.7, 0.2, 1) forwards;
+  pointer-events: none;
+}
+@keyframes route-progress {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(0.85); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .text-flow, .word-in { animation: none !important; }
+  .route-progress { display: none; }
+}

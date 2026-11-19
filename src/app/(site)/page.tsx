@@ -110,8 +110,12 @@ export default async function HomePage(props: PageProps<"/">) {
                 </span>{" "}
                 {openCount ? `${nf(openCount)} opportunité${openCount > 1 ? "s" : ""} disponible${openCount > 1 ? "s" : ""} aujourd'hui partout en France` : "Opportunités B2B partout en France"}
               </p>
-              <h1 className="mt-5 animate-rise text-4xl leading-[1.05] font-extrabold text-navy [animation-delay:120ms] sm:text-6xl">
-                Trouvez des <span className="text-gradient-dark">opportunités</span>. Gagnez du temps. Développez votre activité.
+              <h1 className="mt-5 text-4xl leading-[1.05] font-extrabold text-navy [animation-delay:120ms] sm:text-5xl xl:text-6xl">
+                <span className="word-in">
+                  Trouvez des <span className="text-flow">opportunités</span>.
+                </span>{" "}
+                <span className="word-in [animation-delay:350ms]">Gagnez du temps.</span>{" "}
+                <span className="word-in [animation-delay:700ms]">Développez votre activité.</span>
               </h1>
               <p className="mt-5 max-w-xl animate-rise text-lg text-slate-700 [animation-delay:300ms]">
                 Les appels d&apos;offres publics et les besoins d&apos;entreprises de votre métier, triés pour vous. Nous vous aidons à y répondre, et nous présentons votre entreprise à celles qui peuvent devenir vos clients.
