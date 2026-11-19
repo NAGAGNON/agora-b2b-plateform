@@ -3,6 +3,7 @@ import { CalendarDays, Crown, Eye, Mail, Megaphone, MessageSquare, Target, Users
 import { DashboardPageHeader } from "@/components/dashboard/page-header";
 import { Notice } from "@/components/ui/notice";
 import { BoostForm, type TargetingOptions } from "@/components/dashboard/boost-form";
+import { NewCampaign } from "@/components/dashboard/new-campaign";
 import { CancelBoostButton, EditAdForm } from "@/components/dashboard/boost-actions";
 import { requireCompany } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -129,43 +130,19 @@ export default async function VisibilityPage(props: PageProps<"/dashboard/visibi
   };
 
   return (
-    <div className="space-y-8">
+    <div className="flex flex-col gap-8">
       <DashboardPageHeader
         icon={<Megaphone />}
         image="/images/illustrations/reunion.webp"
         title="Campagnes de visibilité"
-        description="On fait votre prospection pour vous : choisissez votre cible et votre annonce, nous présentons votre entreprise chaque jour à des entreprises de votre métier et de votre zone (inscrites et de notre base, par e-mail). Suivi jour après jour."
+        description={free ? "On présente votre entreprise chaque jour aux entreprises que vous choisissez. Gratuit pendant le lancement." : "On présente votre entreprise chaque jour aux entreprises que vous choisissez."}
       />
-      {free && (
-        <Notice tone="success" title="Gratuit pendant la phase de lancement">
-          Profitez-en : les campagnes de visibilité sont gratuites pendant la phase de lancement de LinkProB2B.
-        </Notice>
-      )}
-
-      {isAdmin ? (
-        <BoostForm
-          targets={targets}
-          freeLaunch={free}
-          initialAudience={{ members: Number(aud.members ?? 0), prospects: Number(aud.prospects ?? 0) }}
-          includedLeft={free ? 0 : credit.left}
-          includedPlan={PLAN_LABEL[credit.plan as PlanCode] ?? credit.plan}
-          options={options}
-          baseLabel={reachLabel(reach ? { total: Number(reach.total ?? 0), reachable: Number(reach.reachable ?? 0) } : null)}
-          defaultTarget={typeof sp.cible === "string" ? sp.cible : undefined}
-          adDefaults={adDefaults}
-          rates={rates}
-          profileChecks={profileChecks}
-        />
-      ) : (
-        <Notice tone="info">Seul un administrateur de l&apos;entreprise peut lancer une campagne.</Notice>
-      )}
-
-      <section aria-labelledby="mes-offres">
+      <section aria-labelledby="mes-offres" hidden={!boosts?.length}>
         <h2 id="mes-offres" className="font-heading text-2xl font-extrabold text-navy">
           Mes campagnes
         </h2>
         {!boosts?.length ? (
-          <p className="mt-3 rounded-3xl bg-white p-6 text-slate-600 shadow-sm ring-1 ring-slate-200">Aucune campagne pour l&apos;instant : lancez la première ci-dessus.</p>
+          <p className="mt-3 rounded-3xl bg-white p-6 text-slate-600 shadow-sm ring-1 ring-slate-200">Aucune campagne pour l&apos;instant.</p>
         ) : (
           <ul className="mt-4 space-y-5">
             {boosts.map((b, i) => {
@@ -240,6 +217,21 @@ export default async function VisibilityPage(props: PageProps<"/dashboard/visibi
                     {b.status === "PENDING" && <p className="text-sm text-slate-600">En attente de démarrage. Le suivi apparaîtra ici dès le démarrage.</p>}
                     {s && (
                       <>
+                        <div className="grid grid-cols-3 gap-3">
+                          {[
+                            { l: "Entreprises présentées", v: (s.members ?? 0) + (s.emails ?? 0) },
+                            { l: "Ont lu", v: s.read },
+                            { l: "Vous ont écrit", v: s.messages },
+                          ].map(({ l, v }) => (
+                            <div key={l} className="rounded-2xl bg-slate-50 p-4 text-center ring-1 ring-slate-200">
+                              <p className="font-heading text-3xl font-extrabold text-navy">{nf(v)}</p>
+                              <p className="mt-1 text-xs font-semibold text-slate-500">{l}</p>
+                            </div>
+                          ))}
+                        </div>
+                        <details className="group rounded-2xl ring-1 ring-slate-200">
+                          <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-teal-700 [&::-webkit-details-marker]:hidden">Voir le détail de la campagne</summary>
+                          <div className="space-y-5 p-4 pt-0">
                         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                           {[
                             { icon: Users, l: "Entreprises inscrites", v: s.members },
@@ -287,6 +279,8 @@ export default async function VisibilityPage(props: PageProps<"/dashboard/visibi
                             ))}
                           </div>
                         </div>
+                          </div>
+                        </details>
                         {b.opportunity_id && b.status === "ACTIVE" && (
                           <p className="text-sm text-slate-600">
                             Détail des entreprises prévenues dans le{" "}
@@ -305,6 +299,27 @@ export default async function VisibilityPage(props: PageProps<"/dashboard/visibi
           </ul>
         )}
       </section>
+
+      {isAdmin ? (
+        <NewCampaign open={!boosts?.length}>
+        <BoostForm
+          targets={targets}
+          freeLaunch={free}
+          initialAudience={{ members: Number(aud.members ?? 0), prospects: Number(aud.prospects ?? 0) }}
+          includedLeft={free ? 0 : credit.left}
+          includedPlan={PLAN_LABEL[credit.plan as PlanCode] ?? credit.plan}
+          options={options}
+          baseLabel={reachLabel(reach ? { total: Number(reach.total ?? 0), reachable: Number(reach.reachable ?? 0) } : null)}
+          defaultTarget={typeof sp.cible === "string" ? sp.cible : undefined}
+          adDefaults={adDefaults}
+          rates={rates}
+          profileChecks={profileChecks}
+        />
+        </NewCampaign>
+      ) : (
+        <Notice tone="info">Seul un administrateur de l&apos;entreprise peut lancer une campagne.</Notice>
+      )}
+
     </div>
   );
 }

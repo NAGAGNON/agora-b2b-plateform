@@ -62,9 +62,10 @@ function Chips({ name, label, options, value, onChange }: { name: string; label:
 }
 
 /** Étape numérotée du formulaire. */
-function Step({ n, icon: Icon, title, hint, children, delay = 0 }: { n: number; icon: typeof Users; title: string; hint?: string; children: React.ReactNode; delay?: number }) {
+function Step({ n, icon: Icon, title, hint, children, delay = 0, show = true }: { n: number; icon: typeof Users; title: string; hint?: string; children: React.ReactNode; delay?: number; show?: boolean }) {
+  // Étape masquée (pas démontée) : ses champs restent dans le formulaire envoyé
   return (
-    <section className="plan-in rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200 transition-shadow hover:shadow-md sm:p-6" style={{ animationDelay: `${delay}ms` }}>
+    <section hidden={!show} className="plan-in rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200 transition-shadow hover:shadow-md sm:p-6" style={{ animationDelay: `${delay}ms` }}>
       <div className="flex items-start gap-3">
         <span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-teal to-electric text-sm font-extrabold text-white shadow-lg shadow-teal/25">{n}</span>
         <div className="min-w-0 flex-1">
@@ -113,6 +114,8 @@ export function BoostForm({
   profileChecks?: { label: string; ok: boolean }[];
 }) {
   const [state, action] = useActionState(requestBoost, null);
+  // Assistant : une étape à la fois (objectif, cible, formule, annonce, récapitulatif)
+  const [step, setStep] = useState(1);
   const [target, setTarget] = useState(defaultTarget && targets.some((t) => t.value === defaultTarget) ? defaultTarget : (targets[0]?.value ?? "COMPANY"));
   const [daily, setDaily] = useState<Daily>(10);
   const [featured, setFeatured] = useState<Featured>(7);
@@ -141,6 +144,7 @@ export function BoostForm({
     });
   const [counting, startCount] = useTransition();
   const need = target !== "COMPANY";
+  const STEPS = need ? ["Objectif", "Cible", "Formule", "Récapitulatif"] : ["Objectif", "Cible", "Formule", "Annonce", "Récapitulatif"];
   const filtered = sectors.length + regions.length + sizes.length + kinds.length > 0;
   const shown = filtered ? audience : initialAudience;
   const reach = shown.members + shown.prospects;
@@ -170,12 +174,23 @@ export function BoostForm({
     );
 
   return (
-    <form action={action} className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
+    <form action={action} className="mx-auto max-w-3xl space-y-5">
       <input type="hidden" name="daily" value={daily} />
       <input type="hidden" name="featured" value={featured} />
       <input type="hidden" name="duration" value={duration} />
+      <ol className="flex items-center gap-2" aria-label="Étapes">
+        {STEPS.map((label, i) => (
+          <li key={label} className="flex flex-1 flex-col gap-1.5">
+            <span className={cn("h-1.5 rounded-full transition-colors", i + 1 <= step ? "bg-teal" : "bg-slate-200")} />
+            <span className={cn("hidden text-xs font-semibold sm:block", i + 1 === step ? "text-navy" : "text-slate-400")}>{label}</span>
+          </li>
+        ))}
+      </ol>
+      <p className="text-sm font-semibold text-slate-500 sm:hidden">
+        Étape {step} sur {STEPS.length} · {STEPS[step - 1]}
+      </p>
       <div className="space-y-5">
-        {baseLabel && (
+        {baseLabel && step === 2 && (
           <p className="plan-in flex items-center gap-3 rounded-3xl bg-gradient-to-r from-navy to-teal-800 p-4 text-sm font-semibold text-white shadow-lg">
             <span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-white/15">
               <Mail className="size-5 text-teal" aria-hidden />
@@ -183,7 +198,7 @@ export function BoostForm({
             {baseLabel}, en plus des entreprises inscrites sur LinkProB2B.
           </p>
         )}
-        <Step n={1} icon={Building2} title="Votre objectif" hint="On fait votre prospection pour vous : dites-nous ce que vous cherchez et ce que vous voulez faire connaître.">
+        <Step n={1} show={step === 1} icon={Building2} title="Votre objectif" hint="On fait votre prospection pour vous : dites-nous ce que vous cherchez et ce que vous voulez faire connaître.">
           <input type="hidden" name="objective" value={objective} />
           <div role="radiogroup" aria-label="Objectif" className="mb-4 grid gap-2 sm:grid-cols-3">
             {OBJECTIVES.map((o) => (
@@ -216,7 +231,7 @@ export function BoostForm({
         </Step>
 
         {!need ? (
-          <Step n={2} icon={TargetIcon} title="À qui voulez-vous être présenté ?" hint="Sans choix : toutes les entreprises. Chaque critère affine la cible." delay={80}>
+          <Step n={2} show={step === 2} icon={TargetIcon} title="À qui voulez-vous être présenté ?" hint="Sans choix : toutes les entreprises. Chaque critère affine la cible." delay={80}>
             <div className="space-y-4">
               <div>
                 <p className="mb-2 text-[11px] font-bold tracking-wider text-slate-500 uppercase">Régions</p>
@@ -283,7 +298,7 @@ export function BoostForm({
             </div>
           </Step>
         ) : (
-          <Step n={2} icon={TargetIcon} title="Ciblage automatique" hint="Votre besoin est présenté aux entreprises de son métier et de sa zone." delay={80}>
+          <Step n={2} show={step === 2} icon={TargetIcon} title="Ciblage automatique" hint="Votre besoin est présenté aux entreprises de son métier et de sa zone." delay={80}>
             <p className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600 ring-1 ring-slate-200">
               Le métier et le lieu de votre besoin choisissent les entreprises prévenues : inscrites d&apos;abord, puis entreprises de notre base, par e-mail, dans la limite des envois
               quotidiens.
@@ -291,7 +306,7 @@ export function BoostForm({
           </Step>
         )}
 
-        <Step n={3} icon={Zap} title="Votre formule" hint="Choisissez une formule prête, ou réglez vous-même le nombre d'entreprises par jour." delay={160}>
+        <Step n={3} show={step === 3} icon={Zap} title="Votre formule" hint="Choisissez une formule prête, ou réglez vous-même le nombre d'entreprises par jour." delay={160}>
           <div role="radiogroup" aria-label="Formule" className="mb-4 grid gap-2 sm:grid-cols-3">
             {FORMULAS.map((f) => {
               const on = formula === f.key;
@@ -355,7 +370,7 @@ export function BoostForm({
           </div>
         </Step>
 
-        <Step n={4} icon={CalendarDays} title="Durée et mise en avant" delay={240}>
+        <Step n={3} show={step === 3} icon={CalendarDays} title="Durée et mise en avant" delay={240}>
           <p className="mb-2 text-[11px] font-bold tracking-wider text-slate-500 uppercase">Durée des présentations</p>
           <div role="radiogroup" aria-label="Durée" className="flex flex-wrap gap-2">
             {DURATION_OPTIONS.map((o) => (
@@ -398,7 +413,7 @@ export function BoostForm({
         </Step>
 
         {!need && (
-          <Step n={5} icon={PenLine} title="Votre annonce" hint="Pré-remplie depuis votre fiche : modifiez-la librement. Relue par notre équipe avant les premiers e-mails." delay={320}>
+          <Step n={4} show={step === 4} icon={PenLine} title="Votre annonce" hint="Pré-remplie depuis votre fiche : modifiez-la librement. Relue par notre équipe avant les premiers e-mails." delay={320}>
             {profileChecks.length > 0 && profileChecks.some((c) => !c.ok) && (
               <div className="mb-5 rounded-2xl bg-sky/60 p-4 text-sm" data-testid="profile-ready">
                 <p className="font-semibold text-navy">
@@ -482,7 +497,35 @@ export function BoostForm({
         )}
       </div>
 
-      <aside className="h-fit lg:sticky lg:top-24">
+      {step < STEPS.length && (
+        <div className="flex items-center justify-between gap-3">
+          {step > 1 ? (
+            <button type="button" onClick={() => setStep(step - 1)} className="rounded-xl px-4 py-3 font-semibold text-slate-600 hover:bg-slate-100">
+              Retour
+            </button>
+          ) : (
+            <span />
+          )}
+          <button
+            type="button"
+            onClick={() => {
+              setStep(step + 1);
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }}
+            disabled={step === 4 && issues.length > 0}
+            className="rounded-xl bg-navy px-6 py-3 font-bold text-white shadow-lg transition hover:-translate-y-px disabled:opacity-50"
+          >
+            {step === STEPS.length - 1 ? "Voir le récapitulatif" : "Continuer"}
+          </button>
+        </div>
+      )}
+
+      <aside hidden={step !== STEPS.length} className="h-fit">
+        {step > 1 && (
+          <button type="button" onClick={() => setStep(step - 1)} className="mb-3 rounded-xl px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100">
+            ← Modifier
+          </button>
+        )}
         <div className="plan-glow relative rounded-3xl p-[2px] shadow-2xl shadow-teal/20">
           <div className="relative overflow-hidden rounded-[1.4rem] bg-navy p-6 text-white">
             <div aria-hidden className="pointer-events-none absolute -top-16 -right-16 size-48 rounded-full bg-teal/30 blur-3xl" />
