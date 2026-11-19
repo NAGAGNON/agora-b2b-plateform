@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { parisDate } from "@/lib/weekly-review-core";
+import { activitySummary, getUserActivity } from "@/lib/admin/user-activity";
 
 const DAY = 86_400_000;
 export const GLANCE_PERIODS = [
@@ -15,7 +16,7 @@ export const GLANCE_PERIODS = [
 ] as const;
 
 /** Minuit (heure de Paris) du jour de `now`. */
-function parisMidnight(now: number): Date {
+export function parisMidnight(now: number): Date {
   const parts = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Paris", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" }).formatToParts(new Date(now));
   const get = (t: string) => Number(parts.find((p) => p.type === t)?.value ?? 0);
   return new Date(now - ((get("hour") * 60 + get("minute")) * 60 + get("second")) * 1000 - (now % 1000));
@@ -49,6 +50,9 @@ export async function AtAGlance({ periodKey, now }: { periodKey: string | undefi
   const newUsers = notTeam(signups.data).length;
   const people = notTeam(visitors.data);
   // Revenu = vu sur le site un autre jour (heure de Paris) que celui de son inscription
+  // Résumé de ce que chacun a fait (les 24 personnes affichées)
+  const shown = people.slice(0, 24);
+  const activity = await getUserActivity(db, shown.map((u) => u.id), since);
   const returning = people.filter((u) => u.last_seen_at && parisDate(u.last_seen_at) > parisDate(u.created_at));
   const OPENED = ["RESPONSE_PREPARING", "RESPONSE_SENT", "DISCUSSION", "NEGOTIATION", "WON", "LOST"];
   const realItems = notTeam((items.data ?? []).map((i) => ({ ...i, user_id: i.updated_by })));
@@ -120,18 +124,24 @@ export async function AtAGlance({ periodKey, now }: { periodKey: string | undefi
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 className="font-heading text-xl font-bold text-navy">Qui est venu · {period.label}</h2>
           <Link href={`/admin/candidatures?periode=${period.key}`} className="text-sm font-semibold text-teal-700 hover:underline">
-            Voir ce que chacun a fait sur les candidatures →
+            Détail des candidatures →
           </Link>
         </div>
+        <p className="mt-1 text-sm text-slate-500">Touchez une personne pour voir tout ce qu&apos;elle a fait sur le site, action par action.</p>
         {people.length === 0 ? (
           <p className="mt-4 rounded-2xl bg-slate-50 p-4 text-slate-600">Aucun inscrit venu sur cette période.</p>
         ) : (
           <ul className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {people.slice(0, 24).map((u) => {
+            {shown.map((u) => {
               const isNew = u.created_at >= since;
               const name = u.full_name || u.email;
               return (
-                <li key={u.id} className="flex items-center gap-3 rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-200">
+                <li key={u.id}>
+                  <Link
+                    href={`/admin/activite/${u.id}?periode=${period.key}`}
+                    data-testid="visitor"
+                    className="flex items-center gap-3 rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-200 transition hover:bg-white hover:shadow-md hover:ring-teal/40"
+                  >
                   <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-teal to-electric text-xs font-bold text-navy" aria-hidden>
                     {name
                       .split(/[\s@.]+/)
@@ -143,8 +153,10 @@ export async function AtAGlance({ periodKey, now }: { periodKey: string | undefi
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-semibold text-navy">{name}</span>
                     <span className="block text-xs text-slate-500">Vu le {u.last_seen_at ? formatDateTime(u.last_seen_at) : "—"}</span>
+                    <span className="mt-0.5 block text-xs font-medium text-teal-800">{activitySummary(activity.get(u.id) ?? [])}</span>
                   </span>
                   <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold", isNew ? "bg-teal-50 text-teal-800 ring-1 ring-teal/20" : "bg-slate-200 text-slate-700")}>{isNew ? "Nouveau" : "Revenu"}</span>
+                  </Link>
                 </li>
               );
             })}
