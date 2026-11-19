@@ -94,7 +94,7 @@ export function DashboardNav({ unreadMessages = 0 }: { unreadMessages?: number }
       </nav>
       {/* Desktop : panneau latéral */}
       <nav aria-label="Mon espace" className="hidden lg:block">
-        <div className="sticky top-20 space-y-5">
+        <div className="space-y-5">
           <Link
             href="/publier"
             className="btn-shine flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-teal to-cyan-400 text-sm font-bold text-navy shadow-md transition hover:-translate-y-px hover:shadow-lg"
