@@ -32,7 +32,6 @@ test("page d'accueil : message et appels à l'action", async ({ browser }) => {
   await expect(page.getByText("Trouvez les bons marchés, évaluez vos chances de répondre et pilotez vos candidatures jusqu'au résultat.")).toBeVisible();
   await expect(page.getByText("Gratuit · Sans carte bancaire · Des opportunités partout en France", { exact: false })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Trouvez les marchés de votre secteur" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Ce que vous pouvez faire dès maintenant" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Découvrir les opportunités" }).first()).toHaveAttribute("href", "/opportunites");
   await expect(page.getByRole("link", { name: "Créer mon compte gratuit" }).first()).toHaveAttribute("href", "/inscription");
   await expect(page.getByRole("link", { name: /Parcourir l'annuaire/ }).first()).toHaveAttribute("href", "/entreprises");

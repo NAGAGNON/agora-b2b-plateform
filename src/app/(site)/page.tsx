@@ -7,26 +7,17 @@ import {
   Building,
   Building2,
   CalendarClock,
-  CheckCircle2,
-  ClipboardList,
   Cpu,
   Factory,
-  FileSearch,
   Handshake,
   HardHat,
   Landmark,
   Leaf,
-  ListChecks,
   MapPin,
   Megaphone,
   Search,
-  SlidersHorizontal,
-  Target,
-  UserRoundPlus,
-  Users,
 } from "lucide-react";
 import { SearchBar } from "@/components/opportunities/search-bar";
-import { ButtonLink } from "@/components/ui/button";
 import { TrackedButtonLink, TrackedLink } from "@/components/ui/tracked-link";
 import { Notice } from "@/components/ui/notice";
 import { searchOpportunities } from "@/lib/queries/opportunities";
@@ -44,7 +35,6 @@ import { sectorLabel } from "@/lib/constants";
 import { REGIONS } from "@/lib/geo";
 import { homeRegions } from "@/lib/growth/engine";
 import { groupSectors } from "@/lib/sector-families";
-import { StatsTicker } from "@/components/home/stats-ticker";
 import { SectorVisual } from "@/components/opportunities/sector-visual";
 import { HeroVideo } from "@/components/home/hero-video";
 import { DirectoryShowcase } from "@/components/home/directory-showcase";
@@ -71,9 +61,8 @@ export default async function HomePage(props: PageProps<"/">) {
   // Base lente ou indisponible : chaque bloc a sa valeur de repli, la page s'affiche toujours
   const safe = <T, F = T>(p: PromiseLike<T>, fallback: F): Promise<T | F> => Promise.resolve(p).catch(() => fallback);
   const trial = await cardTrial().catch(() => ({ enabled: false, days: 7 }));
-  const [sectors, { data: analyses }, latest, stats, { data: growth }, labels, { total: needsTotal, rows: needsRows }, memberCompanies, activity] = await Promise.all([
+  const [sectors, latest, stats, { data: growth }, labels, { total: needsTotal, rows: needsRows }, memberCompanies, activity] = await Promise.all([
     safe(getSectors(), []),
-    safe(supabase.from("articles").select("slug, title, description, published_at").eq("status", "PUBLISHED").order("published_at", { ascending: false }).limit(3), { data: null }),
     // Même calcul que la page « Explorer les opportunités » (opportunités ouvertes), trois plus récentes en aperçu
     safe(searchOpportunities(parseOpportunityFilters({ tri: "recent" }), 3), { rows: [], total: 0, error: true as const }),
     safe(getPlatformStats(), null),
@@ -88,7 +77,6 @@ export default async function HomePage(props: PageProps<"/">) {
     safe(getPublicActivity(), null),
   ]);
   const live = liveStats(stats);
-  const hasNeeds = Number(needsTotal) > 0;
   // Besoins publiés directement par des entreprises inscrites : mis en avant en tête de page (vrais besoins uniquement)
   const clientNeeds = needsRows.filter((o) => !o.is_demo).slice(0, 3);
   const featuredRegions = homeRegions(growth?.value ?? null);
@@ -104,8 +92,6 @@ export default async function HomePage(props: PageProps<"/">) {
         </div>
       )}
 
-      {/* Chiffres réels de la plateforme, en bande défilante */}
-      <StatsTicker stats={stats} />
 
       {/* En-tête : la promesse, les deux actions, le spot de présentation */}
       <section className="relative isolate overflow-hidden bg-gradient-to-b from-sky via-white to-white">
@@ -326,55 +312,9 @@ export default async function HomePage(props: PageProps<"/">) {
         </section>
       )}
 
-      <DirectoryShowcase />
 
-      {/* Les trois usages de LinkProB2B */}
-      <section className="cv-auto container-page py-12 sm:py-16" aria-labelledby="usages">
-        <h2 id="usages" className="reveal max-w-3xl text-3xl font-extrabold sm:text-4xl">
-          Ce que vous pouvez faire dès maintenant
-        </h2>
-        <ul className="mt-8 grid grid-cols-1 gap-5 md:grid-cols-3">
-          {[
-            {
-              icon: Target,
-              title: "Identifier des opportunités commerciales",
-              text: "Repérez des marchés et des opportunités correspondant à votre activité pour alimenter votre développement commercial.",
-              href: "/opportunites",
-              cta: "home_usage_opportunites",
-              link: "Explorer les opportunités",
-            },
-            {
-              icon: ClipboardList,
-              title: "Découvrir les besoins des entreprises",
-              text: "Consultez les besoins publiés par les entreprises et identifiez les occasions de proposer vos services ou vos solutions.",
-              href: hasNeeds ? "/opportunites?origine=INTERNAL" : "/publier",
-              cta: "home_usage_besoins",
-              link: hasNeeds ? "Voir les besoins publiés" : "Publier le premier besoin de votre secteur",
-            },
-            {
-              icon: Users,
-              title: "Trouver des partenaires professionnels",
-              text: "Identifiez des entreprises et des partenaires potentiels pour développer votre réseau et créer de nouvelles collaborations.",
-              href: "/entreprises",
-              cta: "home_usage_annuaire",
-              link: "Parcourir l'annuaire",
-            },
-          ].map((b) => (
-            <li key={b.title} className="reveal">
-              <TrackedLink cta={b.cta} href={b.href} className="group glow-card flex h-full flex-col rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                <span className="flex size-12 items-center justify-center rounded-xl bg-gradient-to-br from-teal to-glow text-navy shadow-md shadow-teal/30 transition group-hover:scale-110">
-                  <b.icon className="size-6" aria-hidden />
-                </span>
-                <span className="mt-5 font-heading text-xl font-bold text-navy">{b.title}</span>
-                <span className="mt-2 text-slate-600">{b.text}</span>
-                <span className="mt-auto inline-flex items-center gap-1 pt-5 text-sm font-semibold text-teal-700">
-                  {b.link} <ArrowRight className="size-4 transition group-hover:translate-x-1" aria-hidden />
-                </span>
-              </TrackedLink>
-            </li>
-          ))}
-        </ul>
-      </section>
+
+      <DirectoryShowcase />
 
       {/* Familles de métiers : chaque famille mène aux secteurs, puis aux opportunités */}
       <section className="cv-auto bg-canvas py-12 sm:py-16" aria-labelledby="familles">
@@ -413,177 +353,8 @@ export default async function HomePage(props: PageProps<"/">) {
         </div>
       </section>
 
-      {/* Ce qui différencie LinkProB2B d'une simple liste d'annonces */}
-      <section className="cv-auto relative isolate overflow-hidden bg-navy-900 py-14 text-white sm:py-20" aria-labelledby="benefices">
-        <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
-          <div className="bg-tech-grid absolute inset-0" />
-          <div className="absolute -top-32 left-1/4 size-96 animate-aurora rounded-full bg-electric/20 blur-3xl" />
-          <div className="absolute -right-24 bottom-0 size-96 animate-aurora rounded-full bg-teal/20 blur-3xl [animation-delay:-9s]" />
-        </div>
-        <div className="container-page">
-          <p className="reveal text-sm font-semibold tracking-wide text-teal uppercase">Pourquoi LinkProB2B</p>
-          <h2 id="benefices" className="reveal mt-2 max-w-3xl text-3xl font-extrabold text-white sm:text-5xl">
-            Moins de temps à chercher, plus de temps pour vendre
-          </h2>
-          <div className="mt-10 grid gap-5 lg:grid-cols-[1.3fr_1fr]">
-            <div className="reveal relative overflow-hidden rounded-3xl bg-gradient-to-br from-petrol to-navy p-8 ring-1 ring-white/10">
-              <div aria-hidden className="absolute -right-16 -bottom-16 size-56 rounded-full bg-teal/25 blur-2xl" />
-              <div className="relative grid items-center gap-8 md:grid-cols-[1fr_0.9fr]">
-                <div>
-                  <Bell className="size-8 text-teal" aria-hidden />
-                  <h3 className="mt-4 text-2xl font-bold text-white">Ne ratez plus une échéance</h3>
-                  <p className="mt-3 text-slate-200">
-                    Indiquez vos secteurs, votre zone et quelques mots-clés : chaque nouvelle annonce qui correspond arrive dans votre boîte e-mail.
-                  </p>
-                  <TrackedButtonLink cta="home_benefices_alerte" href="/inscription" className="mt-6" variant="light">
-                    Créer mon alerte gratuite
-                  </TrackedButtonLink>
-                </div>
-                <div className="relative aspect-[4/3] overflow-hidden rounded-2xl shadow-2xl ring-1 ring-white/15 transition duration-500 hover:rotate-0 md:rotate-2">
-                  <Image src="/images/illustrations/tableau-de-bord.webp" alt="" fill unoptimized sizes="(min-width: 1024px) 25vw, 90vw" className="object-cover" />
-                </div>
-              </div>
-            </div>
-            <div className="grid gap-5">
-              {[
-                {
-                  icon: FileSearch,
-                  title: "Toutes les sources réunies au même endroit",
-                  text: "Marchés publics (BOAMP, TED) et besoins publiés par les entreprises, avec le lien vers l'annonce officielle.",
-                },
-                {
-                  icon: SlidersHorizontal,
-                  title: "Trouvez plus vite ce qui vous correspond",
-                  text: "Recherche par secteur, région, ville et rayon, type d'opportunité et date limite de réponse.",
-                },
-                {
-                  icon: ListChecks,
-                  title: "Suivez vos affaires jusqu'à la décision",
-                  text: "Favoris pour garder les annonces intéressantes, pipeline commercial pour suivre vos démarches et vos relances.",
-                },
-              ].map((b) => (
-                <div key={b.title} className="reveal glow-card rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur">
-                  <b.icon className="size-7 text-teal" aria-hidden />
-                  <h3 className="mt-3 text-lg font-bold text-white">{b.title}</h3>
-                  <p className="mt-1 text-sm text-slate-200">{b.text}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-          {stats && stats.regions > 0 && (
-            <p className="reveal mt-8 text-slate-200">
-              Aujourd&apos;hui : <strong className="text-white">{nf(stats.active)} opportunités ouvertes</strong> dans{" "}
-              <strong className="text-white">{nf(stats.regions)} régions</strong> et <strong className="text-white">{nf(stats.departments)} départements</strong>, mises à jour
-              chaque jour.
-            </p>
-          )}
-          <div className="reveal mt-8">
-            <TrackedButtonLink cta="home_benefices_opportunites" href="/opportunites" size="lg">
-              Explorer les opportunités <ArrowRight className="size-4" aria-hidden />
-            </TrackedButtonLink>
-          </div>
-        </div>
-      </section>
 
-      {/* Besoins des entreprises : publier et consulter */}
-      <section className="cv-auto container-page py-14 sm:py-20" aria-labelledby="besoins">
-        <div className="grid items-center gap-12 lg:grid-cols-2">
-          <div className="reveal relative">
-            <div aria-hidden className="absolute -inset-3 -rotate-2 rounded-[2rem] bg-gradient-to-br from-teal/30 via-glow/20 to-electric/20 blur-xl" />
-            <div className="relative aspect-[4/3] overflow-hidden rounded-3xl shadow-xl">
-              <Image src="/images/illustrations/reunion.webp" alt="" fill unoptimized sizes="(min-width: 1024px) 45vw, 100vw" className="object-cover transition duration-700 hover:scale-105" />
-            </div>
-          </div>
-          <div>
-            <p className="reveal text-sm font-semibold tracking-wide text-teal-700 uppercase">Besoins des entreprises</p>
-            <h2 id="besoins" className="reveal mt-2 text-3xl font-extrabold sm:text-5xl">
-              Vous cherchez un prestataire ? Publiez votre besoin
-            </h2>
-            <p className="reveal mt-4 text-slate-700">
-              Décrivez ce que vous cherchez une seule fois : LinkProB2B présente votre besoin aux entreprises du bon métier et de la bonne zone, qui vous
-              répondent directement sur la plateforme.
-            </p>
-            <ul className="mt-6 grid gap-3 sm:grid-cols-2">
-              {["Publication gratuite", "Relue avant diffusion", "Réponses comparables", "Vous gardez la main sur la sélection"].map((t) => (
-                <li key={t} className="reveal flex items-start gap-2 rounded-xl border border-slate-200 bg-white p-3 text-sm font-medium text-navy shadow-sm">
-                  <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-teal-600" aria-hidden /> {t}
-                </li>
-              ))}
-            </ul>
-            <div className="reveal mt-8 flex flex-col gap-3 sm:flex-row">
-              <TrackedButtonLink cta="home_besoins_publier" href="/publier" size="lg">
-                Publier un besoin <ArrowRight className="size-4" aria-hidden />
-              </TrackedButtonLink>
-              {hasNeeds && (
-                <TrackedButtonLink cta="home_besoins_consulter" href="/opportunites?origine=INTERNAL" size="lg" variant="outline">
-                  Voir les besoins publiés
-                </TrackedButtonLink>
-              )}
-            </div>
-          </div>
-        </div>
-      </section>
 
-      {/* Comment ça marche */}
-      <section className="cv-auto bg-canvas py-14 sm:py-20" aria-labelledby="fonctionnement">
-        <div className="container-page">
-          <p className="reveal text-sm font-semibold tracking-wide text-teal-700 uppercase">En trois étapes</p>
-          <h2 id="fonctionnement" className="reveal mt-2 text-3xl font-extrabold sm:text-5xl">
-            Comment utiliser LinkProB2B
-          </h2>
-          <ol className="relative mt-12 grid gap-6 md:grid-cols-3">
-            <span aria-hidden className="reveal-line absolute top-12 right-[16%] left-[16%] hidden h-0.5 bg-gradient-to-r from-teal via-glow to-amber md:block" />
-            {[
-              { icon: UserRoundPlus, title: "Créez votre profil", text: "Présentez votre entreprise, vos secteurs, vos compétences et votre zone d'intervention." },
-              { icon: Search, title: "Recherchez ou publiez un besoin", text: "Trouvez des opportunités et des fournisseurs, ou publiez une demande de devis, une consultation ou un appel d'offres privé." },
-              { icon: Handshake, title: "Échangez et développez l'opportunité", text: "Manifestez votre intérêt, répondez, échangez via la messagerie et suivez votre pipeline." },
-            ].map((step, i) => (
-              <li key={step.title} className="reveal glow-card relative rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                <span className="relative flex size-12 items-center justify-center rounded-2xl bg-gradient-to-br from-navy to-petrol font-heading text-lg font-extrabold text-white shadow-lg shadow-navy/20 ring-4 ring-white">
-                  {i + 1}
-                </span>
-                <h3 className="mt-5 flex items-start gap-2 text-lg font-bold">
-                  <step.icon className="mt-1 size-5 shrink-0 text-teal-600" aria-hidden /> {step.title}
-                </h3>
-                <p className="mt-2 text-sm text-slate-600">{step.text}</p>
-              </li>
-            ))}
-          </ol>
-        </div>
-      </section>
-
-      {/* Dernières analyses de marché */}
-      {analyses && analyses.length > 0 && (
-        <section className="cv-auto container-page py-16 sm:py-24" aria-labelledby="analyses">
-          <div className="flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <h2 id="analyses" className="text-3xl font-extrabold">
-                Analyses des marchés
-              </h2>
-              <p className="mt-1 text-slate-600">Chaque jour, une analyse par secteur ou département, établie à partir des avis BOAMP et TED.</p>
-            </div>
-            <ButtonLink href="/analyses" variant="outline">
-              Toutes les analyses <ArrowRight className="size-4" aria-hidden />
-            </ButtonLink>
-          </div>
-          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {analyses.map((a) => (
-              <Link
-                key={a.slug}
-                href={`/analyses/${a.slug}`}
-                className="group reveal glow-card flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
-              >
-                <Image src={`/visuels/analyses/${a.slug}`} alt="" width={1200} height={630} unoptimized className="h-auto w-full border-b border-slate-100" />
-                <div className="flex flex-1 flex-col p-5">
-                  {a.published_at && <p className="text-xs text-slate-500">{formatDate(a.published_at)}</p>}
-                  <h3 className="mt-1 font-bold text-navy group-hover:text-teal-700">{a.title}</h3>
-                  <p className="mt-2 line-clamp-3 text-sm text-slate-600">{a.description}</p>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </section>
-      )}
 
       {/* Appel à l'inscription */}
       <section className="cv-auto container-page py-14 sm:py-20">
