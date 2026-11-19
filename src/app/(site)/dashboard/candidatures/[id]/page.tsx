@@ -15,6 +15,9 @@ export const metadata = { title: "Ma candidature" };
  * pièces à cocher, notation, conseils, trame du mémoire technique, dépôt, résultat ; lien vers
  * l'annonce officielle et retour exact à la recherche.
  */
+// Heure courante (hors rendu React : appel d'une fonction du module)
+const nowMs = () => Date.now();
+
 export default async function CandidaturePage(props: PageProps<"/dashboard/candidatures/[id]">) {
   const { id } = await props.params;
   if (!isUuid(id)) notFound();
@@ -29,7 +32,16 @@ export default async function CandidaturePage(props: PageProps<"/dashboard/candi
   ]);
   if (!o) notFound();
   // Mesure de la consultation (aucune donnée de candidature n'est écrite)
-  void track("view_application", { opportunity_id: id, saved: Boolean(item), stage: item?.stage ?? "CONSULTEE" });
+  // Une seule consultation par membre et par offre sur 30 minutes : chaque action sur la fiche (étape cochée,
+  // note, question) recharge la page, ce qui comptait plusieurs « consultations » pour une seule visite
+  const { count: seen } = await createAdminClient()
+    .from("analytics_events")
+    .select("id", { count: "exact", head: true })
+    .eq("event_name", "view_application")
+    .eq("user_id", session.userId)
+    .eq("properties->>opportunity_id", id)
+    .gte("created_at", new Date(nowMs() - 30 * 60_000).toISOString());
+  if (!seen) void track("view_application", { opportunity_id: id, saved: Boolean(item), stage: item?.stage ?? "CONSULTEE" });
   // Pas encore enregistrée : simple consultation (« DETECTED »), rien n'est écrit tant que la personne ne choisit pas
 
   const admin = createAdminClient();

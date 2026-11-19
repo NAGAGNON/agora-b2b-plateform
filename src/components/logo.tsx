@@ -8,7 +8,7 @@ export function Logo({ variant = "color", className, withTagline = false }: { va
     return (
       <Image
         src={variant === "white" ? "/brand/logo-white.png" : "/brand/logo.png"}
-        alt="LinkProB2B — Des opportunités qui créent des connexions"
+        alt="LinkProB2B — Trouvez des opportunités, développez votre activité"
         width={834}
         height={167}
         className={cn("h-auto w-56", className)}

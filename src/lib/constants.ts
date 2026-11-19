@@ -18,7 +18,7 @@ export type ReportTarget = Enums["report_target"];
 export type OpportunityOutcome = Enums["opportunity_outcome"];
 
 export const SITE_NAME = "LinkProB2B";
-export const SLOGAN = "Des opportunités qui créent des connexions.";
+export const SLOGAN = "Trouvez des opportunités. Gagnez du temps. Développez votre activité.";
 export const PROMISE = "Les bonnes opportunités. Les bons partenaires. Au bon moment.";
 export const DEMO_NOTICE = "Données de démonstration — aucune entreprise ou opportunité réelle.";
 /** Bandeau global : la démo coexiste avec les opportunités externes réelles (BOAMP, TED). */

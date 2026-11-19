@@ -21,7 +21,7 @@ export default function Image() {
           <div style={{ display: "flex", fontSize: 60, fontWeight: 800, lineHeight: 1.1 }}>Appels d&apos;offres et opportunités B2B partout en France</div>
           <div style={{ display: "flex", fontSize: 30, color: "#CBD5E1", marginTop: 24 }}>Marchés publics (BOAMP, TED) et besoins d&apos;entreprises, par secteur et par région.</div>
         </div>
-        <div style={{ display: "flex", fontSize: 28, color: TEAL, fontWeight: 600 }}>Des opportunités qui créent des connexions.</div>
+        <div style={{ display: "flex", fontSize: 28, color: TEAL, fontWeight: 600 }}>Trouvez des opportunités. Gagnez du temps.</div>
       </div>
     ),
     size,

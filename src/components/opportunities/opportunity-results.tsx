@@ -45,6 +45,27 @@ export async function OpportunityResults({ filters, rawParams, basePath, trackSe
       }
     }
   }
+  // Toujours rien : on élargit tout seul (jamais de page vide). D'abord les mots cherchés partout en France
+  // et dans tous les secteurs, puis la zone et le secteur choisis sans les mots.
+  let nearby: { rows: typeof rows; label: string } | null = null;
+  if (!error && total === 0 && filters.origin !== "INTERNAL") {
+    const hasPlace = Boolean(filters.region || filters.department || filters.city || filters.place);
+    const tries: { f: typeof filters; label: string }[] = [];
+    if (filters.q && (hasPlace || filters.sector || filters.types.length || filters.publishedWithin || filters.deadlineBefore))
+      tries.push({ f: { ...filters, region: undefined, department: undefined, city: undefined, place: undefined, sector: undefined, types: [], publishedWithin: undefined, deadlineBefore: undefined, page: 1 }, label: `« ${corrected ?? filters.q} » partout en France` });
+    if (filters.q && (hasPlace || filters.sector)) tries.push({ f: { ...filters, q: undefined, page: 1 }, label: "dans la même zone et le même secteur, sans les mots cherchés" });
+    if (filters.q && filters.q.trim().split(/\s+/).length > 1) {
+      const longest = filters.q.trim().split(/\s+/).sort((a, b) => b.length - a.length)[0];
+      tries.push({ f: { ...filters, q: longest, page: 1 }, label: `« ${longest} »` });
+    }
+    for (const t of tries) {
+      const r = await searchOpportunities(t.f).catch(() => null);
+      if (r && !r.error && r.total > 0) {
+        nearby = { rows: r.rows.slice(0, 6), label: t.label };
+        break;
+      }
+    }
+  }
   // Recherche d'un membre : mesurée avec son nombre de résultats (part des recherches sans résultat)
   if (trackSearch && !error) {
     void track("search_opportunities", { has_query: Boolean(filters.q), sector: filters.sector ?? null, region: filters.region ?? null, department: filters.department ?? null, results: first.total, ...(corrected ? { corrected: true } : {}) });
@@ -174,6 +195,20 @@ export async function OpportunityResults({ filters, rawParams, basePath, trackSe
                 </div>
               }
             />
+          ) : rows.length === 0 && nearby ? (
+            <div className="space-y-4" data-testid="nearby-results">
+              <p className="rounded-2xl bg-sky px-4 py-3 text-sm text-navy ring-1 ring-slate-200">
+                Aucune offre exacte pour ces critères. Voici des offres proches : <strong>{nearby.label}</strong>.{" "}
+                <a href={basePath} className="font-semibold text-teal-700 underline">
+                  Effacer les filtres
+                </a>
+              </p>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                {nearby.rows.map((o) => (
+                  <OpportunityCard key={o.id} o={o} headingLevel={2} />
+                ))}
+              </div>
+            </div>
           ) : rows.length === 0 ? (
             <EmptyState
               icon={<SearchX className="size-6" aria-hidden />}

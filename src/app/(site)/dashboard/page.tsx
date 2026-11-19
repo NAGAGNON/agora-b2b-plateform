@@ -139,25 +139,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
           ...(veilleOn ? [{ label: "Veille par e-mail active", href: "/dashboard/veille" }] : []),
         ]}
       />
-      <QuickTiles
-        tiles={[
-          supplier
-            ? { href: "/dashboard/recommandations", title: "Offres pour vous", text: "Triées selon votre métier et votre zone.", image: "/images/illustrations/ordinateurs.webp" }
-            : { href: "/opportunites", title: "Opportunités", text: "Appels d'offres et besoins en cours.", image: "/images/illustrations/ordinateurs.webp" },
-          { href: "/publier", title: "Publier un besoin", text: "Recevez des réponses de prestataires.", image: "/images/illustrations/reunion.webp" },
-          { href: "/entreprises", title: "Annuaire", text: "Trouvez et suivez des entreprises.", image: "/images/illustrations/poignee-de-main.webp" },
-          { href: "/dashboard/pipeline", title: "Mon pipeline", text: "Suivez vos réponses étape par étape.", image: "/images/illustrations/tableau-de-bord.webp" },
-        ]}
-      />
-
-      <PioneerBadge userId={session.userId} now={nowMs()} />
-      <SirenPrompt companyId={cid} />
-      <TrialInvite userId={session.userId} companyId={cid} />
-      <VisibilityPrompt companyId={cid} welcome={Boolean(sp.bienvenue)} />
-      <SinceLastVisit userId={session.userId} companyId={cid} supplier={supplier} since={previousVisit(session.profile, nowMs())} now={nowMs()} includeDemo={await showDemoData()} />
-      <NextActions companyId={cid} userId={session.userId} buyer={buyer} supplier={supplier} now={nowMs()} />
-      <TeamCard companyId={cid} isAdmin={session.activeCompany?.role === "COMPANY_ADMIN"} />
-      {supplier && <PreciseAlertPrompt userId={session.userId} />}
+      {/* Nouveau membre : les premiers pas d'abord (le bloc disparaît quand tout est fait) */}
       <GettingStarted
         steps={[
           { done: missing.length === 0, label: "Compléter le profil de l'entreprise", hint: "Secteurs, zone, compétences : la base de vos recommandations.", href: "/dashboard/entreprise", cta: "Compléter le profil" },
@@ -167,6 +149,21 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
           { done: (favs.count ?? 0) > 0, label: "Enregistrer une première opportunité", hint: "Ajoutez en favori les offres à suivre pour les retrouver ici.", href: supplier ? "/dashboard/recommandations" : "/opportunites", cta: "Voir les opportunités" },
         ]}
       />
+      {/* À faire maintenant : une seule chose en premier (actions en attente, nouveautés depuis la visite) */}
+      <NextActions companyId={cid} userId={session.userId} buyer={buyer} supplier={supplier} now={nowMs()} />
+      <SinceLastVisit userId={session.userId} companyId={cid} supplier={supplier} since={previousVisit(session.profile, nowMs())} now={nowMs()} includeDemo={await showDemoData()} />
+      <SirenPrompt companyId={cid} />
+      <VisibilityPrompt companyId={cid} welcome={Boolean(sp.bienvenue)} />
+      <QuickTiles
+        tiles={[
+          supplier
+            ? { href: "/dashboard/recommandations", title: "Offres pour moi", text: "Triées selon votre métier et votre zone.", image: "/images/illustrations/ordinateurs.webp" }
+            : { href: "/opportunites", title: "Opportunités", text: "Appels d'offres et besoins en cours.", image: "/images/illustrations/ordinateurs.webp" },
+          { href: "/dashboard/candidatures", title: "Mes candidatures", text: "Vos réponses, étape par étape.", image: "/images/illustrations/tableau-de-bord.webp" },
+          { href: "/dashboard/opportunites", title: "Mes besoins", text: "Publiez et suivez les réponses reçues.", image: "/images/illustrations/reunion.webp" },
+          { href: "/dashboard/visibilite", title: "Ma visibilité", text: "On présente votre entreprise pour vous.", image: "/images/illustrations/poignee-de-main.webp" },
+        ]}
+      />
 
       {supplier && (
         <section aria-labelledby="fournisseur" className="space-y-5">
@@ -174,42 +171,8 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
             <span className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-navy to-navy-900 text-teal-300 shadow-md" aria-hidden>
               <Briefcase className="size-4" />
             </span>
-            Espace fournisseur
+            Offres pour vous
           </h2>
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            <DashboardCard animate label="Favoris" value={favs.count ?? 0} href="/dashboard/favoris" icon={<Heart className="size-5" aria-hidden />} />
-            <DashboardCard animate label="Alertes actives" value={alerts.count ?? 0} href="/dashboard/alertes" icon={<BellRing className="size-5" aria-hidden />} />
-            <DashboardCard animate label="Intérêts manifestés" value={interests.count ?? 0} href="/dashboard/opportunites?onglet=reponses" icon={<Handshake className="size-5" aria-hidden />} />
-            <DashboardCard animate label="Réponses envoyées" value={proposals.count ?? 0} href="/dashboard/opportunites?onglet=reponses" icon={<Send className="size-5" aria-hidden />} />
-          </div>
-
-          <Card>
-            <CardHeader
-              title="Mon pipeline"
-              description="Privé à votre entreprise."
-              action={
-                <Link href="/dashboard/pipeline" className="text-sm font-semibold text-teal-700 hover:underline">
-                  Ouvrir le pipeline →
-                </Link>
-              }
-            />
-            <ol className="grid grid-cols-2 gap-3 p-5 sm:grid-cols-3 lg:grid-cols-5">
-              {PIPELINE_STAGES.filter((s) => !["INTERESTED", "RESPONSE_SENT", "DISCUSSION", "LOST"].includes(s.stage)).map((s, i, all) => {
-                const max = Math.max(1, ...all.map((x) => stageCounts[x.stage]));
-                return (
-                  <li key={s.stage} className="relative rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-100">
-                    <span className="text-[11px] font-bold tracking-wide text-slate-500 uppercase">Étape {i + 1}</span>
-                    <p className="font-heading text-2xl font-extrabold text-navy tabular-nums">{stageCounts[s.stage]}</p>
-                    <p className="text-sm text-slate-600">{s.label}</p>
-                    <span className="mt-3 block h-1.5 overflow-hidden rounded-full bg-slate-200" aria-hidden>
-                      <span className="block h-full rounded-full bg-gradient-to-r from-teal to-electric transition-all duration-1000" style={{ width: `${(stageCounts[s.stage] / max) * 100}%` }} />
-                    </span>
-                  </li>
-                );
-              })}
-            </ol>
-          </Card>
-
           <Card>
             <CardHeader
               title={
@@ -303,14 +266,27 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
           </Card>
         </section>
       )}
-      {live && (
-        <section aria-labelledby="communaute">
-          <h2 id="communaute" className="mb-3 text-lg font-bold text-navy">
-            La communauté LinkProB2B, en direct
-          </h2>
-          <MemberProofCompact initial={live} companies={memberCompanies} />
-        </section>
-      )}
+      <details className="group rounded-3xl bg-white shadow-sm ring-1 ring-slate-200" data-testid="dashboard-more">
+        <summary className="flex cursor-pointer list-none items-center justify-between px-5 py-4 font-semibold text-navy [&::-webkit-details-marker]:hidden">
+          Plus de détails : équipe, alertes, chiffres
+          <span className="text-sm text-teal-700 group-open:hidden">Afficher</span>
+        </summary>
+        <div className="space-y-8 border-t border-slate-100 p-5">
+          <PioneerBadge userId={session.userId} now={nowMs()} />
+          <TrialInvite userId={session.userId} companyId={cid} />
+          {supplier && <PreciseAlertPrompt userId={session.userId} />}
+          <TeamCard companyId={cid} isAdmin={session.activeCompany?.role === "COMPANY_ADMIN"} />
+          {supplier && (
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+              <DashboardCard animate label="Favoris" value={favs.count ?? 0} href="/dashboard/favoris" icon={<Heart className="size-5" aria-hidden />} />
+              <DashboardCard animate label="Alertes actives" value={alerts.count ?? 0} href="/dashboard/alertes" icon={<BellRing className="size-5" aria-hidden />} />
+              <DashboardCard animate label="Intérêts manifestés" value={interests.count ?? 0} href="/dashboard/opportunites?onglet=reponses" icon={<Handshake className="size-5" aria-hidden />} />
+              <DashboardCard animate label="Réponses envoyées" value={proposals.count ?? 0} href="/dashboard/opportunites?onglet=reponses" icon={<Send className="size-5" aria-hidden />} />
+            </div>
+          )}
+          {live && <MemberProofCompact initial={live} companies={memberCompanies} />}
+        </div>
+      </details>
       <FeedbackPrompt userId={session.userId} createdAt={session.profile.created_at} now={nowMs()} />
       <SatisfactionAsk userId={session.userId} createdAt={session.profile.created_at} now={nowMs()} />
     </div>
