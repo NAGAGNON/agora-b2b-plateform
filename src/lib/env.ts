@@ -87,7 +87,25 @@ export const env = {
    */
   get emailTransport(): "smtp" | "resend" | "mailpit" | null {
     const smtp = Boolean(pick("SMTP_HOST") && pick("SMTP_USER") && pick("SMTP_PASSWORD"));
+    // EMAIL_TRANSPORT=resend : Resend (adresse du domaine) en priorité, le SMTP reste en secours
+    if (pick("EMAIL_TRANSPORT") === "resend" && env.resendApiKey) return "resend";
     return smtp ? "smtp" : env.resendApiKey ? "resend" : env.mailpitUrl ? "mailpit" : null;
+  },
+  /** SMTP configuré (utilisé en secours quand Resend est le transport principal). */
+  get smtpConfigured() {
+    return Boolean(pick("SMTP_HOST") && pick("SMTP_USER") && pick("SMTP_PASSWORD"));
+  },
+  /** Expéditeur des envois Resend : toujours une adresse du domaine vérifié (jamais la boîte Gmail). */
+  get resendFrom() {
+    const explicit = pick("RESEND_FROM");
+    if (explicit) return explicit;
+    const from = env.emailFrom;
+    return /@linkprob2b\.com>?$/i.test(from) ? from : "LinkProB2B <notifications@linkprob2b.com>";
+  },
+  /** Adresse de réponse des envois Resend : la boîte suivie (SMTP_USER ou EMAIL_REPLY_TO). */
+  get emailReplyTo() {
+    const v = pick("EMAIL_REPLY_TO") ?? pick("SMTP_USER");
+    return v?.includes("@") ? v : undefined;
   },
   get emailFrom() {
     // À défaut d'EMAIL_FROM : la boîte SMTP elle-même (Gmail, Infomaniak… n'acceptent que leur

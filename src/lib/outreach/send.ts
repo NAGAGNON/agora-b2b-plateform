@@ -45,12 +45,15 @@ export async function sendOutreachEmail(msg: {
 
   const key = process.env.RESEND_API_KEY;
   if (!key) return { status: "SKIPPED", error: "Aucun envoi configuré (SMTP_HOST, SMTP_USER, SMTP_PASSWORD)" };
+  // Resend n'accepte que le domaine vérifié : une adresse Gmail est remplacée par celle du domaine
+  const resendAddress = /@linkprob2b\.com>?$/i.test(fromAddress) ? (fromAddress.match(/<(.+)>/)?.[1] ?? fromAddress) : (env.resendFrom.match(/<(.+)>/)?.[1] ?? env.resendFrom);
+  const resendFromHeader = `${msg.senderName.replace(/[<>"]/g, "")} <${resendAddress}>`;
   try {
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json", "Idempotency-Key": msg.idempotencyKey },
       body: JSON.stringify({
-        from,
+        from: resendFromHeader,
         to: [msg.to],
         subject: msg.subject,
         html: msg.html,

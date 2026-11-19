@@ -37,5 +37,13 @@ export async function sendVeilleEmail(msg: VeilleMessage): Promise<VeilleSendRes
       headers: { "List-Unsubscribe": `<${unsubscribeUrl}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click", "X-Entity-Ref-ID": msg.token },
     });
   }
-  return sendEmail({ to: msg.to, subject: msg.subject, html: msg.html, text: msg.text, idempotencyKey: `veille-${msg.token}` });
+  return sendEmail({
+    to: msg.to,
+    subject: msg.subject,
+    html: msg.html,
+    text: msg.text,
+    idempotencyKey: `veille-${msg.token}`,
+    fromName: VEILLE_SENDER_NAME,
+    headers: { "List-Unsubscribe": `<${unsubscribeUrl}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click", "X-Entity-Ref-ID": msg.token },
+  });
 }
