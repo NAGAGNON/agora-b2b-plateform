@@ -81,6 +81,10 @@ export async function OpportunityResults({ filters, rawParams, basePath, trackSe
       const longest = filters.q.trim().split(/\s+/).sort((a, b) => b.length - a.length)[0];
       tries.push({ f: { ...filters, q: longest, page: 1 }, label: `« ${longest} »` });
     }
+    // Dernier recours : jamais de page vide. Le métier choisi partout en France, puis les dernières offres publiées.
+    const bare: OpportunityFilters = { types: [], skills: [], status: "OPEN", sort: "recent", page: 1 };
+    if (filters.sector) tries.push({ f: { ...bare, sector: filters.sector }, label: `${sectorName} : les dernières offres partout en France` });
+    tries.push({ f: bare, label: "les dernières offres publiées" });
     for (const t of tries) {
       const r = await searchOpportunities(t.f).catch(() => null);
       if (r && !r.error && r.total > 0) {

@@ -15,3 +15,9 @@ test("mots cherchés + « besoins d'entreprises » sans résultat : les appels d
   await expect(page.getByTestId("nearby-results")).toBeVisible();
   await expect(page.getByTestId("nearby-results")).toContainText("« maintenance »");
 });
+
+test("recherche impossible (mot inconnu) : jamais de page vide, les dernières offres sont proposées", async ({ page }) => {
+  await login(page, "fournisseur@demo.linkprob2b.test");
+  await page.goto("/opportunites?q=zzqxwv");
+  await expect(page.getByTestId("nearby-results")).toBeVisible();
+});
