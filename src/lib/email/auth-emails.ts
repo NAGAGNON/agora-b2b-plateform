@@ -65,18 +65,15 @@ export const welcomeLayout = ({ offers = [], alertName = null }: WelcomeExtras =
 /** E-mail envoyé quand un membre crée la fiche de son entreprise (une seule fois par entreprise). */
 export const companyCreatedSubject = (name: string) => `Votre entreprise ${name} est créée sur LinkProB2B`;
 
-export const companyCreatedLayout = ({ name, slug, hasSiren }: { name: string; slug: string | null; hasSiren: boolean }): Layout => ({
+export const companyCreatedLayout = ({ name }: { name: string; slug?: string | null; hasSiren?: boolean }): Layout => ({
   kicker: "Entreprise créée",
   hero: "equipe",
   title: `${name} est maintenant sur LinkProB2B`,
   paragraphs: [
-    `La fiche de votre entreprise ${name} est enregistrée. Vous pouvez la consulter et la compléter à tout moment depuis votre espace.`,
-    "Nous vous proposons les appels d'offres et les besoins d'entreprises qui correspondent à votre métier : ils sont rassemblés dans « Offres pour moi ».",
-    ...(hasSiren ? [] : ["Pensez à ajouter votre numéro SIREN depuis votre tableau de bord : il rassure les entreprises qui consultent votre fiche."]),
-    "Plus votre présentation est précise (métier, compétences, zone d'intervention), plus les offres proposées sont justes.",
+    `Bonne nouvelle : la fiche de votre entreprise ${name} est créée et enregistrée sur LinkProB2B.`,
+    "Les appels d'offres et les besoins d'entreprises qui correspondent à votre métier vous seront proposés dans votre espace.",
+    "Aucune action n'est nécessaire de votre part : cet e-mail est une simple confirmation.",
   ],
-  list: slug ? [{ label: "Voir la fiche de mon entreprise", url: `${env.siteUrl}/entreprises/${slug}` }] : undefined,
-  cta: { label: "Voir les offres pour moi", url: `${env.siteUrl}/dashboard/recommandations` },
   footer: "Vous n'êtes pas à l'origine de cette création ? Répondez à cet e-mail.",
 });
 
