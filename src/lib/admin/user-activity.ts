@@ -29,6 +29,7 @@ const ANSWER_LABEL: Record<string, string> = { INTERESTED: "« Oui, à suivre »
 
 const EVENT_LABEL: Record<string, [ActivityKind, string]> = {
   view_opportunity: ["view", "A consulté une offre"],
+  founder_interest: ["account", "A demandé le tarif fondateur"],
   view_application: ["application", "A ouvert sa fiche de candidature"],
   view_company: ["view", "A consulté une fiche entreprise"],
   search_opportunities: ["search", "A cherché des offres"],

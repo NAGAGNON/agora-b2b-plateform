@@ -12,6 +12,8 @@ import { Notice } from "@/components/ui/notice";
 import { stripeMode } from "@/lib/billing/stripe";
 import { env } from "@/lib/env";
 import { getPlatformStats } from "@/lib/queries/platform";
+import { getSession } from "@/lib/auth";
+import { LaunchFounderNote } from "@/components/dashboard/launch-founder-note";
 
 export const metadata = pageMetadata({
   title: "Tarifs",
@@ -19,6 +21,9 @@ export const metadata = pageMetadata({
   path: "/tarifs",
 });
 
+
+/** Heure courante (hors rendu pur). */
+const nowMs = () => Date.now();
 
 export default async function PricingPage() {
   // Paiement réel seulement en mode LIVE : sinon les offres payantes sont annoncées, pas vendues
@@ -35,7 +40,7 @@ export default async function PricingPage() {
   const intro = trial.enabled
     ? `Essayez Pro ou Business ${trial.days} jours, sans engagement : rien n'est débité avant la fin de l'essai.`
     : launch
-      ? "Pendant la phase de lancement, toutes les fonctionnalités sont gratuites pour les inscrits. Les offres Pro et Business sont prévues pour plus tard."
+      ? "Pendant la phase de lancement, toutes les fonctionnalités sont gratuites pour les inscrits. Les membres inscrits pendant cette période auront un tarif fondateur réservé quand les offres Pro et Business ouvriront."
       : "Commencez gratuitement. Passez à Pro quand vous voulez plus d'opportunités, d'alertes et d'outils commerciaux.";
   const chips = stats
     ? [
@@ -72,6 +77,11 @@ export default async function PricingPage() {
                 </li>
               ))}
             </ul>
+          )}
+          {launch && (
+            <div className="mx-auto mt-8 max-w-3xl text-left">
+              <LaunchFounderNote userId={(await getSession())?.userId ?? null} now={nowMs()} />
+            </div>
           )}
         </div>
       </section>

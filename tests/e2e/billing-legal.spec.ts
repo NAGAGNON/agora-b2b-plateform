@@ -69,8 +69,21 @@ test("phase de lancement : pipeline accessible en offre Gratuite, sans encart d'
   await expect(page.getByRole("link", { name: "Découvrir LinkProB2B Pro" })).toHaveCount(0);
   await page.goto("/dashboard/abonnement");
   await expect(page.getByText("Phase de lancement : tout est gratuit")).toBeVisible();
-  // Tableau de bord : actions concrètes à mener
+  await expect(page.getByText("tarif fondateur réservé")).toBeVisible();
+  // Tableau de bord : actions concrètes à mener, et rappel du tarif fondateur pour les inscrits du lancement
   await page.goto("/dashboard");
+  await expect(page.getByTestId("launch-founder-note")).toContainText("au lieu de");
+  // Liste « tarif fondateur » (vagues d'une semaine) : vague, temps restant et inscription sans paiement
+  if (await page.getByTestId("founder-join").count()) {
+    await expect(page.getByTestId("founder-wave")).toContainText("Fin de la vague");
+    await expect(page.getByTestId("founder-countdown")).toBeVisible();
+    await page.getByTestId("founder-join").click();
+    await expect(page.getByTestId("founder-explain")).toContainText("Rien à payer aujourd");
+    await page.getByTestId("founder-confirm").click();
+    await expect(page.getByTestId("founder-joined")).toBeVisible();
+    await page.reload();
+    await expect(page.getByTestId("founder-joined")).toBeVisible();
+  }
   await expect(page.getByRole("heading", { name: "À faire maintenant" })).toBeVisible();
 });
 
