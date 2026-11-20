@@ -64,4 +64,18 @@ test("après le dépôt : liste à cocher, rappel à une date choisie, modèle d
   const { data: item } = await db.from("pipeline_items").select("next_action, next_action_at").eq("opportunity_id", id).eq("company_id", companyId).single();
   expect(item).toMatchObject({ next_action: "Relancer l'acheteur", next_action_at: day });
   await expect(page.getByText("Modèle de relance de l'acheteur")).toBeVisible();
+
+  // Rappel en un clic
+  await page.getByTestId("quick-reminders").getByRole("button", { name: /dans 1 mois/ }).click();
+  await expect(page.getByTestId("after-deposit-reminder")).toContainText("Faire le point sur ma candidature");
+
+  // Résultat publié au BOAMP, détecté automatiquement : affiché en tête du suivi
+  await db
+    .from("pipeline_items")
+    .update({ award: { idweb: "26-000001", titulaires: ["ENTREPRISE RETENUE SAS"], date: "2026-11-20", url: "https://www.boamp.fr/pages/avis/?q=idweb:26-000001", cancelled: false } })
+    .eq("opportunity_id", id)
+    .eq("company_id", companyId);
+  await page.reload();
+  await expect(page.getByTestId("award-found")).toContainText("Marché attribué à ENTREPRISE RETENUE SAS");
+  await expect(page.getByTestId("award-found").getByRole("link", { name: /avis officiel/ })).toHaveAttribute("href", /boamp\.fr/);
 });

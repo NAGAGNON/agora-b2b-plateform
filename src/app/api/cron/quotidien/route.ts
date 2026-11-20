@@ -1,5 +1,6 @@
 import { processApplicationReminders } from "@/lib/application-reminders";
 import { requestReviewsAfterDeposit } from "@/lib/testimonial-after-deposit";
+import { processAwardWatch } from "@/lib/award-watch";
 import { queueBoostPresentations } from "@/lib/visibility-send";
 import { cronPausedResponse } from "@/lib/cron-usage";
 import { NextResponse } from "next/server";
@@ -105,6 +106,8 @@ async function run(req: Request) {
     if (error) throw error;
     return data;
   });
+  // Après le dépôt : avis de résultat publié au BOAMP (une recherche par jour et par candidature)
+  await step("resultats-boamp", () => processAwardWatch(createAdminClient()));
   // Demande d'avis à ceux qui ont déposé une candidature trouvée sur LinkProB2B (une seule fois, en semaine)
   await step("avis-apres-depot", () => requestReviewsAfterDeposit(createAdminClient()));
   // Demande d'avis, une seule fois, aux membres les plus actifs (témoignages relus avant publication)
