@@ -71,9 +71,6 @@ async function run(req: Request) {
     // Analyste du lundi (`semaine=1`) : le lundi à 8 h, heure de Paris (tâche planifiée à 6 h et 7 h UTC
     // pour couvrir l'heure d'été et d'hiver) ; envoyé une seule fois par semaine
     if (new URL(req.url).searchParams.get("semaine") === "1") {
-      // Point du lundi (rédigé avec l'API Claude) : arrêté à la demande du fondateur le 20/11 pour économiser
-      // ses crédits ; le bilan du soir est gardé. Réactivable par « weekly_review » = { "enabled": true }.
-      if (!(await settingEnabled("weekly_review"))) return NextResponse.json({ ok: true, skipped: "Point du lundi arrêté (réglage weekly_review)" });
       const monday = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Paris", weekday: "short" }).format(new Date()) === "Mon";
       if (!monday || parisHour() < 8) return NextResponse.json({ ok: true, skipped: "Hors lundi 8 h (heure de Paris)" });
       const r = await sendWeeklyReview();
