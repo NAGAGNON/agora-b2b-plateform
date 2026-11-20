@@ -447,7 +447,8 @@ export async function generateDailyReport(now = new Date(), { final = false }: {
       if (unknown.length) note = `Nombres non retrouvés dans les données, à vérifier : ${unknown.join(", ")}`;
     } catch (e) {
       logServerError("daily report", e);
-      error = e instanceof Error ? e.message.slice(0, 300) : String(e);
+      const msg = e instanceof Error ? e.message : String(e);
+      error = /credit balance/i.test(msg) ? "Crédit du service de rédaction épuisé : chiffres affichés sans commentaire." : msg.slice(0, 300);
     }
   }
   const row = { day: facts.date, generated_at: now.toISOString(), facts: facts as unknown as NonNullable<Json>, summary: summary as unknown as Json, model, note, error };

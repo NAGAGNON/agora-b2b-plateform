@@ -9,6 +9,7 @@ import { REPORT_MODEL } from "@/lib/daily-report";
 import { runNeedCampaign } from "@/lib/needs";
 import { env } from "@/lib/env";
 import { processEmailOutbox } from "@/lib/email/outbox";
+import { notifyAdminsOfNeedToReview } from "@/lib/signup-notify";
 
 type DB = SupabaseClient<Database>;
 
@@ -75,6 +76,14 @@ export async function reviewNeed(need: NeedForReview, sectors: { slug: string; l
   return response.parsed_output;
 }
 
+/** Raison lisible quand le service de relecture répond par une erreur. */
+export function reviewUnavailableReason(e: { status?: number; message?: string }) {
+  if (/credit balance/i.test(e.message ?? "")) return "crédit du service de relecture épuisé";
+  if (e.status === 401 || e.status === 403) return "accès au service de relecture refusé";
+  if (e.status === 429 || (e.status ?? 0) >= 500) return "service de relecture surchargé ou en panne";
+  return "service de relecture indisponible";
+}
+
 export type AutoModerationResult = { id: string; decision: Review["decision"] | "SKIPPED"; note: string };
 
 /**
@@ -82,13 +91,14 @@ export type AutoModerationResult = { id: string; decision: Review["decision"] | 
  * précisions à l'auteur, ou laissé à l'équipe (cas douteux). Sans clé ANTHROPIC_API_KEY : laissé à l'équipe.
  */
 export async function autoModerateNeed(db: DB, id: string, { client }: { client?: Pick<Anthropic, "beta"> } = {}): Promise<AutoModerationResult> {
+  let need: NeedForReview | null = null;
   try {
     const { data } = await db
       .from("opportunities")
       .select("id, title, description, type, status, origin, sector_slug, city, department_code, budget_min, budget_max, company:companies(name)")
       .eq("id", id)
       .maybeSingle();
-    const need = data as unknown as NeedForReview | null;
+    need = data as unknown as NeedForReview | null;
     if (!need || need.status !== "PENDING_REVIEW" || need.origin !== "INTERNAL") return { id, decision: "SKIPPED", note: "Pas en attente" };
     if (!process.env.ANTHROPIC_API_KEY && !client) return { id, decision: "SKIPPED", note: "Relecture automatique indisponible (clé absente)" };
     const { data: sectors } = await db.from("sectors").select("slug, label").order("label");
@@ -118,6 +128,13 @@ export async function autoModerateNeed(db: DB, id: string, { client }: { client?
     return { id, decision: review.decision, note: review.reason };
   } catch (e) {
     logServerError("auto moderation", e);
+    // Service de relecture indisponible (crédit épuisé, panne) : laissé à l'équipe, prévenue une fois par e-mail
+    if (need && e instanceof Anthropic.APIError) {
+      const reason = reviewUnavailableReason(e);
+      await db.from("audit_logs").insert({ action: "moderation.auto.manual", entity_type: "opportunity", entity_id: id, metadata: { reason } });
+      await notifyAdminsOfNeedToReview(id, { title: need.title, company: (Array.isArray(need.company) ? need.company[0]?.name : need.company?.name) ?? null, reason });
+      return { id, decision: "MANUAL", note: reason };
+    }
     return { id, decision: "SKIPPED", note: e instanceof Error ? e.message : String(e) };
   }
 }

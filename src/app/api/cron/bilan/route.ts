@@ -1,3 +1,4 @@
+import { createAdminClient } from "@/lib/supabase/admin";
 import { cronPausedResponse } from "@/lib/cron-usage";
 import { NextResponse } from "next/server";
 import { startCronMeter } from "@/lib/cron-usage";
@@ -33,6 +34,15 @@ function parisHour(now = new Date()): number {
  * super-administrateurs) à 21 h, heure de Paris : la tâche est planifiée à 19 h et 20 h UTC (heure
  * d'été / d'hiver) ; avant 21 h à Paris elle ne fait rien, et le rapport n'est envoyé qu'une fois.
  */
+/** Réglage activé seulement s'il vaut { enabled: true } (arrêté par défaut). */
+async function settingEnabled(key: string): Promise<boolean> {
+  const { data } = await createAdminClient().from("platform_settings").select("value").eq("key", key).maybeSingle();
+  return (data?.value as { enabled?: boolean } | null)?.enabled === true;
+}
+
+/** Comité des agents internes : seulement si le réglage « board » vaut { enabled: true }. */
+const boardEnabled = () => settingEnabled("board");
+
 async function run(req: Request) {
   if (!authorized(req)) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
   const started = Date.now();
@@ -41,15 +51,19 @@ async function run(req: Request) {
     // de Paris ; deux horaires UTC pour l'heure d'été et d'hiver, une seule réunion par jour) ; les alertes
     // sont vérifiées plusieurs fois par jour et déclenchent une réunion exceptionnelle si besoin
     const comite = new URL(req.url).searchParams.get("comite");
+    // Comité des agents internes (CEO, CTO…) : arrêté à la demande du fondateur le 20/11 (plus de réunions
+    // ni de rapports). Réactivable par le réglage platform_settings « board » = { "enabled": true }.
+    const boardOn = comite ? await boardEnabled() : false;
     if (comite === "alertes") {
       // Seuils du lancement payant fixés par le fondateur : alerte par e-mail quand ils sont tous atteints
       const lancement = await checkLaunchReadiness().catch((e) => (logServerError("launch readiness", e), { error: true }));
-      const alertes = await runBoardAlerts();
+      const alertes = boardOn ? await runBoardAlerts() : { comite: "arrêté" };
       // Fiches synthèse des offres ouvertes réécrites peu à peu en langage simple (temps restant du passage)
       const fiches = await rewriteBriefs(undefined, { limit: 60, deadline: started + 200_000 }).catch((e) => (logServerError("rewrite briefs", e), { error: true }));
       return NextResponse.json({ ok: true, lancement, fiches, ...alertes });
     }
     if (comite === "matin" || comite === "soir") {
+      if (!boardOn) return NextResponse.json({ ok: true, skipped: "Comité des agents arrêté (réglage board)" });
       if (parisHour() < (comite === "matin" ? 8 : 19)) return NextResponse.json({ ok: true, skipped: "Avant l'heure de la réunion (heure de Paris)" });
       const r = await runBoard({ kind: comite === "matin" ? "MATIN" : "SOIR" });
       return NextResponse.json({ ok: true, ...r });

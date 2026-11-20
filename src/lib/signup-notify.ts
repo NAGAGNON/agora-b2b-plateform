@@ -159,3 +159,42 @@ export async function notifyAdminsOfFounderInterest(userId: string, wave: number
     logServerError("founder interest notice", e);
   }
 }
+
+/** Contenu de l'e-mail « besoin à relire » envoyé aux administrateurs quand la relecture automatique est indisponible. */
+export function renderNeedToReviewNotice(n: { title: string; company: string | null; reason: string }) {
+  const link = `${siteUrl()}/admin/moderation`;
+  const subject = `Besoin à relire : ${n.title}`.slice(0, 140);
+  const text = [
+    "Un besoin attend votre relecture : la relecture automatique n'a pas pu le traiter.",
+    "",
+    `Besoin : ${n.title}`,
+    `Entreprise : ${n.company ?? "(non renseignée)"}`,
+    `Raison : ${n.reason}`,
+    "",
+    `Le relire et le publier : ${link}`,
+  ].join("\n");
+  const html = `<!doctype html><html lang="fr"><body style="margin:0;background:#E8F4FD;font-family:Inter,Arial,sans-serif">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:24px 8px">
+<table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#ffffff;border-radius:12px">
+<tr><td style="background:#0B1F3A;border-radius:12px 12px 0 0;padding:16px 24px;color:#99f6e4;font-size:14px;font-weight:600">Besoin à relire</td></tr>
+<tr><td style="padding:20px 24px"><p style="margin:0 0 12px;font-size:16px;font-weight:700;color:#0B1F3A">Un besoin attend votre relecture.</p>
+<p style="margin:0 0 6px;font-size:14px;color:#0f172a"><strong>${esc(n.title)}</strong></p>
+<p style="margin:0 0 6px;font-size:14px;color:#64748b">${esc(n.company ?? "(entreprise non renseignée)")}</p>
+<p style="margin:0 0 16px;font-size:14px;color:#64748b">La relecture automatique n'a pas pu le traiter : ${esc(n.reason)}</p>
+<p style="margin:0"><a href="${link}" style="display:inline-block;background:#0d9488;color:#ffffff;text-decoration:none;font-weight:600;padding:10px 18px;border-radius:8px">Le relire et le publier</a></p></td></tr></table></td></tr></table></body></html>`;
+  return { subject, html, text };
+}
+
+/** Prévient les administrateurs qu'un besoin doit être relu à la main (une seule fois par besoin). Jamais bloquant. */
+export async function notifyAdminsOfNeedToReview(id: string, n: { title: string; company: string | null; reason: string }) {
+  try {
+    const to = await reportRecipients();
+    const msg = renderNeedToReviewNotice(n);
+    for (const address of to) {
+      const r = await sendEmail({ to: address, ...msg, idempotencyKey: `need-to-review-${id}-${address}` });
+      if (r.status === "FAILED") logServerError("need to review notice", new Error(r.error ?? "échec d'envoi"));
+    }
+  } catch (e) {
+    logServerError("need to review notice", e);
+  }
+}
