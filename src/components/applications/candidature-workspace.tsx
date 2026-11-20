@@ -64,7 +64,7 @@ export type WorkspaceData = {
   stage: string;
   submittedAt: string | null;
   /** Avis de résultat officiel détecté automatiquement (BOAMP) */
-  award: { idweb: string; titulaires: string[]; date: string | null; url: string; cancelled: boolean } | null;
+  award: { idweb: string; titulaires: string[]; date: string | null; url: string; cancelled: boolean; won?: boolean } | null;
   /** Le résultat est surveillé automatiquement (offre publiée au BOAMP) */
   awardWatched: boolean;
   /** Rappel choisi après le dépôt (« prochaine action » du suivi) */
@@ -1162,11 +1162,17 @@ function AwardBanner({ award, watched }: { award: WorkspaceData["award"]; watche
         <p className="mt-2 font-heading text-lg font-bold">
           {award.cancelled
             ? "L'acheteur a publié un avis d'annulation de cette consultation."
-            : award.titulaires.length
-              ? `Marché attribué à ${award.titulaires.join(", ")}`
-              : "L'avis de résultat est publié."}
+            : award.won
+              ? `🎉 L'avis désigne ${award.titulaires.join(", ") || "votre entreprise"} comme titulaire`
+              : award.titulaires.length
+                ? `Marché attribué à ${award.titulaires.join(", ")}`
+                : "L'avis de résultat est publié."}
         </p>
-        {!award.cancelled && <p className="mt-1 text-sm text-slate-300">C&apos;est votre entreprise ? Indiquez-le juste en dessous : Gagné ou Pas retenu.</p>}
+        {!award.cancelled && (
+          <p className="mt-1 text-sm text-slate-300">
+            {award.won ? "C'est votre entreprise : félicitations ! Confirmez-le juste en dessous avec « Gagné »." : "C'est votre entreprise ? Indiquez-le juste en dessous : Gagné ou Pas retenu."}
+          </p>
+        )}
         <a href={award.url} target="_blank" rel="noopener noreferrer" className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-teal-400 hover:underline">
           <ExternalLink className="size-4" aria-hidden /> Voir l&apos;avis officiel
         </a>
