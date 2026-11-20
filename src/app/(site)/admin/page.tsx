@@ -55,7 +55,10 @@ export default async function AdminHome(props: PageProps<"/admin">) {
   const { data: teamCompanies } = (team ?? []).length
     ? await admin.from("company_members").select("company_id, companies!inner(is_demo)").in("user_id", (team ?? []).map((u) => u.id)).eq("companies.is_demo", true)
     : { data: [] as { company_id: string }[] };
-  const { count: boardPending } = session.isAdmin ? await admin.from("board_decisions").select("id", { count: "exact", head: true }).eq("status", "A_VALIDER") : { count: 0 };
+  // Comité des agents internes arrêté (réglage « board ») : plus de bandeau « décisions à valider »
+  const { data: board } = await admin.from("platform_settings").select("value").eq("key", "board").maybeSingle();
+  const boardOn = (board?.value as { enabled?: boolean } | null)?.enabled === true;
+  const { count: boardPending } = session.isAdmin && boardOn ? await admin.from("board_decisions").select("id", { count: "exact", head: true }).eq("status", "A_VALIDER") : { count: 0 };
   const realDemo = Math.max(0, (s.demo_records ?? 0) - new Set((teamCompanies ?? []).map((c) => c.company_id)).size);
   return (
     <div className="space-y-8">
