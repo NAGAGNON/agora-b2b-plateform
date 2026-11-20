@@ -156,6 +156,14 @@ export async function OpportunityResults({ filters, rawParams, basePath, trackSe
     if (filters.radius) alertParams.set("rayon", String(filters.radius));
   }
   const count = activeFilterCount(filters);
+  // Nombre d'offres par provenance pour les autres critères (les besoins d'entreprises sont encore rares)
+  const [inCount, exCount] = error
+    ? [null, null]
+    : await Promise.all([
+        filters.origin === "INTERNAL" ? total : searchOpportunities({ ...filters, origin: "INTERNAL", page: 1 }, 1).then((r) => r.total),
+        filters.origin === "EXTERNAL" ? total : searchOpportunities({ ...filters, origin: "EXTERNAL", page: 1 }, 1).then((r) => r.total),
+      ]);
+  const originCounts = inCount != null && exCount != null ? { INTERNAL: inCount, EXTERNAL: exCount } : undefined;
   // Raccourcis : métier et département de l'entreprise du membre, puis les filtres les plus utilisés
   const company = session?.activeCompany?.company.id;
   const [{ data: myProfile }, { data: myCompany }] = company
@@ -179,13 +187,13 @@ export async function OpportunityResults({ filters, rawParams, basePath, trackSe
       <aside className="hidden lg:block" aria-label="Filtres">
         <form action={basePath} method="get" className="sticky top-20 max-h-[calc(100dvh-6rem)] overflow-y-auto overscroll-contain rounded-3xl border border-slate-200 bg-white p-5 shadow-sm [scrollbar-width:thin]">
           <FilterHeader count={count} resetHref={basePath} />
-          <FilterFields f={filters} departments={departments} places={places} idPrefix="d" />
+          <FilterFields f={filters} departments={departments} places={places} idPrefix="d" originCounts={originCounts} />
           <FilterSubmit />
         </form>
       </aside>
       <div className="min-w-0">
         <MobileFilters count={count} action={basePath} title="Filtrer les opportunités">
-          <FilterFields f={filters} departments={departments} places={places} idPrefix="m" />
+          <FilterFields f={filters} departments={departments} places={places} idPrefix="m" originCounts={originCounts} />
         </MobileFilters>
         <div className="mt-4 lg:mt-0">
           <QuickFilters items={quick} basePath={basePath} raw={rawParams} />

@@ -16,7 +16,7 @@ const short = (l: string) => l.replace(/\s*\(.*\)$/, "");
  * Champs de filtre (formulaire GET). Utilisé en panneau latéral (desktop)
  * et dans un tiroir (mobile). Fonctionne sans JavaScript.
  */
-export async function FilterFields({ f, departments, places, idPrefix }: { f: OpportunityFilters; departments: Dept[]; places: Place[]; idPrefix: string }) {
+export async function FilterFields({ f, departments, places, idPrefix, originCounts }: { f: OpportunityFilters; departments: Dept[]; places: Place[]; idPrefix: string; originCounts?: { INTERNAL: number; EXTERNAL: number } }) {
   const id = (n: string) => `${idPrefix}-${n}`;
   const [sources, sectors] = await Promise.all([getPublicSources(), getSectors()]);
   const placeName = (f.place && places.find((p) => p.slug === f.place)?.name) ?? f.place ?? "";
@@ -49,6 +49,8 @@ export async function FilterFields({ f, departments, places, idPrefix }: { f: Op
           ].map(([v, l]) => (
             <Chip key={v} name="origine" value={v} checked={(f.origin ?? "") === v}>
               {l}
+              {/* Nombre d'offres pour les autres critères choisis : on voit avant de cliquer qu'un choix est vide */}
+              {originCounts && (v === "INTERNAL" || v === "EXTERNAL") && <span className="ml-1 tabular-nums opacity-70">({originCounts[v as "INTERNAL" | "EXTERNAL"]})</span>}
             </Chip>
           ))}
         </ChipGroup>
