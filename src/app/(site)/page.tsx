@@ -397,7 +397,7 @@ export default async function HomePage(props: PageProps<"/">) {
             </h2>
             <p className="mt-4 text-slate-200">
               Créez votre profil gratuitement : secteur, zone et compétences. LinkProB2B vous recommande les opportunités correspondantes, vous alerte des
-              nouvelles publications et vous aide à suivre vos démarches. Toutes les fonctionnalités sont gratuites pendant la phase de lancement.
+              nouvelles publications et vous aide à suivre vos démarches. Toutes les fonctionnalités sont gratuites pendant la phase de lancement, et les inscrits de cette période auront un tarif fondateur réservé.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <TrackedButtonLink cta="home_final_inscription" href="/inscription" size="lg">

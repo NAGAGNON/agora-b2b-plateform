@@ -73,7 +73,8 @@ export default async function SubscriptionPage(props: PageProps<"/dashboard/abon
       {usage?.free_launch && plan === "FREE" && (
         <Notice tone="success" title="Phase de lancement : tout est gratuit">
           Votre entreprise a accès à toutes les fonctionnalités de LinkProB2B (besoins, réponses, alertes, favoris, recommandations, pipeline
-          commercial), sans abonnement ni carte bancaire. Les offres Pro et Business sont prévues pour plus tard ; vous serez prévenu à l&apos;avance.
+          commercial), sans abonnement ni carte bancaire. Les offres Pro et Business sont prévues pour plus tard ; vous serez prévenu à l&apos;avance. Comme
+          membre inscrit pendant le lancement, vous aurez un tarif fondateur réservé quand elles ouvriront.
         </Notice>
       )}
 

@@ -8,6 +8,7 @@ import { PioneerBadge } from "@/components/dashboard/pioneer-badge";
 import { VisibilityPrompt } from "@/components/dashboard/visibility-prompt";
 import { SirenPrompt } from "@/components/dashboard/siren-prompt";
 import { TrialInvite } from "@/components/dashboard/trial-invite";
+import { LaunchFounderNote } from "@/components/dashboard/launch-founder-note";
 import { PreciseAlertPrompt } from "@/components/dashboard/precise-alert-prompt";
 import { createClient } from "@/lib/supabase/server";
 import { DashboardCard, Card, CardHeader } from "@/components/ui/card";
@@ -152,6 +153,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
       {/* À faire maintenant : une seule chose en premier (actions en attente, nouveautés depuis la visite) */}
       <NextActions companyId={cid} userId={session.userId} buyer={buyer} supplier={supplier} now={nowMs()} />
       <SinceLastVisit userId={session.userId} companyId={cid} supplier={supplier} since={previousVisit(session.profile, nowMs())} now={nowMs()} includeDemo={await showDemoData()} />
+      <LaunchFounderNote userId={session.userId} now={nowMs()} />
       <SirenPrompt companyId={cid} />
       <VisibilityPrompt companyId={cid} welcome={Boolean(sp.bienvenue)} />
       <QuickTiles
