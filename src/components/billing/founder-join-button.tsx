@@ -1,88 +1,92 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Check, X } from "lucide-react";
+import { Check } from "lucide-react";
 import { joinFounderList } from "@/app/actions/founder-list";
+import { Modal } from "@/components/ui/modal";
 import { cn } from "@/lib/cn";
 
 const GAINS = [
-  "La veille des appels d'offres sans limite, chaque matin dans votre boîte",
-  "La fiche synthèse de chaque appel d'offres : l'essentiel, les pièces à fournir, les dates",
-  "Le suivi de vos candidatures étape par étape, avec les rappels",
-  "Les besoins des entreprises en avant-première et des alertes illimitées",
+  "Les appels d'offres de votre métier chaque matin, sans limite",
+  "Une fiche claire pour chaque appel d'offres : l'essentiel, les documents à fournir, les dates",
+  "Le suivi de vos candidatures, étape par étape, avec des rappels",
+  "Les besoins des entreprises avant tout le monde",
 ];
 
 /**
- * Bouton « Je veux le tarif fondateur ». Au clic : explication du principe et de ce que le membre y
- * gagne, puis confirmation. Aucun paiement, aucune carte bancaire, aucun engagement.
+ * Bouton « Je veux le tarif fondateur » : au clic, une fenêtre explique le principe et le prix,
+ * puis le membre confirme. Aucun paiement, aucune carte bancaire, aucun engagement.
  */
-export function FounderJoinButton({ joined, className }: { joined: boolean; className?: string }) {
+export function FounderJoinButton({ joined, price, regular, className }: { joined: boolean; price: string; regular: string; className?: string }) {
   const [done, setDone] = useState(joined);
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   if (done)
     return (
-      <span className={cn("inline-flex items-center gap-1.5 rounded-xl bg-teal-50 px-3 py-2 text-sm font-semibold text-teal-800 ring-1 ring-teal/30", className)} data-testid="founder-joined">
-        <Check className="size-4" aria-hidden /> Vous êtes sur la liste
-      </span>
+      <p className={cn("inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-sm font-semibold text-white ring-1 ring-white/20", className)} data-testid="founder-joined">
+        <Check className="size-4 text-teal-400" aria-hidden /> Vous êtes sur la liste
+      </p>
     );
   return (
-    <span className={cn("inline-flex flex-col gap-2", className)}>
-      {!open && (
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          aria-expanded={open}
-          className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-teal to-electric px-4 py-2 text-sm font-bold text-white shadow-sm hover:opacity-95"
-          data-testid="founder-join"
-        >
-          Je veux le tarif fondateur
-        </button>
-      )}
-      {open && (
-        <span className="block max-w-md rounded-2xl bg-white p-4 text-left text-sm text-slate-700 shadow-lg ring-1 ring-slate-200" data-testid="founder-explain">
-          <span className="flex items-start justify-between gap-3">
-            <strong className="font-heading text-base text-navy">Le tarif fondateur, comment ça marche ?</strong>
-            <button type="button" onClick={() => setOpen(false)} className="rounded-lg p-1 text-slate-500 hover:bg-slate-100" aria-label="Fermer">
-              <X className="size-4" aria-hidden />
-            </button>
-          </span>
-          <span className="mt-2 block">
-            Aujourd&apos;hui, tout est gratuit. Bientôt, une offre Pro ouvrira. En rejoignant la liste, vous serez <strong>prévenu en premier</strong> et vous
-            aurez un <strong>prix plus léger que le prix public</strong>, réservé aux membres du lancement.
-          </span>
-          <span className="mt-3 block font-semibold text-navy">Ce que l&apos;offre Pro vous apporte :</span>
-          <span className="mt-1 block space-y-1">
-            {GAINS.map((g) => (
-              <span key={g} className="flex gap-2">
-                <Check className="mt-0.5 size-4 shrink-0 text-teal-600" aria-hidden />
-                {g}
-              </span>
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className={cn("inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-teal to-electric px-5 py-3 text-sm font-bold text-white shadow-lg shadow-teal/20 hover:opacity-95", className)}
+        data-testid="founder-join"
+      >
+        Je veux ce prix
+      </button>
+      <Modal open={open} onClose={() => setOpen(false)} title="Le tarif fondateur, en 3 points">
+        <div className="space-y-5 text-sm text-slate-700" data-testid="founder-explain">
+          <ol className="space-y-3">
+            {[
+              ["Aujourd'hui", "Tout est gratuit, jusqu'au vrai lancement du site."],
+              ["Au lancement", `L'offre Pro coûtera ${regular} HT par mois.`],
+              ["Vous, sur la liste", `Vous la paierez ${price} HT par mois, à vie.`],
+            ].map(([t, d], i) => (
+              <li key={t} className="flex gap-3">
+                <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-teal to-electric text-sm font-bold text-white">{i + 1}</span>
+                <span>
+                  <strong className="block text-navy">{t}</strong>
+                  {d}
+                </span>
+              </li>
             ))}
-          </span>
-          <span className="mt-3 block rounded-xl bg-slate-50 p-3 text-xs text-slate-600">
-            Aucun paiement maintenant, aucune carte bancaire, aucun engagement. Le prix fondateur vous sera annoncé avant l&apos;ouverture, et vous serez libre
-            de l&apos;accepter ou non.
-          </span>
+          </ol>
+          <div className="rounded-2xl bg-sky p-4">
+            <p className="font-semibold text-navy">Avec l&apos;offre Pro, vous avez :</p>
+            <ul className="mt-2 space-y-1.5">
+              {GAINS.map((g) => (
+                <li key={g} className="flex gap-2">
+                  <Check className="mt-0.5 size-4 shrink-0 text-teal-600" aria-hidden />
+                  {g}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <p className="text-center text-xs text-slate-500"><strong className="block text-sm text-navy">S&apos;inscrire sur la liste ne vous engage à rien.</strong>Rien à payer aujourd&apos;hui · Pas de carte bancaire · Vous déciderez librement au lancement</p>
           <button
             type="button"
             disabled={pending}
             onClick={() =>
               start(async () => {
                 const r = await joinFounderList();
-                if (r.ok) setDone(true);
-                else setError(r.error ?? "Réessayez dans un instant.");
+                if (r.ok) {
+                  setDone(true);
+                  setOpen(false);
+                } else setError(r.error ?? "Réessayez dans un instant.");
               })
             }
-            className="mt-3 inline-flex w-full items-center justify-center rounded-xl bg-gradient-to-r from-teal to-electric px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:opacity-95 disabled:opacity-60"
+            className="inline-flex w-full items-center justify-center rounded-xl bg-gradient-to-r from-teal to-electric px-4 py-3 text-base font-bold text-white shadow-sm hover:opacity-95 disabled:opacity-60"
             data-testid="founder-confirm"
           >
-            {pending ? "Un instant…" : "Rejoindre la liste"}
+            {pending ? "Un instant…" : "Je m'inscris sur la liste"}
           </button>
-          {error && <span className="mt-2 block text-xs text-red-700">{error}</span>}
-        </span>
-      )}
-    </span>
+          {error && <p className="text-center text-xs text-red-700">{error}</p>}
+        </div>
+      </Modal>
+    </>
   );
 }
