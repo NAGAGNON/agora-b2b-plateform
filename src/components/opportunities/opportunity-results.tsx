@@ -245,6 +245,27 @@ export async function OpportunityResults({ filters, rawParams, basePath, trackSe
             />
           ) : rows.length === 0 && nearby ? (
             <div className="space-y-4" data-testid="nearby-results">
+              {/* Besoins d'entreprises : encore rares. On le dit franchement et on propose d'être prévenu ou de se faire connaître */}
+              {filters.origin === "INTERNAL" && session && (
+                <div className="rounded-3xl bg-gradient-to-br from-teal-50 to-sky p-5 ring-1 ring-teal/25" data-testid="no-needs-yet">
+                  <p className="font-heading text-lg font-bold text-navy">
+                    Pas encore de besoin d&apos;entreprise
+                    {filters.sector ? ` en ${sectorLabel(filters.sector, labels)}` : ""}
+                    {filters.department ? ` dans le département ${departments.find((d) => d.code === filters.department)?.name ?? filters.department}` : filters.region ? ` en ${REGIONS.find((r) => r.slug === filters.region)?.name ?? "région"}` : ""}
+                  </p>
+                  <p className="mt-1 text-sm text-slate-700">
+                    Les entreprises commencent à publier leurs besoins sur LinkProB2B. Soyez prévenu dès qu&apos;un besoin de votre métier est publié, et faites-vous connaître des entreprises qui cherchent un prestataire.
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <ButtonLink href={`/dashboard/alertes?${alertParams.toString()}`} size="sm">
+                      Être prévenu des nouveaux besoins
+                    </ButtonLink>
+                    <ButtonLink href="/dashboard/disponibilites" size="sm" variant="outline">
+                      Proposer mes services aux entreprises
+                    </ButtonLink>
+                  </div>
+                </div>
+              )}
               <p className="rounded-2xl bg-sky px-4 py-3 text-sm text-navy ring-1 ring-slate-200">
                 Aucune offre exacte pour ces critères. Voici des offres proches : <strong>{nearby.label}</strong>.{" "}
                 <a href={basePath} className="font-semibold text-teal-700 underline">

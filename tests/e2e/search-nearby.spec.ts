@@ -14,6 +14,9 @@ test("mots cherchés + « besoins d'entreprises » sans résultat : les appels d
   await page.goto("/opportunites?q=maintenance&origine=INTERNAL&type=MISSION&type=PRIVATE_TENDER");
   await expect(page.getByTestId("nearby-results")).toBeVisible();
   await expect(page.getByTestId("nearby-results")).toContainText("« maintenance »");
+  // Dit franchement qu'il n'y a pas encore de besoin, avec une alerte et « proposer mes services »
+  await expect(page.getByTestId("no-needs-yet")).toContainText("Pas encore de besoin d'entreprise");
+  await expect(page.getByTestId("no-needs-yet").getByRole("link", { name: "Proposer mes services aux entreprises" })).toHaveAttribute("href", "/dashboard/disponibilites");
 });
 
 test("recherche impossible (mot inconnu) : jamais de page vide, les dernières offres sont proposées", async ({ page }) => {
