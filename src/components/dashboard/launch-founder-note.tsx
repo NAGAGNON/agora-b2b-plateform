@@ -38,7 +38,7 @@ export async function LaunchFounderNote({ userId, now }: { userId: string | null
           </h2>
           <p className="mt-2 max-w-xl text-slate-300">
             LinkProB2B est gratuit jusqu&apos;au vrai lancement. Inscrivez-vous sur la liste : quand l&apos;offre Pro ouvrira, vous la paierez{" "}
-            <strong className="text-white">{price} HT par mois au lieu de {regular} HT</strong>.
+            <strong className="text-white">{price} HT par mois au lieu de {regular} HT pendant les 3 premiers mois</strong>.
           </p>
           {!joined && (
             <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-slate-300" data-testid="founder-wave">
@@ -56,6 +56,7 @@ export async function LaunchFounderNote({ userId, now }: { userId: string | null
             {price}
             <span className="ml-1 text-base font-semibold text-slate-300">HT / mois</span>
           </p>
+          <p className="-mt-2 text-xs font-semibold text-teal-400">les 3 premiers mois</p>
           {userId ? (
             <FounderJoinButton joined={joined} price={price} regular={regular} className="w-full" />
           ) : (

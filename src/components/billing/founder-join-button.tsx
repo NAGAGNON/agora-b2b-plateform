@@ -44,7 +44,7 @@ export function FounderJoinButton({ joined, price, regular, className }: { joine
             {[
               ["Aujourd'hui", "Tout est gratuit, jusqu'au vrai lancement du site."],
               ["Au lancement", `L'offre Pro coûtera ${regular} HT par mois.`],
-              ["Vous, sur la liste", `Vous la paierez ${price} HT par mois, à vie.`],
+              ["Vous, sur la liste", `Vous la paierez ${price} HT par mois pendant les 3 premiers mois.`],
             ].map(([t, d], i) => (
               <li key={t} className="flex gap-3">
                 <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-teal to-electric text-sm font-bold text-white">{i + 1}</span>

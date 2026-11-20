@@ -75,7 +75,7 @@ test("phase de lancement : pipeline accessible en offre Gratuite, sans encart d'
   await expect(page.getByTestId("launch-founder-note")).toContainText("au lieu de");
   // Liste « tarif fondateur » (vagues d'une semaine) : vague, temps restant et inscription sans paiement
   if (await page.getByTestId("founder-join").count()) {
-    await expect(page.getByTestId("founder-wave")).toContainText("Vague");
+    await expect(page.getByTestId("founder-wave")).toContainText("Fin de la vague");
     await expect(page.getByTestId("founder-countdown")).toBeVisible();
     await page.getByTestId("founder-join").click();
     await expect(page.getByTestId("founder-explain")).toContainText("Rien à payer aujourd");
