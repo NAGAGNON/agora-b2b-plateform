@@ -89,6 +89,9 @@ export type DigestItem = { label: string; url: string; kicker?: string | null; s
 export type NotificationPayload = { type?: string; title?: string; body?: string; paragraphs?: string[]; link?: string; cta?: string; items?: DigestItem[]; unsubscribe?: string };
 
 /** Gabarit des e-mails de notification (un par type d'événement, via le titre, le texte et l'action). */
+/** E-mails envoyés en nombre : par le SMTP d'abord (voir `bulk` dans sendEmail). */
+const BULK_TEMPLATES = new Set(["alert_digest", "reengagement", "testimonial_request"]);
+
 export function notificationLayout(template: string, payload: NotificationPayload, subject: string): Parameters<typeof renderEmail>[0] {
   const look = LOOK[payload.type ?? template];
   return {
@@ -138,7 +141,7 @@ export async function processEmailOutbox(limit = 50): Promise<{ sent: number; sk
     const { html, text } = payload.offer
       ? renderOfferEmail(payload.offer, env.siteUrl, env.siteUrl + (payload.link ?? "/offre-fondateur"))
       : renderEmail(notificationLayout(row.template, payload, row.subject));
-    const result = await sendEmail({ to: row.to_email, subject: row.subject, html, text, idempotencyKey: `outbox-${row.id}` });
+    const result = await sendEmail({ to: row.to_email, subject: row.subject, html, text, idempotencyKey: `outbox-${row.id}`, bulk: BULK_TEMPLATES.has(row.template) });
     stats[result.status === "SENT" ? "sent" : result.status === "SKIPPED" ? "skipped" : "failed"]++;
     await admin
       .from("email_outbox")

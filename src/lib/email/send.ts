@@ -1,7 +1,9 @@
 import "server-only";
 import { env } from "@/lib/env";
 
-export type EmailMessage = { to: string; subject: string; html: string; text: string; idempotencyKey?: string; fromName?: string; headers?: Record<string, string> };
+/** `bulk` : e-mail envoyé en nombre (veille, relances, alertes) : par le SMTP d'abord, pour garder le quota
+ * quotidien de Resend aux e-mails importants (mot de passe, bienvenue, entreprise créée, alertes admin). */
+export type EmailMessage = { to: string; subject: string; html: string; text: string; idempotencyKey?: string; fromName?: string; headers?: Record<string, string>; bulk?: boolean };
 /** `retryable` : erreur temporaire (réseau, 429, 5xx) — la file réessaiera. */
 export type SendResult = { status: "SENT" | "SKIPPED" | "FAILED"; error?: string; retryable?: boolean; id?: string };
 
@@ -42,6 +44,16 @@ export async function sendEmail(msg: EmailMessage): Promise<SendResult> {
     return { status: r.status, error: r.error, retryable: r.retryable, id: r.id };
   }
   const key = env.resendApiKey;
+  // Envoi en nombre : SMTP d'abord (quota Resend gratuit limité à 100 par jour), Resend en secours
+  if (msg.bulk && key && env.smtpConfigured) {
+    const { sendSmtp } = await import("@/lib/email/smtp");
+    const address = (env.emailFrom.match(/<(.+)>/)?.[1] ?? env.emailFrom).trim();
+    const from = msg.fromName ? `"${msg.fromName.replace(/["<>]/g, "")}" <${address}>` : env.emailFrom;
+    const s = await sendSmtp({ from, to: msg.to, subject: msg.subject, html: msg.html, text: msg.text, headers: msg.headers });
+    if (s.status === "SENT") return { status: "SENT", id: s.id };
+    const r = await sendResend(key, msg);
+    return r.status === "SENT" ? r : { status: r.status, error: `SMTP : ${s.error} · Resend : ${r.error}`, retryable: s.retryable || r.retryable };
+  }
   if (!key && env.mailpitUrl) return sendToMailpit(env.mailpitUrl, msg);
   if (!key) return { status: "SKIPPED", error: "Aucun fournisseur e-mail configuré" };
   const r = await sendResend(key, msg);

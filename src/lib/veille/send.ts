@@ -45,5 +45,6 @@ export async function sendVeilleEmail(msg: VeilleMessage): Promise<VeilleSendRes
     idempotencyKey: `veille-${msg.token}`,
     fromName: VEILLE_SENDER_NAME,
     headers: { "List-Unsubscribe": `<${unsubscribeUrl}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click", "X-Entity-Ref-ID": msg.token },
+    bulk: true,
   });
 }
