@@ -7,6 +7,7 @@ config({ path: ".env.local" });
 const db = createClient(process.env.SUPABASE_URL!, (process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY)!, { auth: { persistSession: false } });
 const T = `E2E ${RUN} Maintenance des compresseurs du port de Brest`;
 let id = "";
+let others: string[] = [];
 
 test.beforeAll(async () => {
   const { data: o, error } = await db
@@ -32,6 +33,31 @@ test.beforeAll(async () => {
     .single();
   if (error) throw error;
   id = o.id;
+  // Assez d'offres ailleurs en France pour que l'encadré « Pour vous » ait du sens (plus de 20 résultats)
+  const { data: more, error: e2 } = await db
+    .from("opportunities")
+    .insert(
+      Array.from({ length: 21 }, (_, i) => ({
+        type: "EXTERNAL_OPPORTUNITY",
+        origin: "EXTERNAL",
+        status: "PUBLISHED",
+        visibility: "PUBLIC",
+        is_demo: false,
+        title: `E2E ${RUN} Compresseurs d'air, lot ${i + 1}`,
+        summary: "Maintenance de compresseurs d'air.",
+        description: "Marché de maintenance de compresseurs d'air.",
+        sector_slug: "maintenance-industrielle",
+        department_code: "69",
+        region: "Auvergne-Rhône-Alpes",
+        city: "Lyon",
+        external_buyer_name: "Acheteur de test",
+        response_deadline: new Date(Date.now() + 20 * 86_400_000).toISOString(),
+        published_at: new Date().toISOString(),
+      })),
+    )
+    .select("id");
+  if (e2) throw e2;
+  others = (more ?? []).map((x) => x.id);
 });
 
 test.afterAll(async () => {
@@ -40,15 +66,16 @@ test.afterAll(async () => {
   await db.from("application_prompts").delete().eq("opportunity_id", id);
   await db.from("pipeline_items").delete().eq("opportunity_id", id);
   await db.from("opportunities").delete().eq("id", id);
+  if (others.length) await db.from("opportunities").delete().in("id", others);
 });
 
-test("offre : « Cette offre m'intéresse », garder pour plus tard, pas pour moi, barre fixe sur téléphone", async ({ browser }) => {
+test("offre : « En savoir plus », garder pour plus tard, pas pour moi, barre fixe sur téléphone", async ({ browser }) => {
   test.setTimeout(120_000);
   const page = await newPage(browser);
   await page.setViewportSize({ width: 390, height: 844 });
   await login(page, "fournisseur@demo.linkprob2b.test");
   await page.goto(`/opportunites/${id}`);
-  await expect(page.getByTestId("offer-interested")).toContainText("Cette offre m'intéresse");
+  await expect(page.getByTestId("offer-interested")).toContainText("En savoir plus");
   await page.getByTestId("offer-later").click();
   await expect(page.getByTestId("offer-later")).toContainText("Gardée");
   await page.getByTestId("offer-not-for-me").click();
@@ -70,5 +97,8 @@ test("recherche dans toute la France : les offres de la zone de l'entreprise d'a
   await expect(block.getByRole("link", { name: T })).toBeVisible();
   await block.getByRole("link", { name: /du département Finistère/ }).click();
   await expect(page).toHaveURL(/departement=29/);
+  await expect(page.getByTestId("for-you")).toHaveCount(0);
+  // Courte liste : pas d'encadré (l'offre n'apparaît pas en double)
+  await page.goto(`/opportunites?q=${encodeURIComponent("pompes de relevage du port")}`);
   await expect(page.getByTestId("for-you")).toHaveCount(0);
 });

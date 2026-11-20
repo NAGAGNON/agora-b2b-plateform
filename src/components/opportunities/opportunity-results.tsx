@@ -210,7 +210,8 @@ export async function OpportunityResults({ filters, rawParams, basePath, trackSe
         <div className="mt-3">
           <SearchActions query={query.toString()} signedIn={Boolean(session)} alertHref={`/dashboard/alertes?${alertParams.toString()}`} />
         </div>
-        {!error && <ForYouBlock filters={filters} rawParams={rawParams} basePath={basePath} />}
+        {/* Beaucoup de résultats dans toute la France : les offres de sa zone d'abord (inutile pour une courte liste) */}
+        {!error && total > 20 && <ForYouBlock filters={filters} rawParams={rawParams} basePath={basePath} />}
         {corrected && (
           <p className="mt-4 rounded-xl bg-sky/60 px-4 py-3 text-sm text-slate-700" data-testid="search-corrected">
             Aucune offre pour « {filters.q} ». Résultats pour <strong className="text-navy">« {corrected} »</strong>.

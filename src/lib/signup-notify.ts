@@ -107,3 +107,55 @@ export async function notifyAdminsOfCompany(userId: string, companyId: string) {
     logServerError("company notice", e);
   }
 }
+
+/** Contenu de l'e-mail « intéressé par le tarif fondateur » envoyé aux administrateurs. */
+export function renderFounderInterestNotice(u: { name: string; email: string; userId: string; company: string | null; wave: number; total: number; signedUpAt: Date; visitDays: number; at: Date }) {
+  const fmt = (d: Date) => d.toLocaleString("fr-FR", { timeZone: "Europe/Paris", dateStyle: "full", timeStyle: "short" });
+  const rows: [string, string][] = [
+    ["Nom", u.name || "(non renseigné)"],
+    ["E-mail", u.email],
+    ["Entreprise", u.company ?? "(pas encore d'entreprise)"],
+    ["Vague", String(u.wave)],
+    ["Inscrit le", fmt(u.signedUpAt)],
+    ["Jours de visite", String(u.visitDays)],
+    ["Date", fmt(u.at)],
+  ];
+  const activity = `${siteUrl()}/admin/activite/${u.userId}`;
+  const subject = `Tarif fondateur : ${u.name || u.email} est intéressé (${u.total} au total)`;
+  const text = [`${u.name || u.email} a rejoint la liste du tarif fondateur.`, "", ...rows.map(([k, v]) => `${k} : ${v}`), "", `Personnes sur la liste : ${u.total}`, `Ce qu'il a fait sur le site : ${activity}`].join("\n");
+  const html = `<!doctype html><html lang="fr"><body style="margin:0;background:#E8F4FD;font-family:Inter,Arial,sans-serif">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:24px 8px">
+<table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#ffffff;border-radius:12px">
+<tr><td style="background:#0B1F3A;border-radius:12px 12px 0 0;padding:16px 24px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+<td valign="middle"><a href="${siteUrl()}" style="text-decoration:none"><img src="${siteUrl()}/brand/logo-white.png" width="160" height="32" alt="LinkProB2B" style="display:block;border:0;width:160px;height:32px;color:#ffffff;font-size:18px;font-weight:700"></a></td>
+<td valign="middle" align="right" style="color:#99f6e4;font-size:14px;font-weight:600">Tarif fondateur</td>
+</tr></table></td></tr>
+<tr><td style="padding:20px 24px"><p style="margin:0 0 14px;font-size:16px;font-weight:700;color:#0B1F3A">${esc(u.name || u.email)} a rejoint la liste du tarif fondateur.</p><table role="presentation" cellpadding="0" cellspacing="0" style="font-size:14px;line-height:22px;color:#0f172a">
+${rows.map(([k, v]) => `<tr><td style="padding:4px 16px 4px 0;color:#64748b;white-space:nowrap">${esc(k)}</td><td style="padding:4px 0;font-weight:600">${esc(v)}</td></tr>`).join("")}
+</table><p style="margin:18px 0 0;font-size:14px;color:#0f172a">Personnes sur la liste : <strong>${u.total}</strong></p><p style="margin:12px 0 0"><a href="${activity}" style="color:#0d9488;font-weight:600">Voir ce qu'il a fait sur le site</a></p></td></tr></table></td></tr></table></body></html>`;
+  return { subject, html, text };
+}
+
+/** Prévient les administrateurs quand un membre rejoint la liste du tarif fondateur. Jamais bloquant. */
+export async function notifyAdminsOfFounderInterest(userId: string, wave: number) {
+  try {
+    const db = createAdminClient();
+    const { data: u } = await db.from("users").select("email, full_name, is_demo, created_at").eq("id", userId).maybeSingle();
+    if (!u || u.is_demo) return;
+    const to = (await reportRecipients()).filter((a) => a !== u.email.toLowerCase());
+    if (!to.length) return;
+    const [{ data: m }, { count: total }, { count: days }] = await Promise.all([
+      db.from("company_members").select("companies(name)").eq("user_id", userId).limit(1).maybeSingle(),
+      db.from("analytics_events").select("id", { count: "exact", head: true }).eq("event_name", "founder_interest"),
+      db.from("user_visits").select("day", { count: "exact", head: true }).eq("user_id", userId),
+    ]);
+    const company = (m?.companies as unknown as { name: string } | null)?.name ?? null;
+    const msg = renderFounderInterestNotice({ name: u.full_name, email: u.email, userId, company, wave, total: total ?? 1, signedUpAt: new Date(u.created_at), visitDays: days ?? 0, at: new Date() });
+    for (const address of to) {
+      const r = await sendEmail({ to: address, ...msg, idempotencyKey: `founder-interest-${userId}-${address}` });
+      if (r.status === "FAILED") logServerError("founder interest notice", new Error(r.error ?? "échec d'envoi"));
+    }
+  } catch (e) {
+    logServerError("founder interest notice", e);
+  }
+}
