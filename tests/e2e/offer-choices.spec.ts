@@ -42,13 +42,13 @@ test.afterAll(async () => {
   await db.from("opportunities").delete().eq("id", id);
 });
 
-test("offre : « Cette offre m'intéresse », garder pour plus tard, pas pour moi, barre fixe sur téléphone", async ({ browser }) => {
+test("offre : « En savoir plus », garder pour plus tard, pas pour moi, barre fixe sur téléphone", async ({ browser }) => {
   test.setTimeout(120_000);
   const page = await newPage(browser);
   await page.setViewportSize({ width: 390, height: 844 });
   await login(page, "fournisseur@demo.linkprob2b.test");
   await page.goto(`/opportunites/${id}`);
-  await expect(page.getByTestId("offer-interested")).toContainText("Cette offre m'intéresse");
+  await expect(page.getByTestId("offer-interested")).toContainText("En savoir plus");
   await page.getByTestId("offer-later").click();
   await expect(page.getByTestId("offer-later")).toContainText("Gardée");
   await page.getByTestId("offer-not-for-me").click();

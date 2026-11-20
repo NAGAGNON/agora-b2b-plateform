@@ -17,7 +17,7 @@ import { trackCta } from "@/app/actions/cta";
 import { cn } from "@/lib/cn";
 
 /**
- * Les choix sur une offre : « Cette offre m'intéresse » (ouvre l'aide pour répondre), « Garder pour plus
+ * Les choix sur une offre : « En savoir plus » (ouvre l'aide pour répondre : puis-je répondre, pièces, dépôt), « Garder pour plus
  * tard » (favori) et « Pas pour moi ». Sur téléphone, une barre fixe en bas garde le bouton principal
  * visible quand il sort de l'écran.
  */
@@ -44,7 +44,7 @@ export function OfferChoices({
     : !hasCompany
       ? "/onboarding/entreprise"
       : `/dashboard/candidatures/${opportunityId}`;
-  const label = started ? "Reprendre où j'en étais" : "Cette offre m'intéresse";
+  const label = started ? "Reprendre où j'en étais" : "En savoir plus";
   const [fav, setFav] = useState(saved);
   const [no, setNo] = useState(declined);
   const [note, setNote] = useState<string | null>(null);
@@ -77,7 +77,7 @@ export function OfferChoices({
   };
   const onMain = () => {
     trackCta(
-      started ? "offer_resume" : "offer_interested",
+      started ? "offer_resume" : "offer_more",
       `/opportunites/${opportunityId}`,
     ).catch(() => null);
   };
@@ -94,8 +94,8 @@ export function OfferChoices({
         <Sparkles className="size-5" aria-hidden /> {label}
       </Link>
       <p className="mt-2 text-center text-sm text-balance text-slate-600">
-        On vous dit si vous pouvez répondre, quelles pièces fournir et où
-        déposer, étape par étape.{" "}
+        Puis-je répondre ? Quelles pièces fournir ? Où déposer ? On vous
+        explique tout, étape par étape.{" "}
         <strong className="text-navy">Gratuit.</strong>
       </p>
       <div className="mt-4 grid grid-cols-2 gap-2">
