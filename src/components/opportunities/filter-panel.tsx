@@ -50,7 +50,7 @@ export async function FilterFields({ f, departments, places, idPrefix, originCou
             <Chip key={v} name="origine" value={v} checked={(f.origin ?? "") === v}>
               {l}
               {/* Nombre d'offres pour les autres critères choisis : on voit avant de cliquer qu'un choix est vide */}
-              {originCounts && (v === "INTERNAL" || v === "EXTERNAL") && <span className="ml-1 tabular-nums opacity-70">({originCounts[v as "INTERNAL" | "EXTERNAL"]})</span>}
+              {originCounts && (v === "INTERNAL" || v === "EXTERNAL") && <span className="ml-1 tabular-nums font-normal">({originCounts[v as "INTERNAL" | "EXTERNAL"]})</span>}
             </Chip>
           ))}
         </ChipGroup>
