@@ -17,6 +17,7 @@ import { ActiveFilters, FilterHeader, FilterSubmit, withoutParam, type ActiveFil
 import { REGIONS } from "@/lib/geo";
 import { activeFilterCount, type OpportunityFilters, type RawSearchParams } from "@/lib/search-params";
 import { getSession } from "@/lib/auth";
+import { ForYouBlock } from "@/components/opportunities/for-you-block";
 import { COMPANY_SIZE_LABELS, OPPORTUNITY_TYPE_LABELS, PAGE_SIZE, sectorLabel } from "@/lib/constants";
 
 /** Date (AAAA-MM-JJ) dans `n` jours (hors rendu pur). */
@@ -209,6 +210,7 @@ export async function OpportunityResults({ filters, rawParams, basePath, trackSe
         <div className="mt-3">
           <SearchActions query={query.toString()} signedIn={Boolean(session)} alertHref={`/dashboard/alertes?${alertParams.toString()}`} />
         </div>
+        {!error && <ForYouBlock filters={filters} rawParams={rawParams} basePath={basePath} />}
         {corrected && (
           <p className="mt-4 rounded-xl bg-sky/60 px-4 py-3 text-sm text-slate-700" data-testid="search-corrected">
             Aucune offre pour « {filters.q} ». Résultats pour <strong className="text-navy">« {corrected} »</strong>.
