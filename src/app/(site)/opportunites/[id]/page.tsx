@@ -48,7 +48,7 @@ import { CampaignCompanies } from "@/components/campaign-companies";
 import { ShareLinks } from "@/components/share-links";
 import { cookies, headers } from "next/headers";
 import { OfferAccessGate } from "@/components/opportunities/offer-access-gate";
-import { GuideButton } from "@/components/applications/guide-button";
+import { OfferChoices } from "@/components/opportunities/offer-choices";
 import { boampId, ensureBrief, storedBrief, tedId } from "@/lib/tender-brief";
 import { offerWhat } from "@/lib/offer-what";
 import { after } from "next/server";
@@ -299,11 +299,12 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
 
   const myCompanyId = session?.activeCompany?.company.id ?? null;
   const isOwner = Boolean(o.company_id && session?.memberships.some((m) => m.company.id === o.company_id));
-  const [fav, interest, proposal, pipeline] = await Promise.all([
+  const [fav, interest, proposal, pipeline, prompt] = await Promise.all([
     session ? supabase.from("favorites").select("id").eq("user_id", session.userId).eq("opportunity_id", o.id).maybeSingle() : null,
     myCompanyId ? supabase.from("interests").select("id, status").eq("opportunity_id", o.id).eq("company_id", myCompanyId).maybeSingle() : null,
     myCompanyId ? supabase.from("proposals").select("id, status").eq("opportunity_id", o.id).eq("company_id", myCompanyId).maybeSingle() : null,
     myCompanyId ? supabase.from("pipeline_items").select("id, stage").eq("opportunity_id", o.id).eq("company_id", myCompanyId).maybeSingle() : null,
+    session ? supabase.from("application_prompts").select("answer").eq("user_id", session.userId).eq("opportunity_id", o.id).maybeSingle() : null,
   ]);
 
   const external = o.origin === "EXTERNAL";
@@ -464,10 +465,14 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
               <div className="mt-6">
                 {guided ? (
                   <>
-                    <GuideButton opportunityId={o.id} signedIn={Boolean(session)} hasCompany={Boolean(session?.activeCompany)} started={Boolean(pipeline?.data)} />
-                    <p className="mt-2.5 text-center text-sm text-balance text-slate-500">
-                      Puis-je répondre ? Quelles pièces fournir ? Où déposer ? Tout est expliqué simplement, étape par étape, avec le lien vers l&apos;annonce officielle.
-                    </p>
+                    <OfferChoices
+                      opportunityId={o.id}
+                      signedIn={Boolean(session)}
+                      hasCompany={Boolean(session?.activeCompany)}
+                      started={Boolean(pipeline?.data)}
+                      saved={Boolean(fav?.data)}
+                      declined={prompt?.data?.answer === "NOT_FOR_ME"}
+                    />
                   </>
                 ) : source?.original_url ? (
                   <>
@@ -526,7 +531,7 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
                 </p>
               )}
               <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-slate-100 pt-4">
-                <FavoriteButton target="opportunity" id={o.id} initial={Boolean(fav?.data)} signedIn={Boolean(session)} subtle />
+                {!guided && <FavoriteButton target="opportunity" id={o.id} initial={Boolean(fav?.data)} signedIn={Boolean(session)} subtle />}
                 {isOpen && o.response_deadline && (
                   <a href={`/api/opportunites/${o.id}/agenda`} download className="inline-flex items-center gap-1.5 font-semibold text-slate-500 transition hover:text-teal-700" data-testid="deadline-calendar">
                     <CalendarClock className="size-4" aria-hidden /> Ajouter la date limite à mon agenda
