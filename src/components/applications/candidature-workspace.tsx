@@ -43,10 +43,10 @@ import {
 import { cn } from "@/lib/cn";
 import type { TenderBrief } from "@/lib/tender-brief";
 import { certStatus } from "@/lib/certification-match";
-import { APPLICATION_GUIDE, LOST_ADVICE, questionTemplate, rejectionTemplate } from "@/lib/application-guide";
+import { APPLICATION_GUIDE, LOST_ADVICE, followUpTemplate, questionTemplate, rejectionTemplate } from "@/lib/application-guide";
 import { applicationPlan } from "@/lib/application-plan";
 import { buildMemoirDraft, type DraftCompany } from "@/lib/memoir-draft";
-import { addJournalNote, answerApplicationResult, deleteJournalNote, keepForLater, markApplicationSent, saveDraft, startApplicationGuide, toggleDocStep, toggleGuideStep, withdrawApplication, type JournalEntry } from "@/app/actions/applications";
+import { addJournalNote, answerApplicationResult, deleteJournalNote, keepForLater, markApplicationSent, saveDraft, setApplicationReminder, startApplicationGuide, toggleDocStep, toggleGuideStep, withdrawApplication, type JournalEntry } from "@/app/actions/applications";
 import { loadTenderBrief, toggleBriefStep } from "@/app/actions/tender-brief";
 import { goBackToSearch } from "@/components/applications/return-point";
 import { ApplicationAssistant } from "@/components/applications/application-assistant";
@@ -63,6 +63,8 @@ export type WorkspaceData = {
   deadline: string | null;
   stage: string;
   submittedAt: string | null;
+  /** Rappel choisi après le dépôt (« prochaine action » du suivi) */
+  reminder: { date: string; text: string } | null;
   guideDone: number[];
   docsDone: number[];
   draft: string | null;
@@ -544,6 +546,7 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
           {sent && (
             <section className="plan-in rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200 sm:p-8" data-testid="result">
               <Result stage={stage} pending={pending} onWon={() => act(() => answerApplicationResult(data.id, "WON"), "WON")} onLost={() => act(() => answerApplicationResult(data.id, "LOST"), "LOST")} submittedAt={data.submittedAt} rejection={rejectionTemplate(tpl)} />
+              {stage === "RESPONSE_SENT" && <AfterDeposit id={data.id} reminder={data.reminder} followUp={followUpTemplate(tpl)} />}
             </section>
           )}
 
@@ -1136,6 +1139,145 @@ function Result({ stage, pending, onWon, onLost, submittedAt, rejection }: { sta
           <ThumbsDown className="size-4" aria-hidden /> Pas retenu
         </button>
       </div>
+    </div>
+  );
+}
+
+const noopSubscribe = () => () => {};
+
+const AFTER_DEPOSIT = [
+  { t: "J'ai gardé l'accusé de réception du dépôt", d: "Le reçu (ou l'e-mail de confirmation) de la plateforme de l'acheteur prouve que votre offre est arrivée à temps." },
+  { t: "Je surveille la messagerie de la plateforme de l'acheteur", d: "L'acheteur peut poser une question ou demander un document manquant, souvent avec un délai court pour répondre." },
+  { t: "J'ai noté jusqu'à quand mon offre est valable", d: "La durée de validité des offres est indiquée dans le règlement de la consultation." },
+];
+
+/** Après le dépôt : petite liste à cocher, rappel à une date choisie et modèle de relance de l'acheteur. */
+function AfterDeposit({ id, reminder, followUp }: { id: string; reminder: { date: string; text: string } | null; followUp: string }) {
+  const key = `apres-depot-${id}`;
+  // Cases cochées gardées dans ce navigateur (lues après l'affichage, pour un rendu serveur identique)
+  const stored = useSyncExternalStore(
+    noopSubscribe,
+    () => {
+      try {
+        return window.localStorage.getItem(key) ?? "[]";
+      } catch {
+        return "[]";
+      }
+    },
+    () => "[]",
+  );
+  const [override, setChecked] = useState<number[] | null>(null);
+  const checked = useMemo<number[]>(() => {
+    if (override) return override;
+    try {
+      return JSON.parse(stored) as number[];
+    } catch {
+      return [];
+    }
+  }, [override, stored]);
+  const [current, setCurrent] = useState(reminder);
+  const [date, setDate] = useState(reminder?.date ?? "");
+  const [text, setText] = useState(reminder?.text ?? "Relancer l'acheteur");
+  const [msg, setMsg] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+  const toggle = (i: number) => {
+    const next = checked.includes(i) ? checked.filter((x) => x !== i) : [...checked, i];
+    setChecked(next);
+    try {
+      window.localStorage.setItem(key, JSON.stringify(next));
+    } catch {
+      // stockage indisponible : la case reste cochée pour cette visite
+    }
+  };
+  const save = (d: string) =>
+    start(async () => {
+      const r = await setApplicationReminder(id, d, text);
+      if (!r.ok) return setMsg(r.error);
+      setCurrent(d ? { date: d, text } : null);
+      if (!d) setDate("");
+      setMsg(d ? "Rappel enregistré." : "Rappel supprimé.");
+    });
+  return (
+    <div className="mt-5 space-y-4" data-testid="after-deposit">
+      <div className="rounded-2xl bg-white p-5 ring-1 ring-slate-200">
+        <p className="flex items-center gap-2 font-heading text-lg font-bold text-navy">
+          <ClipboardCheck className="size-5 text-teal-600" aria-hidden /> En attendant le résultat
+        </p>
+        <ul className="mt-3 space-y-2">
+          {AFTER_DEPOSIT.map((x, i) => (
+            <li key={x.t}>
+              <button type="button" onClick={() => toggle(i)} aria-pressed={checked.includes(i)} className="flex w-full items-start gap-3 rounded-xl p-2 text-left transition hover:bg-slate-50">
+                <span className={cn("mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-md ring-1", checked.includes(i) ? "bg-teal text-white ring-teal" : "bg-white ring-slate-300")}>
+                  {checked.includes(i) && <Check className="size-3.5" aria-hidden />}
+                </span>
+                <span>
+                  <span className={cn("block font-semibold", checked.includes(i) ? "text-slate-500 line-through" : "text-navy")}>{x.t}</span>
+                  <span className="block text-sm text-slate-600">{x.d}</span>
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="rounded-2xl bg-gradient-to-br from-sky to-white p-5 ring-1 ring-slate-200" data-testid="after-deposit-reminder">
+        <p className="flex items-center gap-2 font-heading text-lg font-bold text-navy">
+          <BellRing className="size-5 text-teal-600" aria-hidden /> Me rappeler
+        </p>
+        {current ? (
+          <p className="mt-2 text-sm text-slate-700">
+            Rappel prévu le <strong className="text-navy">{fmtDay(`${current.date}T12:00:00`)}</strong> : {current.text || "faire le point sur ma candidature"}. Il apparaîtra dans « À faire maintenant » et dans vos
+            notifications.
+          </p>
+        ) : (
+          <p className="mt-2 text-sm text-slate-600">Choisissez une date : le rappel apparaîtra dans « À faire maintenant » et dans vos notifications.</p>
+        )}
+        <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto_auto]">
+          <label className="sr-only" htmlFor={`rappel-texte-${id}`}>
+            Quoi
+          </label>
+          <input
+            id={`rappel-texte-${id}`}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            maxLength={200}
+            placeholder="Ex. : relancer l'acheteur, résultat attendu"
+            className="rounded-xl border-0 bg-white px-3 py-2.5 text-sm ring-1 ring-slate-300 focus:ring-2 focus:ring-teal"
+          />
+          <label className="sr-only" htmlFor={`rappel-date-${id}`}>
+            Date
+          </label>
+          <input
+            id={`rappel-date-${id}`}
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            className="rounded-xl border-0 bg-white px-3 py-2.5 text-sm ring-1 ring-slate-300 focus:ring-2 focus:ring-teal"
+            data-testid="reminder-date"
+          />
+          <button
+            type="button"
+            disabled={pending || !date}
+            onClick={() => save(date)}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-navy px-4 py-2.5 text-sm font-semibold text-white transition hover:-translate-y-0.5 disabled:opacity-50"
+            data-testid="reminder-save"
+          >
+            <CalendarClock className="size-4" aria-hidden /> {current ? "Modifier" : "Me rappeler"}
+          </button>
+        </div>
+        {current && (
+          <button type="button" disabled={pending} onClick={() => save("")} className="mt-2 text-sm font-semibold text-slate-500 hover:text-rose-700">
+            Supprimer le rappel
+          </button>
+        )}
+        {msg && (
+          <p className="mt-2 text-sm text-slate-700" role="status">
+            {msg}
+          </p>
+        )}
+      </div>
+
+      <TemplateCard icon={MessageSquareText} title="Pas de nouvelles après plusieurs semaines ? Modèle de relance de l'acheteur" text={followUp} />
     </div>
   );
 }

@@ -82,6 +82,23 @@ export function questionTemplate(t: TemplateInput) {
 }
 
 /** Modèle de demande des motifs du rejet d'une offre. */
+/** Relance polie de l'acheteur, plusieurs semaines après le dépôt, sans nouvelles. */
+export function followUpTemplate(t: TemplateInput) {
+  return [
+    "Objet : Suivi de notre offre" + (t.reference ? ` (consultation n° ${t.reference})` : ""),
+    "",
+    "Madame, Monsieur,",
+    "",
+    `Nous avons déposé notre offre pour la consultation « ${t.title} » et restons pleinement disponibles pour toute question ou précision utile à son analyse.`,
+    "Pourriez-vous nous indiquer, si possible, à quelle date la décision est attendue ?",
+    "",
+    "Nous vous remercions par avance.",
+    "",
+    "Cordialement,",
+    t.company,
+  ].join("\n");
+}
+
 export function rejectionTemplate(t: TemplateInput) {
   return [
     "Objet : Demande d'informations sur le rejet de notre offre" + (t.reference ? ` (consultation n° ${t.reference})` : ""),

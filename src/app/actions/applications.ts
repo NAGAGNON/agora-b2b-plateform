@@ -160,6 +160,40 @@ export async function answerApplicationResult(opportunityId: string, result: "WO
   return { ok: true };
 }
 
+const Reminder = z.object({
+  date: z.union([z.literal(""), z.string().regex(/^\d{4}-\d{2}-\d{2}$/)]),
+  text: z.string().trim().max(200),
+});
+
+/**
+ * Après le dépôt : « Me rappeler le … » (relancer l'acheteur, résultat attendu…). Le rappel est la
+ * « prochaine action » du suivi : il apparaît dans « À faire maintenant » et dans les notifications le jour venu.
+ * Date vide : rappel supprimé.
+ */
+export async function setApplicationReminder(opportunityId: string, date: string, text: string): Promise<Result> {
+  const r = Reminder.safeParse({ date, text });
+  if (!z.uuid().safeParse(opportunityId).success || !r.success) return { ok: false, error: "Date invalide." };
+  const session = await getSession();
+  if (!session?.activeCompany) return { ok: false, error: "Connectez-vous." };
+  if (r.data.date && r.data.date < todayParis()) return { ok: false, error: "Choisissez une date à venir." };
+  const db = await createClient();
+  const companyId = session.activeCompany.company.id;
+  const { data: item } = await db.from("pipeline_items").select("id").eq("company_id", companyId).eq("opportunity_id", opportunityId).maybeSingle();
+  if (!item) return { ok: false, error: "Candidature introuvable." };
+  const { error } = await db
+    .from("pipeline_items")
+    .update({ next_action: r.data.date ? r.data.text || "Faire le point sur ma candidature" : null, next_action_at: r.data.date || null, updated_by: session.userId })
+    .eq("id", item.id);
+  if (error) return { ok: false, error: "Enregistrement impossible. Réessayez." };
+  if (r.data.date) {
+    const day = new Date(`${r.data.date}T12:00:00`).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
+    await logJournal(db, companyId, opportunityId, session.userId, "NOTE", `Rappel prévu le ${day} : ${r.data.text || "faire le point sur ma candidature"}.`);
+  }
+  revalidatePath(`/dashboard/candidatures/${opportunityId}`);
+  revalidatePath("/dashboard");
+  return { ok: true };
+}
+
 /** « J'ai déposé ma réponse » depuis le suivi. */
 export async function markApplicationSent(opportunityId: string): Promise<Result> {
   if (!z.uuid().safeParse(opportunityId).success) return { ok: false, error: "Offre introuvable." };
