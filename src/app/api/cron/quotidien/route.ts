@@ -1,4 +1,5 @@
 import { processApplicationReminders } from "@/lib/application-reminders";
+import { requestReviewsAfterDeposit } from "@/lib/testimonial-after-deposit";
 import { queueBoostPresentations } from "@/lib/visibility-send";
 import { cronPausedResponse } from "@/lib/cron-usage";
 import { NextResponse } from "next/server";
@@ -104,6 +105,8 @@ async function run(req: Request) {
     if (error) throw error;
     return data;
   });
+  // Demande d'avis à ceux qui ont déposé une candidature trouvée sur LinkProB2B (une seule fois, en semaine)
+  await step("avis-apres-depot", () => requestReviewsAfterDeposit(createAdminClient()));
   // Demande d'avis, une seule fois, aux membres les plus actifs (témoignages relus avant publication)
   await step("demandes-avis", async () => {
     const { data, error } = await createAdminClient().rpc("process_testimonial_requests", { p_limit: 20 });
