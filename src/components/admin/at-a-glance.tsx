@@ -4,7 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { parisDate } from "@/lib/weekly-review-core";
-import { activitySummary, getUserActivity } from "@/lib/admin/user-activity";
+import { activitySummary, getLoyalty, getUserActivity, loyaltyLabel } from "@/lib/admin/user-activity";
 
 const DAY = 86_400_000;
 export const GLANCE_PERIODS = [
@@ -52,7 +52,9 @@ export async function AtAGlance({ periodKey, now }: { periodKey: string | undefi
   // Revenu = vu sur le site un autre jour (heure de Paris) que celui de son inscription
   // Résumé de ce que chacun a fait (les 24 personnes affichées)
   const shown = people.slice(0, 24);
-  const activity = await getUserActivity(db, shown.map((u) => u.id), since);
+  const [activity, loyalty] = await Promise.all([getUserActivity(db, shown.map((u) => u.id), since), getLoyalty(db, people.map((u) => u.id))]);
+  // Revenus au moins 2 jours de suite (série en cours à leur dernière visite de la période)
+  const streakers = people.filter((u) => (loyalty.get(u.id)?.streak ?? 0) >= 2).length;
   const returning = people.filter((u) => u.last_seen_at && parisDate(u.last_seen_at) > parisDate(u.created_at));
   const OPENED = ["RESPONSE_PREPARING", "RESPONSE_SENT", "DISCUSSION", "NEGOTIATION", "WON", "LOST"];
   const realItems = notTeam((items.data ?? []).map((i) => ({ ...i, user_id: i.updated_by })));
@@ -62,6 +64,7 @@ export async function AtAGlance({ periodKey, now }: { periodKey: string | undefi
     { label: ["nouvel inscrit", "nouveaux inscrits"], value: newUsers, icon: UserPlus, href: "/admin/inscriptions" },
     { label: ["inscrit revenu", "inscrits revenus"], value: returning.length, icon: Users, href: "/admin/fidelite" },
     // Consultations des membres connectés (hors équipe), comme dans les bilans
+    { label: ["inscrit revenu plusieurs jours de suite", "inscrits revenus plusieurs jours de suite"], value: streakers, icon: Users, href: null },
     { label: ["offre vue", "offres vues"], value: notTeam((offerViews.data ?? []).filter((v) => v.user_id)).length, icon: Eye, href: null },
     { label: ["fiche de candidature ouverte", "fiches de candidature ouvertes"], value: notTeam(appViews.data).length, icon: ClipboardList, href: "/admin/candidatures" },
     { label: ["dossier ouvert", "dossiers ouverts"], value: opened, icon: FolderOpen, href: "/admin/candidatures", sub: `${working} avec travail commencé` },
@@ -154,6 +157,11 @@ export async function AtAGlance({ periodKey, now }: { periodKey: string | undefi
                     <span className="block truncate font-semibold text-navy">{name}</span>
                     <span className="block text-xs text-slate-500">Vu le {u.last_seen_at ? formatDateTime(u.last_seen_at) : "—"}</span>
                     <span className="mt-0.5 block text-xs font-medium text-teal-800">{activitySummary(activity.get(u.id) ?? [])}</span>
+                    {loyaltyLabel(loyalty.get(u.id)) && (
+                      <span className="mt-0.5 block text-xs font-semibold text-navy" data-testid="visitor-loyalty">
+                        {loyaltyLabel(loyalty.get(u.id))}
+                      </span>
+                    )}
                   </span>
                   <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold", isNew ? "bg-teal-50 text-teal-800 ring-1 ring-teal/20" : "bg-slate-200 text-slate-700")}>{isNew ? "Nouveau" : "Revenu"}</span>
                   </Link>

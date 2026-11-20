@@ -5,7 +5,7 @@ import { requireAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { formatDateTime } from "@/lib/format";
 import { getSectorLabels } from "@/lib/queries/platform";
-import { activitySummary, getUserActivity, type ActivityKind } from "@/lib/admin/user-activity";
+import { activitySummary, getLoyalty, getUserActivity, loyaltyLabel, type ActivityKind } from "@/lib/admin/user-activity";
 import { GLANCE_PERIODS, parisMidnight } from "@/components/admin/at-a-glance";
 import { cn } from "@/lib/cn";
 
@@ -44,7 +44,9 @@ export default async function UserActivityPage({ params, searchParams }: { param
     getSectorLabels().catch(() => ({}) as Record<string, string>),
   ]);
   if (!user) notFound();
-  const items = (await getUserActivity(db, [id], since, labels)).get(id) ?? [];
+  const [activityMap, loyaltyMap] = await Promise.all([getUserActivity(db, [id], since, labels), getLoyalty(db, [id])]);
+  const items = activityMap.get(id) ?? [];
+  const loyalty = loyaltyLabel(loyaltyMap.get(id));
   const companies = (memberships ?? []).map((m) => m.companies as unknown as { name: string; slug: string | null } | null).filter(Boolean);
 
   // Regroupement par jour (heure de Paris)
@@ -74,6 +76,11 @@ export default async function UserActivityPage({ params, searchParams }: { param
         <p className="mt-1 text-sm text-slate-600">
           {user.email} · inscrit le {formatDateTime(user.created_at)} · vu le {formatDateTime(user.last_seen_at)}
         </p>
+        {loyalty && (
+          <p className="mt-2 inline-flex rounded-full bg-teal-50 px-3 py-1 text-sm font-semibold text-teal-800 ring-1 ring-teal/20" data-testid="activity-loyalty">
+            {loyalty}
+          </p>
+        )}
         {companies.length > 0 && (
           <p className="mt-2 flex flex-wrap items-center gap-2 text-sm text-slate-700">
             <Building2 className="size-4 text-teal-600" aria-hidden />

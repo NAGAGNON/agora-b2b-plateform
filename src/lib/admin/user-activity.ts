@@ -163,3 +163,37 @@ export function activitySummary(items: ActivityItem[]): string {
   const s = parts.filter(([n]) => n > 0).map(([n, one, many]) => `${n} ${n > 1 ? many : one}`);
   return s.length ? s.join(" · ") : "Navigation sans action enregistrée";
 }
+
+/**
+ * Fidélité d'un inscrit, à partir des jours de visite enregistrés (un jour = au moins une page vue connecté) :
+ * nombre de jours différents où il est venu, et nombre de jours de suite jusqu'à sa dernière visite.
+ */
+export type Loyalty = { days: number; streak: number; lastDay: string | null };
+
+export async function getLoyalty(db: Db, userIds: string[]): Promise<Map<string, Loyalty>> {
+  const out = new Map<string, Loyalty>(userIds.map((id) => [id, { days: 0, streak: 0, lastDay: null }]));
+  if (!userIds.length) return out;
+  const { data } = await db.from("user_visits").select("user_id, day").in("user_id", userIds).order("day", { ascending: false }).limit(20000);
+  const byUser = new Map<string, string[]>();
+  for (const r of data ?? []) byUser.set(r.user_id, [...(byUser.get(r.user_id) ?? []), r.day]);
+  for (const [id, days] of byUser) out.set(id, loyaltyFromDays(days));
+  return out;
+}
+
+/** Jours de visite (« AAAA-MM-JJ », dans n'importe quel ordre) → nombre de jours et jours de suite jusqu'au dernier. */
+export function loyaltyFromDays(input: string[]): Loyalty {
+  const days = [...new Set(input)].sort().reverse();
+  if (!days.length) return { days: 0, streak: 0, lastDay: null };
+  let streak = 1;
+  for (let i = 1; i < days.length; i++) {
+    if (Date.parse(`${days[i - 1]}T00:00:00Z`) - Date.parse(`${days[i]}T00:00:00Z`) === 86_400_000) streak++;
+    else break;
+  }
+  return { days: days.length, streak, lastDay: days[0] };
+}
+
+/** « 4e jour de visite · 3 jours de suite » (rien pour un premier jour). */
+export function loyaltyLabel(l: Loyalty | undefined): string | null {
+  if (!l || l.days < 2) return l?.days === 1 ? "1er jour de visite" : null;
+  return `${l.days}e jour de visite${l.streak >= 2 ? ` · ${l.streak} jours de suite` : ""}`;
+}
