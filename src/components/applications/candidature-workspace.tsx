@@ -40,6 +40,7 @@ import {
   FolderOpen,
   Scale,
 } from "lucide-react";
+import { offersLabel } from "@/lib/award-format";
 import { cn } from "@/lib/cn";
 import type { TenderBrief } from "@/lib/tender-brief";
 import { certStatus } from "@/lib/certification-match";
@@ -64,7 +65,7 @@ export type WorkspaceData = {
   stage: string;
   submittedAt: string | null;
   /** Avis de résultat officiel détecté automatiquement (BOAMP) */
-  award: { idweb: string; titulaires: string[]; date: string | null; url: string; cancelled: boolean; won?: boolean } | null;
+  award: { idweb: string; titulaires: string[]; date: string | null; url: string; cancelled: boolean; won?: boolean; offers?: number[] } | null;
   /** Le résultat est surveillé automatiquement (offre publiée au BOAMP) */
   awardWatched: boolean;
   /** Rappel choisi après le dépôt (« prochaine action » du suivi) */
@@ -1168,6 +1169,11 @@ function AwardBanner({ award, watched }: { award: WorkspaceData["award"]; watche
                 ? `Marché attribué à ${award.titulaires.join(", ")}`
                 : "L'avis de résultat est publié."}
         </p>
+        {!award.cancelled && offersLabel(award.offers) && (
+          <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-sm font-semibold text-white" data-testid="award-offers">
+            <Users className="size-4 text-teal-400" aria-hidden /> Concurrence : {offersLabel(award.offers)}
+          </p>
+        )}
         {!award.cancelled && (
           <p className="mt-1 text-sm text-slate-300">
             {award.won ? "C'est votre entreprise : félicitations ! Confirmez-le juste en dessous avec « Gagné »." : "C'est votre entreprise ? Indiquez-le juste en dessous : Gagné ou Pas retenu."}

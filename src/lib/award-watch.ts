@@ -1,10 +1,50 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { BOAMP_ENDPOINT } from "@/lib/collect/connectors";
+import { offersLabel } from "@/lib/award-format";
 
 type Db = ReturnType<typeof createAdminClient>;
 
-export type Award = { idweb: string; titulaires: string[]; date: string | null; url: string; cancelled: boolean; sirens?: string[]; won?: boolean };
+export type Award = { idweb: string; titulaires: string[]; date: string | null; url: string; cancelled: boolean; sirens?: string[]; won?: boolean; offers?: number[] };
+
+/**
+ * Nombre d'offres reçues par lot, lu dans l'avis de résultat (format européen eForms :
+ * ReceivedSubmissionsStatistics, code « tenders », sinon « t-esubm » = offres déposées en ligne).
+ */
+export function offersReceived(donnees: unknown): number[] {
+  let root: unknown = donnees;
+  if (typeof root === "string") {
+    try {
+      root = JSON.parse(root);
+    } catch {
+      return [];
+    }
+  }
+  const out: number[] = [];
+  const read = (stats: unknown) => {
+    const list = Array.isArray(stats) ? stats : [stats];
+    const byCode = new Map<string, number>();
+    for (const x of list) {
+      if (!x || typeof x !== "object") continue;
+      const code = (x as Record<string, unknown>)["efbc:StatisticsCode"];
+      const name = typeof code === "object" && code ? String((code as Record<string, unknown>)["#text"] ?? "") : String(code ?? "");
+      const n = Number((x as Record<string, unknown>)["efbc:StatisticsNumeric"]);
+      if (name && Number.isFinite(n)) byCode.set(name, n);
+    }
+    const v = byCode.get("tenders") ?? byCode.get("t-esubm");
+    if (v !== undefined) out.push(v);
+  };
+  const walk = (o: unknown, depth: number) => {
+    if (!o || typeof o !== "object" || depth > 40) return;
+    if (Array.isArray(o)) return o.forEach((x) => walk(x, depth + 1));
+    for (const [k, v] of Object.entries(o)) {
+      if (k === "efac:ReceivedSubmissionsStatistics") read(v);
+      else walk(v, depth + 1);
+    }
+  };
+  walk(root, 0);
+  return out;
+}
 
 /** Nom d'entreprise comparable : minuscules, sans accents, sans forme juridique ni ponctuation. */
 export function normalizeCompanyName(s: string): string {
@@ -57,6 +97,7 @@ export async function fetchBoampAwards(idwebs: string[], fetcher: typeof fetch =
         url: url_avis.startsWith("https://") ? url_avis : `https://www.boamp.fr/pages/avis/?q=idweb:${encodeURIComponent(idweb)}`,
         cancelled: String(r.nature) === "ANNULATION",
         sirens,
+        offers: offersReceived(r.donnees),
       });
     }
   }
@@ -110,6 +151,7 @@ export async function processAwardWatch(db: Db = createAdminClient(), { limit = 
     const o = (Array.isArray(i.opportunity) ? i.opportunity[0] : i.opportunity) as { title: string };
     const who = award.titulaires.join(", ");
     const day = award.date ? award.date.split("-").reverse().join("/") : null;
+    const competition = award.cancelled ? null : offersLabel(award.offers);
     // SIREN de l'entreprise cité comme titulaire : marché gagné, la candidature passe à « Gagné »
     if (verdict.won && verdict.sure) {
       await db.from("pipeline_items").update({ stage: "WON" }).eq("id", i.id);
@@ -128,19 +170,20 @@ export async function processAwardWatch(db: Db = createAdminClient(), { limit = 
         : verdict.won
           ? `L'avis de résultat publié au BOAMP${day ? ` le ${day}` : ""} désigne « ${who} » comme titulaire du marché « ${o.title} ». C'est votre entreprise ? Félicitations ! Confirmez-le en un clic sur votre fiche de candidature.`
         : `L'avis de résultat de « ${o.title} » est publié au BOAMP${day ? ` le ${day}` : ""}${who ? ` : marché attribué à ${who}` : ""}. Si ce n'est pas votre entreprise, vous pouvez demander à l'acheteur les motifs du choix : le modèle de lettre est prêt sur votre fiche de candidature.`;
+    const fullBody = competition ? `${body} Concurrence : ${competition} par l'acheteur.` : body;
     await db.from("application_journal").insert({
       company_id: i.company_id,
       opportunity_id: i.opportunity_id,
       user_id: null,
       kind: verdict.won && verdict.sure ? "WON" : "NOTE",
-      body: `Avis officiel publié${day ? ` le ${day}` : ""} : ${award.cancelled ? "consultation annulée" : verdict.won ? `marché remporté${who ? ` (${who})` : ""}` : who ? `attribué à ${who}` : "résultat publié"}.`,
+      body: `Avis officiel publié${day ? ` le ${day}` : ""} : ${award.cancelled ? "consultation annulée" : verdict.won ? `marché remporté${who ? ` (${who})` : ""}` : who ? `attribué à ${who}` : "résultat publié"}${competition ? ` (${competition})` : ""}.`,
     });
     // Notification sur le site et e-mail (validé par le fondateur le 20/11)
     await db.rpc("notify_company", {
       p_company_id: i.company_id,
       p_type: "application_result",
       p_title: title.slice(0, 200),
-      p_body: body.slice(0, 1000),
+      p_body: fullBody.slice(0, 1000),
       p_link: `/dashboard/candidatures/${i.opportunity_id}`,
       p_send_email: true,
     });

@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: () => ({}) }));
-import { fetchBoampAwards, isWinner, normalizeCompanyName } from "@/lib/award-watch";
+import { fetchBoampAwards, isWinner, normalizeCompanyName, offersReceived } from "@/lib/award-watch";
+import { offersLabel } from "@/lib/award-format";
 
 describe("résultat d'un marché au BOAMP", () => {
   it("relie l'avis de résultat à l'avis de départ et donne l'entreprise retenue", async () => {
@@ -18,7 +19,7 @@ describe("résultat d'un marché au BOAMP", () => {
       );
     });
     const awards = await fetchBoampAwards(["26-72738", "26-1", "x y"], fetcher as unknown as typeof fetch);
-    expect(awards.get("26-72738")).toEqual({ idweb: "26-107391", titulaires: ["EDENRED FRANCE SAS"], date: "2026-11-06", url: "https://www.boamp.fr/pages/avis/?q=idweb:26-107391", cancelled: false, sirens: ["219200334", "393365135"] });
+    expect(awards.get("26-72738")).toEqual({ idweb: "26-107391", titulaires: ["EDENRED FRANCE SAS"], date: "2026-11-06", url: "https://www.boamp.fr/pages/avis/?q=idweb:26-107391", cancelled: false, sirens: ["219200334", "393365135"], offers: [] });
     expect(awards.get("26-1")).toMatchObject({ cancelled: true, titulaires: [], url: "https://www.boamp.fr/pages/avis/?q=idweb:26-9" });
   });
 
@@ -43,5 +44,25 @@ describe("gagnant d'un marché", () => {
   it("nom comparable sans forme juridique ni accents", () => {
     expect(normalizeCompanyName("SAS MC Maintenance Industrielle")).toBe("mc maintenance industrielle");
     expect(normalizeCompanyName("Société Générale d'Entretien")).toBe("generale d entretien");
+  });
+});
+
+describe("nombre d'offres reçues (avis de résultat)", () => {
+  const stat = (code: string, n: number) => ({ "efbc:StatisticsCode": { "@listName": "received-submission-type", "#text": code }, "efbc:StatisticsNumeric": String(n) });
+  const notice = (lots: unknown[]) => JSON.stringify({ EFORMS: { ContractAwardNotice: { "efac:NoticeResult": { "efac:LotResult": lots } } } });
+
+  it("lit le total par lot, « tenders » d'abord, sinon les offres déposées en ligne", () => {
+    expect(offersReceived(notice([{ "efac:ReceivedSubmissionsStatistics": [stat("tenders", 8), stat("t-esubm", 8)] }]))).toEqual([8]);
+    expect(offersReceived(notice([{ "efac:ReceivedSubmissionsStatistics": stat("t-esubm", 6) }, { "efac:ReceivedSubmissionsStatistics": [stat("t-sme", 1), stat("tenders", 3)] }]))).toEqual([6, 3]);
+    expect(offersReceived("pas du json")).toEqual([]);
+    expect(offersReceived(undefined)).toEqual([]);
+  });
+
+  it("phrase lisible : une valeur, un écart entre lots, rien si inconnu", () => {
+    expect(offersLabel([8])).toBe("8 offres reçues");
+    expect(offersLabel([1])).toBe("1 offre reçue");
+    expect(offersLabel([6, 3, 0])).toBe("de 3 à 6 offres reçues selon les lots");
+    expect(offersLabel([0])).toBeNull();
+    expect(offersLabel(undefined)).toBeNull();
   });
 });
