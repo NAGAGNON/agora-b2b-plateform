@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { isUuid } from "@/lib/format";
 import { BriefSchema, boampId, isFullBrief, tedId } from "@/lib/tender-brief";
 import { CandidatureWorkspace } from "@/components/applications/candidature-workspace";
+import type { Award } from "@/lib/award-watch";
 import { track } from "@/lib/analytics";
 import { founderOffer, founderOpen } from "@/lib/billing/founder";
 
@@ -25,7 +26,7 @@ export default async function CandidaturePage(props: PageProps<"/dashboard/candi
   const company = session.activeCompany.company;
   const db = await createClient();
   const [{ data: item }, { data: o }, { data: profile }, { data: co }] = await Promise.all([
-    db.from("pipeline_items").select("stage, guide_done, docs_done, brief_done, draft, submitted_at, created_at, next_action, next_action_at").eq("company_id", company.id).eq("opportunity_id", id).maybeSingle(),
+    db.from("pipeline_items").select("stage, guide_done, docs_done, brief_done, draft, submitted_at, created_at, next_action, next_action_at, award").eq("company_id", company.id).eq("opportunity_id", id).maybeSingle(),
     db.from("opportunities").select("id, title, origin, external_buyer_name, response_deadline, city, department_code").eq("id", id).maybeSingle(),
     db.from("company_profiles").select("description, references_text, certifications, employees_range, founded_year").eq("company_id", company.id).maybeSingle(),
     db.from("companies").select("name, city").eq("id", company.id).maybeSingle(),
@@ -75,6 +76,7 @@ export default async function CandidaturePage(props: PageProps<"/dashboard/candi
         deadline: o.response_deadline,
         stage: item?.stage ?? "DETECTED",
         submittedAt: item?.submitted_at ?? null,
+        award: (item?.award as Award | null) ?? null,
         reminder: item?.next_action_at ? { date: item.next_action_at, text: item.next_action ?? "" } : null,
         guideDone: (item?.guide_done ?? []).map(Number),
         docsDone: (item?.docs_done ?? []).map(Number),
@@ -86,6 +88,7 @@ export default async function CandidaturePage(props: PageProps<"/dashboard/candi
         // Avis officiel connu mais fiche absente ou ancienne : préparée à l'affichage
         canLoadBrief: allowed && Boolean(idweb || ted) && !isFullBrief(brief),
         sourceLabel: idweb ? `BOAMP n° ${idweb}` : ted ? `TED n° ${ted}` : null,
+        awardWatched: Boolean(idweb),
         hasSource: (sources ?? []).some((s) => s.original_url),
         mine: profile?.certifications ?? [],
         startedAt: item?.created_at ?? null,

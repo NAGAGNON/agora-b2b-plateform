@@ -20,4 +20,7 @@ test("administration : tout ce qu'un inscrit a fait, action par action", async (
   await expect(page.getByText("A consulté une offre").first()).toBeVisible();
   await expect(page.getByRole("link", { name: opp!.title }).first()).toBeVisible();
   await expect(page.getByText("avec mots-clés → 4 résultats").first()).toBeVisible();
+  // « En bref » : nombre de recherches d'offres de la période
+  await page.goto("/admin");
+  await expect(page.getByTestId("at-a-glance")).toContainText(/recherches? d'offres/);
 });

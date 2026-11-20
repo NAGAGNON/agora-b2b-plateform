@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ClipboardList, Eye, FileStack, FolderOpen, Mail, MessageCircleQuestion, UserPlus, Users } from "lucide-react";
+import { ClipboardList, Eye, FileStack, FolderOpen, Mail, MessageCircleQuestion, Search, UserPlus, Users } from "lucide-react";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/cn";
@@ -37,7 +37,7 @@ export async function AtAGlance({ periodKey, now }: { periodKey: string | undefi
   const excluded = new Set((team ?? []).map((u) => u.id));
   const notTeam = <T extends { user_id?: string | null; id?: string }>(list: T[] | null) => (list ?? []).filter((r) => !excluded.has((r.user_id ?? r.id) as string));
 
-  const [signups, visitors, offerViews, appViews, items, questions, needs, emails] = await Promise.all([
+  const [signups, visitors, offerViews, appViews, items, questions, needs, emails, searches] = await Promise.all([
     db.from("users").select("id").gte("created_at", since).limit(2000),
     db.from("users").select("id, full_name, email, created_at, last_seen_at").gte("last_seen_at", since).order("last_seen_at", { ascending: false }).limit(300),
     db.from("analytics_events").select("user_id").eq("event_name", "view_opportunity").gte("created_at", since).limit(20000),
@@ -46,7 +46,12 @@ export async function AtAGlance({ periodKey, now }: { periodKey: string | undefi
     db.from("application_questions").select("user_id").gte("created_at", since).limit(2000),
     db.from("opportunities").select("id", { count: "exact", head: true }).eq("origin", "INTERNAL").eq("is_demo", false).gte("created_at", since),
     db.from("email_outbox").select("id", { count: "exact", head: true }).eq("status", "SENT").gte("sent_at", since),
+    db.from("analytics_events").select("user_id, properties").eq("event_name", "search_opportunities").gte("created_at", since).limit(20000),
   ]);
+  // Recherches d'offres des membres (une recherche = un lancement de recherche ou un changement de filtre)
+  const memberSearches = notTeam(searches.data);
+  const searchers = new Set(memberSearches.map((x) => x.user_id).filter(Boolean)).size;
+  const emptySearches = memberSearches.filter((x) => Number((x.properties as { results?: number } | null)?.results) === 0).length;
   const newUsers = notTeam(signups.data).length;
   const people = notTeam(visitors.data);
   // Revenu = vu sur le site un autre jour (heure de Paris) que celui de son inscription
@@ -65,6 +70,7 @@ export async function AtAGlance({ periodKey, now }: { periodKey: string | undefi
     { label: ["inscrit revenu", "inscrits revenus"], value: returning.length, icon: Users, href: "/admin/fidelite" },
     // Consultations des membres connectés (hors équipe), comme dans les bilans
     { label: ["inscrit revenu plusieurs jours de suite", "inscrits revenus plusieurs jours de suite"], value: streakers, icon: Users, href: null },
+    { label: ["recherche d'offres", "recherches d'offres"], value: memberSearches.length, icon: Search, href: null, sub: `par ${pl(searchers, "personne", "personnes")}${emptySearches ? ` · ${emptySearches} sans résultat exact` : ""}` },
     { label: ["offre vue", "offres vues"], value: notTeam((offerViews.data ?? []).filter((v) => v.user_id)).length, icon: Eye, href: null },
     { label: ["fiche de candidature ouverte", "fiches de candidature ouvertes"], value: notTeam(appViews.data).length, icon: ClipboardList, href: "/admin/candidatures" },
     { label: ["dossier ouvert", "dossiers ouverts"], value: opened, icon: FolderOpen, href: "/admin/candidatures", sub: `${working} avec travail commencé` },

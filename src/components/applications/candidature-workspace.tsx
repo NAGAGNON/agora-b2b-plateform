@@ -63,6 +63,10 @@ export type WorkspaceData = {
   deadline: string | null;
   stage: string;
   submittedAt: string | null;
+  /** Avis de résultat officiel détecté automatiquement (BOAMP) */
+  award: { idweb: string; titulaires: string[]; date: string | null; url: string; cancelled: boolean; won?: boolean } | null;
+  /** Le résultat est surveillé automatiquement (offre publiée au BOAMP) */
+  awardWatched: boolean;
   /** Rappel choisi après le dépôt (« prochaine action » du suivi) */
   reminder: { date: string; text: string } | null;
   guideDone: number[];
@@ -545,6 +549,7 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
           {/* Réponse envoyée : le résultat d'abord */}
           {sent && (
             <section className="plan-in rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200 sm:p-8" data-testid="result">
+              {stage === "RESPONSE_SENT" && <AwardBanner award={data.award} watched={data.awardWatched} />}
               <Result stage={stage} pending={pending} onWon={() => act(() => answerApplicationResult(data.id, "WON"), "WON")} onLost={() => act(() => answerApplicationResult(data.id, "LOST"), "LOST")} submittedAt={data.submittedAt} rejection={rejectionTemplate(tpl)} />
               {stage === "RESPONSE_SENT" && <AfterDeposit id={data.id} reminder={data.reminder} followUp={followUpTemplate(tpl)} />}
             </section>
@@ -1145,6 +1150,53 @@ function Result({ stage, pending, onWon, onLost, submittedAt, rejection }: { sta
 
 const noopSubscribe = () => () => {};
 
+/** Résultat officiel détecté (ou surveillé) : l'entreprise n'a plus à aller vérifier elle-même. */
+function AwardBanner({ award, watched }: { award: WorkspaceData["award"]; watched: boolean }) {
+  if (award)
+    return (
+      <div className="plan-in mb-4 rounded-2xl bg-gradient-to-br from-navy to-navy-900 p-5 text-white shadow-lg" data-testid="award-found">
+        <p className="flex items-center gap-2 text-xs font-bold tracking-wide text-teal-400 uppercase">
+          <BellRing className="size-4" aria-hidden /> {award.cancelled ? "Consultation annulée" : "Résultat publié"}
+          {award.date ? ` · ${new Date(`${award.date}T12:00:00`).toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}` : ""}
+        </p>
+        <p className="mt-2 font-heading text-lg font-bold">
+          {award.cancelled
+            ? "L'acheteur a publié un avis d'annulation de cette consultation."
+            : award.won
+              ? `🎉 L'avis désigne ${award.titulaires.join(", ") || "votre entreprise"} comme titulaire`
+              : award.titulaires.length
+                ? `Marché attribué à ${award.titulaires.join(", ")}`
+                : "L'avis de résultat est publié."}
+        </p>
+        {!award.cancelled && (
+          <p className="mt-1 text-sm text-slate-300">
+            {award.won ? "C'est votre entreprise : félicitations ! Confirmez-le juste en dessous avec « Gagné »." : "C'est votre entreprise ? Indiquez-le juste en dessous : Gagné ou Pas retenu."}
+          </p>
+        )}
+        <a href={award.url} target="_blank" rel="noopener noreferrer" className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-teal-400 hover:underline">
+          <ExternalLink className="size-4" aria-hidden /> Voir l&apos;avis officiel
+        </a>
+      </div>
+    );
+  if (!watched) return null;
+  return (
+    <p className="plan-in mb-4 flex items-start gap-2 rounded-2xl bg-teal-50 px-4 py-3 text-sm text-teal-900 ring-1 ring-teal/25" data-testid="award-watched">
+      <BellRing className="mt-0.5 size-4 shrink-0" aria-hidden />
+      <span>
+        <strong>On surveille le résultat pour vous.</strong> Chaque jour, LinkProB2B vérifie au BOAMP si l&apos;avis de résultat est publié : vous serez prévenu ici
+        et dans vos notifications, sans avoir à chercher.
+      </span>
+    </p>
+  );
+}
+
+/** Date AAAA-MM-JJ dans `n` jours (heure de Paris). */
+const inDays = (n: number) => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris" }).format(new Date(Date.now() + n * 86_400_000));
+const QUICK_REMINDERS = [
+  { label: "Relancer l'acheteur dans 3 semaines", days: 21, text: "Relancer l'acheteur" },
+  { label: "Faire le point dans 1 mois", days: 30, text: "Faire le point sur ma candidature" },
+];
+
 const AFTER_DEPOSIT = [
   { t: "J'ai gardé l'accusé de réception du dépôt", d: "Le reçu (ou l'e-mail de confirmation) de la plateforme de l'acheteur prouve que votre offre est arrivée à temps." },
   { t: "Je surveille la messagerie de la plateforme de l'acheteur", d: "L'acheteur peut poser une question ou demander un document manquant, souvent avec un délai court pour répondre." },
@@ -1189,12 +1241,15 @@ function AfterDeposit({ id, reminder, followUp }: { id: string; reminder: { date
       // stockage indisponible : la case reste cochée pour cette visite
     }
   };
-  const save = (d: string) =>
+  const save = (d: string, t = text) =>
     start(async () => {
-      const r = await setApplicationReminder(id, d, text);
+      const r = await setApplicationReminder(id, d, t);
       if (!r.ok) return setMsg(r.error);
-      setCurrent(d ? { date: d, text } : null);
-      if (!d) setDate("");
+      setCurrent(d ? { date: d, text: t } : null);
+      if (d) {
+        setDate(d);
+        setText(t);
+      } else setDate("");
       setMsg(d ? "Rappel enregistré." : "Rappel supprimé.");
     });
   return (
@@ -1232,7 +1287,21 @@ function AfterDeposit({ id, reminder, followUp }: { id: string; reminder: { date
         ) : (
           <p className="mt-2 text-sm text-slate-600">Choisissez une date : le rappel apparaîtra dans « À faire maintenant » et dans vos notifications.</p>
         )}
-        <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto_auto]">
+        <div className="mt-3 flex flex-wrap gap-2" data-testid="quick-reminders">
+          {QUICK_REMINDERS.map((q) => (
+            <button
+              key={q.days}
+              type="button"
+              disabled={pending}
+              onClick={() => save(inDays(q.days), q.text)}
+              className="inline-flex items-center gap-1.5 rounded-full bg-white px-3.5 py-2 text-sm font-semibold text-navy ring-1 ring-teal/40 transition hover:-translate-y-0.5 hover:bg-teal-50 disabled:opacity-50"
+            >
+              <CalendarClock className="size-4 text-teal-600" aria-hidden /> {q.label}
+            </button>
+          ))}
+        </div>
+        <p className="mt-3 text-xs font-semibold text-slate-500">Ou choisissez vous-même :</p>
+        <div className="mt-1.5 grid gap-2 sm:grid-cols-[1fr_auto_auto]">
           <label className="sr-only" htmlFor={`rappel-texte-${id}`}>
             Quoi
           </label>

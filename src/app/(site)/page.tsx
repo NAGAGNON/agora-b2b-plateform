@@ -3,6 +3,8 @@ import Image from "next/image";
 import {
   ArrowRight,
   Bell,
+  BellRing,
+  ClipboardCheck,
   Briefcase,
   Building,
   Building2,
@@ -318,6 +320,38 @@ export default async function HomePage(props: PageProps<"/">) {
       )}
 
 
+
+      {/* Le parcours complet : trouver, répondre, connaître le résultat (sans aller vérifier soi-même) */}
+      <section className="cv-auto py-12 sm:py-16" aria-labelledby="du-debut-a-la-fin">
+        <div className="container-page">
+          <p className="reveal text-sm font-semibold tracking-wide text-teal-700 uppercase">De l&apos;appel d&apos;offres au résultat</p>
+          <h2 id="du-debut-a-la-fin" className="reveal mt-2 max-w-3xl text-3xl font-extrabold text-navy sm:text-4xl">
+            On vous suit jusqu&apos;au bout, <span className="text-gradient">même après le dépôt</span>
+          </h2>
+          <ol className="mt-8 grid gap-4 md:grid-cols-3">
+            {[
+              { icon: Bell, title: "Les offres de votre métier", text: "Chaque matin, les nouveaux appels d'offres de votre métier et de votre zone, triés pour vous." },
+              { icon: ClipboardCheck, title: "On vous guide pour répondre", text: "Puis-je répondre ? Quelles pièces fournir ? Où déposer ? Tout est expliqué simplement, étape par étape." },
+              {
+                icon: BellRing,
+                title: "On surveille le résultat pour vous",
+                text: "Après votre dépôt, LinkProB2B vérifie chaque jour si l'acheteur a publié l'attribution au BOAMP. Vous êtes prévenu par e-mail, et si c'est vous qui gagnez.",
+              },
+            ].map((step, i) => (
+              <li key={step.title} className="reveal glow-card rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                <span className="flex items-center gap-3">
+                  <span className="flex size-11 items-center justify-center rounded-2xl bg-gradient-to-br from-teal to-electric text-white">
+                    <step.icon className="size-5" aria-hidden />
+                  </span>
+                  <span className="text-sm font-bold text-teal-700">Étape {i + 1}</span>
+                </span>
+                <h3 className="mt-4 text-xl font-bold text-navy">{step.title}</h3>
+                <p className="mt-2 text-slate-600">{step.text}</p>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </section>
 
       <DirectoryShowcase />
 

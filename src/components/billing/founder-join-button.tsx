@@ -9,7 +9,7 @@ import { cn } from "@/lib/cn";
 const GAINS = [
   "Les appels d'offres de votre métier chaque matin, sans limite",
   "Une fiche claire pour chaque appel d'offres : l'essentiel, les documents à fournir, les dates",
-  "Le suivi de vos candidatures, étape par étape, avec des rappels",
+  "Le suivi de vos candidatures et leur résultat surveillé pour vous, prévenu par e-mail",
   "Les besoins des entreprises avant tout le monde",
 ];
 
