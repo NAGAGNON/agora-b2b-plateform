@@ -34,11 +34,14 @@ function parisHour(now = new Date()): number {
  * super-administrateurs) à 21 h, heure de Paris : la tâche est planifiée à 19 h et 20 h UTC (heure
  * d'été / d'hiver) ; avant 21 h à Paris elle ne fait rien, et le rapport n'est envoyé qu'une fois.
  */
-/** Comité des agents internes : seulement si le réglage « board » vaut { enabled: true } (arrêté par défaut). */
-async function boardEnabled(): Promise<boolean> {
-  const { data } = await createAdminClient().from("platform_settings").select("value").eq("key", "board").maybeSingle();
+/** Réglage activé seulement s'il vaut { enabled: true } (arrêté par défaut). */
+async function settingEnabled(key: string): Promise<boolean> {
+  const { data } = await createAdminClient().from("platform_settings").select("value").eq("key", key).maybeSingle();
   return (data?.value as { enabled?: boolean } | null)?.enabled === true;
 }
+
+/** Comité des agents internes : seulement si le réglage « board » vaut { enabled: true }. */
+const boardEnabled = () => settingEnabled("board");
 
 async function run(req: Request) {
   if (!authorized(req)) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
@@ -65,6 +68,9 @@ async function run(req: Request) {
       const r = await runBoard({ kind: comite === "matin" ? "MATIN" : "SOIR" });
       return NextResponse.json({ ok: true, ...r });
     }
+    // Bilan du soir et point du lundi (rédigés avec l'API Claude) : arrêtés à la demande du fondateur le 20/11
+    // pour économiser ses crédits. Réactivables par le réglage platform_settings « founder_reports » = { "enabled": true }.
+    if (!(await settingEnabled("founder_reports"))) return NextResponse.json({ ok: true, skipped: "Bilans automatiques arrêtés (réglage founder_reports)" });
     // Analyste du lundi (`semaine=1`) : le lundi à 8 h, heure de Paris (tâche planifiée à 6 h et 7 h UTC
     // pour couvrir l'heure d'été et d'hiver) ; envoyé une seule fois par semaine
     if (new URL(req.url).searchParams.get("semaine") === "1") {
