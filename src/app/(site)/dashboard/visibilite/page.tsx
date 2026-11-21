@@ -95,7 +95,7 @@ export default async function VisibilityPage(props: PageProps<"/dashboard/visibi
           const path = b.opportunity_id ? `/opportunites/${b.opportunity_id}` : `/entreprises/${company.slug}`;
           const [{ data: pres }, { count: views }, { data: camp }] = await Promise.all([
             admin.from("boost_presentations").select("created_at, prospect_id").eq("boost_id", b.id).limit(10_000),
-            admin.from("page_views").select("id", { count: "exact", head: true }).eq("path", path).gte("created_at", b.starts_at!),
+            admin.from("page_views_human").select("id", { count: "exact", head: true }).eq("path", path).gte("created_at", b.starts_at!),
             admin.from("outreach_campaigns").select("id").eq("kind", "BOOST").eq("boost_id", b.id).maybeSingle(),
           ]);
           // E-mails lus (ouverture ou clic) et clics vers la fiche, par entreprise destinataire

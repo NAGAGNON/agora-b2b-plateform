@@ -45,7 +45,7 @@ export default async function ConversionPage() {
   const db = createAdminClient();
   const { now, periods } = comparedPeriods();
   const views = (path: string, p: (typeof periods)[number]) =>
-    db.from("page_views").select("id", { count: "exact", head: true }).eq("path", path).gte("created_at", p.from).lt("created_at", p.to);
+    db.from("page_views_human").select("id", { count: "exact", head: true }).eq("path", path).gte("created_at", p.from).lt("created_at", p.to);
   const events = (names: string[], p: (typeof periods)[number]) =>
     db.from("analytics_events").select("id", { count: "exact", head: true }).in("event_name", names).gte("created_at", p.from).lt("created_at", p.to);
   const ACTIONS = ["create_company", "create_alert", "save_favorite", "express_interest", "publish_opportunity", "submit_proposal"];
