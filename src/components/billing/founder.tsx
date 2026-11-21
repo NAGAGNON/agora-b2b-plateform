@@ -83,7 +83,7 @@ export function FounderOfferView({
                     <span className="text-white/70">HT / mois</span>
                   </p>
                   <p className="text-sm text-white/60">
-                    <span className="line-through">{formatEuros(REGULAR_PRICE_HT)}</span> · à vie · {formatEuros(priceTTC(FOUNDER_PRICE_HT))} TTC
+                    <span className="line-through">{formatEuros(REGULAR_PRICE_HT)}</span> · les 3 premiers mois · {formatEuros(priceTTC(FOUNDER_PRICE_HT))} TTC
                   </p>
                 </div>
                 {urgency && <span className="rounded-full bg-violet/20 px-3 py-1 text-xs font-semibold text-violet-200 ring-1 ring-violet/40">{urgency}</span>}

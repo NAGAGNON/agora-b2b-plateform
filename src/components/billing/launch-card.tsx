@@ -22,7 +22,7 @@ export type LaunchCardProps = {
  */
 export function LaunchCard({ state, pulse, seatsLeft, now }: LaunchCardProps) {
   if (state?.paid) return null;
-  const price = `${formatEuros(FOUNDER_PRICE_HT)}/mois à vie`;
+  const price = `${formatEuros(FOUNDER_PRICE_HT)}/mois les 3 premiers mois`;
   const seats = seatsLeft > 0 ? `${seatsLeft} place${seatsLeft > 1 ? "s" : ""} au tarif fondateur` : null;
   const market = pulse && pulse.france > 0 ? `${nf.format(pulse.france)} offres de votre métier ce mois-ci` : null;
 

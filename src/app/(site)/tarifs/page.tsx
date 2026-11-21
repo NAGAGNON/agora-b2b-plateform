@@ -97,7 +97,7 @@ export default async function PricingPage() {
         {offerOpen && (
           <div className="mx-auto mb-8 flex max-w-3xl flex-col items-center justify-between gap-4 rounded-2xl bg-white p-5 shadow-xl ring-1 ring-teal/40 sm:flex-row" data-testid="pricing-launch">
             <div>
-              <p className="text-lg font-bold text-navy">Offre de lancement : Pro à {formatEuros(FOUNDER_PRICE_HT)}/mois à vie</p>
+              <p className="text-lg font-bold text-navy">Offre de lancement : Pro à {formatEuros(FOUNDER_PRICE_HT)}/mois les 3 premiers mois</p>
               <p className="text-sm text-slate-600">
                 {offerSeats} place{offerSeats > 1 ? "s" : ""} restante{offerSeats > 1 ? "s" : ""} · satisfait ou remboursé 30 jours
               </p>

@@ -32,6 +32,8 @@ test("pages métier × département : titre, fil d'Ariane, liens, alerte par e-m
   await expect(crumbs.getByRole("link", { name: "Bretagne" })).toHaveAttribute("href", "/opportunites/bretagne");
   await expect(crumbs.getByRole("link", { name: "Finistère" })).toHaveAttribute("href", "/opportunites/bretagne/finistere");
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", /\/opportunites\/bretagne\/finistere\/maintenance-industrielle$/);
+  // Offre Pro : en sommeil pendant la phase gratuite (n'apparaît qu'au lancement payant)
+  await expect(page.getByTestId("landing-pro")).toHaveCount(0);
   // Données structurées : liste des offres de la page (lue par Google et les assistants IA)
   const ld = await page.locator('script[type="application/ld+json"]').allTextContents();
   const list = ld.map((t) => JSON.parse(t)).find((d) => d["@type"] === "CollectionPage");

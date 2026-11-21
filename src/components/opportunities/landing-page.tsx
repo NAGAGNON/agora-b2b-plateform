@@ -17,6 +17,8 @@ import { regionBySlug } from "@/lib/geo";
 import { PageHero } from "@/components/layout/page-hero";
 import { familyPhoto, sectorFamilySlug } from "@/components/opportunities/sector-visual";
 import { LandingInsights } from "@/components/opportunities/landing-insights";
+import { LandingProCard } from "@/components/billing/landing-pro-card";
+import { CampaignCompanies } from "@/components/campaign-companies";
 
 export async function landingMetadata(landing: Landing, path: string, sp: RawSearchParams): Promise<Metadata> {
   const { total } = await searchOpportunities(parseOpportunityFilters(landing.fixed), 1);
@@ -51,7 +53,8 @@ export async function LandingPage({ landing, path, sp }: { landing: Landing; pat
   const sector = typeof landing.fixed.secteur === "string" ? landing.fixed.secteur : null;
   const family = sectorFamilySlug(sector);
   // Offres de la première page, en données structurées (liste lisible par Google et les assistants IA)
-  const { rows: listed } = await searchOpportunities(parseOpportunityFilters(landing.fixed), 10);
+  const { rows: listed, total: listedTotal } = await searchOpportunities(parseOpportunityFilters(landing.fixed), 10);
+  const landingLabel = landing.heading.replace(/^Opportunités (B2B )?(dans le département |en |— )?/, "");
   return (
     <>
       <JsonLd data={breadcrumbLd(crumbs)} />
@@ -110,6 +113,13 @@ export async function LandingPage({ landing, path, sp }: { landing: Landing; pat
       )}
       {filters.page === 1 && <FeaturedNeeds sector={filters.sector} department={filters.department} region={filters.region ? (regionBySlug(filters.region)?.name ?? null) : null} />}
       <OpportunityResults filters={filters} rawParams={sp} basePath={path} />
+      {filters.page === 1 && sector && landing.kind !== "france" && (
+        <div className="mt-8">
+          {/* Entreprises de ce métier en campagne de visibilité (deuxième source de revenus) */}
+          <CampaignCompanies sector={sector} title={`Entreprises « ${landingLabel} » mises en avant`} limit={2} />
+        </div>
+      )}
+      {filters.page === 1 && sector && landing.kind !== "france" && listedTotal >= 3 && <LandingProCard label={landingLabel} total={listedTotal} />}
       {filters.page === 1 && <LandingInsights landing={landing} />}
       {landing.related && landing.related.links.length > 0 && (
         <section className="mt-8" aria-labelledby="related-landings">

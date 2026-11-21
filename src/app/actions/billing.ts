@@ -13,7 +13,7 @@ import { getStripe, priceIdFor, stripeConfigured, paidPlansOpen, stripeMode, tax
 import { ENTITLED_STATUSES } from "@/lib/billing/sync";
 import type { ActionResult } from "@/lib/validation";
 import { cardTrial } from "@/lib/billing/card-trial";
-import { FOUNDER_COUPON_ID, FOUNDER_DISCOUNT, founderOffer, founderOpen, founderSeatsTaken, seatsLeft } from "@/lib/billing/founder";
+import { FOUNDER_COUPON_ID, FOUNDER_MONTHS, FOUNDER_DISCOUNT, founderOffer, founderOpen, founderSeatsTaken, seatsLeft } from "@/lib/billing/founder";
 
 /**
  * Paiement et gestion de l'abonnement. L'offre choisie est validée côté serveur et
@@ -171,14 +171,14 @@ export async function startCardTrial(_prev: ActionResult | null, fd: FormData): 
   redirect(url);
 }
 
-/** Réduction « membre fondateur » (−50 % à vie) : créée une seule fois dans Stripe, réutilisée ensuite. */
+/** Réduction « membre fondateur » (−50 % les 3 premiers mois) : créée une seule fois dans Stripe, réutilisée ensuite. */
 async function ensureFounderCoupon(): Promise<string> {
   const stripe = getStripe();
   try {
     return (await stripe.coupons.retrieve(FOUNDER_COUPON_ID)).id;
   } catch {
     const c = await stripe.coupons.create(
-      { id: FOUNDER_COUPON_ID, name: "Membre fondateur LinkProB2B", percent_off: FOUNDER_DISCOUNT, duration: "forever" },
+      { id: FOUNDER_COUPON_ID, name: "Membre fondateur LinkProB2B (3 mois)", percent_off: FOUNDER_DISCOUNT, duration: "repeating", duration_in_months: FOUNDER_MONTHS },
       { idempotencyKey: `coupon-${FOUNDER_COUPON_ID}` },
     );
     return c.id;
@@ -193,13 +193,15 @@ const founderSchema = z.object({
 });
 
 /**
- * Souscription au tarif fondateur : offre Pro avec la réduction fondateur appliquée à vie.
+ * Souscription au tarif fondateur : offre Pro, réduction fondateur les 3 premiers mois (abonnement mensuel).
  * Uniquement pendant l'offre de lancement (non terminée) et tant qu'il reste des places.
  */
 export async function startFounderCheckout(_prev: ActionResult | null, fd: FormData): Promise<ActionResult> {
   const parsed = founderSchema.safeParse({ interval: fd.get("interval") ?? undefined, acceptTerms: fd.get("acceptTerms") });
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Demande invalide." };
   const interval = parsed.data.interval;
+  // Tarif fondateur limité aux 3 premiers mois : il s'applique à l'abonnement mensuel
+  if (interval === "year") return { ok: false, error: "Le tarif fondateur s'applique à l'abonnement mensuel (les 3 premiers mois)." };
   const { session, error } = await adminCompany("/offre-fondateur");
   if (error) return { ok: false, error };
   const offer = await founderOffer();
@@ -208,7 +210,6 @@ export async function startFounderCheckout(_prev: ActionResult | null, fd: FormD
   if (!stripeConfigured()) return { ok: false, error: UNAVAILABLE };
   if (!paidPlansOpen(session.isStaff)) return { ok: false, error: "Le paiement en ligne est en cours de mise en service." };
   if (liveBlocked()) return { ok: false, error: "Paiement désactivé : le mode LIVE de Stripe n'est pas encore autorisé." };
-  if (interval === "year" && !priceIdFor("PRO", "year")) return { ok: false, error: "L'abonnement annuel n'est pas encore disponible. Choisissez l'abonnement mensuel." };
   if (!(await rateLimit("billing-checkout", 10, 3600))) return { ok: false, error: "Trop de tentatives. Réessayez dans quelques minutes." };
 
   const companyId = session.activeCompany.company.id;
