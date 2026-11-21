@@ -72,10 +72,11 @@ test("après le dépôt : liste à cocher, rappel à une date choisie, modèle d
   // Résultat publié au BOAMP, détecté automatiquement : affiché en tête du suivi
   await db
     .from("pipeline_items")
-    .update({ award: { idweb: "26-000001", titulaires: ["ENTREPRISE RETENUE SAS"], date: "2026-11-20", url: "https://www.boamp.fr/pages/avis/?q=idweb:26-000001", cancelled: false } })
+    .update({ award: { idweb: "26-000001", titulaires: ["ENTREPRISE RETENUE SAS"], date: "2026-11-20", url: "https://www.boamp.fr/pages/avis/?q=idweb:26-000001", cancelled: false, offers: [7] } })
     .eq("opportunity_id", id)
     .eq("company_id", companyId);
   await page.reload();
   await expect(page.getByTestId("award-found")).toContainText("Marché attribué à ENTREPRISE RETENUE SAS");
+  await expect(page.getByTestId("award-offers")).toHaveText(/Concurrence : 7 offres reçues/);
   await expect(page.getByTestId("award-found").getByRole("link", { name: /avis officiel/ })).toHaveAttribute("href", /boamp\.fr/);
 });

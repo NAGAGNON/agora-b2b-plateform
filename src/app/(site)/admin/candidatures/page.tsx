@@ -3,6 +3,7 @@ import { requireAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { DashboardCard } from "@/components/ui/card";
 import { formatDateTime } from "@/lib/format";
+import { offersLabel } from "@/lib/award-format";
 import { Bookmark, Eye, FolderOpen, Hammer, MessageCircleQuestion, Send, Trophy } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { STEP_SHORT } from "@/lib/application-plan";
@@ -48,7 +49,7 @@ export default async function AdminApplicationsPage(props: PageProps<"/admin/can
   const [{ data: items }, { data: prompts }, { data: journal }, { data: questions }] = await Promise.all([
     db
       .from("pipeline_items")
-      .select("stage, created_at, updated_at, updated_by, work_started_at, submitted_at, guide_done, docs_done, draft, company_id, opportunity_id, companies!inner(name, is_demo)")
+      .select("stage, created_at, updated_at, updated_by, work_started_at, submitted_at, guide_done, docs_done, draft, award, company_id, opportunity_id, companies!inner(name, is_demo)")
       .in("stage", Object.keys(STAGE_LABEL) as never)
       .eq("companies.is_demo", false)
       .order("updated_at", { ascending: false })
@@ -108,6 +109,7 @@ export default async function AdminApplicationsPage(props: PageProps<"/admin/can
   const userName = new Map((users ?? []).map((u) => [u.id, u.full_name || u.email]));
   const real = <T extends { company_id: string }>(list: T[]) => list.filter((x) => co.get(x.company_id) && !co.get(x.company_id)!.is_demo && !internal.has(x.company_id));
   const activity = real(journal ?? []);
+
   const asked = real(questions ?? []);
   // Par période : 24 h, 48 h, 7 jours, 30 jours (mêmes définitions que le parcours ci-dessous)
   const realViews = (views ?? []).filter((v) => v.user_id && !internalIds.includes(v.user_id));
@@ -119,6 +121,21 @@ export default async function AdminApplicationsPage(props: PageProps<"/admin/can
   ];
   const OPENED = ["RESPONSE_PREPARING", "RESPONSE_SENT", "DISCUSSION", "NEGOTIATION", "WON", "LOST"];
   const SENT_STAGES = ["RESPONSE_SENT", "DISCUSSION", "NEGOTIATION", "WON", "LOST"];
+  // Par offre : combien d'entreprises membres s'y intéressent, préparent ou ont déposé (et concurrence officielle si publiée)
+  const byOffer = [
+    ...rows
+      .reduce((m, r) => {
+        const e = m.get(r.opportunity_id) ?? { id: r.opportunity_id, interested: 0, preparing: 0, sent: 0, names: [] as string[], offers: null as string | null };
+        if (SENT_STAGES.includes(r.stage)) e.sent++;
+        else if (r.stage === "RESPONSE_PREPARING") e.preparing++;
+        else e.interested++;
+        if (r.company?.name && !e.names.includes(r.company.name)) e.names.push(r.company.name);
+        e.offers ??= offersLabel((r.award as { offers?: number[] } | null)?.offers);
+        m.set(r.opportunity_id, e);
+        return m;
+      }, new Map<string, { id: string; interested: number; preparing: number; sent: number; names: string[]; offers: string | null }>())
+      .values(),
+  ].sort((a, b) => b.sent - a.sent || b.names.length - a.names.length || b.preparing - a.preparing);
   const periodStats = PERIODS.map(({ key, label, long, since }) => {
     const created = rows.filter((r) => r.created_at >= since);
     return {
@@ -494,6 +511,49 @@ export default async function AdminApplicationsPage(props: PageProps<"/admin/can
                   <td className="px-3 py-2 text-center tabular-nums">{u.won || u.lost ? `${u.won} / ${u.lost}` : "—"}</td>
                   <td className="px-3 py-2 text-center tabular-nums">{u.questions || "—"}</td>
                   <td className="px-3 py-2 whitespace-nowrap text-slate-600">{u.last ? formatDateTime(u.last) : "—"}</td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </section>
+
+      <section className="mb-6 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-4" data-testid="admin-by-offer">
+        <h2 className="font-semibold text-navy">Par offre : combien d&apos;entreprises membres</h2>
+        <p className="mt-1 text-sm text-slate-600">
+          Entreprises inscrites sur LinkProB2B qui gardent, préparent ou ont déposé une réponse à la même offre. La concurrence officielle (toutes entreprises confondues)
+          apparaît quand l&apos;acheteur publie le résultat au BOAMP.
+        </p>
+        <table className="mt-3 w-full min-w-[40rem] text-sm">
+          <thead>
+            <tr className="border-b border-slate-200 text-left text-xs text-slate-500">
+              <th className="px-3 py-2 font-medium">Offre</th>
+              <th className="px-3 py-2 text-center font-medium">Intéressées</th>
+              <th className="px-3 py-2 text-center font-medium">En préparation</th>
+              <th className="px-3 py-2 text-center font-medium">Déposées</th>
+              <th className="px-3 py-2 font-medium">Concurrence officielle</th>
+            </tr>
+          </thead>
+          <tbody>
+            {byOffer.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="px-3 py-4 text-center text-slate-500">
+                  Aucune candidature pour l&apos;instant.
+                </td>
+              </tr>
+            ) : (
+              byOffer.slice(0, 40).map((o) => (
+                <tr key={o.id} className="border-b border-slate-100 align-top last:border-0">
+                  <td className="px-3 py-2">
+                    <Link href={`/opportunites/${o.id}`} className="font-semibold text-navy hover:text-teal-700">
+                      {opp.get(o.id) ?? "Offre"}
+                    </Link>
+                    <p className="text-xs text-slate-500">{o.names.join(", ")}</p>
+                  </td>
+                  <td className="px-3 py-2 text-center tabular-nums">{o.interested || "—"}</td>
+                  <td className="px-3 py-2 text-center tabular-nums">{o.preparing || "—"}</td>
+                  <td className="px-3 py-2 text-center font-semibold tabular-nums">{o.sent || "—"}</td>
+                  <td className="px-3 py-2 text-slate-600">{o.offers ?? "Pas encore publiée"}</td>
                 </tr>
               ))
             )}
