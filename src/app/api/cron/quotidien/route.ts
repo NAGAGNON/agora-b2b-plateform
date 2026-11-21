@@ -2,6 +2,7 @@ import { processApplicationReminders } from "@/lib/application-reminders";
 import { requestReviewsAfterDeposit } from "@/lib/testimonial-after-deposit";
 import { processAwardWatch } from "@/lib/award-watch";
 import { queueBoostPresentations } from "@/lib/visibility-send";
+import { sendVisibilityRecaps } from "@/lib/visibility-report";
 import { cronPausedResponse } from "@/lib/cron-usage";
 import { NextResponse } from "next/server";
 import { startCronMeter } from "@/lib/cron-usage";
@@ -131,6 +132,8 @@ async function run(req: Request) {
     // Puis présentations par e-mail aux entreprises de la base (file d'envoi de l'Outreach)
     return { ...(data as object), prolongees_garantie: prolongees ?? 0, ...(await queueBoostPresentations()) };
   });
+  // Bilan des campagnes par e-mail tous les 2 jours ouvrés (validé par le fondateur le 21/11), au passage de midi
+  if (new URL(req.url).searchParams.get("passe") === "midi") await step("visibilite-bilan", async () => sendVisibilityRecaps());
   // Rappel dans le site (notification, pas d'e-mail) : fiche prête ou aucun contact depuis 14 jours
   await step("visibilite-rappel", async () => {
     const { data, error } = await createAdminClient().rpc("process_visibility_nudges", { p_limit: 100 });
