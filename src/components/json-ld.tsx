@@ -17,6 +17,23 @@ export function breadcrumbLd(items: { name: string; path: string }[]) {
   };
 }
 
+/** Liste des offres affichées sur une page (pages métier, département, région) : aide les moteurs et assistants à la comprendre. */
+export function offerListLd(name: string, path: string, items: { id: string; title: string }[]) {
+  const base = siteUrl();
+  return {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    name,
+    url: `${base}${path}`,
+    inLanguage: "fr-FR",
+    mainEntity: {
+      "@type": "ItemList",
+      numberOfItems: items.length,
+      itemListElement: items.map((o, i) => ({ "@type": "ListItem", position: i + 1, name: o.title, url: `${base}/opportunites/${o.id}` })),
+    },
+  };
+}
+
 /** Profils officiels de LinkProB2B sur d'autres sites (seulement les fiches publiques et vérifiées). */
 export const SAME_AS = ["https://www.linkedin.com/company/linkprob2b/"];
 

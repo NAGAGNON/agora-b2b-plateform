@@ -32,6 +32,10 @@ test("pages métier × département : titre, fil d'Ariane, liens, alerte par e-m
   await expect(crumbs.getByRole("link", { name: "Bretagne" })).toHaveAttribute("href", "/opportunites/bretagne");
   await expect(crumbs.getByRole("link", { name: "Finistère" })).toHaveAttribute("href", "/opportunites/bretagne/finistere");
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", /\/opportunites\/bretagne\/finistere\/maintenance-industrielle$/);
+  // Données structurées : liste des offres de la page (lue par Google et les assistants IA)
+  const ld = await page.locator('script[type="application/ld+json"]').allTextContents();
+  const list = ld.map((t) => JSON.parse(t)).find((d) => d["@type"] === "CollectionPage");
+  if (list) expect(list.mainEntity.itemListElement[0].url).toMatch(/\/opportunites\/[0-9a-f-]{36}$/);
 
   // Alerte par e-mail : case de consentement non pré-cochée et obligatoire, confirmation demandée
   const lead = page.getByTestId("alert-lead");

@@ -41,7 +41,7 @@ export function OfferAccessGate({
   /** Fil d'Ariane (région, département, métier) : liens vers les pages de la zone et du métier */
   crumbs?: { name: string; path: string }[];
   /** Ce que l'inscription apporte, chiffres réels : offres ouvertes du même métier près de l'offre et en France */
-  gains?: { nearby: number; nearbyLabel: string | null; sectorTotal: number; sector: string | null; alertLabel: string | null } | null;
+  gains?: { nearby: number; nearbyLabel: string | null; sectorTotal: number; sector: string | null; alertLabel: string | null; nearbyPath?: string | null; sectorPath?: string | null } | null;
   /** Contenu public sous la carte (offres similaires) */
   children?: React.ReactNode;
   /**
@@ -197,13 +197,40 @@ export function OfferAccessGate({
                     {gains.nearby > 1 && gains.nearbyLabel ? (
                       <>
                         <strong>
-                          {gains.nearby.toLocaleString("fr-FR")} offres « {gains.sector} » ouvertes {gains.nearbyLabel}
+                          {gains.nearbyPath ? (
+                            <Link href={gains.nearbyPath} className="text-teal-800 underline underline-offset-2 hover:text-navy" data-testid="gate-nearby-link">
+                              {gains.nearby.toLocaleString("fr-FR")} offres « {gains.sector} » ouvertes {gains.nearbyLabel}
+                            </Link>
+                          ) : (
+                            <>
+                              {gains.nearby.toLocaleString("fr-FR")} offres « {gains.sector} » ouvertes {gains.nearbyLabel}
+                            </>
+                          )}
                         </strong>
-                        {gains.sectorTotal > gains.nearby ? `, ${gains.sectorTotal.toLocaleString("fr-FR")} dans toute la France` : ""}
+                        {gains.sectorTotal > gains.nearby && (
+                          <>
+                            ,{" "}
+                            {gains.sectorPath ? (
+                              <Link href={gains.sectorPath} className="underline underline-offset-2 hover:text-navy">
+                                {gains.sectorTotal.toLocaleString("fr-FR")} dans toute la France
+                              </Link>
+                            ) : (
+                              `${gains.sectorTotal.toLocaleString("fr-FR")} dans toute la France`
+                            )}
+                          </>
+                        )}
                       </>
                     ) : (
                       <strong>
-                        {gains.sectorTotal.toLocaleString("fr-FR")} offres « {gains.sector} » ouvertes en France
+                        {gains.sectorPath ? (
+                          <Link href={gains.sectorPath} className="text-teal-800 underline underline-offset-2 hover:text-navy">
+                            {gains.sectorTotal.toLocaleString("fr-FR")} offres « {gains.sector} » ouvertes en France
+                          </Link>
+                        ) : (
+                          <>
+                            {gains.sectorTotal.toLocaleString("fr-FR")} offres « {gains.sector} » ouvertes en France
+                          </>
+                        )}
                       </strong>
                     )}
                     , réunies au même endroit
