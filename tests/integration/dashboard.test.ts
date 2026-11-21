@@ -156,3 +156,27 @@ describe("Google, articles et inscriptions", () => {
     expect((await mod.client.rpc("admin_seo_snapshot")).error).toBeNull();
   });
 });
+
+describe("robots retirés de l'audience", () => {
+  const R1 = "00000000-0000-4000-9005-" + RUN.padStart(12, "0");
+  const H1 = "00000000-0000-4000-9006-" + RUN.padStart(12, "0");
+  afterAll(async () => {
+    await admin.from("page_views").delete().in("session_id", [R1, H1]);
+  });
+
+  it("une page, 0 seconde, sur ordinateur, depuis plus de 30 minutes : pas comptée ; un vrai lecteur : compté", async () => {
+    const snap = async () => (await admin.rpc("seo_snapshot", { p_now: new Date().toISOString() })).data as unknown as SeoSnapshot;
+    const visits = async () => Number(((await admin.rpc("audience_window", { p_from: new Date(Date.now() - 7 * 86_400_000).toISOString(), p_to: new Date().toISOString() })).data as { visits: number }).visits);
+    const [before, beforeVisits] = [await snap(), await visits()];
+    const at = new Date(Date.now() - 40 * 60_000).toISOString();
+    const { error } = await admin.from("page_views").insert([
+      { session_id: R1, path: "/acheteurs/robot-test", referrer_host: "www.google.com", device: "desktop", duration_ms: 0, created_at: at },
+      { session_id: H1, path: "/acheteurs/lecteur-test", referrer_host: "www.google.com", device: "desktop", duration_ms: 45_000, created_at: at },
+    ]);
+    expect(error).toBeNull();
+    expect((await snap()).google.last_7_days).toBe(before.google.last_7_days + 1);
+    expect(await visits()).toBe(beforeVisits + 1);
+    // Rien n'est supprimé : la visite du robot reste enregistrée
+    expect((await admin.from("page_views").select("id").eq("session_id", R1)).data).toHaveLength(1);
+  });
+});
