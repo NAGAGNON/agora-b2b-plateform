@@ -252,6 +252,9 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
           nearbyLabel: dep ? `dans le département ${dep.name} (${dep.code})` : null,
           sectorTotal: count("sector", o.sector_slug),
           alertLabel: [sector, dep?.name].filter(Boolean).join(" — ") || null,
+          // Pages publiques « métier + département » et « métier » : celles qui transforment le mieux les visiteurs de Google
+          nearbyPath: crumbs.at(-1)?.path?.endsWith(`/${o.sector_slug}`) && crumbs.length > 2 ? crumbs.at(-1)!.path : null,
+          sectorPath: `/opportunites/${o.sector_slug}`,
         }
       : null;
     return (

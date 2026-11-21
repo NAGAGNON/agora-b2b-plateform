@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
-import { JsonLd, breadcrumbLd } from "@/components/json-ld";
+import { JsonLd, breadcrumbLd, offerListLd } from "@/components/json-ld";
 import { OpportunityResults } from "@/components/opportunities/opportunity-results";
 import { FeaturedNeeds } from "@/components/opportunities/featured-needs";
 import { ButtonLink } from "@/components/ui/button";
@@ -50,9 +50,12 @@ export async function LandingPage({ landing, path, sp }: { landing: Landing; pat
   const crumbs = [{ name: "Opportunités", path: "/opportunites" }, ...landing.crumbs];
   const sector = typeof landing.fixed.secteur === "string" ? landing.fixed.secteur : null;
   const family = sectorFamilySlug(sector);
+  // Offres de la première page, en données structurées (liste lisible par Google et les assistants IA)
+  const { rows: listed } = await searchOpportunities(parseOpportunityFilters(landing.fixed), 10);
   return (
     <>
       <JsonLd data={breadcrumbLd(crumbs)} />
+      {listed.length > 0 && <JsonLd data={offerListLd(landing.heading, landing.crumbs.at(-1)?.path ?? path, listed.map((o) => ({ id: o.id, title: o.title })))} />}
       <PageHero
         compact={!family}
         eyebrow={landing.kind === "france" ? "France entière" : undefined}
