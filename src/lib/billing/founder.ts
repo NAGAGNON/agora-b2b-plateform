@@ -3,7 +3,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { PLANS } from "@/lib/billing/plans";
 
 /**
- * Offre de lancement : essai Pro offert puis tarif « fondateur » (Pro à moitié prix, à vie) pour un
+ * Offre de lancement : essai Pro offert puis tarif « fondateur » (Pro à moitié prix les 3 premiers mois,
+ * décision du fondateur du 20/11) pour un
  * nombre limité de places, jusqu'à une date de fin. Préparée mais INACTIVE tant que le lancement
  * n'a pas été décidé (fonction launch_paid_offer, réglage platform_settings « founder_offer »).
  *
@@ -11,7 +12,9 @@ import { PLANS } from "@/lib/billing/plans";
  */
 export const FOUNDER_KEY = "founder_offer";
 export const FOUNDER_DISCOUNT = 50; // %
-export const FOUNDER_COUPON_ID = "LINKPRO_FONDATEUR_50";
+export const FOUNDER_COUPON_ID = "LINKPRO_FONDATEUR_50_3M";
+/** Durée du tarif fondateur : les 3 premiers mois d'abonnement, puis le prix normal. */
+export const FOUNDER_MONTHS = 3;
 const PRO = PLANS.find((p) => p.code === "PRO")!;
 export const FOUNDER_PRICE_HT = Math.round(PRO.priceHT * (100 - FOUNDER_DISCOUNT)) / 100; // 14,50 €
 export const REGULAR_PRICE_HT = PRO.priceHT;

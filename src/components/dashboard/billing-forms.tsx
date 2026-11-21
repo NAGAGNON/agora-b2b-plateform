@@ -56,7 +56,7 @@ export function PortalButton({ label = "Gérer mon abonnement", variant = "outli
   );
 }
 
-/** Souscription « membre fondateur » (offre Pro à moitié prix, à vie) : même acceptation explicite. */
+/** Souscription « membre fondateur » (offre Pro à moitié prix les 3 premiers mois) : même acceptation explicite. */
 export function FounderCheckoutForm({ label, disabled = false }: { label: string; disabled?: boolean }) {
   const [state, action] = useActionState(startFounderCheckout, null as ActionResult | null);
   return (

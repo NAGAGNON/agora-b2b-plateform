@@ -57,8 +57,8 @@ function benefitsFor(p: FounderProfile | null | undefined, base: string[]): stri
  */
 export function founderEmail(step: FounderStep, c: Ctx): OfferEmail {
   const end = c.offer.endsAt ? dateFr(c.offer.endsAt) : null;
-  const seats = c.seatsLeft > 0 ? `${c.seatsLeft} place${c.seatsLeft > 1 ? "s" : ""} restante${c.seatsLeft > 1 ? "s" : ""}` : "à vie";
-  const price = { now: `${formatEuros(FOUNDER_PRICE_HT)} HT/mois`, before: `${formatEuros(REGULAR_PRICE_HT)}`, detail: c.seatsLeft > 0 ? `à vie · ${seats}` : "à vie" };
+  const seats = c.seatsLeft > 0 ? `${c.seatsLeft} place${c.seatsLeft > 1 ? "s" : ""} restante${c.seatsLeft > 1 ? "s" : ""}` : "les 3 premiers mois";
+  const price = { now: `${formatEuros(FOUNDER_PRICE_HT)} HT/mois`, before: `${formatEuros(REGULAR_PRICE_HT)}`, detail: c.seatsLeft > 0 ? `les 3 premiers mois · ${seats}` : "les 3 premiers mois" };
   const benefits = ["Chaque appel d'offres résumé en 30 secondes", "Les besoins des entreprises 48 h avant les autres", "Votre entreprise proposée en premier aux clients", "Alertes et recherches illimitées, partout en France"];
   const foot = `Sans engagement · arrêt en un clic · remboursé sous ${REFUND_DAYS} jours si besoin`;
   const hi = c.firstName ? `${c.firstName}, ` : "";
@@ -74,7 +74,7 @@ export function founderEmail(step: FounderStep, c: Ctx): OfferEmail {
         subject: `${hi}votre tarif fondateur est réservé`.replace(/^./, (x) => x.toUpperCase()),
         kicker: "Membre pionnier",
         title: "Votre tarif fondateur est réservé",
-        intro: withUsage(`Votre Pro offert continue jusqu'au ${pioneer}. Ensuite, gardez-le à vie au tarif fondateur, réservé aux tout premiers membres.`),
+        intro: withUsage(`Votre Pro offert continue jusqu'au ${pioneer}. Ensuite, gardez-le au tarif fondateur les 3 premiers mois, réservé aux tout premiers membres.`),
         benefits: mine,
         price,
         cta: "Garder Pro au tarif fondateur",

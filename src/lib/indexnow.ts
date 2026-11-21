@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { env } from "@/lib/env";
 import { STATIC_PATHS, siteUrl } from "@/lib/seo";
+import { landingPaths } from "@/lib/indexnow-landings";
 
 /**
  * IndexNow : signale à Bing, Yandex, Seznam, Naver… les pages nouvelles ou modifiées,
@@ -27,7 +28,7 @@ export async function submitChangedUrls() {
 
   const db = createAdminClient();
   const { data: state } = await db.from("platform_settings").select("value").eq("key", "private.indexnow").maybeSingle();
-  const prev = (state?.value ?? null) as { last_at?: string; static_paths?: string[] } | null;
+  const prev = (state?.value ?? null) as { last_at?: string; static_paths?: string[]; landings_initial?: boolean } | null;
   const since = prev?.last_at ?? new Date(Date.now() - 86400_000).toISOString();
   // Pages fixes ajoutées au site depuis le dernier envoi (toutes au premier envoi)
   const knownStatic = new Set(prev?.static_paths ?? []);
@@ -36,9 +37,9 @@ export async function submitChangedUrls() {
   // Lecture par pages (1000 lignes au plus par requête), dans l'ordre des modifications : au-delà de
   // 9000 annonces, la suite part au passage suivant (reprise à la dernière date envoyée).
   const MAX_OPPS = 9000;
-  const opps: { id: string; updated_at: string }[] = [];
+  const opps: { id: string; updated_at: string; department_code: string | null; sector_slug: string | null; region: string | null; external_buyer_name: string | null }[] = [];
   for (let from = 0; from < MAX_OPPS; from += 1000) {
-    const { data } = await db.from("opportunities").select("id, updated_at").eq("status", "PUBLISHED").eq("visibility", "PUBLIC").eq("is_demo", false).gt("updated_at", since).order("updated_at").range(from, from + 999);
+    const { data } = await db.from("opportunities").select("id, updated_at, department_code, sector_slug, region, external_buyer_name").eq("status", "PUBLISHED").eq("visibility", "PUBLIC").eq("is_demo", false).gt("updated_at", since).order("updated_at").range(from, from + 999);
     opps.push(...(data ?? []));
     if ((data ?? []).length < 1000) break;
   }
@@ -46,6 +47,16 @@ export async function submitChangedUrls() {
   const articles = await db.from("articles").select("slug").eq("status", "PUBLISHED").gt("updated_at", since).limit(500);
   const urls = [...opps.map((o) => `${base}/opportunites/${o.id}`), ...(articles.data ?? []).map((a) => `${base}/analyses/${a.slug}`)];
   if (urls.length) urls.push(`${base}/opportunites`, `${base}/analyses`);
+  // Pages métier × département, département, région, métier et acheteurs touchées par ces annonces
+  // (toutes les pages indexables au premier envoi) : ce sont elles qui amènent des inscrits
+  const counts: { dimension: string; key: string | null; n: number }[] = [];
+  for (let page = 0; page < 20; page++) {
+    const { data } = await db.rpc("open_opportunity_counts").range(page * 1000, page * 1000 + 999);
+    counts.push(...(data ?? []));
+    if ((data ?? []).length < 1000) break;
+  }
+  const { data: departments } = await db.from("departments").select("code, slug, region");
+  for (const p of landingPaths(counts, departments ?? [], prev?.landings_initial ? opps : "all")) if (!urls.includes(`${base}${p}`)) urls.push(`${base}${p}`);
   for (const p of newStatic) if (!urls.includes(`${base}${p}`)) urls.push(`${base}${p}`);
   if (!urls.length) return { submitted: 0 };
 
@@ -56,6 +67,6 @@ export async function submitChangedUrls() {
     signal: AbortSignal.timeout(20_000),
   });
   if (!res.ok && res.status !== 202) throw new Error(`IndexNow HTTP ${res.status}`);
-  await db.from("platform_settings").upsert({ key: "private.indexnow", value: { last_at: truncated ? opps[opps.length - 1].updated_at : startedAt, last_count: urls.length, static_paths: STATIC_PATHS }, description: "Dernier envoi IndexNow" });
+  await db.from("platform_settings").upsert({ key: "private.indexnow", value: { last_at: truncated ? opps[opps.length - 1].updated_at : startedAt, last_count: urls.length, static_paths: STATIC_PATHS, landings_initial: true }, description: "Dernier envoi IndexNow" });
   return { submitted: urls.length, status: res.status };
 }

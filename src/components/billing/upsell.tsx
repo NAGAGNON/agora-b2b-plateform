@@ -27,7 +27,7 @@ export async function UpgradeGate({ session, title, reason, suite, testId }: { s
   else if (open && left > 0)
     action = (
       <Link href="/offre-fondateur" className={buttonClasses({ full: true, size: "lg" })}>
-        Pro à {formatEuros(FOUNDER_PRICE_HT)}/mois à vie
+        Pro à {formatEuros(FOUNDER_PRICE_HT)}/mois les 3 premiers mois
       </Link>
     );
   else

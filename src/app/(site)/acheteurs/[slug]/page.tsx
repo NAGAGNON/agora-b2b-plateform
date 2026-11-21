@@ -629,14 +629,21 @@ export default async function BuyerPage(props: PageProps<"/acheteurs/[slug]">) {
               </h2>
               {dep && reg && (
                 <div className="mt-4 flex flex-wrap gap-2">
-                  {mainSectors[0] && (
+                  {/* Métiers de cet acheteur dans son département : les pages qui transforment le mieux les visiteurs */}
+                  {mainSectors.slice(0, 3).map((k, i) => (
                     <Link
-                      href={`/opportunites/${reg.slug}/${dep.slug}/${mainSectors[0]}`}
-                      className="inline-flex items-center gap-1.5 rounded-full bg-navy px-4 py-2 text-sm font-semibold text-white transition hover:-translate-y-px hover:bg-navy/90"
+                      key={k}
+                      href={`/opportunites/${reg.slug}/${dep.slug}/${k}`}
+                      data-testid="buyer-sector-link"
+                      className={
+                        i === 0
+                          ? "inline-flex items-center gap-1.5 rounded-full bg-navy px-4 py-2 text-sm font-semibold text-white transition hover:-translate-y-px hover:bg-navy/90"
+                          : "inline-flex items-center gap-1.5 rounded-full bg-sky px-4 py-2 text-sm font-semibold text-navy transition hover:-translate-y-px hover:bg-sky-200"
+                      }
                     >
-                      {sectors[mainSectors[0]]} · {dep.name} <ArrowRight className="size-4" aria-hidden />
+                      {sectors[k]} · {dep.name} <ArrowRight className="size-4" aria-hidden />
                     </Link>
-                  )}
+                  ))}
                   <Link
                     href={`/opportunites/${reg.slug}/${dep.slug}`}
                     className="inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-sm font-semibold text-navy ring-1 ring-slate-200 transition hover:-translate-y-px hover:ring-teal"

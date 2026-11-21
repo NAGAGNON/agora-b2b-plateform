@@ -45,7 +45,7 @@ describe("offre de lancement", () => {
   it("e-mails courts : essai offert, prix fondateur, places, garantie, aucune mention d'outil automatique", () => {
     const a = founderEmail("ANNONCE", ctx());
     expect(a.subject).toBe("Camille, Pro vous est offert pendant 30 jours");
-    expect(a.price).toEqual({ now: "14,50 € HT/mois", before: "29 €", detail: "à vie · 12 places restantes" });
+    expect(a.price).toEqual({ now: "14,50 € HT/mois", before: "29 €", detail: "les 3 premiers mois · 12 places restantes" });
     expect(a.benefits).toHaveLength(4);
     expect(a.foot).toBe("Sans engagement · arrêt en un clic · remboursé sous 30 jours si besoin");
     expect(a.intro).toContain("déjà activé");
@@ -54,7 +54,7 @@ describe("offre de lancement", () => {
     expect(all).not.toMatch(/\bIA\b|intelligence artificielle|robot/i);
     expect(founderEmail("ANNONCE", ctx({ hasCompany: false })).intro).toContain("Créez votre profil");
     expect(founderEmail("DERNIER", ctx()).subject).toContain("7 janvier");
-    expect(founderEmail("FIN_ESSAI", ctx({ seatsLeft: 1 })).price.detail).toBe("à vie · 1 place restante");
+    expect(founderEmail("FIN_ESSAI", ctx({ seatsLeft: 1 })).price.detail).toBe("les 3 premiers mois · 1 place restante");
   });
 });
 
