@@ -31,6 +31,21 @@ describe("suivi d'une campagne, étape par étape", () => {
     expect(steps[3].detail).toBe("Pas encore lue");
   });
 
+  it("bilan e-mail envoyé (ou non) visible dans les étapes", () => {
+    const steps = campaignTimeline({
+      boost,
+      logs: [
+        { action: "visibility.recap_sent", created_at: "2026-11-23T11:05:00Z", metadata: { recipients: 1, presented: 12, read: 3, messages: 1 } },
+        { action: "visibility.recap_sent", created_at: "2026-11-25T11:05:00Z", metadata: { recipients: 0, presented: 0, read: 0, messages: 0 } },
+      ],
+      notifications: [],
+      firstPresentation: null,
+      now: new Date("2026-11-26T00:00:00Z"),
+    });
+    expect(steps.find((s) => s.title.startsWith("Bilan envoyé"))?.detail).toBe("12 présentation(s), 3 lecture(s), 1 message(s) sur la période");
+    expect(steps.some((s) => s.title.includes("non envoyé"))).toBe(true);
+  });
+
   it("prochaine étape en une phrase", () => {
     expect(campaignNextStep({ status: "ACTIVE", ad_status: "REJECTED", ad_title: "x" })).toContain("correction");
     expect(campaignNextStep({ status: "ACTIVE", ad_status: "APPROVED", ad_title: "x" })).toContain("validée");

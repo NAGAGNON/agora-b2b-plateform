@@ -8,17 +8,21 @@ import { campaignNextStep, campaignTimeline, type TimelineStep } from "@/lib/cam
 import { formatDateTime } from "@/lib/format";
 import { formatEuros } from "@/lib/billing/plans";
 import { cn } from "@/lib/cn";
+import { campaignReport } from "@/lib/visibility-report";
+import { PresentedByDay } from "@/components/visibility/presented-by-day";
 
 export const metadata = { title: "Visibilité — suivi d'une campagne" };
 export const dynamic = "force-dynamic";
 
 const AD_STATUS: Record<string, string> = { PENDING_REVIEW: "En relecture", APPROVED: "Validée", REJECTED: "À corriger" };
+const nowMs = () => Date.now();
 const DOT: Record<TimelineStep["kind"], string> = { neutral: "bg-slate-300", good: "bg-teal", warn: "bg-violet-500", bad: "bg-rose-500" };
 
 /** Une campagne de visibilité, étape par étape : annonce, relecture, notification, corrections, résultats. */
 export default async function CampaignFollowPage(props: PageProps<"/admin/visibilite/[id]">) {
   await requireAdmin();
   const { id } = await props.params;
+  const sp = await props.searchParams;
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
   const db = createAdminClient();
   const { data: b } = await db.from("visibility_boosts").select("*").eq("id", id).maybeSingle();
@@ -44,6 +48,7 @@ export default async function CampaignFollowPage(props: PageProps<"/admin/visibi
   ]);
 
   const list = pres ?? [];
+  const report = await campaignReport(db, b);
   const steps = campaignTimeline({ boost: b, logs: [...(logsBoost ?? []), ...(logsCompany ?? [])], notifications: notes ?? [], firstPresentation: list[0]?.created_at ?? null });
   const stats = [
     { label: "Présentations dans l'espace des membres", value: list.filter((p) => !p.prospect_id).length },
@@ -51,6 +56,7 @@ export default async function CampaignFollowPage(props: PageProps<"/admin/visibi
     { label: "E-mails lus", value: new Set((ev ?? []).map((e) => e.recipient_id)).size },
     { label: "Clics vers la fiche", value: new Set((ev ?? []).filter((e) => e.type === "CLICK").map((e) => e.recipient_id)).size },
     { label: "Visites de la fiche depuis le début", value: views ?? 0 },
+    { label: "Entreprises qui leur ont écrit", value: report.messages },
   ];
 
   return (
@@ -72,13 +78,28 @@ export default async function CampaignFollowPage(props: PageProps<"/admin/visibi
         </p>
       </header>
 
-      <section className="grid grid-cols-2 gap-3 lg:grid-cols-5" aria-label="Résultats">
+      <section className="grid grid-cols-2 gap-3 lg:grid-cols-3" aria-label="Résultats">
         {stats.map((s) => (
           <div key={s.label} className="rounded-2xl bg-white p-4 ring-1 ring-slate-200">
             <p className="font-heading text-2xl font-extrabold text-navy tabular-nums">{s.value}</p>
             <p className="mt-1 text-xs text-slate-600">{s.label}</p>
           </div>
         ))}
+      </section>
+
+      <section className="rounded-2xl bg-white p-5 ring-1 ring-slate-200" aria-labelledby="presentees" data-testid="admin-presented">
+        <h2 id="presentees" className="text-lg font-bold text-navy">
+          Ce que le site a fait pour eux : à qui nous les avons présentés
+        </h2>
+        <p className="mt-1 text-sm text-slate-600">La même liste que celle que voit l&apos;entreprise dans son espace.</p>
+        <PresentedByDay
+          presented={report.presented}
+          startsAt={b.starts_at}
+          basePath={`/admin/visibilite/${b.id}`}
+          day={typeof sp.jour === "string" ? sp.jour : undefined}
+          now={nowMs()}
+          emptyToday="Aucune présentation aujourd'hui pour l'instant."
+        />
       </section>
 
       <div className="grid gap-6 lg:grid-cols-2">

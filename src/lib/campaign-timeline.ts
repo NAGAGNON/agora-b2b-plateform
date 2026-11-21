@@ -43,6 +43,16 @@ export function campaignTimeline(input: { boost: Boost; logs: Log[]; notificatio
       case "visibility.guarantee_extended":
         steps.push({ at: l.created_at, kind: "neutral", title: `Campagne prolongée gratuitement de ${Number(m.days) || 0} jour(s)`, detail: "Le nombre de présentations prévu n'était pas atteint." });
         break;
+      case "visibility.recap_sent": {
+        const who = Number(m.recipients) || 0;
+        steps.push({
+          at: l.created_at,
+          kind: who ? "good" : "neutral",
+          title: who ? `Bilan envoyé par e-mail à l'entreprise (${who} destinataire${who > 1 ? "s" : ""})` : "Bilan prêt mais non envoyé : aucun membre n'accepte les e-mails",
+          detail: `${Number(m.presented) || 0} présentation(s), ${Number(m.read) || 0} lecture(s), ${Number(m.messages) || 0} message(s) sur la période`,
+        });
+        break;
+      }
       case "visibility.stopped":
         steps.push({ at: l.created_at, kind: "bad", title: "Campagne arrêtée", detail: note });
         break;

@@ -49,6 +49,8 @@ test("administration : suivi d'une campagne étape par étape (relecture, messag
   await expect(timeline).toContainText("Notification « annonce à corriger » envoyée sur le site");
   await expect(timeline).toContainText("Pas encore lue");
   await expect(page.getByText("Message envoyé à l'entreprise :")).toBeVisible();
+  // Ce que le site a fait pour eux : liste du jour (vide ici) et bilan e-mail dans les étapes
+  await expect(page.getByTestId("admin-presented")).toContainText("Aucune présentation aujourd'hui");
   // Mobile : pas de défilement horizontal
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
 });
