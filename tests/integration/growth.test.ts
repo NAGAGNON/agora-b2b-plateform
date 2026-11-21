@@ -23,7 +23,7 @@ beforeAll(async () => {
   const visit = async (pages: string[], ref: string | null) => {
     const sid = randomUUID();
     sessions.push(sid);
-    const { error } = await admin.from("page_views").insert(pages.map((path, i) => ({ session_id: sid, path, referrer_host: i === 0 ? ref : null, created_at: at(i) })));
+    const { error } = await admin.from("page_views").insert(pages.map((path, i) => ({ session_id: sid, path, referrer_host: i === 0 ? ref : null, duration_ms: 8_000, created_at: at(i) })));
     if (error) throw error;
   };
   // 3 visiteurs Google arrivés sur la page de la zone, dont 1 inscrit ; 1 visiteur direct reparti aussitôt
