@@ -97,7 +97,7 @@ export default async function MyCampaignPage(props: PageProps<"/dashboard/visibi
         />
       </section>
 
-      <p className="text-center text-sm text-slate-500">Tous les 2 jours ouvrés, vous recevez par e-mail le point sur votre campagne.</p>
+      <p className="text-center text-sm text-slate-500">Chaque lundi et chaque vendredi, vous recevez par e-mail le point sur votre campagne.</p>
     </div>
   );
 }

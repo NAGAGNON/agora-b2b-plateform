@@ -2,9 +2,16 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: () => ({}) }));
-import { nothingReason, renderVisibilityRecap } from "@/lib/visibility-report";
+import { isRecapDay, nothingReason, renderVisibilityRecap } from "@/lib/visibility-report";
 
-describe("bilan de campagne par e-mail (tous les 2 jours)", () => {
+describe("bilan de campagne par e-mail (lundi et vendredi)", () => {
+  it("part le lundi et le vendredi seulement (heure de Paris)", () => {
+    expect(isRecapDay(new Date("2026-11-23T11:00:00Z"))).toBe(true); // lundi
+    expect(isRecapDay(new Date("2026-11-27T11:00:00Z"))).toBe(true); // vendredi
+    expect(isRecapDay(new Date("2026-11-25T11:00:00Z"))).toBe(false); // mercredi
+    expect(isRecapDay(new Date("2026-11-22T11:00:00Z"))).toBe(false); // dimanche
+  });
+
   it("dit ce qui a été fait, avec les noms, et renvoie vers le suivi", () => {
     const report = { presented: [{ at: "2026-11-23T10:00:00Z", name: "Garage Martin", city: "Rennes", channel: "PROSPECT" as const, state: "read" as const }], read: 1, clicked: 0, messages: 0 };
     const m = renderVisibilityRecap({ company: "RC Services", days: 2, report, nothing: null, daysLeft: 10, url: "https://www.linkprob2b.com/dashboard/visibilite/x" });

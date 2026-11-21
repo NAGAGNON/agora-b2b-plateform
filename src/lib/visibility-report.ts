@@ -78,7 +78,7 @@ export function nothingReason(b: { ad_status: string | null; ad_title: string | 
   return "Aucune entreprise correspondant à votre ciblage n'était disponible sur ces jours. Élargir le ciblage (région, métier) aide à présenter votre entreprise plus souvent.";
 }
 
-/** E-mail de bilan (tous les 2 jours) : ce qui a été fait, les retours, et le lien vers le suivi. */
+/** E-mail de bilan (le lundi et le vendredi) : ce qui a été fait, les retours, et le lien vers le suivi. */
 export function renderVisibilityRecap(i: { company: string; days: number; report: CampaignReport; nothing: string | null; daysLeft: number | null; url: string }) {
   const base = siteUrl();
   const n = i.report.presented.length;
@@ -116,7 +116,7 @@ export function renderVisibilityRecap(i: { company: string; days: number; report
     kicker: "Campagne de visibilité",
     title: n ? "Le point sur votre campagne" : "Votre campagne : le point",
     body,
-    notes: note(escapeHtml("Vous recevez ce bilan tous les 2 jours ouvrés pendant votre campagne de visibilité. Gérez vos e-mails dans votre espace, rubrique Paramètres.")),
+    notes: note(escapeHtml("Vous recevez ce bilan chaque lundi et chaque vendredi pendant votre campagne de visibilité. Gérez vos e-mails dans votre espace, rubrique Paramètres.")),
   });
   const text = [
     n ? `Ces ${i.days} derniers jours, nous avons présenté ${i.company} à ${n} entreprise(s).` : `Ces ${i.days} derniers jours, aucune présentation n'est partie. ${i.nothing ?? ""}`,
@@ -128,14 +128,21 @@ export function renderVisibilityRecap(i: { company: string; days: number; report
   return { subject, html, text };
 }
 
-const RECAP_EVERY_MS = 46 * 3_600_000;
+const RECAP_MIN_GAP_MS = 36 * 3_600_000;
+
+/** Jours d'envoi du bilan : lundi et vendredi (heure de Paris). */
+export function isRecapDay(now = new Date()): boolean {
+  const day = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Paris", weekday: "short" }).format(now);
+  return day === "Mon" || day === "Fri";
+}
 
 /**
- * Bilan tous les 2 jours (validé par le fondateur le 21/11) : pour chaque campagne en cours depuis au
+ * Bilan le lundi et le vendredi (choix du fondateur le 21/11) : pour chaque campagne en cours depuis au
  * moins 36 h, e-mail aux membres de l'entreprise qui acceptent les e-mails. Jamais le week-end.
  */
 export async function sendVisibilityRecaps(db: Db = createAdminClient(), now = new Date()) {
   if (isWeekendPause(now)) return { sent: 0, skipped: "week-end" };
+  if (!isRecapDay(now)) return { sent: 0, skipped: "bilan le lundi et le vendredi" };
   const { data: boosts } = await db
     .from("visibility_boosts")
     .select("id, company_id, starts_at, ends_at, ad_status, ad_title")
@@ -146,7 +153,7 @@ export async function sendVisibilityRecaps(db: Db = createAdminClient(), now = n
   for (const b of boosts ?? []) {
     try {
       const { data: last } = await db.from("audit_logs").select("created_at").eq("action", "visibility.recap_sent").eq("entity_id", b.id).order("created_at", { ascending: false }).limit(1).maybeSingle();
-      if (last && now.getTime() - new Date(last.created_at).getTime() < RECAP_EVERY_MS) continue;
+      if (last && now.getTime() - new Date(last.created_at).getTime() < RECAP_MIN_GAP_MS) continue;
       const since = last?.created_at ?? b.starts_at!;
       const days = Math.max(1, Math.round((now.getTime() - new Date(since).getTime()) / 86_400_000));
       const [{ data: co }, { data: members }, report] = await Promise.all([
@@ -157,7 +164,7 @@ export async function sendVisibilityRecaps(db: Db = createAdminClient(), now = n
       const to = (members ?? [])
         .map((m) => (Array.isArray(m.users) ? m.users[0] : m.users) as { email: string; notify_email: boolean; notify_prefs: Record<string, unknown> | null; status: string; is_internal: boolean } | null)
         .filter((u): u is NonNullable<typeof u> => Boolean(u && u.email && u.notify_email && u.status === "ACTIVE" && (u.notify_prefs ?? {})["visibilite"] !== false));
-      // Enregistré avant l'envoi : jamais deux bilans pour la même campagne en moins de 2 jours
+      // Enregistré avant l'envoi : jamais deux bilans le même jour pour une campagne
       await db.from("audit_logs").insert({ action: "visibility.recap_sent", entity_type: "visibility_boost", entity_id: b.id, metadata: { recipients: to.length, presented: report.presented.length, read: report.read, messages: report.messages } });
       if (!to.length) continue;
       const daysLeft = b.ends_at ? Math.max(0, Math.ceil((new Date(b.ends_at).getTime() - now.getTime()) / 86_400_000)) : null;
