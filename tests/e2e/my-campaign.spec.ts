@@ -46,6 +46,7 @@ test("campagne : l'entreprise voit à qui elle a été présentée aujourd'hui, 
   await page.locator(`a[href="/dashboard/visibilite/${boostId}"]`).first().click();
   await expect(page).toHaveURL(new RegExp(`/dashboard/visibilite/${boostId}`));
   await expect(page.getByTestId("my-campaign")).toContainText("Entreprises présentées");
+  await expect(page.getByTestId("live")).toBeVisible();
   const { data: co } = await db.from("companies").select("name").eq("id", presentedTo).single();
   const list = page.getByTestId("day-list");
   await expect(list).toContainText(co!.name);

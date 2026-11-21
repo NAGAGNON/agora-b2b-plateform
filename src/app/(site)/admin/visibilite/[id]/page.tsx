@@ -10,6 +10,7 @@ import { formatEuros } from "@/lib/billing/plans";
 import { cn } from "@/lib/cn";
 import { campaignReport } from "@/lib/visibility-report";
 import { PresentedByDay } from "@/components/visibility/presented-by-day";
+import { LiveRefresh } from "@/components/visibility/live-refresh";
 
 export const metadata = { title: "Visibilité — suivi d'une campagne" };
 export const dynamic = "force-dynamic";
@@ -66,7 +67,9 @@ export default async function CampaignFollowPage(props: PageProps<"/admin/visibi
       </Link>
 
       <header className="rounded-2xl bg-gradient-to-br from-navy to-navy-900 p-5 text-white shadow-lg">
-        <p className="text-xs font-bold tracking-wide text-teal-400 uppercase">Campagne de visibilité · {BOOST_STATUS_LABEL[b.status] ?? b.status}</p>
+        <p className="flex flex-wrap items-center gap-3 text-xs font-bold tracking-wide text-teal-400 uppercase">
+          Campagne de visibilité · {BOOST_STATUS_LABEL[b.status] ?? b.status} {b.status === "ACTIVE" && <LiveRefresh />}
+        </p>
         <h1 className="mt-1 font-heading text-2xl font-extrabold text-white">{company?.name ?? "Entreprise"}</h1>
         <p className="mt-1 text-sm text-slate-300">
           {need?.title ? `Besoin : ${need.title} · ` : ""}

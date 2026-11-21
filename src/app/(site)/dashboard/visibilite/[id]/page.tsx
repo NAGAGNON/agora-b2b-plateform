@@ -7,6 +7,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { BOOST_STATUS_LABEL, totalPresentations, type Daily, type Duration } from "@/lib/visibility";
 import { campaignReport, nothingReason } from "@/lib/visibility-report";
 import { PresentedByDay } from "@/components/visibility/presented-by-day";
+import { LiveRefresh } from "@/components/visibility/live-refresh";
 import { cn } from "@/lib/cn";
 
 export const metadata = { title: "Suivi de ma campagne" };
@@ -41,7 +42,9 @@ export default async function MyCampaignPage(props: PageProps<"/dashboard/visibi
 
       <header className="plan-in rounded-3xl bg-gradient-to-br from-navy to-navy-900 p-6 text-white shadow-lg">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-xs font-bold tracking-wide text-teal-400 uppercase">Campagne de visibilité</p>
+          <p className="flex items-center gap-3 text-xs font-bold tracking-wide text-teal-400 uppercase">
+            Campagne de visibilité {b.status === "ACTIVE" && <LiveRefresh />}
+          </p>
           <span className={cn("rounded-full px-3 py-1 text-xs font-bold", b.status === "ACTIVE" ? "bg-teal text-navy" : "bg-white/15 text-white")}>{BOOST_STATUS_LABEL[b.status] ?? b.status}</span>
         </div>
         <h1 className="mt-2 font-heading text-2xl font-extrabold text-white">{session.activeCompany.company.name}</h1>
