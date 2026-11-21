@@ -65,8 +65,8 @@ export default async function RevenuePage() {
       .limit(500),
     db.from("users").select("id", { count: "exact", head: true }).gte("created_at", since30).eq("is_internal", false),
     db.from("companies").select("id", { count: "exact", head: true }).gte("created_at", since30).eq("is_demo", false),
-    db.from("page_views").select("session_id").gte("created_at", since30).limit(100_000),
-    db.from("page_views").select("session_id").eq("path", "/essai").gte("created_at", since30).limit(10_000),
+    db.from("page_views_human").select("session_id").gte("created_at", since30).limit(100_000),
+    db.from("page_views_human").select("session_id").eq("path", "/essai").gte("created_at", since30).limit(10_000),
   ]);
   const S = subs ?? [];
   const I = invoices ?? [];

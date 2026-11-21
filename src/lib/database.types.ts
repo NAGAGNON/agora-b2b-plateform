@@ -1659,7 +1659,12 @@ isOneToOne: false
                 }
           }
           Views: {
-            [_ in never]: never
+            "page_views_human": {
+              Row: {
+                "created_at": string,"device": string,"duration_ms": number,"id": number,"path": string,"referrer_host": string | null,"session_id": string,"source": string | null
+              }
+              Relationships: []
+            }
           }
           Functions: {
             "company_followers_count":
