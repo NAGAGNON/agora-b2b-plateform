@@ -348,7 +348,7 @@ export async function generateArticles(count: number, opts: { autoPublish: boole
 export async function runDailyArticles({ deadline }: { deadline?: number } = {}) {
   const db = createAdminClient();
   const { data } = await db.from("platform_settings").select("value").eq("key", "seo").maybeSingle();
-  const s = (data?.value ?? {}) as { articles_enabled?: boolean; articles_auto_publish?: boolean; articles_per_day?: number };
+  const s = (data?.value ?? {}) as { articles_enabled?: boolean; articles_auto_publish?: boolean; articles_per_day?: number; articles_max_per_day?: number };
   if (s.articles_enabled === false) return { skipped: "désactivé" };
   const autoPublish = s.articles_auto_publish !== false;
   const since = new Date();
@@ -359,6 +359,8 @@ export async function runDailyArticles({ deadline }: { deadline?: number } = {})
   const { count } = await q;
   // Rythme : le réglage de l'administration, relevé par la stratégie automatique si les articles amènent des visiteurs
   const strategy = await currentStrategy(db).catch(() => null);
-  const perDay = Math.min(3, Math.max(1, s.articles_per_day ?? 1, strategy?.articles.per_day ?? 1));
+  // Plafond fixé par le fondateur (21/11 : 1 article par jour, pour économiser le crédit de rédaction) : jamais dépassé
+  const cap = Math.min(3, Math.max(1, s.articles_max_per_day ?? 3));
+  const perDay = Math.min(cap, Math.max(1, s.articles_per_day ?? 1, strategy?.articles.per_day ?? 1));
   return generateArticles(perDay - (count ?? 0), { autoPublish, deadline });
 }
