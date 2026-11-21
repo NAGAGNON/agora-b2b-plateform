@@ -63,3 +63,13 @@ describe("aide à la rédaction de l'annonce", () => {
     expect(await improveAd({ title: "Maintenance", points: [], text: "Compresseurs" }, { company: "X", city: null, objective: "" }, fake("pas du json"))).toBeNull();
   });
 });
+
+describe("présentation coupée", () => {
+  it("texte arrivé pile à la limite sans fin de phrase : signalé ; texte complet : accepté", async () => {
+    const { adIssues, AD_LIMITS } = await import("@/lib/visibility");
+    const cut = "Nettoyage de bureaux à Rennes. ".repeat(40).slice(0, AD_LIMITS.text);
+    expect(adIssues({ title: "Nettoyage à Rennes", points: [], text: cut }).join(" ")).toContain("coupée");
+    expect(adIssues({ title: "Nettoyage à Rennes", points: [], text: "Nettoyage de bureaux et de copropriétés à Rennes." })).toEqual([]);
+    expect(AD_LIMITS.text).toBe(800);
+  });
+});

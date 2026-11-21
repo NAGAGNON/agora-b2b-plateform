@@ -2,6 +2,7 @@
 
 import { useActionState, useState, useTransition } from "react";
 import { cancelBoost, reviewBoost, reviewBoostAd, stopBoost, updateBoostAd } from "@/app/actions/visibility";
+import { AD_LIMITS } from "@/lib/visibility";
 
 export function CancelBoostButton({ id }: { id: string }) {
   const [pending, start] = useTransition();
@@ -103,11 +104,11 @@ export function EditAdForm({ id, title, points, text }: { id: string; title: str
   return (
     <form action={action} className="mt-3 space-y-2">
       <input type="hidden" name="id" value={id} />
-      <input name="ad_title" defaultValue={title} maxLength={90} aria-label="Titre de l'annonce" className={`${field} h-10`} />
+      <input name="ad_title" defaultValue={title} maxLength={AD_LIMITS.title} aria-label="Titre de l'annonce" className={`${field} h-10`} />
       {[0, 1, 2].map((i) => (
-        <input key={i} name="ad_point" defaultValue={points[i] ?? ""} maxLength={80} aria-label={`Point fort ${i + 1}`} className={`${field} h-9`} />
+        <input key={i} name="ad_point" defaultValue={points[i] ?? ""} maxLength={AD_LIMITS.point} aria-label={`Point fort ${i + 1}`} className={`${field} h-9`} />
       ))}
-      <textarea name="ad_text" defaultValue={text ?? ""} maxLength={400} rows={3} aria-label="Présentation" className={`${field} py-2`} />
+      <textarea name="ad_text" defaultValue={text ?? ""} maxLength={AD_LIMITS.text} rows={5} aria-label="Présentation" className={`${field} py-2`} />
       {state && !state.ok && <p className="text-sm text-rose-700">{state.error}</p>}
       <button type="submit" disabled={pending} className="h-10 rounded-xl bg-navy px-4 text-sm font-semibold text-white disabled:opacity-50">
         {pending ? "Envoi…" : "Renvoyer en relecture"}

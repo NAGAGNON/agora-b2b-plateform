@@ -454,8 +454,8 @@ export function BoostForm({
                   </div>
                 </fieldset>
                 <label className="block">
-                  <span className="mb-1 block text-xs font-semibold text-slate-600">Présentation ({adText.length}/{AD_LIMITS.text})</span>
-                  <textarea name="ad_text" rows={4} value={adText} onChange={(e) => setAdText(e.target.value.slice(0, AD_LIMITS.text))} className="w-full rounded-xl border border-slate-300 p-3 text-sm text-navy focus:border-teal focus:ring-2 focus:ring-teal/30 focus:outline-none" />
+                  <span className={`mb-1 block text-xs font-semibold ${adText.length >= AD_LIMITS.text ? "text-rose-700" : "text-slate-600"}`}>Présentation ({adText.length}/{AD_LIMITS.text}){adText.length >= AD_LIMITS.text ? " · limite atteinte : vérifiez que la dernière phrase est complète" : ""}</span>
+                  <textarea name="ad_text" rows={6} value={adText} onChange={(e) => setAdText(e.target.value.slice(0, AD_LIMITS.text))} className="w-full rounded-xl border border-slate-300 p-3 text-sm text-navy focus:border-teal focus:ring-2 focus:ring-teal/30 focus:outline-none" />
                 </label>
                 <button
                   type="button"

@@ -71,7 +71,7 @@ export const FORMULAS: { key: string; label: string; daily: Daily; duration: Dur
 ];
 
 /** Limites de l'annonce (identiques aux contrôles de la base). */
-export const AD_LIMITS = { title: 90, point: 80, text: 400 } as const;
+export const AD_LIMITS = { title: 90, point: 80, text: 800 } as const;
 
 /**
  * Contrôle automatique d'une annonce avant la relecture de l'équipe : les e-mails partent au nom de
@@ -89,6 +89,9 @@ export function adIssues(ad: { title: string; points: string[]; text: string }):
   });
   if (shouting) issues.push("Évitez d'écrire en majuscules.");
   if (/\b(garanti|100 ?%|meilleur prix|n°1|numéro 1)\b/i.test(all)) issues.push("Évitez les promesses impossibles à vérifier (« garanti », « n°1 », « 100 % »…).");
+  // Présentation arrivée pile à la limite : très probablement coupée (texte collé trop long)
+  if (ad.text.trim().length >= AD_LIMITS.text && !/[.!?…)»"]$/.test(ad.text.trim()))
+    issues.push(`Votre présentation est coupée à ${AD_LIMITS.text} caractères : raccourcissez-la pour qu'elle se termine par une phrase complète.`);
   return issues;
 }
 
