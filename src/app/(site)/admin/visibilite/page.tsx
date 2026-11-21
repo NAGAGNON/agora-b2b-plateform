@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { requireAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ReviewAdButtons, ReviewBoostButtons, StopBoostButton } from "@/components/dashboard/boost-actions";
@@ -58,8 +59,11 @@ export default async function VisibilityAdminPage() {
                   </ul>
                 )}
                 {b.ad_text && <p className="mt-1 text-sm whitespace-pre-line text-slate-700">{b.ad_text}</p>}
-                <div className="mt-3">
+                <div className="mt-3 flex flex-wrap items-center gap-3">
                   <ReviewAdButtons id={b.id} />
+                  <Link href={`/admin/visibilite/${b.id}`} className="text-sm font-semibold text-teal-700 hover:underline">
+                    Suivi étape par étape
+                  </Link>
                 </div>
               </li>
             ))}
@@ -85,7 +89,14 @@ export default async function VisibilityAdminPage() {
                 <tr key={b.id} className="align-top">
                   <td className="px-4 py-3 text-slate-600">{formatDateTime(b.created_at)}</td>
                   <td className="px-4 py-3">
-                    <p className="font-semibold text-navy">{c?.name ?? "—"}</p>
+                    <Link href={`/admin/visibilite/${b.id}`} className="font-semibold text-navy hover:text-teal-700 hover:underline">
+                      {c?.name ?? "—"}
+                    </Link>
+                    <p>
+                      <Link href={`/admin/visibilite/${b.id}`} className="text-xs font-semibold text-teal-700 hover:underline">
+                        Suivi étape par étape
+                      </Link>
+                    </p>
                     {b.opportunity_id && <p className="text-slate-600">Besoin : {need.get(b.opportunity_id) ?? "—"}</p>}
                   </td>
                   <td className="px-4 py-3 text-slate-700">

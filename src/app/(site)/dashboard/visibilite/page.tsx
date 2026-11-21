@@ -63,7 +63,7 @@ export default async function VisibilityPage(props: PageProps<"/dashboard/visibi
     company: co?.name ?? company.name,
     city: co?.city ?? null,
     title: (prof?.tagline || (firstSector ? `${sectors.find((x) => x.slug === firstSector)?.label ?? ""}${co?.city ? ` à ${co.city}` : ""}` : "")).slice(0, 90),
-    text: (prof?.description ?? "").replace(/\s+/g, " ").trim().slice(0, 400),
+    text: (prof?.description ?? "").replace(/\s+/g, " ").trim().slice(0, 800),
     points: [] as string[],
   };
   // Fiche prête ? Les entreprises présentées cliquent vers elle : une fiche complète donne de meilleurs résultats
@@ -229,6 +229,14 @@ export default async function VisibilityPage(props: PageProps<"/dashboard/visibi
                             </div>
                           ))}
                         </div>
+                        <Link
+                          href={`/dashboard/visibilite/${b.id}`}
+                          className="flex items-center justify-between gap-3 rounded-2xl bg-navy px-4 py-3 text-sm font-semibold text-white transition hover:bg-navy-900"
+                          data-testid="campaign-follow-link"
+                        >
+                          <span>Voir à qui nous vous avons présenté, jour par jour</span>
+                          <span aria-hidden>→</span>
+                        </Link>
                         <details className="group rounded-2xl ring-1 ring-slate-200">
                           <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-teal-700 [&::-webkit-details-marker]:hidden">Voir le détail de la campagne</summary>
                           <div className="space-y-5 p-4 pt-0">

@@ -190,6 +190,8 @@ export async function updateBoostAd(_prev: ActionResult | null, fd: FormData): P
     .in("status", ["PENDING", "ACTIVE"])
     .select("id");
   if (error || !data?.length) return { ok: false, error: "Modification impossible pour cette campagne." };
+  // Suivi de la campagne dans l'administration : correction par l'entreprise
+  await createAdminClient().from("audit_logs").insert({ action: "visibility.ad_updated", entity_type: "visibility_boost", entity_id: id, actor_user_id: session.userId });
   revalidatePath("/dashboard/visibilite");
   revalidatePath("/admin/visibilite");
   return { ok: true, message: "Annonce renvoyée en relecture." };
