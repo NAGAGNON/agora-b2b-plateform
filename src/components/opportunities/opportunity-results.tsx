@@ -1,3 +1,4 @@
+import { SECTOR_FAMILIES } from "@/lib/sector-families";
 import { SearchX } from "lucide-react";
 import { OpportunityCard } from "@/components/opportunities/opportunity-card";
 import { FilterFields } from "@/components/opportunities/filter-panel";
@@ -94,6 +95,25 @@ export async function OpportunityResults({ filters, rawParams, basePath, trackSe
       }
     }
   }
+  // Peu de résultats (1 à 4) pour un métier : les offres des métiers proches (même famille), dans la même zone,
+  // sont montrées en plus, pour ne jamais laisser une recherche presque vide
+  type Row = Awaited<ReturnType<typeof searchOpportunities>>["rows"][number];
+  let related: { rows: Row[]; label: string } | null = null;
+  if (!error && total > 0 && total < 5 && filters.page === 1 && filters.sector) {
+    const fam = SECTOR_FAMILIES.find((f) => f.sectors.includes(filters.sector!));
+    const seen = new Set(rows.map((o) => o.id));
+    const extra: Row[] = [];
+    for (const sec of fam?.sectors.filter((x) => x !== filters.sector) ?? []) {
+      const r = await searchOpportunities({ ...filters, sector: sec, q: undefined, page: 1 }, 6).catch(() => null);
+      for (const o of r?.rows ?? []) {
+        if (seen.has(o.id)) continue;
+        seen.add(o.id);
+        extra.push(o);
+      }
+      if (extra.length >= 6) break;
+    }
+    if (extra.length) related = { rows: extra.slice(0, 6), label: fam!.label.toLowerCase() };
+  }
   // Recherche d'un membre : mesurée avec son nombre de résultats (part des recherches sans résultat)
   if (trackSearch && !error) {
     // Tous les filtres actifs sont notés, pour comprendre les recherches sans résultat
@@ -114,6 +134,7 @@ export async function OpportunityResults({ filters, rawParams, basePath, trackSe
       ...(filters.publishedWithin ? { published_within: filters.publishedWithin } : {}),
       ...(filters.deadlineBefore ? { deadline_before: true } : {}),
       ...(first.total === 0 ? { nearby: nearby?.label ?? null } : {}),
+      ...(related ? { related: related.rows.length } : {}),
     });
   }
   // Filtres présents dans l'adresse, en pastilles retirables (le secteur d'une page secteur n'en fait pas partie)
@@ -294,10 +315,24 @@ export async function OpportunityResults({ filters, rawParams, basePath, trackSe
               action={<ButtonLink href={basePath} variant="outline">Effacer les filtres</ButtonLink>}
             />
           ) : (
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              {rows.map((o) => (
-                <OpportunityCard key={o.id} o={o} headingLevel={2} />
-              ))}
+            <div className="space-y-8">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                {rows.map((o) => (
+                  <OpportunityCard key={o.id} o={o} headingLevel={2} />
+                ))}
+              </div>
+              {related && (
+                <section className="space-y-4" data-testid="related-results" aria-label="Offres de métiers proches">
+                  <p className="rounded-2xl bg-sky px-4 py-3 text-sm text-navy ring-1 ring-slate-200">
+                    Peu d&apos;offres pour ce métier ici en ce moment. Voici aussi des offres de métiers proches ({related.label}), dans la même zone.
+                  </p>
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    {related.rows.map((o) => (
+                      <OpportunityCard key={o.id} o={o} headingLevel={2} />
+                    ))}
+                  </div>
+                </section>
+              )}
             </div>
           )}
           <Pagination page={filters.page} pageCount={pageCount} basePath={basePath} params={corrected ? { ...rawParams, q: corrected } : rawParams} />
