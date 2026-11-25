@@ -80,7 +80,11 @@ export async function generateMetadata(props: PageProps<"/opportunites/[id]">): 
   const deadlinePassed = Boolean(o.response_deadline && new Date(o.response_deadline) < new Date());
   // Une opportunité externe doit citer sa source : sans source connue, elle n'est pas indexée
   const hasSource = o.origin !== "EXTERNAL" || (Array.isArray(o.source) ? o.source.length > 0 : Boolean(o.source));
-  const indexable = o.status === "PUBLISHED" && !deadlinePassed && o.visibility === "PUBLIC" && !o.is_demo && hasSource;
+  // Offre close depuis peu : la page reste dans Google 45 jours (elle peut déjà y être bien classée), avec
+  // l'avis « expirée » et des liens vers les marchés ouverts du même acheteur — le trafic n'est pas perdu
+  const recentlyClosed =
+    deadlinePassed && ["PUBLISHED", "EXPIRED"].includes(o.status) && Date.now() - new Date(o.response_deadline!).getTime() < 45 * 86_400_000;
+  const indexable = ((o.status === "PUBLISHED" && !deadlinePassed) || recentlyClosed) && o.visibility === "PUBLIC" && !o.is_demo && hasSource;
   const location = (await getLocationLabel())(o.city, o.department_code);
   const details = [
     o.origin === "EXTERNAL" && o.external_buyer_name ? `Acheteur : ${o.external_buyer_name}` : null,
@@ -111,8 +115,10 @@ export async function generateMetadata(props: PageProps<"/opportunites/[id]">): 
       .limit(300);
     canonicalId = primaryOf(o, siblings ?? []);
   }
+  // Mot-clé recherché (« appel d'offres ») dans le titre quand il tient en entier (65 signes au plus)
+  const keyworded = o.origin === "EXTERNAL" && location && `${o.title} – Appel d'offres ${location}`.length <= 65 && !/appel d.offres/i.test(o.title) ? `${o.title} – Appel d'offres ${location}` : null;
   return pageMetadata({
-    title: qualifier && !o.title.toLowerCase().includes(qualifier.toLowerCase()) ? `${clip(o.title, 62 - Math.min(qualifier.length, 28) - 3)} – ${clip(qualifier, 28)}` : clip(o.title, 62),
+    title: keyworded ?? (qualifier && !o.title.toLowerCase().includes(qualifier.toLowerCase()) ? `${clip(o.title, 62 - Math.min(qualifier.length, 28) - 3)} – ${clip(qualifier, 28)}` : clip(o.title, 62)),
     description: clip([intro, ...details].filter(Boolean).join(" · "), 160),
     path: `/opportunites/${canonicalId}`,
     noindex: !indexable,
@@ -375,6 +381,14 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
             {effectiveStatus === "EXPIRED" && (
               <Notice tone="warning" title="EXPIRÉE" className="mb-6">
                 La date limite de cette opportunité est dépassée : elle n&apos;est plus active. Elle reste consultable pour information.{" "}
+                {o.origin === "EXTERNAL" && o.external_buyer_name && (
+                  <>
+                    <Link href={`/acheteurs/${buyerSlug(o.external_buyer_name)}`} className="font-semibold underline">
+                      Les appels d&apos;offres en cours de {o.external_buyer_name}
+                    </Link>
+                    {" · "}
+                  </>
+                )}
                 <Link href={`/opportunites${o.sector_slug ? `/${o.sector_slug}` : ""}`} className="font-semibold underline">
                   Voir les opportunités ouvertes
                 </Link>

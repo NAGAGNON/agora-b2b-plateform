@@ -6,6 +6,8 @@ import { createClient } from "@/lib/supabase/server";
 import { listingIndexing, pageMetadata } from "@/lib/seo";
 import { Pagination } from "@/components/ui/pagination";
 import { EmptyState } from "@/components/ui/states";
+import { REGIONS } from "@/lib/geo";
+import { NATIONAL_BUYERS } from "@/lib/queries/buyers";
 
 const PER_PAGE = 60;
 const nf = new Intl.NumberFormat("fr-FR");
@@ -40,6 +42,20 @@ export default async function BuyersPage(props: PageProps<"/acheteurs">) {
         annonces officielles (BOAMP, TED). Les acheteurs avec le plus d&apos;appels d&apos;offres ouverts apparaissent en premier.</>}
       />
     <div className="container-page py-10 sm:py-14">
+      {page === 1 && (
+        <nav aria-label="Acheteurs publics par région" className="rounded-2xl bg-sky/60 p-5 ring-1 ring-teal/20">
+          <h2 className="text-base font-bold text-navy">Tous les acheteurs publics, région par région</h2>
+          <ul className="mt-3 flex flex-wrap gap-2">
+            {[...REGIONS.map((r) => ({ slug: r.slug, name: r.name })), NATIONAL_BUYERS].map((r) => (
+              <li key={r.slug}>
+                <Link href={`/acheteurs/region/${r.slug}`} className="inline-flex rounded-full bg-white px-3 py-1.5 text-sm font-semibold text-teal-800 ring-1 ring-teal/30 transition hover:-translate-y-0.5 hover:bg-teal hover:text-navy">
+                  {r.name}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      )}
       {rows.length ? (
         <ul className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {rows.map((b) => (

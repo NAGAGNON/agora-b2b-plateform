@@ -8,7 +8,7 @@ import { ButtonLink } from "@/components/ui/button";
 import { searchOpportunities } from "@/lib/queries/opportunities";
 import { parseOpportunityFilters, type RawSearchParams } from "@/lib/search-params";
 import { listingIndexing, pageMetadata } from "@/lib/seo";
-import { MIN_INDEXABLE, type Landing } from "@/lib/landing";
+import { MIN_INDEXABLE, landingSubject, landingTitle, type Landing } from "@/lib/landing";
 import { getSession } from "@/lib/auth";
 import { getPlatformStats } from "@/lib/queries/platform";
 import { FreshnessBar } from "@/components/opportunities/freshness";
@@ -26,7 +26,7 @@ export async function landingMetadata(landing: Landing, path: string, sp: RawSea
   const canonical = landing.kind === "france" ? "/opportunites" : (landing.crumbs.at(-1)?.path ?? path);
   const listing = listingIndexing(canonical, sp);
   return pageMetadata({
-    title: landing.title,
+    title: landingTitle(landing.title, total),
     description: landing.description,
     // Adresse canonique (ex. /opportunites/finistere → /opportunites/bretagne/finistere)
     path: listing.path,
@@ -54,7 +54,7 @@ export async function LandingPage({ landing, path, sp }: { landing: Landing; pat
   const family = sectorFamilySlug(sector);
   // Offres de la première page, en données structurées (liste lisible par Google et les assistants IA)
   const { rows: listed, total: listedTotal } = await searchOpportunities(parseOpportunityFilters(landing.fixed), 10);
-  const landingLabel = landing.heading.replace(/^Opportunités (B2B )?(dans le département |en |— )?/, "");
+  const landingLabel = landingSubject(landing.heading);
   return (
     <>
       <JsonLd data={breadcrumbLd(crumbs)} />
@@ -89,7 +89,7 @@ export async function LandingPage({ landing, path, sp }: { landing: Landing; pat
         <div className="mb-6 max-w-3xl">
           <AlertLeadForm
             title="Recevoir ces marchés par e-mail"
-            label={landing.heading.replace(/^Opportunités (B2B )?(dans le département |en |— )?/, "")}
+            label={landingSubject(landing.heading)}
             sector={typeof landing.fixed.secteur === "string" ? landing.fixed.secteur : null}
             department={typeof landing.fixed.departement === "string" ? landing.fixed.departement : null}
             region={typeof landing.fixed.region === "string" ? (regionBySlug(landing.fixed.region)?.name ?? null) : null}

@@ -13,17 +13,17 @@ test("recherche nationale : France entière par défaut, filtre région, pages S
   await expect(page).toHaveURL(/region=bretagne/);
 
   await page.goto("/opportunites/france");
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Opportunités B2B partout en France");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Appels d'offres partout en France");
   await page.goto("/opportunites/bretagne");
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Opportunités B2B en Bretagne");
-  await expect(page).toHaveTitle(/Appels d'offres et marchés en Bretagne/);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Appels d'offres en Bretagne");
+  await expect(page).toHaveTitle(/Appels d'offres en Bretagne \d{4}/);
   await page.goto("/opportunites/bretagne/finistere");
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Opportunités dans le département Finistère");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Appels d'offres dans le département Finistère");
   // Canonique de l'ancienne adresse département
   await page.goto("/opportunites/finistere");
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", /\/opportunites\/bretagne\/finistere$/);
   await page.goto("/opportunites/ile-de-france/paris");
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Opportunités dans le département Paris");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Appels d'offres dans le département Paris");
   // Département hors de la région : page introuvable
   await expectNotFound(page, await page.goto("/opportunites/bretagne/paris"));
 });

@@ -11,12 +11,13 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { env } from "@/lib/env";
 import { processAlertDigests, processEmailOutbox } from "@/lib/email/outbox";
 import { processFounderCampaign } from "@/lib/billing/founder-emails";
-import { prepareBriefs } from "@/lib/tender-brief";
 import { appSendsAuthEmails, remindUnconfirmedSignups } from "@/lib/email/auth-emails";
 import { processLeadDigests } from "@/lib/alert-leads";
 import { processMissingLogos } from "@/lib/company-logos";
 import { processNeedCampaigns } from "@/lib/needs";
 import { runDueSources } from "@/lib/collect/run";
+import { classifyMissingSectors } from "@/lib/collect/ai-sectors";
+import { importAwards } from "@/lib/awards-import";
 import { importPlaces } from "@/lib/collect/places";
 import { logServerError } from "@/lib/errors";
 import { processPendingNeeds } from "@/lib/auto-moderation";
@@ -92,8 +93,11 @@ async function run(req: Request) {
     return { elargies: data };
   });
   await step("digests", () => processAlertDigests());
-  // Fiches synthèse préparées à l'avance pour les métiers des entreprises abonnées ou en essai
-  await step("fiches-synthese", async () => (elapsed() < 200_000 ? prepareBriefs(createAdminClient(), { limit: 15, deadline: started + 240_000 }) : { skipped: "reporté au passage suivant (temps insuffisant)" }));
+  // Résultats des marchés (avis d'attribution BOAMP) : derniers jours + rattrapage des 12 derniers mois
+  await step("resultats-marches", async () => (elapsed() < 200_000 ? importAwards(createAdminClient(), { deadline: started + 235_000 }) : { skipped: "reporté au passage suivant" }));
+  // Offres que les règles n'ont pas su ranger : métier choisi par un tri automatique (titre + acheteur)
+  await step("metiers-manquants", async () => (elapsed() < 220_000 ? classifyMissingSectors(createAdminClient(), { deadline: started + 250_000 }) : { skipped: "reporté au passage suivant" }));
+  // Fiches synthèse : rédigées uniquement quand quelqu'un ouvre l'offre (jamais à l'avance, pour ne rien dépenser inutilement)
   // Offre membre fondateur : rien tant qu'elle n'est pas lancée (réglage « founder_offer »)
   await step("offre-fondateur", () => processFounderCampaign());
   await step("alertes-email", () => processLeadDigests());

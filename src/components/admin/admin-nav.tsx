@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, Building2, ClipboardCheck, FileStack, Flag, History, Settings, Users, UserPlus, Database, RefreshCw, Tags, Inbox, Mail, Newspaper, Megaphone, Send, TrendingUp, Handshake, Activity, MousePointerClick, Repeat, MessageSquareQuote, UserCheck, Target, MailX, ClipboardList, Gavel, CalendarCheck2 } from "lucide-react";
+import { BarChart3, Building2, ClipboardCheck, FileStack, Flag, History, Settings, Users, UserPlus, Database, RefreshCw, Tags, Inbox, Mail, Newspaper, Megaphone, Send, TrendingUp, Handshake, Activity, MousePointerClick, Repeat, MessageSquareQuote, UserCheck, Target, MailX, ClipboardList, Gavel, CalendarCheck2, Search } from "lucide-react";
 import { cn } from "@/lib/cn";
 
 const LINKS = [
@@ -12,6 +12,7 @@ const LINKS = [
   { href: "/admin/opportunites", label: "Opportunités", icon: FileStack },
   { href: "/admin/inscriptions", label: "Inscriptions", icon: UserPlus, admin: true },
   { href: "/admin/conversion", label: "Conversion de l'accueil", icon: MousePointerClick, admin: true },
+  { href: "/admin/referencement", label: "Référencement (inscrits)", icon: Search, admin: true },
   { href: "/admin/fidelite", label: "Fidélité des utilisateurs", icon: Repeat, admin: true },
   { href: "/admin/candidatures", label: "Candidatures", icon: ClipboardList, admin: true },
   { href: "/admin/desabonnements", label: "Désabonnements", icon: MailX, admin: true },

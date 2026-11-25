@@ -34,6 +34,9 @@ import { getDepartments, getMemberCompanies, getPlatformStats, liveStats } from 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { BriefSchema } from "@/lib/tender-brief";
 import { regionByName } from "@/lib/geo";
+import { allBuyers, buyerRegionSlug } from "@/lib/queries/buyers";
+import { getLatestAwards } from "@/lib/queries/awards";
+import { AwardList } from "@/components/awards/award-list";
 import { ClipboardCheck, Layers, Sparkles } from "lucide-react";
 
 const nf = new Intl.NumberFormat("fr-FR");
@@ -68,17 +71,6 @@ const BUYER_FAMILIES: { label: string; re: RegExp }[] = [
 ];
 const familyOf = (name: string) => BUYER_FAMILIES.find((f) => f.re.test(name)) ?? null;
 
-/** Tous les acheteurs publics référencés (nom, région, marchés ouverts), en cache 30 minutes. */
-const allBuyers = unstable_cache(
-  async () => {
-    const { data, error } = await createAdminClient().rpc("public_buyers", { p_limit: 10000, p_offset: 0 });
-    if (error) throw error;
-    return (data ?? []).map((x) => ({ name: x.name, slug: x.slug, region: x.region, open: Number(x.open_count), total: Number(x.total_count) }));
-  },
-  ["public-buyers-all-v1"],
-  { revalidate: 1800 },
-);
-
 /** Les valeurs les plus fréquentes d'une liste (métiers, départements de l'acheteur). */
 function top(values: (string | null)[], n: number) {
   const m = new Map<string, number>();
@@ -100,9 +92,7 @@ export async function generateMetadata(props: PageProps<"/acheteurs/[slug]">) {
   const total = Math.max(b.all.length, real?.total ?? 0);
   return pageMetadata({
     // Formulation des recherches réelles (« [acheteur] appel d'offre »), année pour la fraîcheur
-    title: n
-      ? clip(`Appels d'offres ${b.name} ${year} : ${nf.format(n)} en cours`, 64)
-      : clip(`Appels d'offres ${b.name} : historique ${year}`, 64),
+    title: buyerTitle(b.name, n, year),
     description: `${n ? `${nf.format(n)} appel${n > 1 ? "s" : ""} d'offres en cours` : "Aucun appel d'offres en cours"} et historique de ${nf.format(total)} annonce${total > 1 ? "s" : ""} de ${b.name} : objet, lieu, date limite, délai pour répondre, d'après les annonces officielles (BOAMP, TED). Alerte e-mail gratuite à chaque nouveau marché.`,
     path: `/acheteurs/${slug}`,
     // Indexée avec au moins un appel d'offres ouvert, ou un historique réel (2 annonces ou plus) :
@@ -157,6 +147,7 @@ export default async function BuyerPage(props: PageProps<"/acheteurs/[slug]">) {
   const admin = createAdminClient();
   // Aperçu des fiches synthèse déjà préparées (faits tirés de l'avis officiel), acheteurs proches,
   // compteurs en direct : de quoi donner envie d'aller plus loin
+  const awarded = await getLatestAwards({ buyer: slug }, 10).catch(() => []);
   const [briefRows, buyersRows, platform, memberCompanies, departments] = await Promise.all([
     b.open.length ? admin.from("tender_briefs").select("opportunity_id, content").in("opportunity_id", b.open.map((o) => o.id)) : Promise.resolve({ data: [] as { opportunity_id: string; content: unknown }[] }),
     allBuyers().catch(() => []),
@@ -172,6 +163,9 @@ export default async function BuyerPage(props: PageProps<"/acheteurs/[slug]">) {
   const mainRegion = top(b.all.map((o) => o.region), 1)[0] ?? null;
   const mainDept = top(b.all.map((o) => o.department_code), 1)[0] ?? null;
   const others = buyersRows.filter((x) => x.slug !== slug);
+  // Région de l'acheteur dans l'annuaire : lien vers la page « acheteurs publics de la région »
+  const selfRow = buyersRows.find((x) => x.slug === slug);
+  const regionPage = selfRow ? { slug: buyerRegionSlug(selfRow.region), name: selfRow.region ?? "France entière" } : null;
   const nearby = others.filter((x) => x.region === mainRegion && x.open > 0).slice(0, 6);
   // Acheteurs du même type (bailleurs, hôpitaux, communes…) : même région d'abord, puis ceux qui publient le plus
   const family = familyOf(b.name);
@@ -448,6 +442,7 @@ export default async function BuyerPage(props: PageProps<"/acheteurs/[slug]">) {
       <JsonLd
         data={breadcrumbLd([
           { name: "Acheteurs publics", path: "/acheteurs" },
+          ...(regionPage ? [{ name: regionPage.name, path: `/acheteurs/region/${regionPage.slug}` }] : []),
           { name: b.name, path },
         ])}
       />
@@ -465,7 +460,16 @@ export default async function BuyerPage(props: PageProps<"/acheteurs/[slug]">) {
             <Link href="/acheteurs" className="hover:underline">
               Acheteurs publics
             </Link>{" "}
-            / <span className="text-navy">{b.name}</span>
+            /{" "}
+            {regionPage && (
+              <>
+                <Link href={`/acheteurs/region/${regionPage.slug}`} className="hover:underline">
+                  {regionPage.name}
+                </Link>{" "}
+                /{" "}
+              </>
+            )}
+            <span className="text-navy">{b.name}</span>
           </nav>
           <div className="grid items-center gap-8 lg:grid-cols-[minmax(0,1fr)_24rem]">
             <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
@@ -622,6 +626,20 @@ export default async function BuyerPage(props: PageProps<"/acheteurs/[slug]">) {
               )}
             </section>
           )}
+          {awarded.length > 0 && (
+            <section aria-labelledby="attribues" className="mt-12">
+              <h2 id="attribues" className="text-xl font-bold text-navy">
+                Qui a gagné ses derniers marchés
+              </h2>
+              <p className="mt-1 mb-4 text-sm text-slate-500">
+                Les entreprises retenues par {b.name}, d&apos;après les avis d&apos;attribution du BOAMP. Utile pour connaître vos concurrents et les prix du marché.
+              </p>
+              <AwardList awards={awarded} linkBuyer={false} />
+              <Link href="/resultats" className="mt-3 inline-block text-sm font-semibold text-teal-800 hover:underline">
+                Tous les résultats des marchés publics →
+              </Link>
+            </section>
+          )}
           {(nearby.length > 0 || (dep && reg)) && (
             <section aria-labelledby="proches" className="mt-12">
               <h2 id="proches" className="text-xl font-bold text-navy">
@@ -757,4 +775,21 @@ export default async function BuyerPage(props: PageProps<"/acheteurs/[slug]">) {
       </div>
     </div>
   );
+}
+
+/**
+ * Titre d'une page acheteur : le mot-clé recherché (« [acheteur] appel d'offre ») et l'année d'abord.
+ * Nom trop long : le sigle passe devant (« Appels d'offres CNG 2026 : 3 en cours – Centre National de
+ * Gestion »), pour que l'année et le nombre restent visibles dans Google (64 signes au plus).
+ */
+function buyerTitle(name: string, n: number, year: number): string {
+  const tail = n ? `${year} : ${nf.format(n)} en cours` : `${year} : historique`;
+  const full = `Appels d'offres ${name} ${tail}`;
+  if (full.length <= 64) return full;
+  const acr = /\(([A-Z0-9][A-Z0-9&.\- ]{1,14})\)/.exec(name)?.[1]?.trim();
+  if (acr) {
+    const rest = name.replace(/\s*\([^)]*\)\s*/, " ").trim();
+    return clip(`Appels d'offres ${acr} ${tail} – ${rest}`, 64);
+  }
+  return clip(`Appels d'offres ${name} ${year}`, 64);
 }

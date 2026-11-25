@@ -31,7 +31,11 @@ h1{font-size:22px;margin:4px 0 6px}h2{font-size:15px;margin:22px 0 8px;color:#0B
 ${o.buyer ? `<p class="muted">${e(o.buyer)}</p>` : ""}
 <p>${e(b.summary)}</p>
 ${key.length ? `<div class="keys">${key.map(([k, v]) => `<div class="key"><b>${e(k)}</b>${e(v)}</div>`).join("")}</div>` : ""}
+${b.buyer ? `<p><strong>Qui achète :</strong> ${e(b.buyer)}</p>` : ""}
+${(b.details ?? []).length ? `<h2>Le besoin en détail</h2>${list(b.details ?? [])}` : ""}
+${(b.key_dates ?? []).length ? `<h2>Dates utiles</h2>${list((b.key_dates ?? []).map((d) => `${d.label} : ${d.date}`))}` : ""}
 ${b.lots.length ? `<h2>Lots</h2>${list(b.lots)}` : ""}
+${(b.official ?? []).length ? `<h2>Ce que vous trouverez dans l'annonce officielle</h2>${list(b.official ?? [])}` : ""}
 ${(b.certifications ?? []).length || (b.capacity ?? []).length ? `<h2>Conditions pour candidater</h2>${list([...(b.certifications ?? []), ...(b.capacity ?? [])])}` : ""}
 ${b.documents.length ? `<h2>Pièces à fournir</h2>${list(b.documents)}` : ""}
 <h2>Comment l'offre sera notée</h2>${(b.criteria ?? []).length ? list((b.criteria ?? []).map((c) => (c.weight ? `${c.label} : ${c.weight} %` : c.label))) : ""}<p>${e(b.judging)}</p>

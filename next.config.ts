@@ -56,6 +56,9 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       { source: "/:path*", headers: securityHeaders },
+      // Plan du site (3,8 Mo, ~10 s à générer) : gardé une heure par le réseau de Vercel, puis régénéré en
+      // arrière-plan — les robots le reçoivent tout de suite au lieu d'abandonner (« sitemap introuvable »)
+      { source: "/sitemap.xml", headers: [{ key: "Vercel-CDN-Cache-Control", value: "max-age=3600, stale-while-revalidate=86400" }] },
       { source: "/(dashboard|admin|onboarding|outreach)/:path*", headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }] },
     ];
   },

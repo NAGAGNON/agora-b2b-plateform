@@ -6,6 +6,61 @@ export type Guide = { slug: string; title: string; description: string; audience
 
 export const GUIDES: Guide[] = [
   {
+    slug: "ou-trouver-des-appels-d-offres",
+    title: "Où trouver des appels d'offres en 2026 : les meilleurs sites",
+    description: "BOAMP, journal européen TED, sites des acheteurs, journaux d'annonces légales : où sont publiés les marchés publics, et comment tous les recevoir au même endroit.",
+    audience: "Fournisseurs",
+    sections: [
+      {
+        heading: "Les annonces sont publiées à plusieurs endroits",
+        paragraphs: [
+          "En France, un acheteur public (mairie, département, hôpital, office HLM, établissement public…) doit faire connaître ses besoins. Selon le montant et le type de marché, l'annonce paraît sur un ou plusieurs supports. Une entreprise qui ne regarde qu'un seul site passe donc à côté d'une partie des offres.",
+        ],
+      },
+      {
+        heading: "1. Le BOAMP, le journal officiel des marchés publics",
+        bullets: [
+          "Le Bulletin officiel des annonces des marchés publics (boamp.fr) publie les annonces des marchés importants des acheteurs français.",
+          "Gratuit et officiel : chaque annonce donne l'acheteur, la date limite et le lien vers le dossier.",
+          "Ses données sont ouvertes : n'importe quel site peut les reprendre en citant la source.",
+        ],
+      },
+      {
+        heading: "2. TED, le journal officiel de l'Union européenne",
+        bullets: [
+          "Les marchés au-dessus des seuils européens sont aussi publiés sur TED (ted.europa.eu), dans toutes les langues de l'Union.",
+          "On y trouve les grands marchés français, souvent sur plusieurs années.",
+        ],
+      },
+      {
+        heading: "3. Les sites des acheteurs (profils d'acheteur)",
+        bullets: [
+          "Chaque acheteur publie son dossier complet et reçoit les offres sur son « profil d'acheteur » : le site où l'on télécharge le règlement et le cahier des charges, puis où l'on dépose sa réponse.",
+          "Exemples connus : PLACE (achats de l'État), Maximilien (Île-de-France), Mégalis (Bretagne), AWS-Achat, Marchés Sécurisés, achatpublic.com.",
+          "Les petits marchés y sont souvent publiés seuls, sans annonce au BOAMP.",
+        ],
+      },
+      {
+        heading: "4. Les journaux d'annonces légales et la presse locale",
+        paragraphs: ["Pour une partie des marchés, l'acheteur peut choisir un journal habilité à publier les annonces légales dans son département, au lieu du BOAMP."],
+      },
+      {
+        heading: "Tout recevoir au même endroit avec LinkProB2B",
+        bullets: [
+          "LinkProB2B reprend chaque jour toutes les annonces ouvertes du BOAMP et des marchés français publiés sur TED, et les classe par métier, département et région.",
+          "Une fiche en français simple explique chaque offre : ce que veut l'acheteur, les pièces à fournir, comment l'offre est notée et où déposer.",
+          "Une alerte gratuite vous envoie chaque matin, du lundi au vendredi, les nouvelles offres de votre métier et de votre zone.",
+          "Le dépôt de la réponse se fait toujours sur le site de l'acheteur : LinkProB2B vous y mène directement.",
+        ],
+      },
+    ],
+    faq: [
+      { question: "Quel est le meilleur site pour trouver des appels d'offres gratuits ?", answer: "Le BOAMP est la source officielle française et il est gratuit. Pour ne rien manquer sans consulter plusieurs sites chaque jour, LinkProB2B regroupe gratuitement les annonces du BOAMP et de TED, triées par métier et par zone, avec une alerte chaque matin." },
+      { question: "Faut-il payer pour répondre à un appel d'offres public ?", answer: "Non. Le dossier de consultation se télécharge gratuitement sur le site de l'acheteur, et le dépôt de la réponse est gratuit." },
+      { question: "Comment trouver les appels d'offres de mon département ?", answer: "Sur LinkProB2B, chaque région et chaque département a sa page d'appels d'offres ouverts, mise à jour chaque jour. Vous pouvez aussi choisir votre métier pour ne voir que les offres qui vous concernent." },
+    ],
+  },
+  {
     slug: "rediger-un-cahier-des-charges",
     title: "Rédiger un cahier des charges clair",
     description: "Les rubriques indispensables pour obtenir des réponses comparables de vos fournisseurs.",

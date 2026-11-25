@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { showDemoData } from "@/lib/queries/platform";
 import { regionBySlug } from "@/lib/geo";
 import { buyerSlug } from "@/lib/buyer-slug";
-import type { Landing } from "@/lib/landing";
+import { landingSubject, type Landing } from "@/lib/landing";
 
 const DAY = 86_400_000;
 
@@ -45,7 +45,7 @@ export async function LandingInsights({ landing }: { landing: Landing }) {
     .slice(0, 6)
     .map(([name, n]) => ({ name, n, slug: buyerSlug(name) }));
   // « Opportunités — Maintenance industrielle » → « Maintenance industrielle »
-  const label = landing.heading.replace(/^Opportunités (B2B )?(dans le département |en |— )?/, "");
+  const label = landingSubject(landing.heading);
   // En bref, tiré uniquement des offres de la page : délai restant habituel, budgets annoncés, acheteur le plus actif
   const median = (xs: number[]) => {
     const v = [...xs].sort((a, b) => a - b);

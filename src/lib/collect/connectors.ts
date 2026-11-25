@@ -1,6 +1,6 @@
 import { classifySector, extractKeywords } from "@/lib/collect/classify";
 import { asArray, cleanString, isSafeUrl, toDate, toIsoDeadline, type MapResult } from "@/lib/collect/normalize";
-import { locateNuts, normalizeDepartment } from "@/lib/geo";
+import { departmentFromPostcode, locateNuts, normalizeDepartment } from "@/lib/geo";
 
 export type FetchLike = (url: string, init?: RequestInit) => Promise<Response>;
 export type SourceConfig = Record<string, unknown>;
@@ -186,7 +186,12 @@ export function mapTedNotice(n: Record<string, unknown>, nutsFilter: string[]): 
   const cpv = [...new Set(asArray(n["classification-cpv"]).map((c) => c.replace(/\D/g, "")).filter((c) => c.length >= 2))];
   // Date limite de remise des offres ; à défaut (procédures restreintes), date limite de candidature.
   const deadline = toIsoDeadline(asArray(n["deadline-receipt-tender-date-lot"] ?? n["deadline-receipt-request-date-lot"] ?? n.deadline)[0]);
-  const { departmentCode: department, region } = locateNuts(nuts);
+  const located = locateNuts(nuts);
+  // Lieu d'exécution absent ou national (« FR », « FRZZZ », « 00 ») : département de l'acheteur, d'après son code
+  // postal officiel publié dans l'avis (jamais deviné)
+  const buyerDep = located.departmentCode || located.region ? null : departmentFromPostcode(asArray(n["organisation-post-code-buyer"])[0]);
+  const department = located.departmentCode ?? buyerDep;
+  const region = buyerDep ? null : located.region;
   const nature = cleanString(asArray(n["contract-nature"])[0], 60);
   const { sector } = classifySector(cpv, title);
   const url = `https://ted.europa.eu/fr/notice/-/detail/${encodeURIComponent(pub)}`;
@@ -224,7 +229,7 @@ export async function collectTed(ctx: ConnectorContext): Promise<ConnectorBatch>
   const max = num(ctx.config.maxRecords, 300, 5000);
   const fields = asArray(ctx.config.fields).length
     ? asArray(ctx.config.fields)
-    : ["publication-number", "notice-title", "buyer-name", "publication-date", "deadline-receipt-tender-date-lot", "deadline-receipt-request-date-lot", "place-of-performance", "classification-cpv", "contract-nature"];
+    : ["publication-number", "notice-title", "buyer-name", "publication-date", "deadline-receipt-tender-date-lot", "deadline-receipt-request-date-lot", "place-of-performance", "classification-cpv", "contract-nature", "organisation-post-code-buyer"];
   const nuts = asArray(ctx.config.nuts).map((x) => x.toUpperCase());
   const records: unknown[] = [];
   for (let page = 1; records.length < max; page++) {

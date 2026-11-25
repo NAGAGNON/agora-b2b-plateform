@@ -890,13 +890,13 @@ isOneToOne: false
                   ]
                 },"opportunities": {
                   Row: {
-                    "budget_max": number | null,"budget_min": number | null,"budget_visible": boolean,"city": string | null,"closed_at": string | null,"company_id": string | null,"constraints": string | null,"contact_name": string | null,"cpv_codes": (string)[],"created_at": string,"created_by": string | null,"criteria": string | null,"dedup_key": string | null,"department_code": string | null,"description": string,"duplicate_of": string | null,"external_buyer_name": string | null,"external_reference": string | null,"id": string,"is_demo": boolean,"keywords": (string)[],"lat": number | null,"lng": number | null,"max_suppliers": number | null,"moderation_note": string | null,"origin": Database["public"]['Enums']["opportunity_origin"],"outcome": Database["public"]['Enums']["opportunity_outcome"] | null,"outcome_note": string | null,"postal_code": string | null,"published_at": string | null,"publisher_attested_at": string | null,"region": string | null,"response_deadline": string | null,"search_head": string | null,"search_vector": unknown,"sector_slug": string | null,"selected_proposal_id": string | null,"services": string | null,"skills": (string)[],"start_date": string | null,"status": Database["public"]['Enums']["opportunity_status"],"summary": string | null,"target_company_size": Database["public"]['Enums']["company_size"] | null,"title": string,"type": Database["public"]['Enums']["opportunity_type"],"updated_at": string,"visibility": Database["public"]['Enums']["opportunity_visibility"]
+                    "budget_max": number | null,"budget_min": number | null,"budget_visible": boolean,"city": string | null,"closed_at": string | null,"company_id": string | null,"constraints": string | null,"contact_name": string | null,"cpv_codes": (string)[],"created_at": string,"created_by": string | null,"criteria": string | null,"dedup_key": string | null,"department_code": string | null,"description": string,"duplicate_of": string | null,"external_buyer_name": string | null,"external_reference": string | null,"id": string,"is_demo": boolean,"keywords": (string)[],"lat": number | null,"lng": number | null,"max_suppliers": number | null,"moderation_note": string | null,"origin": Database["public"]['Enums']["opportunity_origin"],"outcome": Database["public"]['Enums']["opportunity_outcome"] | null,"outcome_note": string | null,"postal_code": string | null,"published_at": string | null,"publisher_attested_at": string | null,"region": string | null,"response_deadline": string | null,"search_head": string | null,"search_vector": unknown,"sector_checked_at": string | null,"sector_slug": string | null,"selected_proposal_id": string | null,"services": string | null,"skills": (string)[],"start_date": string | null,"status": Database["public"]['Enums']["opportunity_status"],"summary": string | null,"target_company_size": Database["public"]['Enums']["company_size"] | null,"title": string,"type": Database["public"]['Enums']["opportunity_type"],"updated_at": string,"visibility": Database["public"]['Enums']["opportunity_visibility"]
                   }
                   Insert: {
-                    "budget_max"?: number | null,"budget_min"?: number | null,"budget_visible"?: boolean,"city"?: string | null,"closed_at"?: string | null,"company_id"?: string | null,"constraints"?: string | null,"contact_name"?: string | null,"cpv_codes"?: (string)[],"created_at"?: string,"created_by"?: string | null,"criteria"?: string | null,"dedup_key"?: string | null,"department_code"?: string | null,"description": string,"duplicate_of"?: string | null,"external_buyer_name"?: string | null,"external_reference"?: string | null,"id"?: string,"is_demo"?: boolean,"keywords"?: (string)[],"lat"?: number | null,"lng"?: number | null,"max_suppliers"?: number | null,"moderation_note"?: string | null,"origin"?: Database["public"]['Enums']["opportunity_origin"],"outcome"?: Database["public"]['Enums']["opportunity_outcome"] | null,"outcome_note"?: string | null,"postal_code"?: string | null,"published_at"?: string | null,"publisher_attested_at"?: string | null,"region"?: string | null,"response_deadline"?: string | null,"search_vector"?: unknown,"sector_slug"?: string | null,"selected_proposal_id"?: string | null,"services"?: string | null,"skills"?: (string)[],"start_date"?: string | null,"status"?: Database["public"]['Enums']["opportunity_status"],"summary"?: string | null,"target_company_size"?: Database["public"]['Enums']["company_size"] | null,"title": string,"type": Database["public"]['Enums']["opportunity_type"],"updated_at"?: string,"visibility"?: Database["public"]['Enums']["opportunity_visibility"]
+                    "budget_max"?: number | null,"budget_min"?: number | null,"budget_visible"?: boolean,"city"?: string | null,"closed_at"?: string | null,"company_id"?: string | null,"constraints"?: string | null,"contact_name"?: string | null,"cpv_codes"?: (string)[],"created_at"?: string,"created_by"?: string | null,"criteria"?: string | null,"dedup_key"?: string | null,"department_code"?: string | null,"description": string,"duplicate_of"?: string | null,"external_buyer_name"?: string | null,"external_reference"?: string | null,"id"?: string,"is_demo"?: boolean,"keywords"?: (string)[],"lat"?: number | null,"lng"?: number | null,"max_suppliers"?: number | null,"moderation_note"?: string | null,"origin"?: Database["public"]['Enums']["opportunity_origin"],"outcome"?: Database["public"]['Enums']["opportunity_outcome"] | null,"outcome_note"?: string | null,"postal_code"?: string | null,"published_at"?: string | null,"publisher_attested_at"?: string | null,"region"?: string | null,"response_deadline"?: string | null,"search_vector"?: unknown,"sector_checked_at"?: string | null,"sector_slug"?: string | null,"selected_proposal_id"?: string | null,"services"?: string | null,"skills"?: (string)[],"start_date"?: string | null,"status"?: Database["public"]['Enums']["opportunity_status"],"summary"?: string | null,"target_company_size"?: Database["public"]['Enums']["company_size"] | null,"title": string,"type": Database["public"]['Enums']["opportunity_type"],"updated_at"?: string,"visibility"?: Database["public"]['Enums']["opportunity_visibility"]
                   }
                   Update: {
-                    "budget_max"?: number | null,"budget_min"?: number | null,"budget_visible"?: boolean,"city"?: string | null,"closed_at"?: string | null,"company_id"?: string | null,"constraints"?: string | null,"contact_name"?: string | null,"cpv_codes"?: (string)[],"created_at"?: string,"created_by"?: string | null,"criteria"?: string | null,"dedup_key"?: string | null,"department_code"?: string | null,"description"?: string,"duplicate_of"?: string | null,"external_buyer_name"?: string | null,"external_reference"?: string | null,"id"?: string,"is_demo"?: boolean,"keywords"?: (string)[],"lat"?: number | null,"lng"?: number | null,"max_suppliers"?: number | null,"moderation_note"?: string | null,"origin"?: Database["public"]['Enums']["opportunity_origin"],"outcome"?: Database["public"]['Enums']["opportunity_outcome"] | null,"outcome_note"?: string | null,"postal_code"?: string | null,"published_at"?: string | null,"publisher_attested_at"?: string | null,"region"?: string | null,"response_deadline"?: string | null,"search_vector"?: unknown,"sector_slug"?: string | null,"selected_proposal_id"?: string | null,"services"?: string | null,"skills"?: (string)[],"start_date"?: string | null,"status"?: Database["public"]['Enums']["opportunity_status"],"summary"?: string | null,"target_company_size"?: Database["public"]['Enums']["company_size"] | null,"title"?: string,"type"?: Database["public"]['Enums']["opportunity_type"],"updated_at"?: string,"visibility"?: Database["public"]['Enums']["opportunity_visibility"]
+                    "budget_max"?: number | null,"budget_min"?: number | null,"budget_visible"?: boolean,"city"?: string | null,"closed_at"?: string | null,"company_id"?: string | null,"constraints"?: string | null,"contact_name"?: string | null,"cpv_codes"?: (string)[],"created_at"?: string,"created_by"?: string | null,"criteria"?: string | null,"dedup_key"?: string | null,"department_code"?: string | null,"description"?: string,"duplicate_of"?: string | null,"external_buyer_name"?: string | null,"external_reference"?: string | null,"id"?: string,"is_demo"?: boolean,"keywords"?: (string)[],"lat"?: number | null,"lng"?: number | null,"max_suppliers"?: number | null,"moderation_note"?: string | null,"origin"?: Database["public"]['Enums']["opportunity_origin"],"outcome"?: Database["public"]['Enums']["opportunity_outcome"] | null,"outcome_note"?: string | null,"postal_code"?: string | null,"published_at"?: string | null,"publisher_attested_at"?: string | null,"region"?: string | null,"response_deadline"?: string | null,"search_vector"?: unknown,"sector_checked_at"?: string | null,"sector_slug"?: string | null,"selected_proposal_id"?: string | null,"services"?: string | null,"skills"?: (string)[],"start_date"?: string | null,"status"?: Database["public"]['Enums']["opportunity_status"],"summary"?: string | null,"target_company_size"?: Database["public"]['Enums']["company_size"] | null,"title"?: string,"type"?: Database["public"]['Enums']["opportunity_type"],"updated_at"?: string,"visibility"?: Database["public"]['Enums']["opportunity_visibility"]
                   }
                   Relationships: [
                     {
@@ -1318,6 +1318,32 @@ isOneToOne: false
                   }
                   Update: {
                     "code"?: string,"description"?: string | null,"features"?: NonNullable<Json>,"is_paid"?: boolean,"label"?: string,"monthly_price_cents"?: number | null,"sort_order"?: number
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"awards": {
+                  Row: {
+                    "buyer_key": string | null,"buyer_name": string | null,"created_at": string,"department_code": string | null,"idweb": string,"market_type": string | null,"published_on": string,"region": string | null,"sector_slug": string | null,"title": string,"url": string | null,"winner_keys": string[],"winners": string[]
+                  }
+                  Insert: {
+                    "buyer_name"?: string | null,"created_at"?: string,"department_code"?: string | null,"idweb": string,"market_type"?: string | null,"published_on": string,"region"?: string | null,"sector_slug"?: string | null,"title": string,"url"?: string | null,"winner_keys": string[],"winners": string[]
+                  }
+                  Update: {
+                    "buyer_name"?: string | null,"created_at"?: string,"department_code"?: string | null,"idweb"?: string,"market_type"?: string | null,"published_on"?: string,"region"?: string | null,"sector_slug"?: string | null,"title"?: string,"url"?: string | null,"winner_keys"?: string[],"winners"?: string[]
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"award_optouts": {
+                  Row: {
+                    "created_at": string,"reason": string | null,"winner_key": string
+                  }
+                  Insert: {
+                    "created_at"?: string,"reason"?: string | null,"winner_key": string
+                  }
+                  Update: {
+                    "created_at"?: string,"reason"?: string | null,"winner_key"?: string
                   }
                   Relationships: [
                     
@@ -1950,6 +1976,26 @@ isOneToOne: false
                            },
 "prepare_account_deletion":
 { Args: Record<PropertyKey, never>; Returns: number
+                           },
+"admin_seo_funnel":
+{ Args: { "p_days"?: number }; Returns: {
+              "origin": string,"page_type": string,"visits": number,"signups": number
+            }[]
+                           },
+"winner_awards":
+{ Args: { "p_key": string,"p_limit"?: number }; Returns: {
+              "buyer_key": string | null,"buyer_name": string | null,"department_code": string | null,"idweb": string,"market_type": string | null,"published_on": string,"region": string | null,"sector_slug": string | null,"title": string,"url": string | null,"winner_keys": string[],"winners": string[]
+            }[]
+                           },
+"top_winners":
+{ Args: { "p_sector"?: string,"p_region"?: string,"p_since"?: string,"p_limit"?: number }; Returns: {
+              "winner_key": string,"winner_name": string,"awards": number,"last_on": string
+            }[]
+                           },
+"award_counts":
+{ Args: Record<PropertyKey, never>; Returns: {
+              "sector_slug": string | null,"region": string | null,"n": number
+            }[]
                            },
 "public_buyers":
 { Args: { "p_limit"?: number,"p_offset"?: number }; Returns: {

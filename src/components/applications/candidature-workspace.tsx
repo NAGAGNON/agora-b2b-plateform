@@ -39,6 +39,9 @@ import {
   BellRing,
   FolderOpen,
   Scale,
+  Landmark,
+  ListChecks,
+  Layers,
 } from "lucide-react";
 import { offersLabel } from "@/lib/award-format";
 import { cn } from "@/lib/cn";
@@ -293,6 +296,44 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
               {brief ? (
                 <>
                   <p className="mt-3 text-lg leading-relaxed text-navy">{brief.summary}</p>
+                  {brief.buyer && (
+                    <p className="mt-3 flex items-start gap-2 text-sm text-slate-600">
+                      <Landmark className="mt-0.5 size-4 shrink-0 text-teal-700" aria-hidden />
+                      <span>
+                        <strong className="font-semibold text-navy">Qui achète : </strong>
+                        {brief.buyer}
+                      </span>
+                    </p>
+                  )}
+                  {(brief.details ?? []).length > 0 && (
+                    <div className="mt-5 rounded-2xl bg-gradient-to-br from-sky/60 to-white p-4 ring-1 ring-teal/20" data-testid="brief-details">
+                      <p className="flex items-center gap-2 text-sm font-bold text-navy">
+                        <ListChecks className="size-4 text-teal-700" aria-hidden /> Le besoin en détail
+                      </p>
+                      <Bullets items={brief.details ?? []} />
+                    </div>
+                  )}
+                  {brief.lots.length > 0 && (
+                    <div className="mt-3 rounded-2xl bg-slate-50/70 p-4 ring-1 ring-slate-200">
+                      <p className="flex items-center gap-2 text-sm font-bold text-navy">
+                        <Layers className="size-4 text-teal-700" aria-hidden /> {brief.lots.length} lot{brief.lots.length > 1 ? "s" : ""} (vous pouvez répondre à un seul)
+                      </p>
+                      <Bullets items={brief.lots} />
+                    </div>
+                  )}
+                  {(brief.key_dates ?? []).length > 0 && (
+                    <ul className="mt-3 grid gap-2 sm:grid-cols-2" aria-label="Dates utiles">
+                      {(brief.key_dates ?? []).map((d) => (
+                        <li key={d.label + d.date} className="flex items-start gap-2.5 rounded-xl bg-white p-3 text-sm ring-1 ring-slate-200">
+                          <CalendarClock className="mt-0.5 size-4 shrink-0 text-teal-700" aria-hidden />
+                          <span>
+                            <span className="block text-xs font-semibold text-slate-500">{d.label}</span>
+                            <span className="font-semibold text-navy">{d.date}</span>
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                   <div className="mt-5 grid gap-2">
                     <EssentialRow icon={conditionsTone(brief, data.mine) === "missing" ? AlertTriangle : ShieldCheck} tone={conditionsTone(brief, data.mine)} title="Puis-je répondre ?" text={conditionsLine(brief, data.mine)}>
                       <Conditions brief={brief} mine={data.mine} id={data.id} />
@@ -313,6 +354,14 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
                       </EssentialRow>
                     )}
                   </div>
+                  {(brief.official ?? []).length > 0 && (
+                    <div className="mt-4 rounded-2xl bg-white p-4 ring-1 ring-slate-200" data-testid="brief-official">
+                      <p className="flex items-center gap-2 text-sm font-bold text-navy">
+                        <ExternalLink className="size-4 text-teal-700" aria-hidden /> Ce que vous trouverez dans l&apos;annonce officielle
+                      </p>
+                      <Bullets items={brief.official ?? []} />
+                    </div>
+                  )}
                   {brief.warnings.length > 0 && (
                     <div className="mt-4 rounded-2xl bg-rose-50 p-4 ring-1 ring-rose-200">
                       <p className="flex items-center gap-2 text-sm font-bold text-rose-800">
@@ -324,7 +373,7 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
                 </>
               ) : (
                 <div className="mt-3 space-y-2" aria-live="polite">
-                  <p className="text-sm font-semibold text-teal-700">Lecture de l&apos;annonce officielle… (quelques secondes)</p>
+                  <p className="text-sm font-semibold text-teal-700">Lecture de l&apos;annonce officielle… Nous préparons une fiche détaillée (20 à 30 secondes).</p>
                   {[90, 70, 80].map((w) => (
                     <div key={w} className="h-4 animate-pulse rounded-full bg-slate-100" style={{ width: `${w}%` }} />
                   ))}

@@ -13,12 +13,12 @@ import { logServerError } from "@/lib/errors";
  * l'avis BOAMP complet, puis conservée. Uniquement les faits écrits dans l'avis : rien n'est déduit.
  */
 const BriefBase = z.object({
-  summary: z.string().describe("Ce que veut l'acheteur, dit simplement : quel travail, où, pour combien de temps. 1 ou 2 phrases courtes"),
+  summary: z.string().describe("Ce que veut l'acheteur, dit simplement : quel travail, où, pour qui, pour combien de temps. 2 ou 3 phrases courtes"),
   deadline: z.string().nullable().describe("Date et heure limite pour déposer l'offre, ex. « lundi 7 décembre 2026 à 12 h »"),
   site_visit: z.string().nullable().describe("Visite des lieux : obligatoire ou non, date et lieu, en une phrase courte ; null si l'avis n'en parle pas"),
   duration: z.string().nullable().describe("Durée du contrat ou délai pour faire le travail, en mots simples (ex. « 4 ans », « 6 mois de travaux »)"),
   pricing: z.string().nullable().describe("Comment les prix sont fixés, en mots simples (ex. « Un prix fixe pour tout le chantier »), ou montant estimé ; null si l'avis n'en dit rien"),
-  lots: z.array(z.string()).describe("Un élément par lot (une partie du marché) : « Lot 1 · intitulé simple » ; vide s'il n'y a pas de lots"),
+  lots: z.array(z.string()).describe("Un élément par lot (une partie du marché) : « Lot 1 · intitulé simple : ce qu'il comprend en une phrase » ; vide s'il n'y a pas de lots"),
   documents: z.array(z.string()).describe("Pièces à fournir, une ligne courte chacune ; chaque sigle est expliqué entre parenthèses (ex. « Kbis (extrait d'immatriculation de l'entreprise) »)"),
   judging: z.string().describe("Comment l'offre sera notée, en 1 ou 2 phrases simples (ex. « Le prix compte pour 40 % de la note, la qualité du travail proposé pour 60 % ») ; si l'avis renvoie au règlement de la consultation, le dire simplement"),
   todo: z.array(z.string()).max(6).describe("5 actions au plus, dans l'ordre ; chacune commence par un verbe (« Téléchargez… », « Inscrivez-vous… », « Déposez… ») et donne la date quand l'avis la donne"),
@@ -26,6 +26,24 @@ const BriefBase = z.object({
 });
 /** Préparer sa réponse : conditions pour candidater, dépôt, notation et conseils (tirés de l'avis uniquement). */
 const BriefExtra = z.object({
+  buyer: z
+    .string()
+    .nullable()
+    .describe("Qui achète, en une phrase simple : le nom de l'acheteur, ce qu'il est (mairie, hôpital, office HLM, établissement public…) et sa ville quand l'avis la donne ; null si l'avis ne le dit pas"),
+  details: z
+    .array(z.string())
+    .max(8)
+    .describe(
+      "Le besoin en détail, 4 à 8 points simples tirés de l'avis : le travail précis à faire (les prestations citées), les lieux ou bâtiments concernés, les quantités ou volumes, comment le travail est commandé (une seule fois ou au fur et à mesure), la date de début, les reconductions, les montants minimum ou maximum, ce qui est exclu. Chaque point est une phrase complète et claire",
+    ),
+  key_dates: z
+    .array(z.object({ label: z.string(), date: z.string() }))
+    .max(6)
+    .describe("Les dates utiles écrites dans l'avis, dans l'ordre (ex. « Questions à poser avant » · « mardi 5 janvier 2027 » ; « Visite des lieux » ; « Dépôt des offres » ; « Début du contrat ») ; liste vide si l'avis n'en donne pas d'autre que la date limite"),
+  official: z
+    .array(z.string())
+    .max(6)
+    .describe("Ce que la personne trouvera en ouvrant l'annonce officielle puis le site de l'acheteur, d'après l'avis : documents du dossier (règlement de la consultation, cahier des charges, formulaires de prix…), inscription demandée, contact pour les questions. Une ligne simple chacune, chaque terme officiel expliqué entre parenthèses"),
   certifications: z
     .array(z.string())
     .max(8)
@@ -51,10 +69,11 @@ const BriefExtra = z.object({
 /** Schéma demandé lors de la préparation (tous les champs). */
 const BriefGenSchema = BriefBase.merge(BriefExtra);
 /**
- * Style de rédaction des fiches. 2 : langage simple (mots de tous les jours, sigles expliqués, moins de
- * lignes). Les fiches d'un style plus ancien restent affichées et sont réécrites peu à peu (rewriteBriefs).
+ * Style de rédaction des fiches. 2 : langage simple (mots de tous les jours, sigles expliqués). 3 : fiche
+ * détaillée (le besoin point par point, l'acheteur, les dates, ce que contient l'annonce officielle).
+ * Une fiche d'un style plus ancien est réécrite quand quelqu'un l'ouvre (jamais à l'avance).
  */
-export const BRIEF_STYLE = 2;
+export const BRIEF_STYLE = 3;
 /** Fiche conservée : les fiches préparées avant l'ajout des rubriques « Préparer sa réponse » restent valides. */
 export const BriefSchema = BriefBase.merge(BriefExtra.partial()).extend({ style: z.number().optional() });
 export type TenderBrief = z.infer<typeof BriefSchema>;
@@ -73,8 +92,9 @@ Règles absolues :
 - Conseils : chaque conseil s'appuie sur un critère, une exigence ou un piège présent dans l'avis. Jamais de promesse de résultat.
 
 Langage simple (très important) :
-- Des mots de tous les jours et des phrases courtes : une idée par phrase, 15 mots au plus.
-- L'essentiel seulement : une ligne de liste tient en une douzaine de mots. Ne répète pas la même information d'une rubrique à l'autre.
+- Des mots de tous les jours et des phrases courtes : une idée par phrase, 20 mots au plus. Pas de jargon administratif.
+- Sois complet : la personne doit comprendre exactement ce qu'on lui demande et ce qu'elle trouvera dans l'annonce officielle, sans avoir à la lire. Reprends tous les faits utiles de l'avis (travail précis, lieux, quantités, durée, montants, dates, pièces, conditions), reformulés simplement.
+- Ne répète pas la même information d'une rubrique à l'autre.
 - Les « à faire » commencent par un verbe (« Téléchargez… », « Inscrivez-vous… », « Déposez… ») et donnent la date quand l'avis la donne.
 - Remplace le jargon par des mots simples. Quand un terme officiel est utile (pour retrouver un document ou une pièce), explique-le entre parenthèses, en quelques mots, la première fois. Exemples :
   « règlement de la consultation (le document qui fixe les règles de l'appel d'offres) » ; « cahier des charges (la description détaillée du travail) » ;
@@ -211,12 +231,12 @@ async function generateBrief(opportunityId: string, existing: TenderBrief | null
 /**
  * Prépare (une seule fois) la fiche d'un appel d'offres issu du BOAMP. Renvoie null si l'offre n'a pas
  * d'avis BOAMP, si l'avis est introuvable ou si la clé du service de rédaction est absente.
- * Une fiche complète d'un style plus ancien est renvoyée telle quelle (réécrite en arrière-plan).
+ * Une fiche d'un style plus ancien est réécrite à ce moment-là (la personne attend quelques secondes).
  */
 export async function ensureBrief(opportunityId: string, { db = createAdminClient(), client }: { db?: ReturnType<typeof createAdminClient>; client?: Pick<Anthropic, "beta"> } = {}): Promise<TenderBrief | null> {
   const existing = await storedBrief(opportunityId, db);
-  if (isFullBrief(existing)) return existing;
-  // Fiche ancienne (sans « Préparer sa réponse ») : préparée à nouveau, l'ancienne reste en secours
+  if (isCurrentBrief(existing)) return existing;
+  // Fiche absente ou d'un style plus ancien : rédigée maintenant, à l'ouverture (l'ancienne reste en secours)
   const r = await generateBrief(opportunityId, existing, db, client);
   return "brief" in r ? r.brief : existing;
 }

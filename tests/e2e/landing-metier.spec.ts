@@ -26,7 +26,7 @@ test.afterAll(async () => {
 test("pages métier × département : titre, fil d'Ariane, liens, alerte par e-mail sans compte", async ({ browser }) => {
   const page = await newPage(browser);
   await page.goto("/opportunites/bretagne/finistere/maintenance-industrielle");
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Maintenance industrielle — Finistère (29)");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Appels d'offres maintenance industrielle — Finistère (29)");
   await expect(page).toHaveTitle(/Appels d'offres maintenance industrielle — Finistère \(29\)/);
   const crumbs = page.getByRole("navigation", { name: "Fil d'Ariane" });
   await expect(crumbs.getByRole("link", { name: "Bretagne" })).toHaveAttribute("href", "/opportunites/bretagne");
