@@ -1,6 +1,6 @@
 -- Système de crédits (cahier des charges du 25/11) — EN SOMMEIL : rien n'est débité tant que
 -- « billing.credits_enabled » vaut false (activé seulement au lancement, sur ordre du fondateur).
--- 1 crédit = 1 nouvelle offre suivie, ou 10 jours de veille par alerte. Gratuit 3/mois, Pro 20/mois,
+-- 1 crédit = 1 dossier préparé (offre suivie). Veille du matin gratuite pour tous (décision du fondateur 25/11). Gratuit 5/mois, Pro 20/mois,
 -- Business illimité. Aucun report d'un mois sur l'autre. Recherche, consultation et annonces officielles : jamais payantes.
 -- Aucune table existante modifiée, aucune donnée supprimée.
 
@@ -9,7 +9,7 @@ values ('billing.credits_enabled', 'false'::jsonb, 'Crédits actifs (false = en 
 on conflict (key) do nothing;
 
 insert into public.platform_settings (key, value, description)
-values ('billing.credits_plan', '{"FREE": 3, "PRO": 20, "TRIAL": 5, "BUSINESS": null, "days_per_credit": 10}'::jsonb, 'Crédits par période (null = illimité) et jours de veille par crédit')
+values ('billing.credits_plan', '{"FREE": 5, "PRO": 20, "TRIAL": 10, "BUSINESS": null, "alerts": {"FREE": 1, "PRO": 3, "BUSINESS": null}, "trial_days": 7, "veille_free": true}'::jsonb, 'Crédits par période (null = illimité) et jours de veille par crédit')
 on conflict (key) do nothing;
 
 create or replace function public.credits_enabled()
