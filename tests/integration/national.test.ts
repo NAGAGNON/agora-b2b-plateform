@@ -91,7 +91,8 @@ describe("synchronisation nationale", () => {
       return mockFetch(() => ({ total_count: 1, results: [boamp(1)] }))(url, init);
     };
     const r = await runSource(bo, { trigger: "manual", fetchImpl: flaky, retryDelays: [0, 0] });
-    expect(calls).toBe(3);
+    // 2 échecs, puis la requête principale réussit, puis la requête des avis ouverts sans date limite
+    expect(calls).toBe(4);
     expect(r.status).toBe("SUCCESS");
   });
 
