@@ -708,13 +708,13 @@ isOneToOne: false
                   ]
                 },"tender_briefs": {
                   Row: {
-                    "content": Json,"created_at": string,"opportunity_id": string,"source_ref": string | null
+                    "content": Json,"created_at": string,"opportunity_id": string,"source_ref": string | null,"input_tokens": number | null,"output_tokens": number | null,"generated_at": string | null
                   }
                   Insert: {
-                    "content": Json,"created_at"?: string,"opportunity_id": string,"source_ref"?: string | null
+                    "content": Json,"created_at"?: string,"opportunity_id": string,"source_ref"?: string | null,"input_tokens"?: number | null,"output_tokens"?: number | null,"generated_at"?: string | null
                   }
                   Update: {
-                    "content"?: Json,"created_at"?: string,"opportunity_id"?: string,"source_ref"?: string | null
+                    "content"?: Json,"created_at"?: string,"opportunity_id"?: string,"source_ref"?: string | null,"input_tokens"?: number | null,"output_tokens"?: number | null,"generated_at"?: string | null
                   }
                   Relationships: []
                 },"need_contacts": {
