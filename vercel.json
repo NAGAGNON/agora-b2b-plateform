@@ -120,6 +120,10 @@
     {
       "path": "/api/cron/outreach-contacts?passe=8",
       "schedule": "0 16 * * *"
+    },
+    {
+      "path": "/api/cron/fiches",
+      "schedule": "20 6-20/2 * * *"
     }
   ]
 }

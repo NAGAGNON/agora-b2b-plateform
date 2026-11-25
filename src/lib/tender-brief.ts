@@ -191,7 +191,16 @@ async function generateBrief(opportunityId: string, existing: TenderBrief | null
       if ((checked ?? []).some((p) => (p.brief_done ?? []).length > 0)) brief.todo = existing.todo;
       if ((checked ?? []).some((p) => (p.docs_done ?? []).length > 0)) brief.documents = existing.documents;
     }
-    await db.from("tender_briefs").upsert({ opportunity_id: opportunityId, content: brief as never, source_ref: ref });
+    // Consommation réelle (mesure du coût des fiches)
+    const usage = (response as { usage?: { input_tokens?: number; output_tokens?: number } }).usage;
+    await db.from("tender_briefs").upsert({
+      opportunity_id: opportunityId,
+      content: brief as never,
+      source_ref: ref,
+      input_tokens: usage?.input_tokens ?? null,
+      output_tokens: usage?.output_tokens ?? null,
+      generated_at: new Date().toISOString(),
+    });
     return { brief };
   } catch (e) {
     logServerError("tender brief", e);
@@ -250,7 +259,7 @@ export async function rewriteBriefs(
  * Préparation à l'avance (passage quotidien) : les appels d'offres BOAMP ouverts les plus récents dans
  * les métiers des entreprises abonnées ou en essai, dans la limite de `limit` fiches par passage.
  */
-export async function prepareBriefs(db = createAdminClient(), { limit = 25, deadline = Date.now() + 60_000 } = {}) {
+export async function prepareBriefs(db = createAdminClient(), { limit = 25, deadline = Date.now() + 60_000, concurrency = 1, everyone = false }: { limit?: number; deadline?: number; concurrency?: number; everyone?: boolean } = {}) {
   const now = new Date().toISOString();
   // Phase de lancement gratuite : la fiche est offerte à tous, donc préparée pour toutes les entreprises inscrites
   const freeLaunch = (await db.rpc("free_launch")).data === true;
@@ -258,27 +267,30 @@ export async function prepareBriefs(db = createAdminClient(), { limit = 25, dead
     ? await db.from("companies").select("id").eq("is_demo", false).eq("status", "ACTIVE")
     : await db.from("companies").select("id").or(`plan_code.in.(PRO,BUSINESS),trial_ends_at.gt.${now}`);
   const ids = (companies ?? []).map((c) => c.id);
-  if (!ids.length) return { prepared: 0, skipped: "Aucune entreprise abonnée ou en essai" };
-  const { data: profiles } = await db.from("company_profiles").select("sectors").in("company_id", ids);
+  const { data: profiles } = ids.length ? await db.from("company_profiles").select("sectors").in("company_id", ids) : { data: [] };
   const sectors = [...new Set((profiles ?? []).flatMap((p) => p.sectors ?? []))];
-  if (!sectors.length) return { prepared: 0, skipped: "Aucun métier renseigné" };
-  const { data: opps } = await db
-    .from("opportunities")
-    .select("id")
-    .eq("status", "PUBLISHED")
-    .eq("origin", "EXTERNAL")
-    .eq("is_demo", false)
-    .in("sector_slug", sectors)
-    .gt("response_deadline", now)
-    .order("published_at", { ascending: false })
-    .limit(limit * 4);
-  const { data: done } = (opps ?? []).length ? await db.from("tender_briefs").select("opportunity_id").in("opportunity_id", (opps ?? []).map((o) => o.id)) : { data: [] };
-  const has = new Set((done ?? []).map((d) => d.opportunity_id));
-  let prepared = 0;
-  for (const o of opps ?? []) {
-    if (prepared >= limit || Date.now() > deadline) break;
-    if (has.has(o.id)) continue;
-    if (await ensureBrief(o.id, { db })) prepared++;
+  if (!sectors.length && !everyone) return { prepared: 0, skipped: "Aucun métier renseigné" };
+  const pick = async (sectorFilter: string[] | null) => {
+    let q = db.from("opportunities").select("id").eq("status", "PUBLISHED").eq("origin", "EXTERNAL").eq("is_demo", false).gt("response_deadline", now);
+    if (sectorFilter) q = q.in("sector_slug", sectorFilter);
+    const { data } = await q.order("published_at", { ascending: false }).limit(limit * 8);
+    return (data ?? []).map((o) => o.id);
+  };
+  // D'abord les métiers des entreprises inscrites, puis (option) toutes les offres ouvertes, les plus récentes d'abord
+  const candidates = [...new Set([...(sectors.length ? await pick(sectors) : []), ...(everyone ? await pick(null) : [])])];
+  const has = new Set<string>();
+  for (let i = 0; i < candidates.length; i += 300) {
+    const { data: done } = await db.from("tender_briefs").select("opportunity_id").in("opportunity_id", candidates.slice(i, i + 300));
+    for (const d of done ?? []) has.add(d.opportunity_id);
   }
-  return { prepared };
+  const queue = candidates.filter((id) => !has.has(id)).slice(0, limit);
+  let prepared = 0;
+  const worker = async () => {
+    while (queue.length && Date.now() < deadline) {
+      const id = queue.shift()!;
+      if (await ensureBrief(id, { db })) prepared++;
+    }
+  };
+  await Promise.all(Array.from({ length: Math.max(1, Math.min(8, concurrency)) }, worker));
+  return { prepared, remaining: queue.length };
 }
