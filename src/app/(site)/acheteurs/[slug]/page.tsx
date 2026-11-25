@@ -35,6 +35,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { BriefSchema } from "@/lib/tender-brief";
 import { regionByName } from "@/lib/geo";
 import { allBuyers, buyerRegionSlug } from "@/lib/queries/buyers";
+import { getLatestAwards } from "@/lib/queries/awards";
+import { AwardList } from "@/components/awards/award-list";
 import { ClipboardCheck, Layers, Sparkles } from "lucide-react";
 
 const nf = new Intl.NumberFormat("fr-FR");
@@ -145,6 +147,7 @@ export default async function BuyerPage(props: PageProps<"/acheteurs/[slug]">) {
   const admin = createAdminClient();
   // Aperçu des fiches synthèse déjà préparées (faits tirés de l'avis officiel), acheteurs proches,
   // compteurs en direct : de quoi donner envie d'aller plus loin
+  const awarded = await getLatestAwards({ buyer: slug }, 10).catch(() => []);
   const [briefRows, buyersRows, platform, memberCompanies, departments] = await Promise.all([
     b.open.length ? admin.from("tender_briefs").select("opportunity_id, content").in("opportunity_id", b.open.map((o) => o.id)) : Promise.resolve({ data: [] as { opportunity_id: string; content: unknown }[] }),
     allBuyers().catch(() => []),
@@ -621,6 +624,20 @@ export default async function BuyerPage(props: PageProps<"/acheteurs/[slug]">) {
                   />
                 </div>
               )}
+            </section>
+          )}
+          {awarded.length > 0 && (
+            <section aria-labelledby="attribues" className="mt-12">
+              <h2 id="attribues" className="text-xl font-bold text-navy">
+                Qui a gagné ses derniers marchés
+              </h2>
+              <p className="mt-1 mb-4 text-sm text-slate-500">
+                Les entreprises retenues par {b.name}, d&apos;après les avis d&apos;attribution du BOAMP. Utile pour connaître vos concurrents et les prix du marché.
+              </p>
+              <AwardList awards={awarded} linkBuyer={false} />
+              <Link href="/resultats" className="mt-3 inline-block text-sm font-semibold text-teal-800 hover:underline">
+                Tous les résultats des marchés publics →
+              </Link>
             </section>
           )}
           {(nearby.length > 0 || (dep && reg)) && (

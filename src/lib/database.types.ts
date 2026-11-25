@@ -1322,6 +1322,32 @@ isOneToOne: false
                   Relationships: [
                     
                   ]
+                },"awards": {
+                  Row: {
+                    "buyer_key": string | null,"buyer_name": string | null,"created_at": string,"department_code": string | null,"idweb": string,"market_type": string | null,"published_on": string,"region": string | null,"sector_slug": string | null,"title": string,"url": string | null,"winner_keys": string[],"winners": string[]
+                  }
+                  Insert: {
+                    "buyer_name"?: string | null,"created_at"?: string,"department_code"?: string | null,"idweb": string,"market_type"?: string | null,"published_on": string,"region"?: string | null,"sector_slug"?: string | null,"title": string,"url"?: string | null,"winner_keys": string[],"winners": string[]
+                  }
+                  Update: {
+                    "buyer_name"?: string | null,"created_at"?: string,"department_code"?: string | null,"idweb"?: string,"market_type"?: string | null,"published_on"?: string,"region"?: string | null,"sector_slug"?: string | null,"title"?: string,"url"?: string | null,"winner_keys"?: string[],"winners"?: string[]
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"award_optouts": {
+                  Row: {
+                    "created_at": string,"reason": string | null,"winner_key": string
+                  }
+                  Insert: {
+                    "created_at"?: string,"reason"?: string | null,"winner_key": string
+                  }
+                  Update: {
+                    "created_at"?: string,"reason"?: string | null,"winner_key"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
                 },"platform_settings": {
                   Row: {
                     "description": string | null,"key": string,"updated_at": string,"updated_by": string | null,"value": NonNullable<Json>
@@ -1950,6 +1976,26 @@ isOneToOne: false
                            },
 "prepare_account_deletion":
 { Args: Record<PropertyKey, never>; Returns: number
+                           },
+"admin_seo_funnel":
+{ Args: { "p_days"?: number }; Returns: {
+              "origin": string,"page_type": string,"visits": number,"signups": number
+            }[]
+                           },
+"winner_awards":
+{ Args: { "p_key": string,"p_limit"?: number }; Returns: {
+              "buyer_key": string | null,"buyer_name": string | null,"department_code": string | null,"idweb": string,"market_type": string | null,"published_on": string,"region": string | null,"sector_slug": string | null,"title": string,"url": string | null,"winner_keys": string[],"winners": string[]
+            }[]
+                           },
+"top_winners":
+{ Args: { "p_sector"?: string,"p_region"?: string,"p_since"?: string,"p_limit"?: number }; Returns: {
+              "winner_key": string,"winner_name": string,"awards": number,"last_on": string
+            }[]
+                           },
+"award_counts":
+{ Args: Record<PropertyKey, never>; Returns: {
+              "sector_slug": string | null,"region": string | null,"n": number
+            }[]
                            },
 "public_buyers":
 { Args: { "p_limit"?: number,"p_offset"?: number }; Returns: {

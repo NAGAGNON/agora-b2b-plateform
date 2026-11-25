@@ -27,6 +27,7 @@ const COLUMNS = [
       { href: "/ressources", label: "Ressources et guides" },
       { href: "/analyses", label: "Analyses des marchés" },
       { href: "/acheteurs", label: "Acheteurs publics" },
+      { href: "/resultats", label: "Résultats des marchés publics" },
       { href: "/faq", label: "Questions fréquentes" },
     ],
   },
@@ -88,8 +89,8 @@ export function Footer() {
         ))}
       </div>
       <div className="container-page grid gap-6 border-t border-white/10 py-8 text-sm sm:grid-cols-2">
-        <nav aria-label="Appels d'offres dans votre région">
-          <h2 className="text-sm font-bold text-white">Appels d&apos;offres dans votre région</h2>
+        <nav aria-label="Les appels d'offres de chaque région">
+          <h2 className="text-sm font-bold text-white">Les appels d&apos;offres de chaque région</h2>
           <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5">
             {REGIONS.map((r) => (
               <li key={r.slug}>
@@ -100,8 +101,8 @@ export function Footer() {
             ))}
           </ul>
         </nav>
-        <nav aria-label="Appels d'offres de votre métier">
-          <h2 className="text-sm font-bold text-white">Appels d&apos;offres de votre métier</h2>
+        <nav aria-label="Les appels d'offres de chaque métier">
+          <h2 className="text-sm font-bold text-white">Les appels d&apos;offres de chaque métier</h2>
           <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5">
             {TOP_TRADES.map((t) => (
               <li key={t.slug}>

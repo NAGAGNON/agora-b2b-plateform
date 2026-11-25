@@ -7,6 +7,7 @@ import { STATIC_PATHS, siteUrl } from "@/lib/seo";
 import { GUIDES } from "@/content/guides";
 import { REGIONS } from "@/lib/geo";
 import { SPECIALTIES } from "@/lib/landing";
+import { RANKING_MIN_AWARDS, WINNER_MIN_AWARDS } from "@/lib/queries/awards";
 
 const MIN_INDEXABLE = 3;
 
@@ -55,6 +56,28 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }
     return { data: all };
   };
+  // Résultats des marchés : page d'accueil, classements avec assez de données, entreprises ayant remporté
+  // au moins 2 marchés (les plus actives d'abord, 10 000 au plus pour rester sous 50 000 adresses)
+  const { data: awardCounts } = await db.rpc("award_counts");
+  const awardTotal = (awardCounts ?? []).reduce((n, c) => n + Number(c.n), 0);
+  if (awardTotal >= RANKING_MIN_AWARDS) {
+    entries.push({ url: `${base}/resultats`, changeFrequency: "daily", priority: 0.7 });
+    const bySector = new Map<string, number>();
+    const pairs = new Map<string, number>();
+    const byRegion = new Map<string, number>();
+    for (const c of awardCounts ?? []) {
+      if (c.sector_slug) bySector.set(c.sector_slug, (bySector.get(c.sector_slug) ?? 0) + Number(c.n));
+      if (c.region) byRegion.set(c.region, (byRegion.get(c.region) ?? 0) + Number(c.n));
+      if (c.sector_slug && c.region) pairs.set(`${c.sector_slug}|${c.region}`, Number(c.n));
+    }
+    for (const [sector, n] of bySector) if (n >= RANKING_MIN_AWARDS) entries.push({ url: `${base}/resultats/${sector}`, changeFrequency: "weekly", priority: 0.6 });
+    for (const r of REGIONS) {
+      if ((byRegion.get(r.name) ?? 0) >= RANKING_MIN_AWARDS) entries.push({ url: `${base}/resultats/tous/${r.slug}`, changeFrequency: "weekly", priority: 0.6 });
+      for (const sector of bySector.keys()) if ((pairs.get(`${sector}|${r.name}`) ?? 0) >= RANKING_MIN_AWARDS) entries.push({ url: `${base}/resultats/${sector}/${r.slug}`, changeFrequency: "weekly", priority: 0.5 });
+    }
+    const { data: winners } = await paged((from, to) => db.rpc("top_winners", { p_limit: 10000 }).range(from, to), 10);
+    for (const w of winners) if (Number(w.awards) >= WINNER_MIN_AWARDS) entries.push({ url: `${base}/titulaires/${w.winner_key}`, changeFrequency: "weekly", priority: 0.4 });
+  }
   // Opportunités encore ouvertes (date limite non dépassée), un seul fichier : 50 000 adresses au plus
   const nowIso = new Date().toISOString();
   // Disponibilités en ligne des entreprises (hors démonstration)
