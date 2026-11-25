@@ -1,5 +1,6 @@
 import { primaryOf } from "@/lib/duplicates";
 import Link from "next/link";
+import { ContactTeamButton } from "@/components/contact-team-button";
 import { SectorVisual } from "@/components/opportunities/sector-visual";
 import { JsonLd, breadcrumbLd } from "@/components/json-ld";
 import { notFound, redirect } from "next/navigation";
@@ -282,6 +283,9 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
           }}
           contact={needOpen ? <NeedContactForm opportunityId={o.id} /> : undefined}
         >
+          <div className="mt-6 flex justify-center">
+            <ContactTeamButton context={o.title} />
+          </div>
           <SimilarOpportunities
             id={o.id}
             sector={o.sector_slug}
@@ -554,6 +558,9 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
               )}
             </div>
           </div>
+          <div className="mt-6 flex justify-center">
+            <ContactTeamButton context={o.title} />
+          </div>
           <SimilarOpportunities
             id={o.id}
             sector={o.sector_slug}
@@ -798,6 +805,9 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
                 <ShareLinks url={`${siteUrl()}/opportunites/${o.id}`} title={o.title} needId={o.id} label="Faire connaître ce besoin" />
               </div>
             )}
+            <div className="flex justify-center">
+              <ContactTeamButton context={o.title} />
+            </div>
           </aside>
         </div>
         <SimilarOpportunities

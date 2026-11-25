@@ -46,7 +46,7 @@ export default async function ContactPage(props: PageProps<"/contact">) {
           <p className="flex items-center gap-2 font-semibold text-navy">
             <Mail className="size-4" aria-hidden /> Délai de réponse
           </p>
-          <p className="mt-1">Nous répondons généralement sous quelques jours ouvrés.</p>
+          <p className="mt-1">Nous répondons généralement en quelques minutes, par e-mail.</p>
         </div>
       </aside>
     </div>

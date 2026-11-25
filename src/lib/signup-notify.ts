@@ -198,3 +198,45 @@ export async function notifyAdminsOfNeedToReview(id: string, n: { title: string;
     logServerError("need to review notice", e);
   }
 }
+
+/** E-mail aux administrateurs pour chaque message reçu (formulaire de contact ou bouton « Contacter l'équipe »). */
+export function renderContactNotice(m: { name: string; email: string; company: string | null; subject: string; message: string; page?: string | null }) {
+  const reply = `mailto:${encodeURIComponent(m.email)}?subject=${encodeURIComponent(`Re : ${m.subject}`)}`;
+  const subject = `Message de ${m.name} : ${m.subject}`.slice(0, 140);
+  const text = [
+    `Nouveau message de ${m.name} <${m.email}>${m.company ? ` (${m.company})` : ""}`,
+    m.page ? `Envoyé depuis : ${siteUrl()}${m.page}` : null,
+    "",
+    `Objet : ${m.subject}`,
+    "",
+    m.message,
+    "",
+    `Répondre : ${m.email}`,
+  ]
+    .filter((x) => x !== null)
+    .join("\n");
+  const html = `<!doctype html><html lang="fr"><body style="margin:0;background:#E8F4FD;font-family:Inter,Arial,sans-serif">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:24px 8px">
+<table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#ffffff;border-radius:12px">
+<tr><td style="background:#0B1F3A;border-radius:12px 12px 0 0;padding:16px 24px;color:#99f6e4;font-size:14px;font-weight:600">Nouveau message reçu</td></tr>
+<tr><td style="padding:20px 24px"><p style="margin:0 0 4px;font-size:16px;font-weight:700;color:#0B1F3A">${esc(m.name)}${m.company ? ` · ${esc(m.company)}` : ""}</p>
+<p style="margin:0 0 4px;font-size:14px;color:#64748b">${esc(m.email)}</p>
+${m.page ? `<p style="margin:0 0 12px;font-size:13px;color:#64748b">Envoyé depuis la page ${esc(m.page)}</p>` : ""}
+<p style="margin:12px 0 6px;font-size:14px;font-weight:700;color:#0f172a">${esc(m.subject)}</p>
+<p style="margin:0 0 16px;font-size:14px;color:#0f172a;white-space:pre-line">${esc(m.message)}</p>
+<p style="margin:0"><a href="${reply}" style="display:inline-block;background:#0d9488;color:#ffffff;text-decoration:none;font-weight:600;padding:10px 18px;border-radius:8px">Répondre à ${esc(m.name)}</a></p></td></tr></table></td></tr></table></body></html>`;
+  return { subject, html, text };
+}
+
+/** Envoie le message reçu aux administrateurs (adresse DAILY_REPORT_EMAIL, sinon super-administrateurs). Jamais bloquant. */
+export async function notifyAdminsOfContact(id: string, m: Parameters<typeof renderContactNotice>[0]) {
+  try {
+    const msg = renderContactNotice(m);
+    for (const address of await reportRecipients()) {
+      const r = await sendEmail({ to: address, ...msg, idempotencyKey: `contact-${id}-${address}` });
+      if (r.status === "FAILED") logServerError("contact notice", new Error(r.error ?? "échec d'envoi"));
+    }
+  } catch (e) {
+    logServerError("contact notice", e);
+  }
+}
