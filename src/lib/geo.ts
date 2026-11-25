@@ -83,3 +83,16 @@ export function normalizeDepartment(v: string | null | undefined): string | null
   const corse = s.match(/^20?([AB])$/);
   return corse ? `2${corse[1]}` : null;
 }
+
+/**
+ * Département tiré d'un code postal français (« 08000 » → « 08 », « 97400 » → « 974 », « 20090 » → « 2A »,
+ * « 20600 » → « 2B »), sinon null. Codes postaux de Monaco (980xx) et codes CEDEX hors format : null.
+ */
+export function departmentFromPostcode(v: string | null | undefined): string | null {
+  const s = (v ?? "").replace(/\s/g, "");
+  if (!/^\d{5}$/.test(s)) return null;
+  if (s.startsWith("97")) return /^97[1-6]/.test(s) ? s.slice(0, 3) : null;
+  if (s.startsWith("98")) return null;
+  if (s.startsWith("20")) return Number(s.slice(2, 3)) <= 1 ? "2A" : "2B";
+  return s === "00000" || s.startsWith("00") ? null : s.slice(0, 2);
+}

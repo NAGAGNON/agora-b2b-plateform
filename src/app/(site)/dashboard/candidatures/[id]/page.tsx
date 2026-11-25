@@ -4,7 +4,7 @@ import { requireCompany } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isUuid } from "@/lib/format";
-import { BriefSchema, boampId, isFullBrief, tedId } from "@/lib/tender-brief";
+import { BriefSchema, boampId, isCurrentBrief, tedId } from "@/lib/tender-brief";
 import { CandidatureWorkspace } from "@/components/applications/candidature-workspace";
 import type { Award } from "@/lib/award-watch";
 import { track } from "@/lib/analytics";
@@ -85,10 +85,10 @@ export default async function CandidaturePage(props: PageProps<"/dashboard/candi
         briefDone: (item?.brief_done ?? []).map(Number),
         upgradeHref,
         draft: item?.draft ?? null,
-        brief,
+        // Fiche absente ou d'un style plus ancien : rédigée à l'ouverture (la personne voit « Lecture de l'annonce… »)
+        brief: allowed && Boolean(idweb || ted) && !isCurrentBrief(brief) ? null : brief,
         briefAllowed: allowed,
-        // Avis officiel connu mais fiche absente ou ancienne : préparée à l'affichage
-        canLoadBrief: allowed && Boolean(idweb || ted) && !isFullBrief(brief),
+        canLoadBrief: allowed && Boolean(idweb || ted) && !isCurrentBrief(brief),
         sourceLabel: idweb ? `BOAMP n° ${idweb}` : ted ? `TED n° ${ted}` : null,
         awardWatched: Boolean(idweb),
         hasSource: (sources ?? []).some((s) => s.original_url),

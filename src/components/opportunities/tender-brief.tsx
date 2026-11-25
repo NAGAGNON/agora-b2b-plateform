@@ -37,6 +37,17 @@ export function TenderBriefView({
   return (
     <div className="space-y-6">
       <p className="text-lg text-navy">{brief.summary}</p>
+      {brief.buyer && (
+        <p className="text-sm text-slate-600">
+          <strong className="font-semibold text-navy">Qui achète : </strong>
+          {brief.buyer}
+        </p>
+      )}
+      {(brief.details ?? []).length > 0 && (
+        <BriefBlock icon={ClipboardCheck} title="Le besoin en détail">
+          <List items={brief.details ?? []} />
+        </BriefBlock>
+      )}
       {keys.length > 0 && (
         <div className="grid gap-3 sm:grid-cols-2">
           {keys.map(({ icon: Icon, label, value, hot }) => (
@@ -95,6 +106,16 @@ export function TenderBriefView({
           {missing && (
             <p className="mt-2 text-xs text-slate-500">Il vous manque une exigence ? Répondre à plusieurs (groupement ou sous-traitance) permet souvent de candidater quand même.</p>
           )}
+        </BriefBlock>
+      )}
+      {(brief.key_dates ?? []).length > 0 && (
+        <BriefBlock icon={CalendarClock} title="Dates utiles">
+          <List items={(brief.key_dates ?? []).map((d) => `${d.label} : ${d.date}`)} />
+        </BriefBlock>
+      )}
+      {(brief.official ?? []).length > 0 && (
+        <BriefBlock icon={ExternalLink} title="Ce que vous trouverez dans l'annonce officielle">
+          <List items={brief.official ?? []} />
         </BriefBlock>
       )}
       {brief.lots.length > 0 && (
