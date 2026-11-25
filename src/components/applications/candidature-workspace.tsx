@@ -52,6 +52,8 @@ import { loadTenderBrief, toggleBriefStep } from "@/app/actions/tender-brief";
 import { goBackToSearch } from "@/components/applications/return-point";
 import { ApplicationAssistant } from "@/components/applications/application-assistant";
 import { StepsProgress } from "@/components/applications/steps-progress";
+import { ChecksList, ResultTracker, SubmissionForm } from "@/components/applications/journey-steps";
+import { CAPACITIES, type Journey } from "@/lib/journey";
 import type { AssistantMessage } from "@/app/actions/application-assistant";
 
 export type WorkspaceData = {
@@ -71,6 +73,8 @@ export type WorkspaceData = {
   /** Rappel choisi après le dépôt (« prochaine action » du suivi) */
   reminder: { date: string; text: string } | null;
   guideDone: number[];
+  /** Réponses du parcours en 7 étapes (éligibilité, capacités, dépôt, résultat) */
+  journey: Journey;
   docsDone: number[];
   draft: string | null;
   brief: TenderBrief | null;
@@ -563,14 +567,36 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
                 <StepsProgress done={done} sent={sent} />
               </div>
               <div className="space-y-3" data-testid="steps">
-                <Step n={1} title="Puis-je répondre ?" subtitle="Les conditions de l'acheteur, comparées à votre fiche." done={done.includes(0)} open={openStep === 0} onOpen={() => setOpenStep(openStep === 0 ? -1 : 0)} onToggle={(v) => toggleStep(0, v)} pending={pending}>
+                <Step n={1} title="Vérifier votre éligibilité" subtitle="Les conditions de l'acheteur, une par une." done={done.includes(0)} open={openStep === 0} onOpen={() => setOpenStep(openStep === 0 ? -1 : 0)} onToggle={(v) => toggleStep(0, v)} pending={pending}>
                   <BriefZone state={briefState} brief={brief} allowed={data.briefAllowed} upgradeHref={data.upgradeHref}>
                     {(b) => <Conditions brief={b} mine={data.mine} id={data.id} />}
                   </BriefZone>
+                  {brief && (
+                    <div>
+                      <p className="mb-2 text-sm font-bold text-navy">Pour chaque condition : où en êtes-vous ?</p>
+                      <ChecksList
+                        opportunityId={data.id}
+                        section="eligibility"
+                        items={[...(brief.certifications ?? []), ...(brief.capacity ?? [])].map((x) => ({ key: x, label: x }))}
+                        initial={data.journey.eligibility}
+                        empty="L'annonce ne liste pas de condition particulière. Vérifiez le règlement de la consultation (sur le site de l'acheteur)."
+                      />
+                    </div>
+                  )}
                   <HowTo items={APPLICATION_GUIDE[0].how} />
                 </Step>
 
-                <Step n={2} title="Télécharger le dossier" subtitle="Sur le site de l'acheteur." done={done.includes(1)} open={openStep === 1} onOpen={() => setOpenStep(openStep === 1 ? -1 : 1)} onToggle={(v) => toggleStep(1, v)} pending={pending}>
+                <Step n={2} title="Comprendre le besoin de l'acheteur" subtitle="Ce qu'il veut, le dossier, les questions et la visite." done={done.includes(1)} open={openStep === 1} onOpen={() => setOpenStep(openStep === 1 ? -1 : 1)} onToggle={(v) => toggleStep(1, v)} pending={pending}>
+                  {brief && (
+                    <div className="grid gap-2 sm:grid-cols-3">
+                      <p className="rounded-xl bg-sky px-3 py-2.5 text-sm text-navy ring-1 ring-slate-200 sm:col-span-3">
+                        <span className="block text-xs font-bold tracking-wide text-teal-700 uppercase">Ce que veut l&apos;acheteur</span>
+                        {brief.summary}
+                      </p>
+                      {brief.duration && <p className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700 ring-1 ring-slate-200"><span className="block text-xs font-semibold text-slate-500">Durée</span>{brief.duration}</p>}
+                      {brief.pricing && <p className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700 ring-1 ring-slate-200 sm:col-span-2"><span className="block text-xs font-semibold text-slate-500">Prix</span>{brief.pricing}</p>}
+                    </div>
+                  )}
                   <InfoCard icon={FolderDown} title="Où aller" tone="teal">
                     <p>{brief?.submission ?? "Sur le site de l'acheteur, indiqué dans l'annonce officielle."}</p>
                     <div className="mt-3 flex flex-wrap gap-2">
@@ -598,10 +624,6 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
                       </div>
                     </div>
                   )}
-                  <HowTo items={APPLICATION_GUIDE[1].how} />
-                </Step>
-
-                <Step n={3} title="Questions et visite" subtitle="Lever vos doutes et ne pas manquer une visite obligatoire." done={done.includes(2)} open={openStep === 2} onOpen={() => setOpenStep(openStep === 2 ? -1 : 2)} onToggle={(v) => toggleStep(2, v)} pending={pending}>
                   {brief?.site_visit ? (
                     <InfoCard icon={MapPinned} title={visitHot ? "Visite obligatoire" : "Visite"} tone={visitHot ? "rose" : "teal"}>
                       <p>{brief.site_visit}</p>
@@ -610,10 +632,15 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
                     <p className="text-sm text-slate-600">L&apos;annonce ne parle pas de visite. Vérifiez dans le règlement de la consultation (sur le site de l&apos;acheteur).</p>
                   ) : null}
                   <TemplateCard icon={MessageSquareText} title="Modèle de question à l'acheteur" text={questionTemplate(tpl)} />
+                  <HowTo items={APPLICATION_GUIDE[1].how} />
+                </Step>
+
+                <Step n={3} title="Évaluer vos capacités" subtitle="Équipe, matériel, trésorerie, délais : avez-vous ce qu'il faut ?" done={done.includes(2)} open={openStep === 2} onOpen={() => setOpenStep(openStep === 2 ? -1 : 2)} onToggle={(v) => toggleStep(2, v)} pending={pending}>
+                  <ChecksList opportunityId={data.id} section="capacities" items={CAPACITIES.map((c) => ({ key: c.key, label: c.label }))} initial={data.journey.capacities} />
                   <HowTo items={APPLICATION_GUIDE[2].how} />
                 </Step>
 
-                <Step n={4} title="Rassembler les pièces" subtitle="Cochez chaque pièce dès qu'elle est prête." done={done.includes(3)} open={openStep === 3} onOpen={() => setOpenStep(openStep === 3 ? -1 : 3)} onToggle={(v) => toggleStep(3, v)} pending={pending}>
+                <Step n={4} title="Rassembler les documents" subtitle="Cochez chaque document dès qu'il est prêt." done={done.includes(3)} open={openStep === 3} onOpen={() => setOpenStep(openStep === 3 ? -1 : 3)} onToggle={(v) => toggleStep(3, v)} pending={pending}>
                   <BriefZone state={briefState} brief={brief} allowed={data.briefAllowed} upgradeHref={data.upgradeHref}>
                     {(b) =>
                       b.documents.length ? (
@@ -651,31 +678,30 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
                   <HowTo items={APPLICATION_GUIDE[3].how} />
                 </Step>
 
-                <Step n={5} title="Rédiger votre réponse" subtitle="Ce qui rapporte des points, et une trame déjà préparée pour vous." done={done.includes(4)} open={openStep === 4} onOpen={() => setOpenStep(openStep === 4 ? -1 : 4)} onToggle={(v) => toggleStep(4, v)} pending={pending}>
+                <Step n={5} title="Préparer votre offre" subtitle="Ce qui rapporte des points, et une trame déjà préparée pour vous." done={done.includes(4)} open={openStep === 4} onOpen={() => setOpenStep(openStep === 4 ? -1 : 4)} onToggle={(v) => toggleStep(4, v)} pending={pending}>
                   {brief && ((brief.criteria ?? []).length > 0 || (brief.tips ?? []).length > 0) && <Notation brief={brief} />}
                   <DraftEditor id={data.id} initial={data.draft} make={() => buildMemoirDraft({ title: data.title, buyer: data.buyer }, brief, data.company)} />
                   <HowTo items={APPLICATION_GUIDE[4].how} />
                 </Step>
 
-                <Step n={6} title="Déposer avant la date limite" subtitle="Sur le site de l'acheteur, sans attendre la dernière heure." done={sent || done.includes(5)} open={openStep === 5} onOpen={() => setOpenStep(openStep === 5 ? -1 : 5)} pending={pending}>
+                <Step n={6} title="Organiser et déposer votre candidature" subtitle="Vérifiez tout, déposez sur le site de l'acheteur, notez la référence." done={sent || done.includes(5)} open={openStep === 5} onOpen={() => setOpenStep(openStep === 5 ? -1 : 5)} pending={pending}>
                   {brief?.submission && (
                     <InfoCard icon={Send} title="Où déposer" tone="teal">
                       <p>{brief.submission}</p>
                     </InfoCard>
                   )}
                   <HowTo items={APPLICATION_GUIDE[5].how} />
-                  {!sent ? (
-                    <button
-                      type="button"
-                      disabled={pending}
-                      onClick={() => act(() => markApplicationSent(data.id), "RESPONSE_SENT")}
-                      className="btn-shine inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-teal to-electric px-6 py-4 text-lg font-bold text-navy shadow-xl shadow-teal/25 transition hover:-translate-y-0.5 active:scale-[0.98] disabled:opacity-50"
-                    >
-                      <Send className="size-5" aria-hidden /> J&apos;ai déposé ma réponse
-                    </button>
-                  ) : (
-                    <p className="rounded-xl bg-teal-50 px-4 py-3 text-sm font-semibold text-teal-800 ring-1 ring-teal/30">Réponse déposée : le résultat se suit en haut de cette page.</p>
-                  )}
+                  <SubmissionForm
+                    opportunityId={data.id}
+                    initial={data.journey.submission ?? (sent ? { status: "submitted", date: data.submittedAt ?? undefined } : undefined)}
+                    onSaved={(j) => {
+                      if (j.submission?.status === "submitted" && !sent) setStage("RESPONSE_SENT");
+                    }}
+                  />
+                </Step>
+
+                <Step n={7} title="Suivre le résultat" subtitle="Notez chaque nouvelle de l'acheteur, jusqu'à la décision finale." done={stage === "WON" || stage === "LOST"} open={openStep === 6} onOpen={() => setOpenStep(openStep === 6 ? -1 : 6)} pending={pending}>
+                  <ResultTracker opportunityId={data.id} initial={data.journey.results ?? []} enabled={sent} />
                 </Step>
               </div>
             </>

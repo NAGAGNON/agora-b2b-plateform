@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { rateLimit } from "@/lib/rate-limit";
 import { APPLICATION_GUIDE } from "@/lib/application-guide";
+import { ChecksSchema, RESULT_LABEL, ResultSchema, SubmissionSchema, readJourney, type Journey, type Submission } from "@/lib/journey";
 import type { Database } from "@/lib/database.types";
 
 type Stage = Database["public"]["Enums"]["pipeline_stage"];
@@ -343,4 +344,64 @@ export async function deleteJournalNote(id: string): Promise<Result> {
   const db = await createClient();
   const { error } = await db.from("application_journal").delete().eq("id", id).eq("user_id", session.userId).eq("kind", "NOTE");
   return error ? { ok: false, error: "Suppression impossible." } : { ok: true };
+}
+
+/** Parcours en 7 étapes : enregistre les réponses d'une étape (éligibilité, capacités, dépôt). */
+export async function saveJourney(
+  opportunityId: string,
+  section: "eligibility" | "capacities" | "submission",
+  value: unknown,
+): Promise<Result<{ journey: Journey }>> {
+  if (!z.uuid().safeParse(opportunityId).success) return { ok: false, error: "Offre introuvable." };
+  const parsed = section === "submission" ? SubmissionSchema.safeParse(value) : ChecksSchema.safeParse(value);
+  if (!parsed.success) return { ok: false, error: "Réponse invalide." };
+  if (!(await rateLimit("journey", 240, 3600))) return { ok: false, error: "Trop d'enregistrements. Réessayez dans un moment." };
+  const session = await getSession();
+  if (!session?.activeCompany) return { ok: false, error: "Créez d'abord le profil de votre entreprise." };
+  const companyId = session.activeCompany.company.id;
+  const db = await createClient();
+  const { data: item } = await db.from("pipeline_items").select("id, stage, journey").eq("company_id", companyId).eq("opportunity_id", opportunityId).maybeSingle();
+  const journey = { ...readJourney(item?.journey), [section]: parsed.data } as Journey;
+  const sub = section === "submission" ? (parsed.data as Submission) : null;
+  const toSent = sub?.status === "submitted" && (!item || rank(item.stage) < rank("RESPONSE_SENT"));
+  const patch = {
+    journey: journey as unknown as Database["public"]["Tables"]["pipeline_items"]["Row"]["journey"],
+    updated_by: session.userId,
+    ...(toSent ? { stage: "RESPONSE_SENT" as Stage, submitted_at: sub?.date ?? todayParis() } : {}),
+  };
+  const { error } = item
+    ? await db.from("pipeline_items").update(patch).eq("id", item.id)
+    : await db.from("pipeline_items").insert({ company_id: companyId, opportunity_id: opportunityId, stage: toSent ? "RESPONSE_SENT" : "RESPONSE_PREPARING", ...patch });
+  if (error) return { ok: false, error: "Enregistrement impossible. Réessayez." };
+  if (toSent) {
+    await logJournal(db, companyId, opportunityId, session.userId, "SENT", `Candidature déposée${sub?.platform ? ` sur ${sub.platform}` : ""}${sub?.reference ? ` (référence ${sub.reference})` : ""}.`);
+    await markWorkStarted(db, companyId, opportunityId);
+  }
+  revalidatePath("/dashboard/candidatures");
+  return { ok: true, journey };
+}
+
+/** Étape 7 : ajoute une nouvelle étape au suivi du résultat (historique conservé). */
+export async function addJourneyResult(opportunityId: string, value: unknown): Promise<Result<{ journey: Journey }>> {
+  if (!z.uuid().safeParse(opportunityId).success) return { ok: false, error: "Offre introuvable." };
+  const parsed = ResultSchema.safeParse(value);
+  if (!parsed.success) return { ok: false, error: "Réponse invalide." };
+  const session = await getSession();
+  if (!session?.activeCompany) return { ok: false, error: "Connectez-vous." };
+  const companyId = session.activeCompany.company.id;
+  const db = await createClient();
+  const { data: item } = await db.from("pipeline_items").select("id, journey").eq("company_id", companyId).eq("opportunity_id", opportunityId).maybeSingle();
+  if (!item) return { ok: false, error: "Commencez d'abord la préparation de ce dossier." };
+  const prev = readJourney(item.journey);
+  const results = [...(prev.results ?? []), { ...parsed.data, at: new Date().toISOString() }].slice(-30);
+  const journey = { ...prev, results };
+  const final = parsed.data.status === "accepted" ? "WON" : parsed.data.status === "rejected" || parsed.data.status === "other_winner" ? "LOST" : null;
+  const { error } = await db
+    .from("pipeline_items")
+    .update({ journey: journey as unknown as Database["public"]["Tables"]["pipeline_items"]["Row"]["journey"], updated_by: session.userId, ...(final ? { stage: final as Stage } : {}) })
+    .eq("id", item.id);
+  if (error) return { ok: false, error: "Enregistrement impossible. Réessayez." };
+  await logJournal(db, companyId, opportunityId, session.userId, "NOTE", `Résultat : ${RESULT_LABEL[parsed.data.status]}${parsed.data.comment ? ` — ${parsed.data.comment}` : ""}.`);
+  revalidatePath("/dashboard/candidatures");
+  return { ok: true, journey };
 }
