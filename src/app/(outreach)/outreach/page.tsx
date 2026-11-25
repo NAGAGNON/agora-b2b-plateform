@@ -1,3 +1,4 @@
+import { humanVisitors } from "@/lib/outreach/human-visits";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, formatDateTime } from "@/lib/format";
@@ -71,6 +72,7 @@ export default async function OutreachOverview() {
     { label: "Envoyés (ou simulés)", value: uniq("SENT") + uniq("SIMULATED") },
     { label: "Ouverts (indicatif)", value: uniq("OPEN") },
     { label: "Cliqués", value: uniq("CLICK") },
+    { label: "Visites réelles (navigation ou action sur le site)", value: humanVisitors(ev).size },
     { label: "Sélection consultée", value: uniq("LANDING_VIEW") },
     { label: "Page d'accès à l'offre", value: uniq("GATE_VIEW") },
     { label: "Clic « Créer mon compte »", value: uniq("GATE_SIGNUP_CLICK") },
@@ -148,7 +150,7 @@ export default async function OutreachOverview() {
           <Stat label="Entreprises sélectionnées" value={live.selected ?? 0} hint={live.no_email ? `dont ${fmtN(live.no_email)} sans e-mail` : undefined} />
           <Stat label="E-mails préparés" value={live.prepared ?? 0} />
           <Stat label="Envoyés aujourd'hui" value={sentToday ?? 0} hint={`dont ${fmtN(live.sent ?? 0)} des campagnes du jour${live.simulated ? ` · + ${fmtN(live.simulated)} simulé(s)` : ""}`} tone="accent" />
-          <Stat label="Clics" value={live.clicked ?? 0} />
+          <Stat label="Clics" value={live.clicked ?? 0} hint="liens ouverts (robots de messagerie exclus) ; visites réelles : voir l'entonnoir" />
           <Stat label="Inscriptions" value={live.signups ?? 0} />
           <Stat label="Conversions" value={live.conversions ?? 0} />
           <Stat label="Désinscriptions" value={live.unsubscribed ?? 0} />

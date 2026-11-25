@@ -4,6 +4,7 @@ import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { rateLimit } from "@/lib/rate-limit";
 import { logServerError } from "@/lib/errors";
+import { notifyAdminsOfContact } from "@/lib/signup-notify";
 import { contactSchema, parseForm, type ActionResult } from "@/lib/validation";
 
 export async function sendContactMessage(_prev: ActionResult | null, fd: FormData): Promise<ActionResult> {
@@ -14,13 +15,16 @@ export async function sendContactMessage(_prev: ActionResult | null, fd: FormDat
     return parsed.result;
   }
   if (!(await rateLimit("contact", 5, 3600))) return { ok: false, error: "Trop de messages envoyés. Réessayez plus tard." };
-  const { name, email, company, subject, message } = parsed.data;
-  const { error } = await createAdminClient().from("contact_messages").insert({ name, email, company: company ?? null, subject, message });
+  const { name, email, company, subject, message, page } = parsed.data;
+  const stored = page ? `${message}\n\n(Envoyé depuis la page ${page})` : message;
+  const { data, error } = await createAdminClient().from("contact_messages").insert({ name, email, company: company ?? null, subject, message: stored }).select("id").single();
   if (error) {
     logServerError("contact", error);
     return { ok: false, error: "Le message n'a pas pu être envoyé. Réessayez plus tard." };
   }
-  return { ok: true, message: "Merci, votre message a bien été envoyé. Nous vous répondrons par e-mail." };
+  // L'équipe est prévenue tout de suite par e-mail (réponse en quelques minutes)
+  await notifyAdminsOfContact(data.id, { name, email, company: company ?? null, subject, message, page: page ?? null });
+  return { ok: true, message: "Merci, votre message est bien arrivé. Nous vous répondons par e-mail, généralement en quelques minutes." };
 }
 
 /** Désabonnement d'une alerte via le lien unique présent dans les e-mails. */

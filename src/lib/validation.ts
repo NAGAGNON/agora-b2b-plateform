@@ -290,6 +290,13 @@ export const contactSchema = z.object({
   subject: requiredText(2, 200, "L'objet"),
   message: requiredText(10, 5000, "Le message"),
   website: z.string().max(0).optional(), // champ piège anti-robot
+  // Page d'où part le message (bouton « Contacter l'équipe ») : chemin interne uniquement
+  page: z
+    .string()
+    .max(300)
+    .regex(/^\/[^\s]*$/)
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
 });
 
 /** Réponse à un besoin sans compte (nom, entreprise, coordonnées, message, accord de transmission). */

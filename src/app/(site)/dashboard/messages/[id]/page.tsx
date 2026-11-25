@@ -1,3 +1,4 @@
+import { OfficialBadge, isOfficial } from "@/components/official-badge";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Paperclip } from "lucide-react";
@@ -18,7 +19,7 @@ export default async function ConversationPage(props: PageProps<"/dashboard/mess
   const supabase = await createClient();
   const { data: conv } = await supabase
     .from("conversations")
-    .select("id, subject, opportunity_id, service_offer_id, buyer_company_id, supplier_company_id, buyer:companies!conversations_buyer_company_id_fkey(name, slug), supplier:companies!conversations_supplier_company_id_fkey(name, slug)")
+    .select("id, subject, opportunity_id, service_offer_id, buyer_company_id, supplier_company_id, buyer:companies!conversations_buyer_company_id_fkey(name, slug, is_internal, verified_at), supplier:companies!conversations_supplier_company_id_fkey(name, slug, is_internal, verified_at)")
     .eq("id", id)
     .maybeSingle();
   if (!conv) notFound();
@@ -48,9 +49,15 @@ export default async function ConversationPage(props: PageProps<"/dashboard/mess
           />
         </div>
         <h1 className="mt-1 text-lg font-bold">
-          <Link href={`/entreprises/${other?.slug}`} className="hover:underline">
-            {other?.name}
-          </Link>
+          {isOfficial(other) ? (
+            <span className="inline-flex flex-wrap items-center gap-2">
+              {other?.name} <OfficialBadge />
+            </span>
+          ) : (
+            <Link href={`/entreprises/${other?.slug}`} className="hover:underline">
+              {other?.name}
+            </Link>
+          )}
         </h1>
         {conv.opportunity_id && (
           <p className="truncate text-sm text-slate-500">

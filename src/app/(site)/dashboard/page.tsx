@@ -1,3 +1,4 @@
+import { ContactTeamButton } from "@/components/contact-team-button";
 import Link from "next/link";
 import { TeamCard } from "@/components/dashboard/team-card";
 import { ArrowRight, BellRing, Briefcase, Megaphone, FileStack, Handshake, Heart, Inbox, Send, Sparkles, Users } from "lucide-react";
@@ -291,6 +292,9 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
       </details>
       <FeedbackPrompt userId={session.userId} createdAt={session.profile.created_at} now={nowMs()} />
       <SatisfactionAsk userId={session.userId} createdAt={session.profile.created_at} now={nowMs()} />
+      <div className="flex justify-center pt-2">
+        <ContactTeamButton />
+      </div>
     </div>
   );
 }
