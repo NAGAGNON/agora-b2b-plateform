@@ -1,3 +1,4 @@
+import { OfficialBadge, isOfficial } from "@/components/official-badge";
 import Link from "next/link";
 import { MessageSquare as PageIcon } from "lucide-react";
 import { DashboardPageHeader } from "@/components/dashboard/page-header";
@@ -17,7 +18,7 @@ export default async function MessagesPage() {
   const myIds = session.memberships.map((m) => m.company.id);
   const { data: convs } = await supabase
     .from("conversations")
-    .select("id, subject, last_message_at, opportunity_id, buyer:companies!conversations_buyer_company_id_fkey(id, name), supplier:companies!conversations_supplier_company_id_fkey(id, name), messages(id, body, read_at, sender_company_id, created_at)")
+    .select("id, subject, last_message_at, opportunity_id, buyer:companies!conversations_buyer_company_id_fkey(id, name, is_internal, verified_at), supplier:companies!conversations_supplier_company_id_fkey(id, name, is_internal, verified_at), messages(id, body, read_at, sender_company_id, created_at)")
     .order("last_message_at", { ascending: false })
     .order("created_at", { referencedTable: "messages", ascending: false })
     .limit(1, { referencedTable: "messages" });
@@ -56,7 +57,10 @@ export default async function MessagesPage() {
                 <Link href={`/dashboard/messages/${c.id}`} className={cn("flex items-start gap-3 px-5 py-4 hover:bg-sky/60", unread && "bg-sky/40")}>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-baseline justify-between gap-2">
-                      <p className={cn("truncate text-navy", unread ? "font-bold" : "font-semibold")}>{other?.name}</p>
+                      <p className={cn("flex min-w-0 items-center gap-2 text-navy", unread ? "font-bold" : "font-semibold")}>
+                        <span className="truncate">{other?.name}</span>
+                        {isOfficial(other) && <OfficialBadge className="shrink-0" />}
+                      </p>
                       <span className="shrink-0 text-xs text-slate-500">{relativeTime(c.last_message_at)}</span>
                     </div>
                     <p className="truncate text-xs text-slate-500">{c.subject}</p>
