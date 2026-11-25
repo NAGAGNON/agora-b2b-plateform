@@ -1,76 +1,110 @@
-import { config } from "dotenv";
 import { expect, test } from "@playwright/test";
-import { createClient } from "@supabase/supabase-js";
-import { RUN, login, newPage } from "./helpers";
+import { login, newPage, RUN, signUpWithCompany, expectNotFound } from "./helpers";
 
-config({ path: ".env.local" });
-const db = createClient(process.env.SUPABASE_URL!, (process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY)!, { auth: { persistSession: false } });
-let id = "";
+/**
+ * Parcours complet : inscription → entreprise → publication → validation →
+ * recherche → intérêt → réponse → traitement par le demandeur → clôture.
+ */
+test("parcours complet demandeur / modération / fournisseur", async ({ browser }) => {
+  const title = `Maintenance ${RUN} des pompes de relevage`;
 
-test.beforeAll(async () => {
-  const { data: u } = await db.from("users").select("id").eq("email", "acheteur@demo.linkprob2b.test").single();
-  const { data: m } = await db.from("company_members").select("company_id").eq("user_id", u!.id).limit(1).single();
-  const { data: o, error } = await db
-    .from("opportunities")
-    .insert({
-      type: "EXTERNAL_OPPORTUNITY", origin: "EXTERNAL", status: "PUBLISHED", visibility: "PUBLIC", is_demo: false,
-      title: `E2E ${RUN} Entretien des espaces verts`, summary: "Entretien des espaces verts.", description: "Marché d'entretien des espaces verts de la commune.",
-      sector_slug: "espaces-verts", department_code: "29", region: "Bretagne", city: "Brest", external_buyer_name: "Ville de test",
-      response_deadline: new Date(Date.now() + 20 * 86_400_000).toISOString(), published_at: new Date().toISOString(),
-    })
-    .select("id")
-    .single();
-  if (error) throw error;
-  id = o.id;
-  await db.from("pipeline_items").insert({ company_id: m!.company_id, opportunity_id: id, stage: "RESPONSE_PREPARING" });
-});
+  // 1-2. Inscription du demandeur et création de l'entreprise
+  const buyer = await newPage(browser);
+  await signUpWithCompany(buyer, "acheteur", `E2E Acheteur ${RUN}`, "Entreprise demandeuse");
+  await expect(buyer.getByText("Bienvenue sur LinkProB2B")).toBeVisible();
 
-test.afterAll(async () => {
-  if (!id) return;
-  await db.from("application_journal").delete().eq("opportunity_id", id);
-  await db.from("pipeline_items").delete().eq("opportunity_id", id);
-  await db.from("opportunities").delete().eq("id", id);
-});
+  // 3. Publication via le formulaire en 6 étapes
+  await buyer.goto("/publier");
+  await buyer.getByText("Demande de devis", { exact: true }).click();
+  await buyer.getByRole("button", { name: "Suivant" }).click();
+  await buyer.getByLabel("Titre").fill(title);
+  await buyer.getByLabel("Description détaillée").fill("Contrat de maintenance préventive pour deux pompes de relevage sur site industriel.");
+  await buyer.getByLabel("Secteur").selectOption("maintenance-industrielle");
+  await buyer.getByLabel("Ville").fill("Quimper");
+  await buyer.getByLabel("Budget maximum (€ HT)").fill("8000");
+  await buyer.getByRole("button", { name: "Suivant" }).click();
+  await buyer.getByLabel("Compétences recherchées").fill("pompes, hydraulique");
+  await buyer.locator('input[type="file"]').setInputFiles({ name: "cahier-des-charges.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4\n% Cahier des charges de test\n") });
+  await expect(buyer.getByText("cahier-des-charges.pdf")).toBeVisible();
+  await buyer.getByRole("button", { name: "Suivant" }).click();
+  const deadline = new Date(Date.now() + 30 * 86_400_000).toISOString().slice(0, 10);
+  await buyer.getByLabel("Date limite de réponse").fill(deadline);
+  await buyer.getByRole("button", { name: "Suivant" }).click();
+  await expect(buyer.getByRole("heading", { name: "Aperçu de votre publication" })).toBeVisible();
+  await expect(buyer.getByText(title)).toBeVisible();
+  await buyer.getByRole("button", { name: "Suivant" }).click();
+  await buyer.getByText("Je certifie être autorisé(e)").click();
+  await buyer.getByRole("button", { name: "Soumettre à validation" }).click();
+  await expect(buyer).toHaveURL(/\/dashboard\/opportunites\/[0-9a-f-]{36}\?cree=submit/);
+  await expect(buyer.getByText("En attente de validation").first()).toBeVisible();
+  await buyer.goto(buyer.url().replace(/\?.*$/, "") + "?onglet=documents");
+  await expect(buyer.getByRole("link", { name: "cahier-des-charges.pdf" })).toBeVisible();
+  const oppId = buyer.url().match(/opportunites\/([0-9a-f-]{36})/)![1];
 
-test("parcours en 7 étapes : capacités enregistrées, dépôt détaillé, suivi du résultat avec historique", async ({ browser }) => {
-  test.setTimeout(150_000);
-  const page = await newPage(browser);
-  await login(page, "acheteur@demo.linkprob2b.test");
-  await page.goto(`/dashboard/candidatures/${id}`);
-  const steps = page.getByTestId("steps");
-  for (const t of ["Vérifier votre éligibilité", "Comprendre le besoin de l'acheteur", "Évaluer vos capacités", "Rassembler les documents", "Préparer votre offre", "Organiser et déposer votre candidature", "Suivre le résultat"])
-    await expect(steps.getByText(t, { exact: true })).toBeVisible();
+  // Non publiée : invisible du public
+  const visitor = await newPage(browser);
+  await expectNotFound(visitor, await visitor.goto(`/opportunites/${oppId}`));
 
-  // Étape 3 : capacités, enregistrées automatiquement et retrouvées après rechargement
-  await steps.getByText("Évaluer vos capacités", { exact: true }).click();
-  const caps = page.getByTestId("checks-capacities");
-  await caps.getByRole("radiogroup", { name: "Équipe disponible pour ce travail" }).getByRole("radio", { name: "Je l'ai" }).click();
-  await caps.getByRole("radiogroup", { name: "Trésorerie pour avancer les frais" }).getByRole("radio", { name: "Il me manque" }).click();
-  await expect(caps).toContainText("Enregistré");
-  await expect(caps).toContainText("1 manquant");
-  await page.reload();
-  await page.getByTestId("steps").getByText("Évaluer vos capacités", { exact: true }).click();
-  await expect(page.getByTestId("checks-capacities").getByRole("radiogroup", { name: "Équipe disponible pour ce travail" }).getByRole("radio", { name: "Je l'ai" })).toHaveAttribute("aria-checked", "true");
+  // 4. Validation par la modération
+  const moderator = await newPage(browser);
+  await login(moderator, "moderateur@demo.linkprob2b.test");
+  await moderator.goto("/admin/moderation");
+  const card = moderator.locator("li", { hasText: title });
+  await card.getByRole("button", { name: "Approuver et publier" }).click();
+  await moderator.getByRole("button", { name: "Confirmer" }).click();
+  await expect(moderator.getByText("Opportunité publiée.")).toBeVisible();
 
-  // Étape 6 : dépôt avec plateforme et référence
-  await page.getByTestId("steps").getByText("Organiser et déposer votre candidature", { exact: true }).click();
-  const form = page.getByTestId("submission-form");
-  await form.getByRole("button", { name: "Candidature déposée" }).click();
-  await form.getByPlaceholder(/PLACE, AWS/).fill("PLACE");
-  await form.getByPlaceholder("Accusé de réception").fill("ACC-123");
-  await form.getByRole("button", { name: /Enregistrer où j'en suis/ }).click();
-  await expect(form).toContainText("Le dépôt est enregistré");
+  // 5. Recherche par un fournisseur
+  const supplier = await newPage(browser);
+  await signUpWithCompany(supplier, "fournisseur", `E2E Fournisseur ${RUN}`, "Fournisseur / prestataire");
+  await supplier.goto(`/opportunites?q=${encodeURIComponent(`pompes ${RUN}`)}`);
+  await expect(supplier.getByText("1 opportunité")).toBeVisible();
+  await supplier.getByRole("link", { name: title }).click();
+  await expect(supplier.getByText("Besoin publié sur LinkProB2B").first()).toBeVisible();
+  // Document de la consultation téléchargeable par un membre connecté
+  const doc = supplier.getByRole("link", { name: /cahier-des-charges\.pdf/ });
+  const download = await supplier.request.get((await doc.getAttribute("href"))!);
+  expect(download.status()).toBe(200);
+  expect((await download.body()).subarray(0, 4).toString()).toBe("%PDF");
 
-  // Étape 7 : résultat, conservé dans l'historique
-  await page.getByTestId("steps").getByText("Suivre le résultat", { exact: true }).click();
-  const tracker = page.getByTestId("result-tracker");
-  await tracker.getByLabel("Où en est votre candidature").selectOption("more_info");
-  await tracker.getByPlaceholder("Commentaire (facultatif)").fill("L'acheteur demande une attestation");
-  await tracker.getByRole("button", { name: "Enregistrer" }).click();
-  await expect(tracker).toContainText("Demande de complément");
-  await expect(tracker).toContainText("L'acheteur demande une attestation");
+  // 6. Manifestation d'intérêt
+  await supplier.getByRole("button", { name: "Envoyer un message" }).click();
+  await supplier.getByLabel("Votre message").fill("Nous intervenons sur ce type de pompes.");
+  await supplier.getByRole("button", { name: "Envoyer", exact: true }).click();
+  await expect(supplier.getByText("Votre message a été envoyé à l'entreprise.", { exact: false })).toBeVisible();
 
-  const { data } = await db.from("pipeline_items").select("stage, journey").eq("opportunity_id", id).single();
-  expect(data?.stage).toBe("RESPONSE_SENT");
-  expect(data?.journey).toMatchObject({ submission: { status: "submitted", platform: "PLACE", reference: "ACC-123" }, capacities: { team: { s: "yes" }, cash: { s: "no" } } });
+  // 7. Réponse à la consultation
+  await supplier.getByRole("link", { name: "Répondre à la consultation" }).click();
+  await supplier.getByLabel("Message d'accompagnement").fill("Proposition de contrat annuel avec deux visites préventives.");
+  await supplier.getByLabel("Prix (€ HT)").fill("7200");
+  await supplier.getByLabel("Délai").fill("Démarrage sous 2 semaines");
+  await supplier.locator('input[type="file"]').setInputFiles({ name: "devis.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4\n% Devis de test\n") });
+  await supplier.getByRole("button", { name: "Envoyer ma réponse" }).click();
+  await expect(supplier).toHaveURL(/reponse=envoyee/);
+  await expect(supplier.getByText("Réponse envoyée")).toBeVisible();
+
+  // 8. Traitement par le demandeur
+  await buyer.goto(`/dashboard/opportunites/${oppId}`);
+  await expect(buyer.getByText(`E2E Fournisseur ${RUN}`).first()).toBeVisible();
+  await expect(buyer.getByText(/7\s?200\s?€ HT/)).toBeVisible();
+  await expect(buyer.getByRole("link", { name: /devis\.pdf/ })).toBeVisible();
+  await buyer.getByRole("button", { name: "Présélectionner" }).first().click();
+  await buyer.getByRole("button", { name: "Confirmer" }).click();
+  await expect(buyer.getByText("Décision enregistrée. Le fournisseur a été notifié.")).toBeVisible();
+  await buyer.goto(`/dashboard/opportunites/${oppId}?onglet=comparer`);
+  await expect(buyer.getByRole("table", { name: "Comparaison des réponses" })).toBeVisible();
+
+  // 9. Clôture
+  await buyer.getByRole("button", { name: "Clôturer" }).click();
+  await buyer.getByLabel("Réponse retenue").selectOption({ index: 1 });
+  await buyer.getByRole("dialog").getByRole("button", { name: "Clôturer" }).click();
+  await expect(buyer.getByText("Clôturée").first()).toBeVisible();
+
+  // Le fournisseur voit le résultat
+  await supplier.goto("/dashboard/opportunites?onglet=reponses");
+  await expect(supplier.getByText("Retenue").first()).toBeVisible();
+  // Phase de lancement : le pipeline est accessible gratuitement, sans encart d'abonnement
+  await supplier.goto("/dashboard/pipeline");
+  await expect(supplier.getByRole("heading", { level: 1 })).toBeVisible();
+  await expect(supplier.getByRole("link", { name: "Découvrir LinkProB2B Pro" })).toHaveCount(0);
 });
