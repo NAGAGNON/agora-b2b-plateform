@@ -53,6 +53,18 @@ export function boampWhere(config: SourceConfig, since: Date, now = new Date()):
   return parts.join(" AND ");
 }
 
+/**
+ * Avis de marché encore ouverts mais sans champ « date limite » (≈ 10 % des avis BOAMP) : leur fin de
+ * diffusion (la date jusqu'à laquelle l'avis est publié) tient lieu de date limite. Repris chaque jour
+ * quelle que soit leur date de parution, pour n'en manquer aucun.
+ */
+export function boampNoDeadlineWhere(config: SourceConfig, now = new Date()): string {
+  const deps = asArray(config.departments).filter((d) => /^(\d{2,3}|2[AB])$/.test(d));
+  const parts = [`datelimitereponse is null`, `datefindiffusion >= date'${ymd(now)}'`, `nature="APPEL_OFFRE"`];
+  if (deps.length) parts.push(`(${deps.map((d) => `code_departement="${d}"`).join(" OR ")})`);
+  return parts.join(" AND ");
+}
+
 export function mapBoampRecord(r: Record<string, unknown>): MapResult {
   const id = cleanString(r.idweb, 60);
   const title = cleanString(r.objet, 300);
@@ -66,7 +78,8 @@ export function mapBoampRecord(r: Record<string, unknown>): MapResult {
   const procedure = cleanString(r.procedure_libelle, 120);
   const url = cleanString(r.url_avis, 400) ?? `https://www.boamp.fr/pages/avis/?q=idweb:${encodeURIComponent(id)}`;
   if (!isSafeUrl(url)) return { ok: false, reason: `URL invalide (${id})` };
-  const deadline = toIsoDeadline(r.datelimitereponse);
+  // Sans date limite publiée : la fin de diffusion de l'avis de marché en tient lieu
+  const deadline = toIsoDeadline(r.datelimitereponse) ?? (String(r.nature ?? "") === "APPEL_OFFRE" ? toIsoDeadline(r.datefindiffusion) : null);
   const { sector } = classifySector([], `${title} ${descriptors.join(" ")}`);
   const typeLabel = types.map((t) => t.toLowerCase()).join(", ");
   const description = [
@@ -112,6 +125,16 @@ export async function collectBoamp(ctx: ConnectorContext): Promise<ConnectorBatc
     const page = data.results ?? [];
     records.push(...page);
     if (page.length < 100 || records.length >= (data.total_count ?? Infinity)) break;
+  }
+  // Avis ouverts sans date limite publiée (toutes dates de parution)
+  const seen = new Set(records.map((r) => (r as Record<string, unknown>).idweb));
+  const where2 = boampNoDeadlineWhere(ctx.config, ctx.now);
+  for (let offset = 0; offset < 3000; offset += 100) {
+    const url = `${BOAMP_ENDPOINT}?${new URLSearchParams({ where: where2, order_by: "dateparution desc", limit: "100", offset: String(offset) })}`;
+    const data = (await getJson(ctx.fetchImpl, url)) as { results?: unknown[] };
+    const page = data.results ?? [];
+    for (const r of page) if (!seen.has((r as Record<string, unknown>).idweb)) records.push(r);
+    if (page.length < 100) break;
   }
   return { records, mapped: records.map((r) => mapBoampRecord(r as Record<string, unknown>)) };
 }

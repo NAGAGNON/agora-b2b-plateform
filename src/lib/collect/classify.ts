@@ -72,6 +72,16 @@ const CPV_RULES: [prefix: string, sector: string][] = [
 
 const KEYWORD_RULES: [RegExp, string][] = [
   [/\b(assurances?|mutuelles?|courtage)\b/, "assurances-finance"],
+  // Ajouts du 25/11 (offres restées sans métier) : expressions précises, avant les règles générales
+  [/\b(videos?|audiovisuel\w*|films?|festivals?|spectacles?|direction artistique|scenographie|expositions?|animations? (culturelles?|estivales?)|sites? (internet|web))\b/, "communication-evenementiel"],
+  [/\b(numerisation|ocerisation|archivage|archives|gestion documentaire|traduction|interpretariat|conciergerie|standard telephonique)\b/, "services-aux-entreprises"],
+  [/\b(etudes? (hydrologiques?|hydrauliques?|geotechniques?|de sols|environnementales?)|analyses? (de|des) (polluants|eaux?|sols?|air)|prelevements?|topographi\w*|bathymetri\w*|etudes? de (lutte|faisabilite|ruissellement)|laboratoire)\b/, "ingenierie-etudes"],
+  [/\b(deneigement|viabilite hivernale|milieux aquatiques|cours d eau|berges|rivieres?)\b/, "espaces-verts"],
+  [/\b(signalisation (horizontale|verticale|routiere)|enrobes?|chaussees?|restructuration|extension d un (batiment|college|groupe scolaire))\b/, "travaux-btp"],
+  [/\b(collecte|recyclage|valorisation des dechets|biodechets)\b/, "nettoyage-proprete"],
+  [/\b(mobiliers?|fournitures (scolaires|de bureau|administratives))\b/, "fournitures-industrielles"],
+  [/\b(transports? (sanitaires?|scolaires?|de personnes)|navettes?)\b/, "transport-logistique"],
+  [/\b(enquetes?|etude de marche|accompagner)\b/, "conseil"],
   [/\b(espaces? verts?|espaces? naturels?|paysag\w*|elagage|fauchage|tonte|arbres?)\b/, "espaces-verts"],
   [/\b(restauration (collective|scolaire)|repas|denrees|produits alimentaires|traiteur)\b/, "restauration-alimentation"],
   [/\b(publicite|evenementiel|reportages?|photographi\w*|imprimerie|impression|signaletique|graphisme|reseaux sociaux|communication)\b/, "communication-evenementiel"],

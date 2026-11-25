@@ -7,37 +7,37 @@ export type GuideStep = { title: string; how: string[] };
 
 export const APPLICATION_GUIDE: GuideStep[] = [
   {
-    title: "Vérifier que vous pouvez répondre",
+    title: "Vérifier votre éligibilité",
     how: [
-      "Regardez les conditions : certifications, chiffre d'affaires minimum, chantiers déjà réalisés, assurances.",
+      "Pour chaque condition de l'acheteur, indiquez si vous l'avez, s'il vous manque quelque chose ou s'il faut vérifier.",
       "Il vous manque quelque chose ? Répondez avec une autre entreprise (groupement) ou confiez-lui une partie du travail (sous-traitance).",
-      "Ajoutez vos certifications à votre fiche entreprise : LinkProB2B les compare pour vous à chaque offre.",
+      "Vous restez seul juge : LinkProB2B ne déclare jamais une entreprise éligible à sa place.",
     ],
   },
   {
-    title: "Télécharger le dossier",
+    title: "Comprendre le besoin de l'acheteur",
     how: [
-      "Le dossier complet se télécharge sur le site de l'acheteur : bouton « Voir l'annonce officielle » en haut de cette page.",
-      "Créez un compte sur ce site avant de télécharger : vous serez prévenu si le dossier change.",
-      "Lisez d'abord le règlement de la consultation (le document qui fixe les règles) : il dit quoi remettre, comment l'offre est notée et avant quand.",
-    ],
-  },
-  {
-    title: "Poser vos questions et faire la visite",
-    how: [
+      "Téléchargez le dossier complet sur le site de l'acheteur (bouton « Voir l'annonce officielle ») et lisez d'abord le règlement de la consultation (le document qui fixe les règles).",
       "Une question ? Posez-la sur le site de l'acheteur, avant la date limite des questions.",
       "Visite obligatoire ? Inscrivez-vous à temps et gardez l'attestation de visite : sans elle, votre offre peut être refusée.",
     ],
   },
   {
-    title: "Rassembler les pièces",
+    title: "Évaluer vos capacités",
+    how: [
+      "Faites le point sur vos moyens : équipe, matériel, trésorerie, délais.",
+      "Un point faible ? Pensez à un partenaire ou à un sous-traitant avant de vous lancer.",
+    ],
+  },
+  {
+    title: "Rassembler les documents",
     how: [
       "Le règlement de la consultation donne la liste exacte. Souvent : le DUME (formulaire de candidature en ligne) ou les formulaires DC1 et DC2, un extrait Kbis, les attestations URSSAF et impôts, l'attestation d'assurance.",
       "Vérifiez que chaque attestation est à jour, puis signez les documents demandés.",
     ],
   },
   {
-    title: "Rédiger votre réponse et vos prix",
+    title: "Préparer votre offre",
     how: [
       "Le mémoire technique, c'est le document où vous expliquez comment vous ferez le travail. Suivez les critères de notation, dans le même ordre.",
       "Soyez concret : méthode, planning, équipe, matériel, chantiers du même type déjà réalisés.",
@@ -45,11 +45,11 @@ export const APPLICATION_GUIDE: GuideStep[] = [
     ],
   },
   {
-    title: "Déposer avant la date limite",
+    title: "Organiser et déposer votre candidature",
     how: [
       "Déposez sur le site de l'acheteur. N'attendez pas la dernière heure : l'envoi des fichiers peut être long.",
       "Une offre arrivée après l'heure limite n'est pas lue.",
-      "Gardez l'accusé de réception, puis cliquez ici sur « J'ai déposé ma réponse ».",
+      "Gardez l'accusé de réception, puis indiquez ici la date et la référence du dépôt.",
     ],
   },
 ];

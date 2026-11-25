@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { classifySector } from "@/lib/collect/classify";
-import { boampWhere, mapBoampRecord, mapTedNotice, tedQuery, tedText } from "@/lib/collect/connectors";
+import { boampNoDeadlineWhere, boampWhere, mapBoampRecord, mapTedNotice, tedQuery, tedText } from "@/lib/collect/connectors";
 import { contentHash, dedupKey, isSameConsultation, normalizeText, titleSimilarity, toDate, toIsoDeadline } from "@/lib/collect/normalize";
 import { boampRecords, tedNotices } from "../fixtures/sources";
 
@@ -39,6 +39,14 @@ describe("connecteur BOAMP", () => {
   it("construit le filtre départemental", () => {
     const w = boampWhere({ departments: ["29", "56", "x;drop"] }, new Date("2026-10-01"), new Date("2026-10-07"));
     expect(w).toBe(`dateparution >= date'2026-10-01' AND datelimitereponse >= date'2026-10-07' AND (code_departement="29" OR code_departement="56")`);
+  });
+
+  it("reprend les avis de marché ouverts sans date limite publiée (fin de diffusion)", () => {
+    expect(boampNoDeadlineWhere({}, new Date("2026-11-25"))).toBe(`datelimitereponse is null AND datefindiffusion >= date'2026-11-25' AND nature="APPEL_OFFRE"`);
+    const [a] = boampRecords("V").map((r) => mapBoampRecord({ ...r, datelimitereponse: null, datefindiffusion: "2026-12-08", nature: "APPEL_OFFRE" }));
+    expect(a.ok && a.item.deadline?.slice(0, 10)).toBe("2026-12-08");
+    const [b] = boampRecords("W").map((r) => mapBoampRecord({ ...r, datelimitereponse: null, datefindiffusion: "2026-12-08", nature: "ATTRIBUTION" }));
+    expect(b.ok && b.item.deadline).toBeNull();
   });
 
   it("normalise un avis et rejette un avis incomplet", () => {

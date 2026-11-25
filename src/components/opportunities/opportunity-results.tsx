@@ -112,7 +112,19 @@ export async function OpportunityResults({ filters, rawParams, basePath, trackSe
       }
       if (extra.length >= 6) break;
     }
-    if (extra.length) related = { rows: extra.slice(0, 6), label: fam!.label.toLowerCase() };
+    const zoneLabel = fam ? `métiers proches (${fam.label.toLowerCase()}), dans la même zone` : "dans la même zone";
+    // Encore peu de choses : le même métier partout en France (beaucoup de prestations se font à distance ou se déplacent)
+    if (extra.length < 4 && (filters.region || filters.department || filters.city || filters.place)) {
+      const r = await searchOpportunities({ ...filters, region: undefined, department: undefined, city: undefined, place: undefined, q: undefined, page: 1 }, 6).catch(() => null);
+      const before = extra.length;
+      for (const o of r?.rows ?? []) {
+        if (seen.has(o.id)) continue;
+        seen.add(o.id);
+        extra.push(o);
+      }
+      if (extra.length > before) related = { rows: extra.slice(0, 8), label: before ? `${zoneLabel}, et le même métier partout en France` : "le même métier, partout en France" };
+    }
+    if (extra.length && !related) related = { rows: extra.slice(0, 6), label: zoneLabel };
   }
   // Recherche d'un membre : mesurée avec son nombre de résultats (part des recherches sans résultat)
   if (trackSearch && !error) {
@@ -324,7 +336,7 @@ export async function OpportunityResults({ filters, rawParams, basePath, trackSe
               {related && (
                 <section className="space-y-4" data-testid="related-results" aria-label="Offres de métiers proches">
                   <p className="rounded-2xl bg-sky px-4 py-3 text-sm text-navy ring-1 ring-slate-200">
-                    Peu d&apos;offres pour ce métier ici en ce moment. Voici aussi des offres de métiers proches ({related.label}), dans la même zone.
+                    Peu d&apos;offres pour ce métier ici en ce moment. Voici aussi : {related.label}.
                   </p>
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     {related.rows.map((o) => (

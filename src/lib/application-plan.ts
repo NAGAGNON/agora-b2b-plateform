@@ -10,7 +10,7 @@ const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDat
 
 /** Part du délai écoulée à la fin de chaque étape (0 = aujourd'hui, 1 = veille de la date limite). */
 const SHARE = [0, 0.1, 0.3, 0.55, 0.85, 1];
-const TITLES = ["Vérifier les conditions", "Télécharger le dossier", "Questions et visite", "Pièces prêtes", "Réponse rédigée", "Dépôt de l'offre"];
+const TITLES = ["Vérifier l'éligibilité", "Comprendre le besoin", "Évaluer vos capacités", "Documents prêts", "Offre préparée", "Dépôt de l'offre"];
 
 export function applicationPlan(deadline: string | null, done: number[], now = new Date(), startedAt?: string | null): PlanItem[] {
   if (!deadline) return [];
@@ -31,8 +31,8 @@ export function dueToday(plan: PlanItem[]) {
   return plan.filter((p) => p.status === "today" || p.status === "late");
 }
 
-/** Noms courts des 6 étapes (barre de progression). */
-export const STEP_SHORT = ["Conditions", "Dossier", "Questions et visite", "Pièces", "Rédaction", "Dépôt"];
+/** Noms courts des 6 étapes de préparation (barre de progression ; la 7e est le résultat). */
+export const STEP_SHORT = ["Éligibilité", "Besoin", "Capacités", "Documents", "Offre", "Dépôt"];
 
 /**
  * Étapes à venir dans les `horizon` prochains jours, avec leur écart en jours (0 = aujourd'hui ; une
