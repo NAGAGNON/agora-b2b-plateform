@@ -25,6 +25,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Pas de date de modification pour les pages fixes : une date toujours « maintenant » serait ignorée par Google
   const entries: MetadataRoute.Sitemap = STATIC_PATHS.map((p) => ({ url: `${base}${p}`, changeFrequency: p === "" ? "daily" : "monthly", priority: p === "" ? 1 : 0.6 }));
   entries.push(...GUIDES.map((g) => ({ url: `${base}/ressources/${g.slug}`, changeFrequency: "monthly" as const, priority: 0.5 })));
+  // Acheteurs publics par région : chaque page acheteur à deux clics de l'annuaire
+  entries.push(...[...REGIONS.map((r) => r.slug), "national"].map((slug) => ({ url: `${base}/acheteurs/region/${slug}`, changeFrequency: "daily" as const, priority: 0.6 })));
   // Missions freelance : la rubrique (toujours) et les pages de métier ayant assez d'offres (voir plus bas)
   entries.push({ url: `${base}/independants`, changeFrequency: "daily", priority: 0.6 });
 

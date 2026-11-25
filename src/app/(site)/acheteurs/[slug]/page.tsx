@@ -34,6 +34,7 @@ import { getDepartments, getMemberCompanies, getPlatformStats, liveStats } from 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { BriefSchema } from "@/lib/tender-brief";
 import { regionByName } from "@/lib/geo";
+import { allBuyers, buyerRegionSlug } from "@/lib/queries/buyers";
 import { ClipboardCheck, Layers, Sparkles } from "lucide-react";
 
 const nf = new Intl.NumberFormat("fr-FR");
@@ -67,17 +68,6 @@ const BUYER_FAMILIES: { label: string; re: RegExp }[] = [
   { label: "Énergie, transports et réseaux", re: /\bsncf\b|\bratp\b|\bedf\b|\brte\b|enedis|grdf|[ée]lectricit[ée]|\bgaz\b|transport/i },
 ];
 const familyOf = (name: string) => BUYER_FAMILIES.find((f) => f.re.test(name)) ?? null;
-
-/** Tous les acheteurs publics référencés (nom, région, marchés ouverts), en cache 30 minutes. */
-const allBuyers = unstable_cache(
-  async () => {
-    const { data, error } = await createAdminClient().rpc("public_buyers", { p_limit: 10000, p_offset: 0 });
-    if (error) throw error;
-    return (data ?? []).map((x) => ({ name: x.name, slug: x.slug, region: x.region, open: Number(x.open_count), total: Number(x.total_count) }));
-  },
-  ["public-buyers-all-v1"],
-  { revalidate: 1800 },
-);
 
 /** Les valeurs les plus fréquentes d'une liste (métiers, départements de l'acheteur). */
 function top(values: (string | null)[], n: number) {
@@ -170,6 +160,9 @@ export default async function BuyerPage(props: PageProps<"/acheteurs/[slug]">) {
   const mainRegion = top(b.all.map((o) => o.region), 1)[0] ?? null;
   const mainDept = top(b.all.map((o) => o.department_code), 1)[0] ?? null;
   const others = buyersRows.filter((x) => x.slug !== slug);
+  // Région de l'acheteur dans l'annuaire : lien vers la page « acheteurs publics de la région »
+  const selfRow = buyersRows.find((x) => x.slug === slug);
+  const regionPage = selfRow ? { slug: buyerRegionSlug(selfRow.region), name: selfRow.region ?? "France entière" } : null;
   const nearby = others.filter((x) => x.region === mainRegion && x.open > 0).slice(0, 6);
   // Acheteurs du même type (bailleurs, hôpitaux, communes…) : même région d'abord, puis ceux qui publient le plus
   const family = familyOf(b.name);
@@ -446,6 +439,7 @@ export default async function BuyerPage(props: PageProps<"/acheteurs/[slug]">) {
       <JsonLd
         data={breadcrumbLd([
           { name: "Acheteurs publics", path: "/acheteurs" },
+          ...(regionPage ? [{ name: regionPage.name, path: `/acheteurs/region/${regionPage.slug}` }] : []),
           { name: b.name, path },
         ])}
       />
@@ -463,7 +457,16 @@ export default async function BuyerPage(props: PageProps<"/acheteurs/[slug]">) {
             <Link href="/acheteurs" className="hover:underline">
               Acheteurs publics
             </Link>{" "}
-            / <span className="text-navy">{b.name}</span>
+            /{" "}
+            {regionPage && (
+              <>
+                <Link href={`/acheteurs/region/${regionPage.slug}`} className="hover:underline">
+                  {regionPage.name}
+                </Link>{" "}
+                /{" "}
+              </>
+            )}
+            <span className="text-navy">{b.name}</span>
           </nav>
           <div className="grid items-center gap-8 lg:grid-cols-[minmax(0,1fr)_24rem]">
             <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
