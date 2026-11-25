@@ -297,13 +297,13 @@ isOneToOne: true
                   ]
                 },"conversations": {
                   Row: {
-                    "buyer_company_id": string,"created_at": string,"created_by": string | null,"id": string,"last_message_at": string,"opportunity_id": string | null,"service_offer_id": string | null,"subject": string | null,"supplier_company_id": string
+                    "buyer_company_id": string,"created_at": string,"created_by": string | null,"direct": boolean,"id": string,"last_message_at": string,"opportunity_id": string | null,"service_offer_id": string | null,"subject": string | null,"supplier_company_id": string
                   }
                   Insert: {
-                    "buyer_company_id": string,"created_at"?: string,"created_by"?: string | null,"id"?: string,"last_message_at"?: string,"opportunity_id"?: string | null,"service_offer_id"?: string | null,"subject"?: string | null,"supplier_company_id": string
+                    "buyer_company_id": string,"created_at"?: string,"created_by"?: string | null,"direct"?: boolean,"id"?: string,"last_message_at"?: string,"opportunity_id"?: string | null,"service_offer_id"?: string | null,"subject"?: string | null,"supplier_company_id": string
                   }
                   Update: {
-                    "buyer_company_id"?: string,"created_at"?: string,"created_by"?: string | null,"id"?: string,"last_message_at"?: string,"opportunity_id"?: string | null,"service_offer_id"?: string | null,"subject"?: string | null,"supplier_company_id"?: string
+                    "buyer_company_id"?: string,"created_at"?: string,"created_by"?: string | null,"direct"?: boolean,"id"?: string,"last_message_at"?: string,"opportunity_id"?: string | null,"service_offer_id"?: string | null,"subject"?: string | null,"supplier_company_id"?: string
                   }
                   Relationships: [
                     {
@@ -2063,6 +2063,9 @@ isOneToOne: false
                            },
 "convert_need_to_service_offer":
 { Args: { "p_opportunity_id": string,"p_note"?: string }; Returns: string
+                           },
+"contact_company":
+{ Args: { "p_target_company_id": string,"p_company_id": string,"p_body": string }; Returns: string
                            },
 "contact_service_offer":
 { Args: { "p_offer_id": string,"p_company_id": string,"p_body": string }; Returns: string

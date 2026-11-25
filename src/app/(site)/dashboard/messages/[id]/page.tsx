@@ -19,7 +19,7 @@ export default async function ConversationPage(props: PageProps<"/dashboard/mess
   const supabase = await createClient();
   const { data: conv } = await supabase
     .from("conversations")
-    .select("id, subject, opportunity_id, service_offer_id, buyer_company_id, supplier_company_id, buyer:companies!conversations_buyer_company_id_fkey(name, slug, is_internal, verified_at), supplier:companies!conversations_supplier_company_id_fkey(name, slug, is_internal, verified_at)")
+    .select("id, subject, opportunity_id, service_offer_id, direct, buyer_company_id, supplier_company_id, buyer:companies!conversations_buyer_company_id_fkey(name, slug, is_internal, verified_at), supplier:companies!conversations_supplier_company_id_fkey(name, slug, is_internal, verified_at)")
     .eq("id", id)
     .maybeSingle();
   if (!conv) notFound();
@@ -75,6 +75,7 @@ export default async function ConversationPage(props: PageProps<"/dashboard/mess
             </Link>
           </p>
         )}
+        {conv.direct && <p className="text-sm text-slate-500">Échange direct entre entreprises, ouvert depuis l&apos;annuaire.</p>}
       </header>
       <ol id="conversation-messages" className="flex-1 space-y-3 overflow-y-auto p-4" aria-label="Messages" aria-live="polite">
         {(messages ?? []).map((m) => {
