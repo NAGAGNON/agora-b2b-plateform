@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { getSession } from "@/lib/auth";
 import { actionError } from "@/lib/errors";
 import { flushEmailsAfterResponse } from "@/lib/email/flush";
 import { messageSchema, parseForm, type ActionResult } from "@/lib/validation";
@@ -48,4 +49,28 @@ export async function sendMessage(_prev: ActionResult | null, fd: FormData): Pro
   revalidatePath(`/dashboard/messages/${conversationId}`);
   revalidatePath("/dashboard/messages");
   return { ok: true };
+}
+
+const directSchema = z.object({
+  targetCompanyId: z.uuid(),
+  body: z.string().trim().min(10, "Votre message est trop court (10 caractères au moins).").max(5000),
+});
+
+/** Écrire à une entreprise de l'annuaire : la conversation directe s'ouvre (ou reprend) dans la messagerie. */
+export async function contactCompany(_prev: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  const parsed = parseForm(directSchema, fd);
+  if (!parsed.success) return parsed.result;
+  const session = await getSession();
+  if (!session) return { ok: false, error: "Connectez-vous pour écrire à cette entreprise." };
+  if (!session.activeCompany) return { ok: false, error: "Créez d'abord le profil de votre entreprise pour écrire aux autres entreprises." };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("contact_company", {
+    p_target_company_id: parsed.data.targetCompanyId,
+    p_company_id: session.activeCompany.company.id,
+    p_body: parsed.data.body,
+  });
+  if (error || !data) return actionError(error);
+  flushEmailsAfterResponse();
+  revalidatePath("/dashboard/messages");
+  redirect(`/dashboard/messages/${data}`);
 }

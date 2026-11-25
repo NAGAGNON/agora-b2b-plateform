@@ -11,6 +11,7 @@ import { CompanyLogo } from "@/components/companies/company-card";
 import { OpportunityCard } from "@/components/opportunities/opportunity-card";
 import { FavoriteButton } from "@/components/opportunities/favorite-button";
 import { FollowButton } from "@/components/companies/follow-button";
+import { MessageCompanyButton } from "@/components/companies/message-company-button";
 import { companyServiceOffers } from "@/lib/queries/service-offers";
 import { availabilityLabel } from "@/lib/service-offers-core";
 import { ReportButton } from "@/components/report-button";
@@ -92,7 +93,8 @@ export default async function CompanyPage(props: PageProps<"/entreprises/[slug]"
   const myCompany = session?.activeCompany?.company.id;
   // Disponibilités en ligne de l'entreprise (ce qu'elle peut faire en ce moment)
   const available = await companyServiceOffers(c.id).catch(() => []);
-  const [{ data: opps }, fav, { data: photos }, followRow, { data: followers }] = await Promise.all([
+  const canMessage = !isMember && Boolean(profile?.is_public) && !c.is_internal && c.status === "ACTIVE";
+  const [{ data: opps }, fav, { data: photos }, followRow, { data: followers }, directConv] = await Promise.all([
     supabase
       .from("opportunities")
       .select("id, title, summary, type, origin, status, sector_slug, city, department_code, budget_min, budget_max, budget_visible, response_deadline, published_at, is_demo")
@@ -106,6 +108,15 @@ export default async function CompanyPage(props: PageProps<"/entreprises/[slug]"
       ? supabase.from("company_follows").select("followed_company_id").eq("follower_company_id", myCompany).eq("followed_company_id", c.id).maybeSingle()
       : null,
     supabase.rpc("company_followers_count", { p_company_id: c.id }),
+    // Conversation directe déjà ouverte avec cette entreprise (dans un sens ou dans l'autre)
+    canMessage && myCompany
+      ? supabase
+          .from("conversations")
+          .select("id")
+          .eq("direct", true)
+          .or(`and(buyer_company_id.eq.${myCompany},supplier_company_id.eq.${c.id}),and(buyer_company_id.eq.${c.id},supplier_company_id.eq.${myCompany})`)
+          .maybeSingle()
+      : null,
   ]);
 
   return (
@@ -177,7 +188,18 @@ export default async function CompanyPage(props: PageProps<"/entreprises/[slug]"
                   {c.is_demo && <DemoBadge />}
                 </div>
                 {!isMember && profile?.is_public && (
-                  <div className="mt-4">
+                  <div className="mt-4 flex flex-wrap items-center gap-3">
+                    {canMessage && (
+                      <MessageCompanyButton
+                        companyId={c.id}
+                        companyName={c.name}
+                        slug={c.slug}
+                        signedIn={Boolean(session)}
+                        hasCompany={Boolean(myCompany)}
+                        conversationId={directConv?.data?.id ?? null}
+                        autoOpen={sp.message === "1"}
+                      />
+                    )}
                     <FollowButton companyId={c.id} initial={Boolean(followRow?.data)} signedIn={Boolean(session)} followers={Number(followers ?? 0)} />
                   </div>
                 )}
@@ -362,9 +384,11 @@ export default async function CompanyPage(props: PageProps<"/entreprises/[slug]"
             {!isMember && (
               <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                 <FavoriteButton target="company" id={c.id} initial={Boolean(fav?.data)} signedIn={Boolean(session)} />
-                <p className="mt-3 text-xs text-slate-500">
-                  La messagerie s&apos;ouvre dans le cadre d&apos;une opportunité (manifestation d&apos;intérêt ou réponse).
-                </p>
+                {canMessage && (
+                  <p className="mt-3 text-xs text-slate-500">
+                    Écrivez-lui directement avec « Envoyer un message » : l&apos;échange se poursuit dans votre messagerie.
+                  </p>
+                )}
               </div>
             )}
             {isMember && (

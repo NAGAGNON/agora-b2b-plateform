@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, BadgeCheck, Building2, MapPin, Users } from "lucide-react";
+import { BadgeCheck, Building2, MapPin, MessageSquareText, Users } from "lucide-react";
 import { DemoBadge } from "@/components/demo";
 import { COMPANY_KIND_LABELS, COMPANY_SIZE_LABELS, sectorLabel, type CompanyKind, type CompanySize } from "@/lib/constants";
 import { getSectorLabels } from "@/lib/queries/platform";
@@ -118,9 +118,13 @@ export async function CompanyCard({ c }: { c: CompanyCardData }) {
               <span className="text-slate-400">France</span>
             )}
           </span>
-          <span className="inline-flex shrink-0 items-center gap-1 font-semibold text-teal-700">
-            Voir la fiche <ArrowRight className="size-4 transition group-hover:translate-x-1" aria-hidden />
-          </span>
+          <Link
+            href={`/entreprises/${c.slug}?message=1`}
+            title="Envoyer un message à cette entreprise"
+            className="relative z-10 inline-flex shrink-0 items-center gap-1.5 rounded-full bg-teal-50 px-3 py-1.5 font-semibold text-teal-800 ring-1 ring-teal/30 transition hover:-translate-y-0.5 hover:bg-teal hover:text-navy hover:shadow-md"
+          >
+            <MessageSquareText className="size-4" aria-hidden /> Écrire
+          </Link>
         </div>
       </div>
     </article>

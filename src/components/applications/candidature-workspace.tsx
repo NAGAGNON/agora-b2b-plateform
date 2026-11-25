@@ -475,7 +475,9 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
 
       <div className="grid gap-6 sm:gap-8 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <div className="min-w-0 space-y-6">
-          {/* À l'étude : la décision d'abord (sans engagement), l'essentiel de l'annonce juste en dessous */}
+          {/* À l'étude : l'essentiel de l'annonce d'abord, puis la décision (sans engagement) */}
+          {discovery && essentials}
+
           {discovery && (
             <section className="plan-in relative overflow-hidden rounded-3xl bg-gradient-to-br from-white via-white to-teal-50/60 p-6 shadow-lg ring-1 ring-teal/30 sm:p-8" data-testid="decision">
               <div aria-hidden className="pointer-events-none absolute -top-24 -right-16 size-64 animate-aurora rounded-full bg-teal/15 blur-3xl" />
@@ -494,7 +496,7 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
                 </p>
                 <h2 className="mt-3 font-heading text-2xl font-extrabold text-balance text-navy sm:text-3xl">Alors, cette offre vous intéresse ?</h2>
                 <p className="mx-auto mt-2 max-w-2xl text-balance text-slate-600">
-                  {later ? "Elle est enregistrée dans vos candidatures. Quand vous êtes prêt, on vous guide étape par étape." : "L'essentiel de l'annonce est juste en dessous. Vous pouvez changer d'avis à tout moment."}
+                  {later ? "Elle est enregistrée dans vos candidatures. Quand vous êtes prêt, on vous guide étape par étape." : essentials ? "Vous avez l'essentiel de l'annonce juste au-dessus. Vous pouvez changer d'avis à tout moment." : "Vous pouvez changer d'avis à tout moment."}
                 </p>
               </div>
               <div className="relative mt-5 grid gap-2.5 sm:mt-6 sm:grid-cols-3 sm:gap-3">
@@ -548,8 +550,6 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
               </div>
             </section>
           )}
-
-          {discovery && essentials}
 
           {/* Réponse envoyée : le résultat d'abord */}
           {sent && (
