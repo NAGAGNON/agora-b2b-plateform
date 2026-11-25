@@ -100,9 +100,7 @@ export async function generateMetadata(props: PageProps<"/acheteurs/[slug]">) {
   const total = Math.max(b.all.length, real?.total ?? 0);
   return pageMetadata({
     // Formulation des recherches réelles (« [acheteur] appel d'offre »), année pour la fraîcheur
-    title: n
-      ? clip(`Appels d'offres ${b.name} ${year} : ${nf.format(n)} en cours`, 64)
-      : clip(`Appels d'offres ${b.name} : historique ${year}`, 64),
+    title: buyerTitle(b.name, n, year),
     description: `${n ? `${nf.format(n)} appel${n > 1 ? "s" : ""} d'offres en cours` : "Aucun appel d'offres en cours"} et historique de ${nf.format(total)} annonce${total > 1 ? "s" : ""} de ${b.name} : objet, lieu, date limite, délai pour répondre, d'après les annonces officielles (BOAMP, TED). Alerte e-mail gratuite à chaque nouveau marché.`,
     path: `/acheteurs/${slug}`,
     // Indexée avec au moins un appel d'offres ouvert, ou un historique réel (2 annonces ou plus) :
@@ -757,4 +755,21 @@ export default async function BuyerPage(props: PageProps<"/acheteurs/[slug]">) {
       </div>
     </div>
   );
+}
+
+/**
+ * Titre d'une page acheteur : le mot-clé recherché (« [acheteur] appel d'offre ») et l'année d'abord.
+ * Nom trop long : le sigle passe devant (« Appels d'offres CNG 2026 : 3 en cours – Centre National de
+ * Gestion »), pour que l'année et le nombre restent visibles dans Google (64 signes au plus).
+ */
+function buyerTitle(name: string, n: number, year: number): string {
+  const tail = n ? `${year} : ${nf.format(n)} en cours` : `${year} : historique`;
+  const full = `Appels d'offres ${name} ${tail}`;
+  if (full.length <= 64) return full;
+  const acr = /\(([A-Z0-9][A-Z0-9&.\- ]{1,14})\)/.exec(name)?.[1]?.trim();
+  if (acr) {
+    const rest = name.replace(/\s*\([^)]*\)\s*/, " ").trim();
+    return clip(`Appels d'offres ${acr} ${tail} – ${rest}`, 64);
+  }
+  return clip(`Appels d'offres ${name} ${year}`, 64);
 }
