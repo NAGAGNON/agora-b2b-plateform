@@ -117,7 +117,7 @@ export async function resolveLanding(slug: string, sub?: string, third?: string)
       kind: "department-sector",
       fixed: { departement: dep.code, secteur: sector.slug },
       title: `Appels d'offres ${label} — ${inDep(dep)}`,
-      heading: `${sector.label} — ${inDep(dep)}`,
+      heading: `Appels d'offres ${sector.label.toLowerCase()} — ${inDep(dep)}`,
       intro: `Appels d'offres, marchés publics et besoins d'entreprises en ${label} dans le département ${inDep(dep)}, mis à jour chaque jour. Activez une alerte pour recevoir les nouveaux marchés dès leur publication.`,
       description: `Marchés publics et appels d'offres ${label} dans le département ${inDep(dep)} : consultations ouvertes, échéances et acheteurs, mis à jour chaque jour. Alerte gratuite.`,
       crumbs: [
@@ -148,7 +148,7 @@ export async function resolveLanding(slug: string, sub?: string, third?: string)
       kind: "region-sector",
       fixed: { region: region.slug, secteur: sector.slug },
       title: `${sector.label} : appels d'offres en ${region.name}`,
-      heading: `${sector.label} — ${region.name}`,
+      heading: `Appels d'offres ${sector.label.toLowerCase()} — ${region.name}`,
       intro: `Appels d'offres, consultations et besoins d'entreprises en ${sector.label.toLowerCase()} dans la région ${region.name}.`,
       description: `Opportunités B2B et marchés publics en ${sector.label.toLowerCase()} en ${region.name} : appels d'offres, consultations et besoins d'entreprises, mis à jour chaque jour.`,
       crumbs: [{ name: region.name, path: `/opportunites/${region.slug}` }, { name: sector.label, path: `/opportunites/${region.slug}/${sector.slug}` }],
@@ -160,8 +160,8 @@ export async function resolveLanding(slug: string, sub?: string, third?: string)
     return {
       kind: "france",
       fixed: {},
-      title: "Appels d'offres et opportunités B2B en France",
-      heading: "Opportunités B2B partout en France",
+      title: "Appels d'offres et marchés publics en France",
+      heading: "Appels d'offres partout en France",
       intro: "Appels d'offres, marchés publics, consultations et besoins d'entreprises dans toutes les régions, métropole et outre-mer.",
       description: "Toutes les opportunités B2B en France : appels d'offres publics (BOAMP, TED), consultations et besoins d'entreprises, par région, département et secteur.",
       crumbs: [{ name: "France", path: "/opportunites/france" }],
@@ -173,8 +173,8 @@ export async function resolveLanding(slug: string, sub?: string, third?: string)
     return {
       kind: "region",
       fixed: { region: region.slug },
-      title: `Appels d'offres et marchés en ${region.name}`,
-      heading: `Opportunités B2B en ${region.name}`,
+      title: `Appels d'offres en ${region.name}`,
+      heading: `Appels d'offres en ${region.name}`,
       intro: `Appels d'offres, marchés publics, consultations et besoins d'entreprises dans la région ${region.name}.`,
       description: `Opportunités B2B en ${region.name} : appels d'offres publics, consultations et besoins d'entreprises, par département et par secteur, mis à jour chaque jour.`,
       crumbs: [{ name: region.name, path: `/opportunites/${region.slug}` }],
@@ -187,7 +187,7 @@ export async function resolveLanding(slug: string, sub?: string, third?: string)
       kind: "sector",
       fixed: { secteur: sector.slug },
       title: `Appels d'offres ${sector.label.toLowerCase()} en France`,
-      heading: `Opportunités — ${sector.label}`,
+      heading: `Appels d'offres — ${sector.label}`,
       intro: `Besoins publiés par des entreprises et marchés publics référencés dans le secteur ${sector.label.toLowerCase()}, partout en France.`,
       description: `Besoins d'entreprises, appels d'offres et consultations en ${sector.label.toLowerCase()} partout en France, par région et département.`,
       crumbs: [{ name: sector.label, path: `/opportunites/${sector.slug}` }],
@@ -213,7 +213,7 @@ function departmentLanding(
     kind: "department",
     fixed: { departement: dep.code },
     title: `Appels d'offres ${dep.name} (${dep.code})`,
-    heading: `Opportunités dans le département ${dep.name}`,
+    heading: `Appels d'offres dans le département ${dep.name}`,
     intro: `Besoins publiés par des entreprises et marchés publics référencés dans le département ${dep.name} (${dep.code}).`,
     description: `Besoins d'entreprises, appels d'offres et opportunités professionnelles dans le département ${dep.name} (${dep.code}), ${dep.region}.`,
     crumbs: [
@@ -223,4 +223,22 @@ function departmentLanding(
     childrenLabel: "Par métier",
     children: withOpps.map((s) => ({ name: s.label, path: `/opportunites/${regionSlug}/${dep.slug}/${s.slug}` })),
   };
+}
+
+/** Sujet d'une page d'atterrissage, sans « Appels d'offres » ni « Opportunités » (« Île-de-France », « Var »…). */
+export function landingSubject(heading: string): string {
+  const s = heading.replace(/^(Opportunités (B2B )?|Appels d'offres )(partout en |dans le département |en |— )?/, "");
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+/**
+ * Titre de page d'atterrissage qui donne envie de cliquer : le mot-clé, l'année et le nombre d'offres
+ * ouvertes (« Appels d'offres en Bretagne 2026 : 412 marchés ouverts »), dans la limite de 65 signes.
+ */
+export function landingTitle(base: string, total: number, now = new Date()): string {
+  const year = now.getFullYear();
+  const n = new Intl.NumberFormat("fr-FR").format(total).replace(/\u202f/g, " ");
+  const full = `${base} ${year} : ${n} marché${total > 1 ? "s" : ""} ouvert${total > 1 ? "s" : ""}`;
+  if (total >= 2 && full.length <= 65) return full;
+  return `${base} ${year}`.length <= 65 ? `${base} ${year}` : base;
 }

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Logo } from "@/components/logo";
 import { SLOGAN } from "@/lib/constants";
 import { SAME_AS } from "@/components/json-ld";
+import { REGIONS } from "@/lib/geo";
 
 const COLUMNS = [
   {
@@ -22,6 +23,7 @@ const COLUMNS = [
       { href: "/independants", label: "Missions freelance" },
       { href: "/demandeurs", label: "Pour les demandeurs" },
       { href: "/ingenieurs-affaires", label: "Pour les ingénieurs d'affaires" },
+      { href: "/ressources/ou-trouver-des-appels-d-offres", label: "Où trouver des appels d'offres" },
       { href: "/ressources", label: "Ressources et guides" },
       { href: "/analyses", label: "Analyses des marchés" },
       { href: "/acheteurs", label: "Acheteurs publics" },
@@ -49,6 +51,18 @@ const COLUMNS = [
   },
 ];
 
+/** Liens vers les pages d'appels d'offres les plus recherchées (maillage interne : texte du lien = mot-clé). */
+const TOP_TRADES = [
+  { slug: "travaux-btp", label: "BTP" },
+  { slug: "nettoyage-proprete", label: "nettoyage" },
+  { slug: "informatique", label: "informatique" },
+  { slug: "transport-logistique", label: "transport" },
+  { slug: "espaces-verts", label: "espaces verts" },
+  { slug: "securite-surete", label: "sécurité" },
+  { slug: "restauration-alimentation", label: "restauration" },
+  { slug: "formation", label: "formation" },
+];
+
 export function Footer() {
   return (
     <footer className="mt-auto bg-navy text-slate-300">
@@ -72,6 +86,32 @@ export function Footer() {
             </ul>
           </nav>
         ))}
+      </div>
+      <div className="container-page grid gap-6 border-t border-white/10 py-8 text-sm sm:grid-cols-2">
+        <nav aria-label="Appels d'offres dans votre région">
+          <h2 className="text-sm font-bold text-white">Appels d&apos;offres dans votre région</h2>
+          <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5">
+            {REGIONS.map((r) => (
+              <li key={r.slug}>
+                <Link href={`/opportunites/${r.slug}`} className="hover:text-white hover:underline">
+                  Appels d&apos;offres {r.name}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
+        <nav aria-label="Appels d'offres de votre métier">
+          <h2 className="text-sm font-bold text-white">Appels d&apos;offres de votre métier</h2>
+          <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5">
+            {TOP_TRADES.map((t) => (
+              <li key={t.slug}>
+                <Link href={`/opportunites/${t.slug}`} className="hover:text-white hover:underline">
+                  Appels d&apos;offres {t.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
       </div>
       <div className="border-t border-white/10">
         <div className="container-page flex flex-col gap-2 py-4 text-xs text-slate-400 sm:flex-row sm:items-center sm:justify-between">

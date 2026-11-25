@@ -111,8 +111,10 @@ export async function generateMetadata(props: PageProps<"/opportunites/[id]">): 
       .limit(300);
     canonicalId = primaryOf(o, siblings ?? []);
   }
+  // Mot-clé recherché (« appel d'offres ») dans le titre quand il tient en entier (65 signes au plus)
+  const keyworded = o.origin === "EXTERNAL" && location && `${o.title} – Appel d'offres ${location}`.length <= 65 && !/appel d.offres/i.test(o.title) ? `${o.title} – Appel d'offres ${location}` : null;
   return pageMetadata({
-    title: qualifier && !o.title.toLowerCase().includes(qualifier.toLowerCase()) ? `${clip(o.title, 62 - Math.min(qualifier.length, 28) - 3)} – ${clip(qualifier, 28)}` : clip(o.title, 62),
+    title: keyworded ?? (qualifier && !o.title.toLowerCase().includes(qualifier.toLowerCase()) ? `${clip(o.title, 62 - Math.min(qualifier.length, 28) - 3)} – ${clip(qualifier, 28)}` : clip(o.title, 62)),
     description: clip([intro, ...details].filter(Boolean).join(" · "), 160),
     path: `/opportunites/${canonicalId}`,
     noindex: !indexable,
