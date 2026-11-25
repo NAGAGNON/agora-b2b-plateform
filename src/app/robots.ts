@@ -6,7 +6,8 @@ export default function robots(): MetadataRoute.Robots {
     rules: [
       {
         userAgent: "*",
-        allow: "/",
+        // Logos des entreprises (servis par /api/logos/) : visibles par Google, comme le reste de la page
+        allow: ["/", "/api/logos/"],
         disallow: [
           "/dashboard", "/essai", "/admin", "/onboarding", "/api/", "/go/", "/auth/", "/connexion", "/mot-de-passe-oublie", "/reinitialiser-mot-de-passe", "/alertes/", "/outreach", "/opportunites/selection/", "/desinscription/",
           // Combinaisons de filtres (nombre illimité, déjà marquées « noindex ») : chaque page explorée
