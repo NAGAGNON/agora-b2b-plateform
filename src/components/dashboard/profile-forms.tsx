@@ -13,7 +13,7 @@ import { COMPANY_ROLE_LABELS, type CompanyRole } from "@/lib/constants";
 import { ActionError } from "@/components/billing/upgrade-prompt";
 import { LegalNote } from "@/components/legal-note";
 
-type NotifyPrefs = Partial<Record<"need_reminders" | "pipeline" | "matching" | "status", boolean>>;
+type NotifyPrefs = Partial<Record<"need_reminders" | "pipeline" | "matching" | "status" | "messages", boolean>>;
 
 export function UserProfileForm({ v }: { v: { full_name: string; job_title: string | null; phone: string | null; notify_email: boolean; notify_prefs?: unknown; marketing_consent: boolean; email: string } }) {
   const [state, action] = useActionState(updateUserProfile, null);
@@ -38,8 +38,9 @@ export function UserProfileForm({ v }: { v: { full_name: string; job_title: stri
       </Field>
       <fieldset className="space-y-3 rounded-xl border border-slate-200 p-4">
         <legend className="px-1 text-sm font-semibold text-navy">Notifications par e-mail</legend>
-        <Checkbox name="notifyEmail" defaultChecked={v.notify_email} label="Recevoir les notifications par e-mail" hint="Interrupteur général. Les messages, marques d'intérêt et réponses reçus sont toujours envoyés." />
+        <Checkbox name="notifyEmail" defaultChecked={v.notify_email} label="Recevoir les notifications par e-mail" hint="Interrupteur général. Les marques d'intérêt et réponses reçues sont toujours envoyées ; les messages se règlent juste en dessous." />
         <div className="space-y-3 border-l-2 border-slate-100 pl-4">
+          <Checkbox name="notifyMessages" defaultChecked={on("messages")} label="Messages reçus" hint="Un e-mail avec le message à chaque nouveau message. Vous pouvez aussi couper une seule conversation depuis la messagerie." />
           <Checkbox name="notifyNeedReminders" defaultChecked={on("need_reminders")} label="Rappels sur mes besoins" hint="Besoin sans réponse après 3 jours, date limite dans moins de 48 h." />
           <Checkbox name="notifyStatus" defaultChecked={on("status")} label="Décisions et changements de statut" hint="Publication, modification demandée, clôture, réponse retenue ou déclinée." />
           <Checkbox name="notifyMatching" defaultChecked={on("matching")} label="Opportunités et besoins qui correspondent à mon activité" hint="Alertes immédiates et besoins publiés dans votre métier." />

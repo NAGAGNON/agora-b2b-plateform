@@ -46,7 +46,7 @@ export default async function NotificationsPage() {
                   {formatDateTime(n.created_at)}
                 </time>
               </div>
-              {n.body && <p className="mt-1 text-sm text-slate-600">{n.body}</p>}
+              {n.body && <p className="mt-1 line-clamp-3 text-sm text-slate-600">{n.body}</p>}
             </li>
           ))}
         </ul>

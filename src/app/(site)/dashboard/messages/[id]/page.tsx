@@ -10,6 +10,7 @@ import { formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { env } from "@/lib/env";
 import { RealtimeRefresh, ScrollToEnd } from "@/components/realtime";
+import { ConversationEmailToggle } from "@/components/dashboard/conversation-email-toggle";
 
 export const metadata = { title: "Conversation" };
 
@@ -24,7 +25,10 @@ export default async function ConversationPage(props: PageProps<"/dashboard/mess
     .maybeSingle();
   if (!conv) notFound();
   await supabase.rpc("mark_conversation_read", { p_conversation_id: id });
-  const { data: messages } = await supabase.from("messages").select("*").eq("conversation_id", id).order("created_at");
+  const [{ data: messages }, { data: mute }] = await Promise.all([
+    supabase.from("messages").select("*").eq("conversation_id", id).order("created_at"),
+    supabase.from("conversation_email_mutes").select("conversation_id").eq("user_id", session.userId).eq("conversation_id", id).maybeSingle(),
+  ]);
   const myIds = session.memberships.map((m) => m.company.id);
   const iAmBuyer = myIds.includes(conv.buyer_company_id);
   const one = <T,>(v: T | T[] | null): T | null => (Array.isArray(v) ? (v[0] ?? null) : v);
@@ -38,6 +42,7 @@ export default async function ConversationPage(props: PageProps<"/dashboard/mess
           <Link href="/dashboard/messages" className="text-xs font-semibold text-teal-700 hover:underline">
             ← Toutes les conversations
           </Link>
+          <ConversationEmailToggle conversationId={conv.id} initialMuted={Boolean(mute)} />
           <RealtimeRefresh
             config={env.realtime}
             channel={`conversation:${conv.id}`}

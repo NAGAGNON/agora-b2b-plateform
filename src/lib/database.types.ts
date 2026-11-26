@@ -295,6 +295,16 @@ isOneToOne: true
                   Relationships: [
                     
                   ]
+                },"conversation_email_mutes": {
+                  Row: { "conversation_id": string; "created_at": string; "user_id": string }
+                  Insert: { "conversation_id": string; "created_at"?: string; "user_id": string }
+                  Update: { "conversation_id"?: string; "created_at"?: string; "user_id"?: string }
+                  Relationships: []
+                },"pro_grants": {
+                  Row: { "created_at": string; "reason": string; "until": string; "user_id": string }
+                  Insert: { "created_at"?: string; "reason": string; "until": string; "user_id": string }
+                  Update: { "created_at"?: string; "reason"?: string; "until"?: string; "user_id"?: string }
+                  Relationships: []
                 },"conversations": {
                   Row: {
                     "buyer_company_id": string,"created_at": string,"created_by": string | null,"direct": boolean,"id": string,"last_message_at": string,"opportunity_id": string | null,"service_offer_id": string | null,"subject": string | null,"supplier_company_id": string

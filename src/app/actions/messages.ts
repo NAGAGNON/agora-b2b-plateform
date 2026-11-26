@@ -74,3 +74,18 @@ export async function contactCompany(_prev: ActionResult | null, fd: FormData): 
   revalidatePath("/dashboard/messages");
   redirect(`/dashboard/messages/${data}`);
 }
+
+
+/** Couper (ou rétablir) les e-mails d'une conversation pour soi ; la notification sur le site reste. */
+export async function setConversationEmails(conversationId: string, muted: boolean): Promise<ActionResult> {
+  if (!z.uuid().safeParse(conversationId).success) return { ok: false, error: "Conversation introuvable." };
+  const session = await getSession();
+  if (!session) return { ok: false, error: "Connexion requise." };
+  const supabase = await createClient();
+  const { error } = muted
+    ? await supabase.from("conversation_email_mutes").upsert({ user_id: session.userId, conversation_id: conversationId }, { onConflict: "user_id,conversation_id" })
+    : await supabase.from("conversation_email_mutes").delete().eq("user_id", session.userId).eq("conversation_id", conversationId);
+  if (error) return actionError(error);
+  revalidatePath(`/dashboard/messages/${conversationId}`);
+  return { ok: true };
+}

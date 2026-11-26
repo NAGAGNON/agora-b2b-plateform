@@ -267,7 +267,7 @@ export async function updateUserProfile(_prev: ActionResult | null, fd: FormData
     .from("users")
     .update({ full_name: d.fullName, job_title: d.jobTitle ?? null, phone: d.phone ?? null, notify_email: d.notifyEmail,
       marketing_consent: d.marketingConsent,
-      notify_prefs: { need_reminders: d.notifyNeedReminders, pipeline: d.notifyPipeline, matching: d.notifyMatching, status: d.notifyStatus },
+      notify_prefs: { need_reminders: d.notifyNeedReminders, pipeline: d.notifyPipeline, matching: d.notifyMatching, status: d.notifyStatus, messages: d.notifyMessages },
     })
     .eq("id", session.userId);
   if (error) return actionError(error);

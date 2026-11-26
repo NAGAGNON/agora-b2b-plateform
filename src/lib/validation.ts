@@ -168,6 +168,7 @@ export const userProfileSchema = z.object({
   notifyPipeline: checkbox,
   notifyMatching: checkbox,
   notifyStatus: checkbox,
+  notifyMessages: checkbox,
 });
 
 const internalType = z.enum(["NEED", "MISSION", "QUOTE_REQUEST", "PRIVATE_CONSULTATION", "PRIVATE_TENDER"], {
