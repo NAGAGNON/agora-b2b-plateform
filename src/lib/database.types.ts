@@ -1221,13 +1221,13 @@ isOneToOne: false
                   ]
                 },"page_views": {
                   Row: {
-                    "created_at": string,"device": string,"duration_ms": number,"id": number,"path": string,"referrer_host": string | null,"session_id": string,"source": string | null
+                    "created_at": string,"device": string,"duration_ms": number,"id": number,"internal": boolean,"path": string,"referrer_host": string | null,"session_id": string,"source": string | null
                   }
                   Insert: {
-                    "created_at"?: string,"device"?: string,"duration_ms"?: number,"id"?: never,"path": string,"referrer_host"?: string | null,"session_id": string,"source"?: string | null
+                    "created_at"?: string,"device"?: string,"duration_ms"?: number,"id"?: never,"internal"?: boolean,"path": string,"referrer_host"?: string | null,"session_id": string,"source"?: string | null
                   }
                   Update: {
-                    "created_at"?: string,"device"?: string,"duration_ms"?: number,"id"?: never,"path"?: string,"referrer_host"?: string | null,"session_id"?: string,"source"?: string | null
+                    "created_at"?: string,"device"?: string,"duration_ms"?: number,"id"?: never,"internal"?: boolean,"path"?: string,"referrer_host"?: string | null,"session_id"?: string,"source"?: string | null
                   }
                   Relationships: [
                     

@@ -1,7 +1,7 @@
 import { Bell, MessageSquare } from "lucide-react";
 import { requireStaff } from "@/lib/auth";
 import { PRIVATE_METADATA } from "@/lib/seo";
-import { CreditBadge, CreditSummaryCard, FreeWelcome, LegacyLaunchBanner, OutOfCredits, PlanChoice, SubscriptionCredits, TrialSummary } from "@/components/billing/credits";
+import { CandidatureFreeLimits, CreditBadge, CreditSummaryCard, FreeTeasers, FreeWelcome, LegacyLaunchBanner, ProUpgradePage, OutOfCredits, PlanChoice, SubscriptionCredits, TrialSummary } from "@/components/billing/credits";
 
 export const metadata = { ...PRIVATE_METADATA, title: "Aperçu de l'offre payante" };
 
@@ -39,7 +39,7 @@ export default async function OfferPreviewPage() {
                 LinkPro<span className="text-teal">B2B</span>
               </span>
               <span className="ml-auto flex items-center gap-1 sm:gap-2">
-                <CreditBadge balance={4} unlimited={false} />
+                <CreditBadge balance={1} unlimited={false} />
                 <MessageSquare className="mx-1 size-5 text-navy" aria-hidden />
                 <Bell className="mx-1 size-5 text-navy" aria-hidden />
                 <span className="hidden items-center gap-2 rounded-full bg-slate-100 py-1 pr-3 pl-1 text-sm font-semibold text-navy sm:flex">
@@ -48,7 +48,7 @@ export default async function OfferPreviewPage() {
               </span>
             </div>
             <div className="grid gap-5 md:grid-cols-3">
-              <CreditSummaryCard plan="FREE" balance={4} perPeriod={5} renewsAt={day(0)} />
+              <CreditSummaryCard plan="FREE" balance={1} perPeriod={2} renewsAt={day(0)} />
               <CreditSummaryCard plan="PRO" balance={13} perPeriod={20} renewsAt={day(0)} />
               <CreditSummaryCard plan="BUSINESS" balance={null} perPeriod={null} renewsAt={day(0)} />
             </div>
@@ -60,6 +60,12 @@ export default async function OfferPreviewPage() {
             </div>
           </div>,
         )}
+
+        {frame("flou", "4 bis. En Gratuit : avantages Pro floutés", <FreeTeasers />)}
+
+        {frame("candidature", "4 ter. Fiche de candidature en Gratuit", <CandidatureFreeLimits />)}
+
+        {frame("pro", "4 quater. Le bouton « Voir » mène ici : pourquoi Pro", <ProUpgradePage founder={false} />)}
 
         {frame(
           "epuises",
@@ -85,13 +91,12 @@ export default async function OfferPreviewPage() {
           "8. Mon abonnement",
           <SubscriptionCredits
             plan="FREE"
-            balance={3}
-            perPeriod={5}
+            balance={1}
+            perPeriod={2}
             renewsAt={day(0)}
             lines={[
-              { at: day(-9), label: "Candidature : Entretien des espaces verts — Ville de Brest", amount: -1, balance: 3 },
-              { at: day(-14), label: "Candidature : Nettoyage des locaux — CHU de Rennes", amount: -1, balance: 4 },
-              { at: day(-30), label: "Crédits du mois (Gratuit)", amount: 5, balance: 5 },
+              { at: day(-9), label: "Candidature : Entretien des espaces verts — Ville de Brest", amount: -1, balance: 1 },
+              { at: day(-30), label: "Crédits du mois (Gratuit)", amount: 2, balance: 2 },
             ]}
           />,
         )}

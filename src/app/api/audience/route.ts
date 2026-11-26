@@ -59,13 +59,19 @@ export async function POST(req: Request) {
     if (EXCLUDED.test(path)) return new NextResponse(null, { status: 204 });
     // Visite interne : appareil déjà reconnu, ou compte connecté de l'équipe / du propriétaire
     const jar = await cookies();
-    if (jar.get(INTERNAL_VISIT_COOKIE)?.value === "1") return new NextResponse(null, { status: 204 });
+    // Les pages déjà enregistrées de cette visite (avant que l'appareil soit reconnu) sortent aussi des statistiques
+    const markInternal = () => db.from("page_views").update({ internal: true }).eq("session_id", v.data.sid).eq("internal", false).then(() => undefined, () => undefined);
+    if (jar.get(INTERNAL_VISIT_COOKIE)?.value === "1") {
+      await markInternal();
+      return new NextResponse(null, { status: 204 });
+    }
     // Vérification automatique d'un lien d'e-mail par la messagerie du destinataire : pas une visite
     if (jar.get(AUTOMATED_VISIT_COOKIE)?.value === "1") return new NextResponse(null, { status: 204 });
     const { data: auth } = await (await createClient()).auth.getClaims();
     if (auth?.claims?.sub) {
       const { data: user } = await db.from("users").select("platform_role, email").eq("id", auth.claims.sub).maybeSingle();
       if (isInternalVisitor(user)) {
+        await markInternal();
         const res = new NextResponse(null, { status: 204 });
         res.cookies.set(INTERNAL_VISIT_COOKIE, "1", { httpOnly: true, sameSite: "lax", secure: siteUrl().startsWith("https://"), path: "/", maxAge: INTERNAL_VISIT_MAX_AGE });
         return res;
