@@ -44,7 +44,10 @@ import {
   Landmark,
   ListChecks,
   Layers,
+  Loader2,
+  Save,
 } from "lucide-react";
+import { Modal } from "@/components/ui/modal";
 import { offersLabel } from "@/lib/award-format";
 import { cn } from "@/lib/cn";
 import type { TenderBrief } from "@/lib/tender-brief";
@@ -52,7 +55,7 @@ import { certStatus } from "@/lib/certification-match";
 import { APPLICATION_GUIDE, LOST_ADVICE, followUpTemplate, questionTemplate, rejectionTemplate } from "@/lib/application-guide";
 import { applicationPlan } from "@/lib/application-plan";
 import { buildMemoirDraft, type DraftCompany } from "@/lib/memoir-draft";
-import { addFollower, addJournalNote, answerApplicationResult, deleteJournalNote, removeFollower, keepForLater, markApplicationSent, saveDraft, setApplicationReminder, startApplicationGuide, toggleDocStep, toggleGuideStep, withdrawApplication, type JournalEntry, type TeamMember } from "@/app/actions/applications";
+import { addFollower, addJournalNote, answerApplicationResult, deleteJournalNote, removeFollower, saveApplicationProgress, keepForLater, markApplicationSent, saveDraft, setApplicationReminder, startApplicationGuide, toggleDocStep, toggleGuideStep, withdrawApplication, type JournalEntry, type TeamMember } from "@/app/actions/applications";
 import { loadTenderBrief, toggleBriefStep } from "@/app/actions/tender-brief";
 import { goBackToSearch } from "@/components/applications/return-point";
 import { ApplicationAssistant } from "@/components/applications/application-assistant";
@@ -104,6 +107,8 @@ export type WorkspaceData = {
 };
 
 const nowMs = () => Date.now();
+// Brouillon du mémoire en attente d'enregistrement (saisie de moins d'une seconde) : enregistré avant de quitter la fiche
+let flushDraft: (() => Promise<unknown>) | null = null;
 const fmtDay = (iso: string) => new Date(iso).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
 
 /** Espace de travail d'une candidature : tout ce qu'il faut pour répondre, étape par étape. */
@@ -231,6 +236,30 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
       else setError(r.error);
     });
   };
+  // Quitter une candidature en préparation : l'enregistrer (où elle en est) ou l'abandonner
+  const [leaving, setLeaving] = useState<null | "ask" | "confirm-drop">(null);
+  const leave = () => (!discovery && !sent ? setLeaving("ask") : goBackToSearch());
+  const saveAndLeave = () =>
+    start(async () => {
+      setError(null);
+      await flushDraft?.();
+      const next = APPLICATION_GUIDE.findIndex((_, i) => !done.includes(i));
+      const r = await saveApplicationProgress(data.id, next >= 0 ? next : null).catch(() => ({ ok: false as const, error: "Connexion perdue. Réessayez." }));
+      if (r.ok) goBackToSearch();
+      else {
+        setLeaving(null);
+        setError(r.error);
+      }
+    });
+  const dropAndLeave = () =>
+    start(async () => {
+      const r = await withdrawApplication(data.id);
+      if (r.ok) goBackToSearch();
+      else {
+        setLeaving(null);
+        setError(r.error);
+      }
+    });
   const days = data.deadline ? Math.ceil((new Date(data.deadline).getTime() - nowMs()) / 86_400_000) : null;
   const plan = useMemo(() => (sent ? [] : applicationPlan(data.deadline, done, new Date(nowMs()), data.startedAt)), [sent, data.deadline, done, data.startedAt]);
   const tpl = { title: data.title, buyer: data.buyer, reference: data.reference, company: data.company.name };
@@ -478,6 +507,47 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
         </div>,
         document.body,
       )}
+      <Modal
+        open={leaving !== null}
+        onClose={() => !pending && setLeaving(null)}
+        title={leaving === "confirm-drop" ? "Abandonner cette candidature ?" : "Vous quittez votre candidature"}
+        description={
+          leaving === "confirm-drop"
+            ? "Elle sera retirée de votre dossier « Mes candidatures », avec ses étapes cochées."
+            : "Enregistrez où vous en êtes pour la reprendre plus tard, ou abandonnez-la si elle ne vous intéresse plus."
+        }
+      >
+        {leaving === "confirm-drop" ? (
+          <div className="grid gap-2 sm:grid-cols-2" data-testid="leave-confirm">
+            <button type="button" disabled={pending} onClick={dropAndLeave} className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-rose-600 px-4 font-semibold text-white transition hover:-translate-y-0.5 disabled:opacity-50">
+              {pending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <XCircle className="size-4" aria-hidden />} Oui, abandonner
+            </button>
+            <button type="button" disabled={pending} onClick={() => setLeaving("ask")} className="h-12 rounded-xl bg-white px-4 font-semibold text-navy ring-1 ring-slate-200 transition hover:ring-teal">
+              Non, revenir
+            </button>
+          </div>
+        ) : (
+          <div className="grid gap-2" data-testid="leave-choice">
+            <button type="button" disabled={pending} onClick={saveAndLeave} className="btn-shine flex items-center gap-3 rounded-2xl bg-gradient-to-r from-teal to-electric px-4 py-3.5 text-left font-semibold text-navy shadow-md transition hover:-translate-y-0.5 disabled:opacity-60">
+              {pending ? <Loader2 className="size-5 shrink-0 animate-spin" aria-hidden /> : <Save className="size-5 shrink-0" aria-hidden />}
+              <span>
+                Enregistrer ma candidature
+                <span className="block text-xs font-normal text-navy/75">Étapes, notes, pièces et brouillon gardés : vous reprenez là où vous en êtes</span>
+              </span>
+            </button>
+            <button type="button" disabled={pending} onClick={() => setLeaving("confirm-drop")} className="flex items-center gap-3 rounded-2xl bg-white px-4 py-3.5 text-left font-semibold text-navy ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:ring-rose-300 disabled:opacity-60">
+              <XCircle className="size-5 shrink-0 text-rose-600" aria-hidden />
+              <span>
+                Abandonner ma candidature
+                <span className="block text-xs font-normal text-slate-500">Elle est retirée de mon dossier</span>
+              </span>
+            </button>
+            <button type="button" disabled={pending} onClick={() => setLeaving(null)} className="mt-1 text-sm font-semibold text-slate-500 hover:text-navy">
+              Rester sur ma candidature
+            </button>
+          </div>
+        )}
+      </Modal>
       {/* En-tête : l'annonce officielle en premier, puis l'offre en une ligne */}
       <section className="relative isolate overflow-hidden rounded-[2rem] bg-gradient-to-br from-sky via-white to-teal-50 p-5 shadow-sm ring-1 ring-slate-200 sm:p-10">
         <div aria-hidden className="bg-tech-grid-light pointer-events-none absolute inset-0 -z-10 opacity-70" />
@@ -525,7 +595,7 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
           </div>
         )}
         <div className="-mx-2 mt-5 flex flex-wrap items-center gap-x-1 text-sm sm:mt-8">
-          <button type="button" onClick={() => goBackToSearch()} className="inline-flex items-center gap-1.5 rounded-xl px-2 py-1.5 font-semibold text-navy transition hover:bg-white/80" data-testid="continue-search">
+          <button type="button" onClick={leave} className="inline-flex items-center gap-1.5 rounded-xl px-2 py-1.5 font-semibold text-navy transition hover:bg-white/80" data-testid="continue-search">
             <ArrowLeft className="size-4" aria-hidden /> Continuer mes recherches
           </button>
           <Link href="/dashboard/candidatures" className="inline-flex items-center gap-1.5 rounded-xl px-2 py-1.5 font-semibold text-slate-500 transition hover:bg-white/80 hover:text-navy">
@@ -802,7 +872,7 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
                 </a>
                 <button
                   type="button"
-                  onClick={() => goBackToSearch()}
+                  onClick={leave}
                   className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-5 py-3 font-semibold text-white ring-1 ring-white/20 transition hover:-translate-y-0.5 hover:bg-white/15 active:scale-[0.98]"
                 >
                   <Search className="size-4" aria-hidden /> Continuer mes recherches
@@ -1140,11 +1210,17 @@ function DraftEditor({ id, initial, make }: { id: string; initial: string | null
     setText(value);
     setStatus("saving");
     if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => {
-      saveDraft(id, value)
+    const run = () => {
+      flushDraft = null;
+      return saveDraft(id, value)
         .then((r) => setStatus(r.ok ? "saved" : "error"))
         .catch(() => setStatus("error"));
-    }, 1000);
+    };
+    flushDraft = () => {
+      if (timer.current) clearTimeout(timer.current);
+      return run();
+    };
+    timer.current = setTimeout(run, 1000);
   };
   const download = () => {
     const html = `<html><head><meta charset="utf-8"></head><body>${text

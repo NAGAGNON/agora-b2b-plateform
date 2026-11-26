@@ -120,3 +120,50 @@ test("une note dans chaque étape (retrouvée dans le journal) et l'équipe sur 
   const { count } = await db.from("application_followers").select("user_id", { count: "exact", head: true }).eq("opportunity_id", id);
   expect(count).toBe(1);
 });
+
+test("en quittant une candidature en préparation : l'enregistrer ou l'abandonner", async ({ browser }) => {
+  test.setTimeout(120_000);
+  const { data: u } = await db.from("users").select("id").eq("email", "acheteur@demo.linkprob2b.test").single();
+  const { data: m } = await db.from("company_members").select("company_id").eq("user_id", u!.id).limit(1).single();
+  const { data: o } = await db
+    .from("opportunities")
+    .insert({
+      type: "EXTERNAL_OPPORTUNITY", origin: "EXTERNAL", status: "PUBLISHED", visibility: "PUBLIC", is_demo: false,
+      title: `E2E ${RUN} Maintenance des ascenseurs`, summary: "Maintenance des ascenseurs.", description: "Marché de maintenance des ascenseurs des bâtiments communaux.",
+      response_deadline: new Date(Date.now() + 20 * 86_400_000).toISOString(), published_at: new Date().toISOString(),
+    })
+    .select("id")
+    .single();
+  const oid = o!.id;
+  await db.from("pipeline_items").insert({ company_id: m!.company_id, opportunity_id: oid, stage: "RESPONSE_PREPARING", guide_done: [0] });
+  try {
+    const page = await newPage(browser, { width: 390, height: 844 });
+    await login(page, "acheteur@demo.linkprob2b.test");
+
+    // Enregistrer : la candidature reste dans le dossier, le journal note où elle en est
+    await page.goto(`/dashboard/candidatures/${oid}`);
+    await page.getByTestId("continue-search").click();
+    const choice = page.getByTestId("leave-choice");
+    await expect(choice).toBeVisible();
+    await choice.getByRole("button", { name: /Enregistrer ma candidature/ }).click();
+    await expect(page).not.toHaveURL(new RegExp(oid));
+    const { data: kept } = await db.from("pipeline_items").select("stage, guide_done").eq("opportunity_id", oid).single();
+    expect(kept).toMatchObject({ stage: "RESPONSE_PREPARING", guide_done: [0] });
+    const { data: log } = await db.from("application_journal").select("body").eq("opportunity_id", oid);
+    expect(log?.map((l) => l.body)).toContain("Candidature enregistrée. Prochaine étape : Comprendre le besoin de l'acheteur.");
+
+    // Abandonner (avec confirmation) : retirée du dossier
+    await page.goto(`/dashboard/candidatures/${oid}`);
+    await page.getByTestId("continue-search").click();
+    await page.getByTestId("leave-choice").getByRole("button", { name: /Abandonner ma candidature/ }).click();
+    await page.getByTestId("leave-confirm").getByRole("button", { name: "Oui, abandonner" }).click();
+    await expect(page).not.toHaveURL(new RegExp(oid));
+    const { count } = await db.from("pipeline_items").select("id", { count: "exact", head: true }).eq("opportunity_id", oid);
+    expect(count).toBe(0);
+  } finally {
+    await db.from("application_journal").delete().eq("opportunity_id", oid);
+    await db.from("application_prompts").delete().eq("opportunity_id", oid);
+    await db.from("pipeline_items").delete().eq("opportunity_id", oid);
+    await db.from("opportunities").delete().eq("id", oid);
+  }
+});
