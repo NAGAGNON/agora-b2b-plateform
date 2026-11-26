@@ -34,14 +34,13 @@ describe("crédits", () => {
     expect(data).toMatchObject({ charged: 0, dormant: true });
   });
 
-  it("Gratuit : 5 crédits, 1 par offre suivie, jamais deux fois la même, solde insuffisant refusé", async () => {
+  it("Gratuit : 2 crédits, 1 par offre suivie, jamais deux fois la même, solde insuffisant refusé", async () => {
     await setEnabled(true);
-    expect((await untyped(u.client).rpc("my_credits")).data).toMatchObject({ plan: "FREE", balance: 5 });
+    expect((await untyped(u.client).rpc("my_credits")).data).toMatchObject({ plan: "FREE", balance: 2 });
     expect((await untyped(u.client).rpc("charge_follow", { p_opportunity_id: opps[0] })).data).toMatchObject({ charged: 1 });
     expect((await untyped(u.client).rpc("charge_follow", { p_opportunity_id: opps[0] })).data).toMatchObject({ charged: 0, already: true });
-    // Veille de 20 jours = 2 crédits ; il ne reste plus rien
-    expect((await untyped(u.client).rpc("alert_credit_cost", { p_days: 20 })).data).toBe(2);
-    expect((await untyped(u.client).rpc("spend_credits", { p_kind: "ALERT_ACTIVATION", p_amount: 4, p_days: 40 })).error).toBeNull();
+    // Une alerte en plus = 1 crédit ; il ne reste plus rien
+    expect((await untyped(u.client).rpc("spend_credits", { p_kind: "ALERT_ACTIVATION", p_amount: 1 })).error).toBeNull();
     const refused = await untyped(u.client).rpc("charge_follow", { p_opportunity_id: opps[1] });
     expect(refused.error?.hint).toBe("PLAN_LIMIT:credits");
     expect((await untyped(u.client).rpc("my_credits")).data).toMatchObject({ balance: 0 });
@@ -57,7 +56,7 @@ describe("crédits", () => {
   it("recharge au changement de période, sans report ni double attribution", async () => {
     await admin.from("credit_wallets").update({ period_end: new Date(Date.now() - 1000).toISOString() }).eq("user_id", u.id);
     await Promise.all([untyped(u.client).rpc("my_credits"), untyped(u.client).rpc("my_credits")]);
-    expect((await untyped(u.client).rpc("my_credits")).data).toMatchObject({ balance: 5 });
+    expect((await untyped(u.client).rpc("my_credits")).data).toMatchObject({ balance: 2 });
     const { count } = await admin.from("credit_ledger").select("id", { count: "exact", head: true }).eq("user_id", u.id).eq("kind", "MONTHLY_GRANT");
     expect(count).toBe(2);
   });

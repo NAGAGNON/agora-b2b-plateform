@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { ArrowRight, CalendarClock, Check, Coins, Crown, Gift, History, Infinity as InfinityIcon, PartyPopper, Rocket, Search, Sparkles, X } from "lucide-react";
-import { FOUNDER_MONTHS, FOUNDER_PRO_HT, OFFER_PLANS, TRIAL_DAYS, euros, frDate, ttc, type OfferCode } from "@/lib/billing/offer";
+import { ArrowRight, CalendarClock, Check, Coins, Crown, Gift, History, Infinity as InfinityIcon, Lock, PartyPopper, Rocket, Search, Sparkles, X } from "lucide-react";
+import { FOUNDER_MONTHS, FOUNDER_PRO_HT, FREE_CREDITS, OFFER_PLANS, PRO_CREDITS, TRIAL_DAYS, euros, frDate, ttc, type OfferCode } from "@/lib/billing/offer";
 import { cn } from "@/lib/cn";
 
 /**
@@ -64,7 +64,7 @@ export function CreditSummaryCard({ plan, balance, perPeriod, renewsAt }: { plan
 }
 
 /** Une carte de formule (choix après l'inscription, fenêtre « crédits épuisés »). */
-function PlanCard({ code, founder, trialEligible, compact = false }: { code: OfferCode; founder?: boolean; trialEligible: boolean; compact?: boolean }) {
+export function PlanCard({ code, founder, trialEligible, compact = false }: { code: OfferCode; founder?: boolean; trialEligible: boolean; compact?: boolean }) {
   const p = OFFER_PLANS.find((x) => x.code === code)!;
   const dark = code === "BUSINESS";
   const pro = code === "PRO";
@@ -149,13 +149,13 @@ export function FreeWelcome({ renewsAt }: { renewsAt: string }) {
       <span className="mx-auto flex size-16 animate-pop items-center justify-center rounded-3xl bg-gradient-to-br from-teal to-violet text-white shadow-lg">
         <PartyPopper className="size-8" aria-hidden />
       </span>
-      <h1 className="mt-5 font-heading text-3xl font-extrabold text-navy sm:text-4xl">Félicitations, vous avez 5 crédits !</h1>
-      <p className="mx-auto mt-3 max-w-xl text-slate-600">De quoi préparer 5 candidatures ce mois-ci, avec le parcours en 7 étapes.</p>
+      <h1 className="mt-5 font-heading text-3xl font-extrabold text-navy sm:text-4xl">Félicitations, vous avez {FREE_CREDITS} crédits !</h1>
+      <p className="mx-auto mt-3 max-w-xl text-slate-600">De quoi préparer {FREE_CREDITS} candidatures ce mois-ci, avec le parcours en 7 étapes.</p>
       <div className="mx-auto mt-8 grid max-w-2xl gap-3 text-left sm:grid-cols-3">
         {[
           { icon: Coins, t: "1 crédit = 1 candidature", d: "Quand vous cliquez « Oui, je prépare ma candidature »." },
           { icon: Search, t: "Le reste est gratuit", d: "Chercher, lire les offres, la veille du matin." },
-          { icon: CalendarClock, t: `Rechargés le ${frDate(renewsAt)}`, d: "Chaque mois, 5 nouveaux crédits (sans report)." },
+          { icon: CalendarClock, t: `Rechargés le ${frDate(renewsAt)}`, d: `Chaque mois, ${FREE_CREDITS} nouveaux crédits (sans report).` },
         ].map(({ icon: Icon, t, d }) => (
           <div key={t} className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
             <Icon className="size-5 text-teal-700" aria-hidden />
@@ -167,7 +167,7 @@ export function FreeWelcome({ renewsAt }: { renewsAt: string }) {
       <span className="btn-shine mt-8 inline-flex h-12 items-center gap-2 rounded-xl bg-gradient-to-r from-teal to-electric px-6 font-bold text-navy shadow-lg">
         Voir les offres pour mon entreprise <ArrowRight className="size-4" aria-hidden />
       </span>
-      <p className="mt-4 text-sm text-slate-500">Besoin de plus ? Pro : 20 candidatures par mois pour 29 € HT, depuis « Mon abonnement ».</p>
+      <p className="mt-4 text-sm text-slate-500">Besoin de plus ? Pro : {PRO_CREDITS} candidatures par mois pour 29 € HT, depuis « Mon abonnement ».</p>
     </section>
   );
 }
@@ -183,11 +183,11 @@ export function OutOfCredits({ plan, renewsAt, trialEligible, founder }: { plan:
         <Rocket className="size-6" aria-hidden />
       </span>
       <h2 className="mt-4 font-heading text-2xl font-extrabold text-navy">
-        {plan === "FREE" ? "Vous avez déjà repéré vos premières opportunités !" : "Vous avez utilisé vos 20 candidatures du mois"}
+        {plan === "FREE" ? "Vous avez déjà repéré vos premières opportunités !" : `Vous avez utilisé vos ${PRO_CREDITS} candidatures du mois`}
       </h2>
       <p className="mt-2 text-slate-600">
         {plan === "FREE"
-          ? "Vos 5 crédits gratuits de ce mois sont utilisés. Passez à Pro pour préparer 20 candidatures par mois."
+          ? `Vos ${FREE_CREDITS} crédits gratuits de ce mois sont utilisés. Passez à Pro pour préparer ${PRO_CREDITS} candidatures par mois.`
           : "Passez à Business pour des candidatures illimitées, pour vous et toute votre équipe."}
       </p>
       <div className={cn("mt-6 grid gap-4", plan === "FREE" ? "sm:grid-cols-2" : "")}>
@@ -220,7 +220,7 @@ export function LegacyLaunchBanner({ until }: { until: string }) {
           <div className="mt-4 grid gap-2 sm:grid-cols-3">
             <p className="rounded-xl bg-white/10 px-3 py-2 text-sm ring-1 ring-white/15">
               <span className="block text-xs text-slate-300">Jusqu&apos;au {frDate(until)}</span>
-              <span className="font-bold">20 crédits de Pro offerts</span>
+              <span className="font-bold">{PRO_CREDITS} crédits de Pro offerts</span>
             </p>
             <p className="rounded-xl bg-white/10 px-3 py-2 text-sm ring-1 ring-white/15">
               <span className="block text-xs text-slate-300">Ensuite</span>
@@ -239,7 +239,7 @@ export function LegacyLaunchBanner({ until }: { until: string }) {
             </span>
             <span className="inline-flex h-11 items-center rounded-xl px-4 text-sm font-semibold text-slate-200 ring-1 ring-white/20">Continuer</span>
           </div>
-          <p className="mt-3 text-xs text-slate-400">Sans choix de votre part après le {frDate(until)}, vous passez en Gratuit (5 crédits par mois). Aucun paiement automatique.</p>
+          <p className="mt-3 text-xs text-slate-400">Sans choix de votre part après le {frDate(until)}, vous passez en Gratuit ({FREE_CREDITS} crédits par mois). Aucun paiement automatique.</p>
         </div>
       </div>
     </section>
@@ -320,5 +320,256 @@ export function TrialSummary({ plan, start }: { plan: "PRO" | "BUSINESS"; start:
         Ajouter ma carte et commencer l&apos;essai
       </span>
     </section>
+  );
+}
+
+/** Repère violet « Pro » avec la petite couronne. */
+export function ProHint({ children = "Pro" }: { children?: React.ReactNode }) {
+  return (
+    <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-violet-50 px-2 py-0.5 text-[11px] font-bold text-violet-700 ring-1 ring-violet-200">
+      <Crown className="size-3" aria-hidden /> {children}
+    </span>
+  );
+}
+
+/**
+ * Avantage Pro vu depuis l'offre Gratuit : quelques lignes floutées, un titre court, le repère Pro et un
+ * bouton vers la page « Pourquoi Pro » (c'est là, et seulement là, que tout est expliqué).
+ */
+export function ProLock({ title, href = "/dashboard/abonnement/pro", children }: { title: string; href?: string; children: React.ReactNode }) {
+  return (
+    <div className="relative overflow-hidden rounded-2xl ring-1 ring-slate-200" data-testid="pro-lock">
+      <div aria-hidden className="pointer-events-none max-h-32 overflow-hidden blur-[5px] select-none">{children}</div>
+      <div className="absolute inset-0 flex items-center justify-center bg-white/50 p-3">
+        <div className="flex flex-wrap items-center justify-center gap-2 rounded-2xl bg-white/95 px-4 py-3 shadow-lg ring-1 ring-slate-200">
+          <Lock className="size-4 text-violet-600" aria-hidden />
+          <span className="text-sm font-bold text-navy">{title}</span>
+          <ProHint />
+          <Link href={href} className="inline-flex h-8 items-center gap-1 rounded-lg bg-navy px-3 text-xs font-bold text-white transition hover:-translate-y-px">
+            Voir <ArrowRight className="size-3.5" aria-hidden />
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const Row = ({ a, b }: { a: string; b: string }) => (
+  <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3 text-sm last:border-0">
+    <span className="text-slate-700">{a}</span>
+    <span className="shrink-0 font-semibold text-navy">{b}</span>
+  </div>
+);
+
+/** Exemples d'avantages Pro floutés en Gratuit, même avec des crédits (aperçu pour l'équipe). */
+export function FreeTeasers() {
+  return (
+    <div className="grid gap-5 lg:grid-cols-2">
+      <ProLock title="7 pièces à fournir · 3 critères">
+        <div className="bg-white">
+          <Row a="Attestation d'assurance décennale" b="Obligatoire" />
+          <Row a="Valeur technique (mémoire)" b="60 %" />
+          <Row a="Dépôt sur PLACE" b="12/12 à 12 h" />
+        </div>
+      </ProLock>
+      <ProLock title="Qui a gagné ce marché">
+        <div className="bg-white">
+          <Row a="Titulaire du marché" b="Atlantique Espaces Verts" />
+          <Row a="Montant" b="148 500 € HT" />
+          <Row a="Offres reçues" b="6" />
+        </div>
+      </ProLock>
+      <ProLock title="3 besoins en avant-première">
+        <div className="bg-white">
+          <Row a="Entretien de 4 sites logistiques" b="Nantes" />
+          <Row a="Remplacement d'une toiture" b="Vannes" />
+          <Row a="Maintenance compresseurs" b="Brest" />
+        </div>
+      </ProLock>
+      <ProLock title="12 autres marchés de cet acheteur">
+        <div className="bg-white">
+          <Row a="Nettoyage des bâtiments communaux" b="96 000 €" />
+          <Row a="Entretien des espaces verts" b="120 000 €" />
+          <Row a="Maintenance des ascenseurs" b="54 000 €" />
+        </div>
+      </ProLock>
+    </div>
+  );
+}
+
+/** Fiche de candidature en Gratuit : tout s'utilise, les limites sont signalées par le repère Pro, sans explication. */
+export function CandidatureFreeLimits() {
+  return (
+    <div className="grid gap-5 lg:grid-cols-2">
+      <div className="rounded-2xl bg-white p-4 ring-1 ring-slate-200">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-sm font-bold text-navy">Notes de cette étape</p>
+          <span className="flex items-center gap-2 text-xs font-semibold text-slate-500">
+            2 / 3 <ProHint>Illimité avec Pro</ProHint>
+          </span>
+        </div>
+        <p className="mt-2 rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700 ring-1 ring-slate-200">Attestation demandée à l&apos;assureur</p>
+        <p className="mt-2 rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700 ring-1 ring-slate-200">Visite du site jeudi 10 h</p>
+      </div>
+      <div className="rounded-2xl bg-white p-4 ring-1 ring-slate-200">
+        <p className="text-sm font-bold text-navy">Équipe sur ce dossier</p>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center gap-2 rounded-full bg-teal-50 py-1 pr-3 pl-1 text-sm font-semibold text-teal-900 ring-1 ring-teal/30">
+            <span className="flex size-7 items-center justify-center rounded-full bg-gradient-to-br from-teal to-violet text-xs font-bold text-white">M</span> Morgan (vous)
+          </span>
+          <Link href="/dashboard/abonnement/pro" className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-semibold text-slate-500 ring-1 ring-slate-300 hover:ring-violet-300">
+            <Lock className="size-3.5" aria-hidden /> Ajouter un collègue
+          </Link>
+          <ProHint />
+        </div>
+      </div>
+      <div className="space-y-2">
+        <p className="text-sm font-bold text-navy">Journal de suivi</p>
+        <div className="rounded-2xl bg-white ring-1 ring-slate-200">
+          <Row a="Aujourd'hui · Question posée sur les quantités" b="Vous" />
+          <Row a="Lundi · Candidature commencée" b="Vous" />
+        </div>
+        <ProLock title="Historique complet">
+          <div className="bg-white">
+            <Row a="12 nov. · Échange avec l'acheteur" b="Vous" />
+            <Row a="8 nov. · Pièces rassemblées" b="Vous" />
+          </div>
+        </ProLock>
+      </div>
+      <div className="space-y-2">
+        <p className="text-sm font-bold text-navy">Mémoire technique</p>
+        <div className="rounded-2xl bg-white p-3 text-sm text-slate-500 ring-1 ring-slate-200">Votre mémoire, enregistré automatiquement…</div>
+        <ProLock title="Trame déjà rédigée">
+          <div className="space-y-1 bg-white p-4 text-sm text-slate-700">
+            <p className="font-bold">1. Présentation de l&apos;entreprise</p>
+            <p>Durand Maintenance intervient depuis 2012…</p>
+            <p className="font-bold">2. Compréhension du besoin</p>
+          </div>
+        </ProLock>
+      </div>
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-2xl bg-white p-4 text-sm text-slate-700 ring-1 ring-slate-200 lg:col-span-2">
+        <span className="flex items-center gap-2">Modèles de courriers <ProHint /></span>
+        <span className="flex items-center gap-2">Télécharger en PDF / Word <ProHint /></span>
+        <span className="flex items-center gap-2">Assistant · 2 questions restantes <ProHint>Illimité avec Pro</ProHint></span>
+      </div>
+    </div>
+  );
+}
+
+/** « Pourquoi Pro » : la seule page qui explique tout ce que Pro apporte, avec les boutons pour souscrire. */
+export function ProUpgradePage({ founder }: { founder: boolean }) {
+  const pro = OFFER_PLANS.find((p) => p.code === "PRO")!;
+  const gains: [string, string][] = [
+    [`${PRO_CREDITS} candidatures par mois`, `au lieu de ${FREE_CREDITS} en Gratuit`],
+    ["La fiche complète de chaque appel d'offres", "conditions, pièces à fournir, critères de notation, où et quand déposer"],
+    ["La trame du mémoire déjà rédigée", "adaptée aux critères de l'acheteur, à compléter, en Word"],
+    ["Notes illimitées et tout l'historique", "plus 1 collègue sur vos dossiers"],
+    ["Qui a gagné, dès la publication", "Pro surveille le résultat et vous prévient"],
+    ["Les besoins des entreprises en avant-première", "48 h avant les autres, proposé en premier"],
+    ["Les nouvelles offres chaque matin", "3 alertes, l'assistant sans limite, les modèles de courriers"],
+  ];
+  return (
+    <section className="overflow-hidden rounded-[2rem] bg-white shadow-xl ring-1 ring-slate-200" data-testid="pro-upgrade">
+      <div className="relative isolate bg-gradient-to-br from-navy to-navy-900 p-6 text-white sm:p-10">
+        <div aria-hidden className="pointer-events-none absolute -top-20 -right-16 -z-10 size-72 animate-aurora rounded-full bg-teal/30 blur-3xl" />
+        <ProHint>Pro</ProHint>
+        <h1 className="mt-3 font-heading text-3xl font-extrabold sm:text-4xl">Préparez vos candidatures comme un pro</h1>
+        <p className="mt-2 max-w-xl text-slate-300">Tout ce qui est flouté sur vos fiches, débloqué.</p>
+      </div>
+      <div className="grid gap-6 p-6 sm:p-10 lg:grid-cols-[1fr_20rem]">
+        <ul className="space-y-3">
+          {gains.map(([a, b]) => (
+            <li key={a} className="flex gap-3">
+              <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-teal-50 text-teal-700 ring-1 ring-teal/30">
+                <Check className="size-4" aria-hidden />
+              </span>
+              <span>
+                <span className="block font-semibold text-navy">{a}</span>
+                <span className="block text-sm text-slate-600">{b}</span>
+              </span>
+            </li>
+          ))}
+        </ul>
+        <div className="h-fit rounded-3xl bg-slate-50 p-5 ring-1 ring-slate-200">
+          <p className="font-heading text-xl font-bold text-navy">Pro</p>
+          <p className="mt-1 flex items-baseline gap-1.5">
+            <span className="font-heading text-4xl font-extrabold text-navy">{euros(founder ? FOUNDER_PRO_HT : pro.priceHT)}</span>
+            <span className="text-sm text-slate-500">HT / mois</span>
+          </p>
+          <p className="text-xs text-slate-500">{founder ? `les ${FOUNDER_MONTHS} premiers mois, puis ${euros(pro.priceHT)} HT` : `soit ${euros(ttc(pro.priceHT))} TTC`}</p>
+          <span className="btn-shine mt-5 inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-teal to-electric font-bold text-navy shadow-lg">
+            Essayer Pro {TRIAL_DAYS} jours <ArrowRight className="size-4" aria-hidden />
+          </span>
+          <p className="mt-2 text-center text-xs text-slate-500">0 € aujourd&apos;hui · résiliable en un clic</p>
+          <span className="mt-4 inline-flex h-11 w-full items-center justify-center rounded-xl text-sm font-semibold text-navy ring-1 ring-slate-300">
+            Voir Business · candidatures illimitées
+          </span>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/** Page Tarifs de l'offre par crédits (affichée au lancement ; l'équipe peut la voir avant avec ?offre=credits). */
+export function CreditsPricing() {
+  const Y = <Check className="mx-auto size-5 text-teal-700" aria-label="Inclus" />;
+  const N = <span className="text-slate-300">—</span>;
+  const rows: [string, React.ReactNode, React.ReactNode, React.ReactNode][] = [
+    ["Candidatures par mois", `${FREE_CREDITS}`, `${PRO_CREDITS}`, "Illimitées"],
+    ["Recherche et lecture des offres", "Illimitées", "Illimitées", "Illimitées"],
+    ["Alertes incluses (au-delà : 1 crédit)", "1, le lundi", "3, chaque matin", "Illimitées"],
+    ["Fiche complète de l'appel d'offres", "Résumé", Y, Y],
+    ["Trame du mémoire, modèles de courriers, PDF/Word", N, Y, Y],
+    ["Notes et historique du journal", "3 notes, 7 jours", "Illimités", "Illimités"],
+    ["Assistant de candidature", "3 questions / mois", "Illimité", "Illimité"],
+    ["Qui a gagné, besoins en avant-première", N, Y, Y],
+    ["Collègues sur les dossiers", N, "1", "Toute l'équipe"],
+    ["Présenté à des entreprises ciblées", N, "100 / mois", "400 / mois + suivi"],
+  ];
+  return (
+    <div className="bg-slate-50/60" data-testid="credits-pricing">
+      <section className="relative isolate overflow-hidden bg-navy-900 pt-16 pb-40 text-white sm:pt-20">
+        <div aria-hidden className="bg-tech-grid absolute inset-0 -z-10 opacity-40" />
+        <div aria-hidden className="absolute -top-40 left-1/4 -z-10 size-[34rem] animate-aurora rounded-full bg-teal/25 blur-3xl" />
+        <div className="container-page text-center">
+          <h1 className="font-heading text-4xl font-extrabold text-white sm:text-5xl">Des tarifs simples</h1>
+          <p className="mx-auto mt-4 max-w-2xl text-slate-300">
+            1 crédit = 1 candidature commencée. Chercher et lire les offres reste toujours gratuit. Essai {TRIAL_DAYS} jours sur Pro et Business.
+          </p>
+        </div>
+      </section>
+      <div className="container-page -mt-28 pb-16">
+        <div className="grid gap-5 lg:grid-cols-3">
+          <PlanCard code="FREE" trialEligible />
+          <PlanCard code="PRO" trialEligible />
+          <PlanCard code="BUSINESS" trialEligible />
+        </div>
+        <div className="mt-12 overflow-x-auto rounded-3xl bg-white shadow-sm ring-1 ring-slate-200">
+          <table className="w-full min-w-[640px] text-sm">
+            <thead>
+              <tr className="bg-navy text-white">
+                <th className="p-4 text-left">Ce que vous avez</th>
+                <th className="p-4">Gratuit</th>
+                <th className="p-4">Pro · 29 € HT</th>
+                <th className="p-4">Business · 59 € HT</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map(([a, ...v]) => (
+                <tr key={a} className="border-t border-slate-100">
+                  <td className="p-4 text-slate-700">{a}</td>
+                  {v.map((x, i) => (
+                    <td key={i} className="p-4 text-center font-semibold text-navy">
+                      {x}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="mt-6 text-center text-sm text-slate-500">Prix hors taxes, TVA 20 % en sus. Sans engagement, résiliable en un clic. Les crédits se rechargent chaque mois, sans report.</p>
+      </div>
+    </div>
   );
 }

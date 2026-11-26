@@ -14,6 +14,8 @@ import { env } from "@/lib/env";
 import { getPlatformStats } from "@/lib/queries/platform";
 import { getSession } from "@/lib/auth";
 import { LaunchFounderNote } from "@/components/dashboard/launch-founder-note";
+import { CreditsPricing } from "@/components/billing/credits";
+import { creditsEnabled } from "@/lib/billing/credits-switch";
 
 export const metadata = pageMetadata({
   title: "Tarifs",
@@ -25,7 +27,10 @@ export const metadata = pageMetadata({
 /** Heure courante (hors rendu pur). */
 const nowMs = () => Date.now();
 
-export default async function PricingPage() {
+export default async function PricingPage(props: PageProps<"/tarifs">) {
+  // Offre par crédits : affichée au lancement ; l'équipe peut la voir avant avec ?offre=credits
+  const preview = (await props.searchParams).offre === "credits" && Boolean((await getSession())?.isStaff);
+  if (preview || (await creditsEnabled())) return <CreditsPricing />;
   // Paiement réel seulement en mode LIVE : sinon les offres payantes sont annoncées, pas vendues
   const paidOpen = stripeMode() === "live" || !env.isProduction;
   // Phase de lancement : toutes les fonctionnalités gratuites pour les inscrits ; offres payantes prévues
