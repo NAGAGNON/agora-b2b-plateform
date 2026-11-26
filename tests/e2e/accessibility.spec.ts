@@ -7,6 +7,9 @@ const PUBLIC = ["/", "/publier", "/connexion", "/inscription", "/contact", "/com
 const PRIVATE = ["/opportunites", "/entreprises", "/dashboard", "/dashboard/abonnement", "/dashboard/alertes", "/dashboard/recommandations", "/dashboard/messages", "/dashboard/pipeline", "/dashboard/suivies"];
 
 async function audit(page: import("@playwright/test").Page, path: string) {
+  // Contraste mesuré sur l'état final des textes : les apparitions au défilement (.reveal) déplacent
+  // le texte au-dessus d'autres éléments pendant l'animation, ce qui fausse la mesure du fond.
+  await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto(path);
   // Le logotype (texte de marque) est exempté des exigences de contraste (WCAG 1.4.3).
   const { violations } = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).exclude('a[aria-label="LinkProB2B — accueil"]').analyze();
