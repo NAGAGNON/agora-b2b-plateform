@@ -142,6 +142,24 @@ export default function TermsPage() {
           ),
         },
         {
+          id: "references",
+          title: "Citation de votre entreprise comme utilisatrice",
+          content: (
+            <>
+              <p>
+                Pour les comptes créés à partir du 27 novembre 2026, l&apos;utilisateur autorise l&apos;éditeur à citer le nom de son entreprise et à
+                reproduire son logo, tels qu&apos;ils figurent sur sa fiche publique, pour indiquer qu&apos;elle utilise {LEGAL.brand} : sur le site, dans les
+                publications sur les réseaux sociaux (dont LinkedIn) et dans les présentations commerciales. Aucune information confidentielle (candidatures,
+                messages, notes) n&apos;est jamais publiée, et l&apos;éditeur ne présente pas l&apos;entreprise comme partenaire ou cliente sans son accord.
+              </p>
+              <p>
+                Cette autorisation peut être retirée à tout moment, sans motif, via la page <Link href="/contact">Contact</Link> : l&apos;éditeur cesse alors
+                toute nouvelle utilisation et retire dans les meilleurs délais les publications qu&apos;il contrôle.
+              </p>
+            </>
+          ),
+        },
+        {
           id: "services-tiers",
           title: "Services tiers",
           content: (

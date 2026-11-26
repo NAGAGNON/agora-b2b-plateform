@@ -22,9 +22,13 @@ export type OfferPlan = {
 /** Candidatures par mois (décision du 26/11 : Gratuit 2, d'après l'usage réel — 12 entreprises sur 18 en commencent 1 par mois) */
 export const FREE_CREDITS = 2;
 export const PRO_CREDITS = 20;
-export const TRIAL_DAYS = 3;
+/** Essai avec carte : 7 jours (recommandation acceptée le 26/11 : 3 jours trop courts pour préparer un appel d'offres) */
+export const TRIAL_DAYS = 7;
 export const FOUNDER_PRO_HT = 14.5;
 export const FOUNDER_MONTHS = 3;
+/** Offre fondateur : réservée aux anciens inscrits pendant 30 jours après le lancement (date affichée) */
+export const FOUNDER_DEADLINE_DAYS = 30;
+export const founderDeadline = (launchIso: string) => new Date(new Date(launchIso).getTime() + FOUNDER_DEADLINE_DAYS * 86_400_000).toISOString();
 
 export const OFFER_PLANS: OfferPlan[] = [
   {
@@ -37,7 +41,8 @@ export const OFFER_PLANS: OfferPlan[] = [
       `${FREE_CREDITS} candidatures par mois`,
       "Recherche et lecture des offres, lien vers l'annonce officielle",
       "Le résumé « En bref » de chaque appel d'offres",
-      "1 alerte incluse (les nouvelles offres le lundi) ; chaque alerte en plus : 1 crédit",
+      "1 alerte : les nouvelles offres de votre métier chaque matin",
+      "Notes et journal de suivi sans limite sur vos candidatures",
       "3 questions par mois à l'assistant de candidature",
       "Votre entreprise dans l'annuaire, 3 prises de contact par mois",
       "Un aperçu flouté de ce que Pro débloque",
@@ -53,13 +58,13 @@ export const OFFER_PLANS: OfferPlan[] = [
     includes: [
       `${PRO_CREDITS} candidatures par mois`,
       "La fiche complète de chaque appel d'offres : conditions, pièces, critères, dates (PDF, Word)",
-      "Les nouvelles offres de votre métier chaque matin, 3 alertes incluses (au-delà : 1 crédit)",
+      "Les nouvelles offres de votre métier chaque matin, 3 alertes",
       "L'assistant de candidature sans limite, les modèles de mémoire et de courriers",
       "Les besoins des entreprises en avant-première",
       "Prévenu dès que l'acheteur publie le gagnant",
       "Offres recommandées avec un score de pertinence, historique de chaque acheteur",
       "Suivi commercial et statistiques, 30 prises de contact par mois",
-      "Notes illimitées, tout l'historique du journal, 1 collègue sur vos dossiers",
+      "1 collègue avec vous sur vos dossiers",
       "Présenté à 100 entreprises ciblées chaque mois",
     ],
     trial: `Essai ${TRIAL_DAYS} jours avec ${PRO_CREDITS} candidatures`,
@@ -87,7 +92,7 @@ export const OFFER_PLANS: OfferPlan[] = [
 export const FREE_LIMITS = {
   credits: FREE_CREDITS,
   alerts: 1,
-  alertFrequency: "weekly" as const,
+  alertFrequency: "daily" as const,
   assistantQuestionsMonth: 3,
   contactsMonth: 3,
   favorites: 3,
@@ -96,8 +101,9 @@ export const FREE_LIMITS = {
   earlyNeeds: false,
   resultWatch: false,
   teamMembers: 1,
-  notesPerApplication: 3,
-  journalDays: 7,
+  /** null = sans limite (assoupli le 26/11 : ce sont les candidatures qui font passer à Pro) */
+  notesPerApplication: null,
+  journalDays: null,
   deadlineReminders: 1,
   memoirTemplate: false,
   letterTemplates: false,
