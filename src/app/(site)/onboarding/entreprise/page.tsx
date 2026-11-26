@@ -6,7 +6,8 @@ import { ExpressCompanyForm } from "@/components/companies/express-form";
 import { CheckCircle2 } from "lucide-react";
 import { Notice } from "@/components/ui/notice";
 import { requireSession } from "@/lib/auth";
-import { getDepartments, getPlaces, getSectors } from "@/lib/queries/platform";
+import { getDepartments, getPlaces, getSectors, getWeekCompanies } from "@/lib/queries/platform";
+import { WeekCompaniesTicker } from "@/components/companies/week-companies";
 import { PRIVATE_METADATA } from "@/lib/seo";
 import { safeInternalPath } from "@/lib/safe-path";
 
@@ -16,7 +17,7 @@ export default async function OnboardingCompanyPage(props: PageProps<"/onboardin
   const session = await requireSession("/onboarding/entreprise");
   const sp = await props.searchParams;
   const next = typeof sp.suite === "string" ? sp.suite : undefined;
-  const [places, departments, sectors] = await Promise.all([getPlaces(), getDepartments(), getSectors()]);
+  const [places, departments, sectors, week] = await Promise.all([getPlaces(), getDepartments(), getSectors(), getWeekCompanies()]);
   // Par défaut, profil express (4 informations) ; formulaire complet sur demande
   const full = sp.complet === "1";
   const qs = (extra: Record<string, string>) => `?${new URLSearchParams({ ...(next ? { suite: next } : {}), ...extra })}`;
@@ -49,6 +50,9 @@ export default async function OnboardingCompanyPage(props: PageProps<"/onboardin
         <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8">
           <ExpressCompanyForm sectors={sectors} places={places} next={next} freeLaunch={await freeLaunch()} baseLabel={await baseReachLabel()} />
         </div>
+        <div className="mt-8">
+          <WeekCompaniesTicker data={week} />
+        </div>
         <p className="mt-6 text-center text-sm text-slate-600">
           {next && (
             <>
@@ -80,6 +84,9 @@ export default async function OnboardingCompanyPage(props: PageProps<"/onboardin
       )}
       <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8">
         <CompanyForm mode="create" places={places} departments={departments} sectors={sectors} next={next} freeLaunch={await freeLaunch()} baseLabel={await baseReachLabel()} />
+      </div>
+      <div className="mt-8">
+        <WeekCompaniesTicker data={week} />
       </div>
     </div>
   );

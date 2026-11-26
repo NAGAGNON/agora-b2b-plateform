@@ -2121,6 +2121,9 @@ isOneToOne: false
 "convert_need_to_service_offer":
 { Args: { "p_opportunity_id": string,"p_note"?: string }; Returns: string
                            },
+"public_week_companies":
+{ Args: { "p_limit"?: number }; Returns: Json
+                           },
 "add_application_follower":
 { Args: { "p_company_id": string,"p_opportunity_id": string,"p_user_id": string }; Returns: boolean
                            },
