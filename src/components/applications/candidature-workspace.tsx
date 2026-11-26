@@ -288,7 +288,7 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
   const backStep = discovery || sent ? -1 : openStep >= 0 ? openStep : APPLICATION_GUIDE.findIndex((_, i) => !done.includes(i));
   const backTo =
     backStep >= 0
-      ? { label: `Étape ${backStep + 1} : ${APPLICATION_GUIDE[backStep].title}`, onBack: () => scrollTo(backStep) }
+      ? { label: `Étape ${backStep + 1} : ${APPLICATION_GUIDE[backStep]?.title ?? "Suivre le résultat"}`, onBack: () => scrollTo(backStep) }
       : { label: "En haut de votre candidature", onBack: () => window.scrollTo({ top: 0, behavior: "smooth" }) };
 
   const visitHot = Boolean(brief?.site_visit && /obligatoire/i.test(brief.site_visit));
