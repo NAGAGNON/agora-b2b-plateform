@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { addProfileCertification } from "@/app/actions/company";
-import { ArrowRight, Check, CheckCircle2, CircleDashed, CircleHelp, CircleX, Gauge, Handshake, PenLine, Plus } from "lucide-react";
+import { ArrowRight, Check, CheckCircle2, ChevronDown, CircleDashed, CircleHelp, CircleX, Gauge, Handshake, Info, OctagonAlert, PenLine, Plus, ShieldQuestion } from "lucide-react";
 import { ProLock } from "@/components/billing/credits";
-import { computeCompatibility, type CompatAnswers, type CompatCompany, type CompatItem, type CompatOffer, type CompatQuestion, type CompatRequirements, type Compatibility } from "@/lib/compatibility";
+import { COMPAT_CAP_BLOCKED, COMPAT_CAP_UNVERIFIED, COMPAT_WEIGHTS, computeCompatibility, type CompatAnswers, type CompatBasis, type CompatCompany, type CompatItem, type CompatOffer, type CompatQuestion, type CompatRequirements, type Compatibility } from "@/lib/compatibility";
 import { cn } from "@/lib/cn";
 
 const ICON = {
@@ -19,19 +19,82 @@ const TONE = {
   high: { ring: "ring-teal/40", bar: "from-teal to-emerald-400", text: "text-teal-700", chip: "bg-teal-50 text-teal-800 ring-teal/30" },
   good: { ring: "ring-teal/30", bar: "from-teal to-electric", text: "text-teal-700", chip: "bg-teal-50 text-teal-800 ring-teal/30" },
   partial: { ring: "ring-sky-200", bar: "from-sky-400 to-electric", text: "text-sky-700", chip: "bg-sky-50 text-sky-800 ring-sky-200" },
+  blocked: { ring: "ring-rose-300", bar: "from-rose-500 to-rose-300", text: "text-rose-700", chip: "bg-rose-50 text-rose-800 ring-rose-300" },
   low: { ring: "ring-rose-200", bar: "from-rose-400 to-rose-300", text: "text-rose-700", chip: "bg-rose-50 text-rose-800 ring-rose-200" },
   none: { ring: "ring-slate-200", bar: "from-slate-300 to-slate-200", text: "text-slate-600", chip: "bg-slate-100 text-slate-700 ring-slate-200" },
 } as const;
+
+const BASIS: Record<CompatBasis, string> = { notice: "Avis", profile: "Votre fiche · déclaré", answer: "Votre réponse · déclaré", computed: "Calculé" };
 
 function Row({ item }: { item: CompatItem }) {
   return (
     <li className="flex gap-2.5">
       {ICON[item.status]}
       <span className="min-w-0">
-        <span className="block text-sm font-semibold text-navy">{item.label}</span>
+        <span className="flex flex-wrap items-center gap-1.5">
+          <span className="text-sm font-semibold text-navy">{item.label}</span>
+          {item.mandatory && <span className="rounded-md bg-navy px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-white uppercase">Obligatoire</span>}
+        </span>
         {item.detail && <span className="block text-sm text-slate-600">{item.detail}</span>}
+        <span className="mt-1 flex flex-wrap gap-1">
+          {item.basis.map((b) => (
+            <span key={b} className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500">
+              {BASIS[b]}
+            </span>
+          ))}
+        </span>
       </span>
     </li>
+  );
+}
+
+/** Alerte en tête : une condition obligatoire manque ou n'est pas vérifiée. La note ne la masque jamais. */
+function Gate({ c }: { c: Compatibility }) {
+  if (c.blockers.length)
+    return (
+      <div className="flex gap-2.5 rounded-xl bg-rose-50 p-3 text-sm text-rose-900 ring-1 ring-rose-200" data-testid="compat-blockers">
+        <OctagonAlert className="mt-0.5 size-5 shrink-0 text-rose-600" aria-hidden />
+        <p>
+          <strong>Condition obligatoire non remplie : </strong>
+          {c.blockers.join(" · ")}. Sans elle, l&apos;offre peut être écartée, même avec une bonne note. Solution possible : un partenaire qui la remplit.
+        </p>
+      </div>
+    );
+  if (c.toCheck.length || !c.fromSummary)
+    return (
+      <div className="flex gap-2.5 rounded-xl bg-sky-50 p-3 text-sm text-sky-900 ring-1 ring-sky-200" data-testid="compat-tocheck">
+        <ShieldQuestion className="mt-0.5 size-5 shrink-0 text-sky-600" aria-hidden />
+        <p>
+          <strong>{c.fromSummary ? `${c.toCheck.length} condition${c.toCheck.length > 1 ? "s" : ""} obligatoire${c.toCheck.length > 1 ? "s" : ""} à vérifier` : "Conditions obligatoires à vérifier"}</strong> avant de décider : la note est plafonnée à {COMPAT_CAP_UNVERIFIED} tant que ce n&apos;est pas fait.
+        </p>
+      </div>
+    );
+  return null;
+}
+
+/** Comment est calculée la note : la méthode, en clair, sur la carte. */
+function Method() {
+  return (
+    <details className="group rounded-xl ring-1 ring-slate-200" data-testid="compat-method">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-sm font-semibold text-navy [&::-webkit-details-marker]:hidden">
+        <span className="flex items-center gap-1.5">
+          <Info className="size-4 text-teal-700" aria-hidden /> Comment est calculée cette note ?
+        </span>
+        <ChevronDown className="size-4 text-slate-400 transition group-open:rotate-180" aria-hidden />
+      </summary>
+      <div className="space-y-2 border-t border-slate-100 px-3 py-3 text-sm text-slate-700">
+        <p>
+          Nous comparons ce que demande l&apos;avis avec ce que vous avez déclaré. Points : métier {COMPAT_WEIGHTS.trade}, zone {COMPAT_WEIGHTS.zone}, certifications exigées {COMPAT_WEIGHTS.certifications},
+          autres conditions {COMPAT_WEIGHTS.capacity} (seulement quand vous avez répondu). La note est la part des points obtenus sur les critères connus.
+        </p>
+        <p>Une information inconnue n&apos;enlève aucun point, mais reste marquée « à vérifier ».</p>
+        <p>
+          Les conditions <strong>obligatoires</strong> (certifications et conditions de participation de l&apos;avis) priment : une condition non remplie plafonne la note à {COMPAT_CAP_BLOCKED}, une condition non vérifiée à {COMPAT_CAP_UNVERIFIED}.
+        </p>
+        <p>Ce que vous déclarez (fiche, réponses) n&apos;est pas vérifié par LinkProB2B. Les conditions viennent d&apos;un résumé de l&apos;avis : le règlement de la consultation fait foi.</p>
+        <p className="font-semibold text-navy">La note mesure la correspondance avec l&apos;offre. Ce n&apos;est ni une chance de gagner, ni une garantie d&apos;éligibilité.</p>
+      </div>
+    </details>
   );
 }
 
@@ -80,6 +143,7 @@ function Question({ q, onAnswer, canEdit, added, onAdd, adding }: { q: CompatQue
 function Details({ c, opportunityId, ...qp }: { c: Compatibility; opportunityId: string } & QuestionProps) {
   return (
     <div className="space-y-4 bg-white p-4 sm:p-5">
+      <Gate c={c} />
       <ul className="space-y-3">
         {c.items.map((i) => (
           <Row key={i.key} item={i} />
@@ -124,6 +188,7 @@ function Details({ c, opportunityId, ...qp }: { c: Compatibility; opportunityId:
           </Link>
         )}
       </div>
+      <Method />
     </div>
   );
 }
@@ -198,7 +263,7 @@ export function CompatibilityCard({
         </div>
         <div className="min-w-0 flex-1">
           <p id="compat-title" className="text-xs font-bold tracking-wide text-slate-500 uppercase">
-            Compatibilité avec votre entreprise
+            Correspondance avec votre entreprise
           </p>
           <p className={cn("mt-1 inline-flex rounded-full px-2.5 py-0.5 text-sm font-bold ring-1", tone.chip)}>{c.levelLabel}</p>
           {c.score != null && (
@@ -210,7 +275,8 @@ export function CompatibilityCard({
       </div>
       <div className="border-t border-slate-100">
         {locked ? (
-          <div className="p-3">
+          <div className="space-y-3 p-3">
+            <Gate c={c} />
             <ProLock title="Le détail de la note">
               <Details c={c} opportunityId={opportunityId} />
             </ProLock>
@@ -221,7 +287,7 @@ export function CompatibilityCard({
         {error && <p className="px-4 pb-3 text-sm font-semibold text-rose-700 sm:px-5" role="alert">{error}</p>}
       </div>
       <p className="border-t border-slate-100 px-4 py-2 text-xs text-slate-500 sm:px-5">
-        Calculée avec votre fiche et l&apos;avis. Une aide pour décider, pas une garantie : l&apos;annonce officielle fait foi.
+        Note de correspondance, pas une chance de gagner ni une garantie d&apos;éligibilité. Le règlement de la consultation fait foi.
       </p>
     </section>
   );

@@ -15,19 +15,40 @@ describe("compatibilité entreprise / appel d'offres", () => {
   it("une certification absente de la fiche baisse la note et devient une question ; « Je l'ai » la remonte", () => {
     const req = { certifications: ["RGE"], capacity: [] };
     const before = computeCompatibility(offer, company, req);
-    expect(before.score).toBeLessThan(100);
+    expect(before.score).toBeLessThanOrEqual(70);
+    expect(before.toCheck).toEqual(["RGE"]);
+    expect(before.levelLabel).toContain("sous réserve");
     expect(before.questions).toEqual([{ text: "RGE", kind: "cert", answer: null }]);
     expect(before.suggestPartner).toBe(true);
     const after = computeCompatibility(offer, company, req, null, { RGE: true });
     expect(after.score).toBe(100);
-    expect(computeCompatibility(offer, company, req, null, { RGE: false }).score).toBe(before.score);
+    const no = computeCompatibility(offer, company, req, null, { RGE: false });
+    expect(no.score).toBeLessThanOrEqual(45);
+    expect(no.level).toBe("blocked");
+    expect(no.blockers).toEqual(["RGE"]);
   });
 
-  it("autres conditions : jamais comptées sans réponse, puis « Je ne l'ai pas » fait baisser", () => {
+  it("autres conditions : obligatoires, note plafonnée tant que non vérifiées, éliminatoires si non remplies", () => {
     const req = { certifications: [], capacity: ["Chiffre d'affaires minimum de 500 000 €"] };
-    expect(computeCompatibility(offer, company, req).score).toBe(100);
-    expect(computeCompatibility(offer, company, req, null, { "Chiffre d'affaires minimum de 500 000 €": false }).score).toBeLessThan(100);
+    const unanswered = computeCompatibility(offer, company, req);
+    expect(unanswered.score).toBe(70);
+    expect(unanswered.cap).toBe(70);
+    expect(unanswered.items.find((i) => i.key.startsWith("cap:"))?.mandatory).toBe(true);
+    expect(computeCompatibility(offer, company, req, null, { "Chiffre d'affaires minimum de 500 000 €": false }).score).toBeLessThanOrEqual(45);
     expect(computeCompatibility(offer, company, req, null, { "Chiffre d'affaires minimum de 500 000 €": true }).score).toBe(100);
+  });
+
+  it("sans résumé de l'avis : jamais « très bonne », toujours sous réserve", () => {
+    const c = computeCompatibility(offer, company, null);
+    expect(c.score).toBeLessThanOrEqual(70);
+    expect(c.level).not.toBe("high");
+  });
+
+  it("chaque point indique sa source ; une certification de la fiche est « déclarée »", () => {
+    const c = computeCompatibility(offer, company, { certifications: ["Qualibat 1311"], capacity: [] });
+    const cert = c.items.find((i) => i.key === "cert:Qualibat 1311");
+    expect(cert?.basis).toEqual(["notice", "profile"]);
+    expect(cert?.detail).toContain("déclarée");
   });
 
   it("ce qu'on ne sait pas ne compte jamais contre l'entreprise ; trop peu d'éléments : pas de note", () => {
