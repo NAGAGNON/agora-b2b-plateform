@@ -1,9 +1,16 @@
 import { Bell, MessageSquare } from "lucide-react";
 import { requireStaff } from "@/lib/auth";
+import { CompatibilityCard, CompatibilityTeaser } from "@/components/opportunities/compatibility-card";
+import type { CompatCompany, CompatOffer } from "@/lib/compatibility";
 import { PRIVATE_METADATA } from "@/lib/seo";
 import { CandidatureFreeLimits, CreditBadge, CreditsPricing, CreditSummaryCard, FreeTeasers, FreeWelcome, LegacyLaunchBanner, ProUpgradePage, OutOfCredits, PlanChoice, SubscriptionCredits, TrialSummary } from "@/components/billing/credits";
 
 export const metadata = { ...PRIVATE_METADATA, title: "Aperçu de l'offre payante" };
+
+// Exemple réaliste pour la note de compatibilité (entreprise et appel d'offres fictifs)
+const compatOffer: CompatOffer = { title: "Maintenance des installations de chauffage et ventilation", summary: null, sector_slug: "maintenance-industrielle", department_code: "29", region: "Bretagne", lat: 48.39, lng: -4.49 };
+const compatCompany: CompatCompany = { sectors: ["maintenance-industrielle"], skills: [], certifications: ["Qualibat 5211"], department: "29", region: "Bretagne", lat: 48.45, lng: -4.25, radiusKm: 60, zone: null };
+const compatReq = { certifications: ["Qualibat 5211 ou équivalent", "RGE"], capacity: ["Chiffre d'affaires annuel d'au moins 300 000 €", "Assurance responsabilité civile professionnelle"] };
 
 const day = (n: number) => new Date(Date.UTC(2026, 11, 26 + n, 9, 30)).toISOString();
 
@@ -64,6 +71,30 @@ export default async function OfferPreviewPage() {
         )}
 
         {frame("flou", "4 bis. En Gratuit : avantages Pro floutés", <FreeTeasers />)}
+
+        {frame(
+          "compatibilite",
+          "4 quinquies. Fiche d'un appel d'offres : la note de compatibilité (Pro et Business)",
+          <div className="mx-auto max-w-3xl">
+            <CompatibilityCard offer={compatOffer} company={compatCompany} requirements={compatReq} tradeName="Maintenance industrielle" opportunityId="apercu" canEdit />
+          </div>,
+        )}
+
+        {frame(
+          "compatibilite-gratuit",
+          "4 sexies. La même note en Gratuit : la note visible, le détail flouté",
+          <div className="mx-auto max-w-3xl">
+            <CompatibilityCard offer={compatOffer} company={compatCompany} requirements={compatReq} tradeName="Maintenance industrielle" opportunityId="apercu-gratuit" locked />
+          </div>,
+        )}
+
+        {frame(
+          "compatibilite-visiteur",
+          "4 septies. Visiteur sans compte : l'invitation à voir sa note",
+          <div className="mx-auto max-w-3xl">
+            <CompatibilityTeaser signedIn={false} />
+          </div>,
+        )}
 
         {frame("candidature", "4 ter. Fiche de candidature en Gratuit", <CandidatureFreeLimits />)}
 

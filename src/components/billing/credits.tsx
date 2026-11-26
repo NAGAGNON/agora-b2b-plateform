@@ -464,6 +464,7 @@ export function ProUpgradePage({ founder, founderUntil }: { founder: boolean; fo
   const gains: [string, string][] = [
     [`${PRO_CREDITS} candidatures par mois`, `au lieu de ${FREE_CREDITS} en Gratuit`],
     ["La fiche complète de chaque appel d'offres", "conditions, pièces à fournir, critères de notation, où et quand déposer"],
+    ["Le détail de votre note de compatibilité", "ce qui colle, ce qui manque, et la note qui s'ajuste à vos réponses"],
     ["La trame du mémoire déjà rédigée", "adaptée aux critères de l'acheteur, à compléter, en Word"],
     ["1 collègue sur vos dossiers", "pour préparer la candidature à deux"],
     ["Qui a gagné, dès la publication", "Pro surveille le résultat et vous prévient"],
@@ -534,6 +535,7 @@ export function CreditsPricing() {
     ["Recherche et lecture des offres", "Illimitées", "Illimitées", "Illimitées"],
     ["Alertes (les nouvelles offres chaque matin)", "1", "3", "Illimitées"],
     ["Fiche complète de l'appel d'offres", "Résumé", Y, Y],
+    ["Note de compatibilité avec votre entreprise", "La note seule", "Détaillée", "Détaillée"],
     ["Trame du mémoire, modèles de courriers, PDF/Word", N, Y, Y],
     ["Notes et journal de suivi", "Illimités", "Illimités", "Illimités"],
     ["Assistant de candidature", "3 questions / mois", "Illimité", "Illimité"],
