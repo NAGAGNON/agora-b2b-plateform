@@ -89,7 +89,7 @@ export async function generateMetadata(props: PageProps<"/opportunites/[id]">): 
   const details = [
     o.origin === "EXTERNAL" && o.external_buyer_name ? `Acheteur : ${o.external_buyer_name}` : null,
     location ? `Lieu : ${location}` : null,
-    o.response_deadline ? `Échéance : ${formatDate(o.response_deadline)}` : null,
+    o.response_deadline ? `${deadlinePassed ? "Offre clôturée le" : "Échéance :"} ${formatDate(o.response_deadline)}` : null,
   ].filter(Boolean);
   // Détail réservé aux membres : sans compte, la description ne figure pas non plus dans l'en-tête
   // Sans compte : seul l'aperçu public de l'avis (le même que sur la page d'accès) figure dans l'en-tête
@@ -288,6 +288,7 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
             cpv: o.origin === "EXTERNAL" ? (o.cpv_codes ?? []).slice(0, 4) : [],
           }}
           contact={needOpen ? <NeedContactForm opportunityId={o.id} /> : undefined}
+          closed={o.status !== "PUBLISHED" || Boolean(o.response_deadline && new Date(o.response_deadline) < new Date())}
         >
           <div className="mt-6 flex justify-center">
             <ContactTeamButton context={o.title} />
