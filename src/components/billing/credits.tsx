@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowRight, CalendarClock, Check, Coins, Crown, Gift, History, Infinity as InfinityIcon, Lock, PartyPopper, Rocket, Search, Sparkles, X } from "lucide-react";
-import { FOUNDER_DEADLINE_DAYS, FOUNDER_MONTHS, founderDeadline, FOUNDER_PRO_HT, FREE_CREDITS, OFFER_PLANS, PRO_CREDITS, TRIAL_DAYS, euros, frDate, ttc, type OfferCode } from "@/lib/billing/offer";
+import { FOUNDER_DEADLINE_DAYS, FOUNDER_MONTHS, founderDeadline, FOUNDER_PRO_HT, FREE_CREDITS, OFFER_PLANS, PRO_CREDITS, TRIAL_DAYS, YEAR_FREE_MONTHS, euros, yearlyHT, frDate, ttc, type OfferCode } from "@/lib/billing/offer";
 import { cn } from "@/lib/cn";
 
 /**
@@ -87,7 +87,12 @@ export function PlanCard({ code, founder, trialEligible, compact = false }: { co
           Tarif fondateur les {FOUNDER_MONTHS} premiers mois, puis {euros(p.priceHT)} HT
         </p>
       ) : p.priceHT ? (
-        <p className={cn("mt-1 text-xs", dark ? "text-slate-400" : "text-slate-500")}>soit {euros(ttc(price))} TTC</p>
+        <>
+          <p className={cn("mt-1 text-xs", dark ? "text-slate-400" : "text-slate-500")}>soit {euros(ttc(price))} TTC</p>
+          <p className={cn("mt-2 w-fit rounded-lg px-2 py-1 text-xs font-semibold ring-1", dark ? "bg-white/10 text-teal-100 ring-white/15" : "bg-teal-50 text-teal-800 ring-teal/30")}>
+            Ou {euros(yearlyHT(p.priceHT))} HT / an : {YEAR_FREE_MONTHS} mois offerts
+          </p>
+        </>
       ) : (
         <p className="mt-1 text-xs text-slate-500">sans carte bancaire</p>
       )}
@@ -472,6 +477,9 @@ export function ProUpgradePage({ founder, founderUntil }: { founder: boolean; fo
         <ProHint>Pro</ProHint>
         <h1 className="mt-3 font-heading text-3xl font-extrabold text-white sm:text-4xl">Préparez vos candidatures comme un pro</h1>
         <p className="mt-2 max-w-xl text-slate-300">Tout ce qui est flouté sur vos fiches, débloqué.</p>
+        <p className="mt-4 inline-flex max-w-xl items-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-sm font-semibold text-teal-100 ring-1 ring-white/15">
+          Un seul marché remporté peut rapporter bien plus qu&apos;une année d&apos;abonnement.
+        </p>
       </div>
       <div className="grid gap-6 p-6 sm:p-10 lg:grid-cols-[1fr_20rem]">
         <ul className="space-y-3">
@@ -494,6 +502,11 @@ export function ProUpgradePage({ founder, founderUntil }: { founder: boolean; fo
             <span className="text-sm text-slate-500">HT / mois</span>
           </p>
           <p className="text-xs text-slate-500">{founder ? `les ${FOUNDER_MONTHS} premiers mois, puis ${euros(pro.priceHT)} HT` : `soit ${euros(ttc(pro.priceHT))} TTC`}</p>
+          {!founder && (
+            <p className="mt-2 rounded-lg bg-teal-50 px-2 py-1 text-center text-xs font-semibold text-teal-800 ring-1 ring-teal/30">
+              Ou {euros(yearlyHT(pro.priceHT))} HT / an : {YEAR_FREE_MONTHS} mois offerts
+            </p>
+          )}
           {founder && (
             <p className="mt-2 rounded-lg bg-violet-50 px-2 py-1 text-center text-xs font-semibold text-violet-800 ring-1 ring-violet-200">
               {founderUntil ? `Tarif fondateur jusqu'au ${frDate(founderUntil)}` : `Tarif fondateur pendant ${FOUNDER_DEADLINE_DAYS} jours après le lancement`}
@@ -536,7 +549,10 @@ export function CreditsPricing() {
         <div className="container-page text-center">
           <h1 className="font-heading text-4xl font-extrabold text-white sm:text-5xl">Des tarifs simples</h1>
           <p className="mx-auto mt-4 max-w-2xl text-slate-300">
-            1 crédit = 1 candidature commencée. Chercher et lire les offres reste toujours gratuit. Essai {TRIAL_DAYS} jours sur Pro et Business.
+            1 crédit = 1 candidature commencée. Chercher et lire les offres reste toujours gratuit. Essai {TRIAL_DAYS} jours sur Pro et Business. À l&apos;année : {YEAR_FREE_MONTHS} mois offerts.
+          </p>
+          <p className="mx-auto mt-5 inline-flex items-center rounded-full bg-white/10 px-4 py-2 text-sm font-semibold text-teal-100 ring-1 ring-white/15">
+            Un seul marché remporté peut rapporter bien plus qu&apos;une année d&apos;abonnement.
           </p>
         </div>
       </section>
@@ -552,8 +568,8 @@ export function CreditsPricing() {
               <tr className="bg-navy text-white">
                 <th className="p-4 text-left">Ce que vous avez</th>
                 <th className="p-4">Gratuit</th>
-                <th className="p-4">Pro · 29 € HT</th>
-                <th className="p-4">Business · 59 € HT</th>
+                <th className="p-4">Pro · 29 € HT / mois<span className="block text-xs font-normal text-teal-100">ou 290 € HT / an</span></th>
+                <th className="p-4">Business · 59 € HT / mois<span className="block text-xs font-normal text-teal-100">ou 590 € HT / an</span></th>
               </tr>
             </thead>
             <tbody>

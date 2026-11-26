@@ -113,6 +113,10 @@ export const FREE_LIMITS = {
 /** Pro : 1 collègue sur les dossiers (2 utilisateurs) ; Business : toute l'équipe. */
 export const PRO_MEMBERS = 2;
 
+/** Abonnement annuel : 2 mois offerts (on paie 10 mois sur 12), mêmes crédits chaque mois. */
+export const YEAR_FREE_MONTHS = 2;
+export const yearlyHT = (monthlyHT: number) => monthlyHT * (12 - YEAR_FREE_MONTHS);
+
 export const offerPlan = (code: string | null | undefined) => OFFER_PLANS.find((p) => p.code === code) ?? OFFER_PLANS[0];
 export const ttc = (ht: number) => Math.round(ht * 120) / 100;
 export const euros = (n: number) => `${n.toLocaleString("fr-FR", { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 })} €`;
