@@ -273,33 +273,6 @@ export async function withdrawApplication(opportunityId: string): Promise<Result
   return { ok: true };
 }
 
-/**
- * « Enregistrer ma candidature » en quittant la fiche : tout est déjà enregistré au fil de l'eau (étapes,
- * notes, pièces, brouillon) ; on note où en est la candidature dans le journal (une fois par demi-journée).
- */
-export async function saveApplicationProgress(opportunityId: string, nextStep: number | null): Promise<Result> {
-  if (!z.uuid().safeParse(opportunityId).success) return { ok: false, error: "Offre introuvable." };
-  const session = await getSession();
-  if (!session?.activeCompany) return { ok: false, error: "Créez d'abord le profil de votre entreprise." };
-  const companyId = session.activeCompany.company.id;
-  const db = await createClient();
-  const { data: item } = await db.from("pipeline_items").select("id").eq("company_id", companyId).eq("opportunity_id", opportunityId).maybeSingle();
-  if (!item) return { ok: false, error: "Cette candidature n'est plus dans votre dossier." };
-  await db.from("pipeline_items").update({ updated_by: session.userId }).eq("id", item.id);
-  const step = nextStep !== null && Number.isInteger(nextStep) && nextStep >= 0 && nextStep < APPLICATION_GUIDE.length ? nextStep : null;
-  const body = step !== null ? `Candidature enregistrée. Prochaine étape : ${APPLICATION_GUIDE[step].title}.` : "Candidature enregistrée.";
-  const { count } = await db
-    .from("application_journal")
-    .select("id", { count: "exact", head: true })
-    .eq("company_id", companyId)
-    .eq("opportunity_id", opportunityId)
-    .eq("body", body)
-    .gte("created_at", new Date(nowMs() - 12 * 3_600_000).toISOString());
-  if (!count) await logJournal(db, companyId, opportunityId, session.userId, "NOTE", body);
-  revalidatePath("/dashboard/candidatures");
-  return { ok: true };
-}
-
 /** « Oui, je prépare ma candidature » : la candidature passe en préparation. */
 export async function startApplicationGuide(opportunityId: string): Promise<Result> {
   if (!z.uuid().safeParse(opportunityId).success) return { ok: false, error: "Offre introuvable." };
