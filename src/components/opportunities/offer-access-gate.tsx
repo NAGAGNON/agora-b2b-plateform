@@ -218,9 +218,11 @@ export function OfferAccessGate({
                   ))}
                 </ul>
               )}
-              <a href={go("inscription")} className={buttonClasses({ size: "lg", className: "mt-5 hidden w-full whitespace-normal text-center sm:inline-flex" })} data-testid="gate-unlock-signup">
-                {closed ? "Recevoir les prochaines offres, inscription gratuite" : "Voir l'offre complète, inscription gratuite"} <ArrowRight className="size-4" aria-hidden />
-              </a>
+              <div className="mt-5 hidden sm:block">
+                <a href={go("inscription")} className={buttonClasses({ size: "lg", className: "w-full gap-2 text-center" })} data-testid="gate-unlock-signup">
+                  {closed ? "Recevoir les prochaines offres, inscription gratuite" : "Voir l'offre complète, inscription gratuite"} <ArrowRight className="size-4" aria-hidden />
+                </a>
+              </div>
             </section>
           )}
 
@@ -341,7 +343,7 @@ export function OfferAccessGate({
       {!contact && (
         // Téléphone : le bouton d'inscription reste en bas de l'écran pendant la lecture de l'offre
         <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 p-3 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur sm:hidden">
-          <a href={go("inscription")} data-testid="gate-top-signup" className={buttonClasses({ size: "lg", className: "w-full whitespace-normal text-center" })}>
+          <a href={go("inscription")} data-testid="gate-top-signup" className={buttonClasses({ size: "lg", className: "h-auto min-h-12 w-full !whitespace-normal py-3 text-center" })}>
             {closed ? "Recevoir les prochaines offres, inscription gratuite" : "Voir l'offre complète, inscription gratuite"}
           </a>
         </div>
