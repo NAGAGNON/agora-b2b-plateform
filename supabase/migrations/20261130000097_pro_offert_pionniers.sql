@@ -35,20 +35,4 @@ returns text language sql stable security definer set search_path = '' as $$
   ), 'FREE');
 $$;
 
--- Futurs pionniers : la promesse est enregistrée au moment même où l'e-mail est mis en file d'envoi
-create or replace function public.pioneer_grant_on_email() returns trigger
-language plpgsql security definer set search_path = '' as $$
-begin
-  if new.template = 'pioneer_reward' and new.user_id is not null then
-    insert into public.pro_grants (user_id, until, reason)
-    values (new.user_id,
-            greatest(now() + interval '90 days',
-                     coalesce((select max(c.trial_ends_at) from public.company_members m join public.companies c on c.id = m.company_id where m.user_id = new.user_id), now())),
-            'Membre pionnier : 3 mois de Pro offerts (e-mail du ' || to_char(now(), 'DD/MM/YYYY') || ')')
-    on conflict (user_id) do update set until = greatest(public.pro_grants.until, excluded.until);
-  end if;
-  return new;
-end;
-$$;
-drop trigger if exists pioneer_grant_on_email on public.email_outbox;
-create trigger pioneer_grant_on_email after insert on public.email_outbox for each row execute function public.pioneer_grant_on_email();
+-- Seulement ces destinataires : la récompense automatique reste suspendue (process_pioneer_rewards), aucun autre Pro offert.
