@@ -5,7 +5,7 @@ import { cardTrial } from "@/lib/billing/card-trial";
 import { companyPlan } from "@/lib/billing/entitlements";
 
 /**
- * Lancement payant : invitation des membres déjà inscrits (offre Gratuite) à essayer Pro 7 jours.
+ * Lancement payant : invitation des membres déjà inscrits (offre Gratuite) à essayer Pro (durée du réglage, 3 jours).
  * N'apparaît que lorsque l'essai est ouvert, jamais pour une entreprise déjà abonnée ou en essai,
  * ni pour les membres pionniers (Pro déjà offert).
  */
