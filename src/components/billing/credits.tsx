@@ -472,6 +472,9 @@ export function ProUpgradePage({ founder, founderUntil }: { founder: boolean; fo
         <ProHint>Pro</ProHint>
         <h1 className="mt-3 font-heading text-3xl font-extrabold text-white sm:text-4xl">Préparez vos candidatures comme un pro</h1>
         <p className="mt-2 max-w-xl text-slate-300">Tout ce qui est flouté sur vos fiches, débloqué.</p>
+        <p className="mt-4 inline-flex max-w-xl items-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-sm font-semibold text-teal-100 ring-1 ring-white/15">
+          Un seul marché remporté peut rapporter bien plus qu&apos;une année d&apos;abonnement.
+        </p>
       </div>
       <div className="grid gap-6 p-6 sm:p-10 lg:grid-cols-[1fr_20rem]">
         <ul className="space-y-3">
@@ -537,6 +540,9 @@ export function CreditsPricing() {
           <h1 className="font-heading text-4xl font-extrabold text-white sm:text-5xl">Des tarifs simples</h1>
           <p className="mx-auto mt-4 max-w-2xl text-slate-300">
             1 crédit = 1 candidature commencée. Chercher et lire les offres reste toujours gratuit. Essai {TRIAL_DAYS} jours sur Pro et Business.
+          </p>
+          <p className="mx-auto mt-5 inline-flex items-center rounded-full bg-white/10 px-4 py-2 text-sm font-semibold text-teal-100 ring-1 ring-white/15">
+            Un seul marché remporté peut rapporter bien plus qu&apos;une année d&apos;abonnement.
           </p>
         </div>
       </section>
