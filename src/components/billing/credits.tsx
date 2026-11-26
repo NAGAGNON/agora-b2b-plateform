@@ -64,7 +64,7 @@ export function CreditSummaryCard({ plan, balance, perPeriod, renewsAt }: { plan
 }
 
 /** Une carte de formule (choix après l'inscription, fenêtre « crédits épuisés »). */
-function PlanCard({ code, founder, trialEligible, compact = false }: { code: OfferCode; founder?: boolean; trialEligible: boolean; compact?: boolean }) {
+export function PlanCard({ code, founder, trialEligible, compact = false }: { code: OfferCode; founder?: boolean; trialEligible: boolean; compact?: boolean }) {
   const p = OFFER_PLANS.find((x) => x.code === code)!;
   const dark = code === "BUSINESS";
   const pro = code === "PRO";
@@ -507,5 +507,69 @@ export function ProUpgradePage({ founder }: { founder: boolean }) {
         </div>
       </div>
     </section>
+  );
+}
+
+/** Page Tarifs de l'offre par crédits (affichée au lancement ; l'équipe peut la voir avant avec ?offre=credits). */
+export function CreditsPricing() {
+  const Y = <Check className="mx-auto size-5 text-teal-700" aria-label="Inclus" />;
+  const N = <span className="text-slate-300">—</span>;
+  const rows: [string, React.ReactNode, React.ReactNode, React.ReactNode][] = [
+    ["Candidatures par mois", `${FREE_CREDITS}`, `${PRO_CREDITS}`, "Illimitées"],
+    ["Recherche et lecture des offres", "Illimitées", "Illimitées", "Illimitées"],
+    ["Alertes incluses (au-delà : 1 crédit)", "1, le lundi", "3, chaque matin", "Illimitées"],
+    ["Fiche complète de l'appel d'offres", "Résumé", Y, Y],
+    ["Trame du mémoire, modèles de courriers, PDF/Word", N, Y, Y],
+    ["Notes et historique du journal", "3 notes, 7 jours", "Illimités", "Illimités"],
+    ["Assistant de candidature", "3 questions / mois", "Illimité", "Illimité"],
+    ["Qui a gagné, besoins en avant-première", N, Y, Y],
+    ["Collègues sur les dossiers", N, "1", "Toute l'équipe"],
+    ["Présenté à des entreprises ciblées", N, "100 / mois", "400 / mois + suivi"],
+  ];
+  return (
+    <div className="bg-slate-50/60" data-testid="credits-pricing">
+      <section className="relative isolate overflow-hidden bg-navy-900 pt-16 pb-40 text-white sm:pt-20">
+        <div aria-hidden className="bg-tech-grid absolute inset-0 -z-10 opacity-40" />
+        <div aria-hidden className="absolute -top-40 left-1/4 -z-10 size-[34rem] animate-aurora rounded-full bg-teal/25 blur-3xl" />
+        <div className="container-page text-center">
+          <h1 className="font-heading text-4xl font-extrabold text-white sm:text-5xl">Des tarifs simples</h1>
+          <p className="mx-auto mt-4 max-w-2xl text-slate-300">
+            1 crédit = 1 candidature commencée. Chercher et lire les offres reste toujours gratuit. Essai {TRIAL_DAYS} jours sur Pro et Business.
+          </p>
+        </div>
+      </section>
+      <div className="container-page -mt-28 pb-16">
+        <div className="grid gap-5 lg:grid-cols-3">
+          <PlanCard code="FREE" trialEligible />
+          <PlanCard code="PRO" trialEligible />
+          <PlanCard code="BUSINESS" trialEligible />
+        </div>
+        <div className="mt-12 overflow-x-auto rounded-3xl bg-white shadow-sm ring-1 ring-slate-200">
+          <table className="w-full min-w-[640px] text-sm">
+            <thead>
+              <tr className="bg-navy text-white">
+                <th className="p-4 text-left">Ce que vous avez</th>
+                <th className="p-4">Gratuit</th>
+                <th className="p-4">Pro · 29 € HT</th>
+                <th className="p-4">Business · 59 € HT</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map(([a, ...v]) => (
+                <tr key={a} className="border-t border-slate-100">
+                  <td className="p-4 text-slate-700">{a}</td>
+                  {v.map((x, i) => (
+                    <td key={i} className="p-4 text-center font-semibold text-navy">
+                      {x}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="mt-6 text-center text-sm text-slate-500">Prix hors taxes, TVA 20 % en sus. Sans engagement, résiliable en un clic. Les crédits se rechargent chaque mois, sans report.</p>
+      </div>
+    </div>
   );
 }

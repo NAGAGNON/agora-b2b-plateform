@@ -1,7 +1,7 @@
 import { Bell, MessageSquare } from "lucide-react";
 import { requireStaff } from "@/lib/auth";
 import { PRIVATE_METADATA } from "@/lib/seo";
-import { CandidatureFreeLimits, CreditBadge, CreditSummaryCard, FreeTeasers, FreeWelcome, LegacyLaunchBanner, ProUpgradePage, OutOfCredits, PlanChoice, SubscriptionCredits, TrialSummary } from "@/components/billing/credits";
+import { CandidatureFreeLimits, CreditBadge, CreditsPricing, CreditSummaryCard, FreeTeasers, FreeWelcome, LegacyLaunchBanner, ProUpgradePage, OutOfCredits, PlanChoice, SubscriptionCredits, TrialSummary } from "@/components/billing/credits";
 
 export const metadata = { ...PRIVATE_METADATA, title: "Aperçu de l'offre payante" };
 
@@ -23,6 +23,8 @@ export default async function OfferPreviewPage() {
     <div className="bg-slate-50/60">
       <div className="container-page space-y-14 py-8 sm:py-12">
         <p className="rounded-xl bg-violet-50 px-4 py-3 text-sm text-violet-900 ring-1 ring-violet-200">Aperçu réservé à l&apos;équipe : chiffres d&apos;exemple, aucun client ne voit ces écrans tant que l&apos;offre payante n&apos;est pas lancée.</p>
+
+        {frame("tarifs", "0. La page Tarifs", <CreditsPricing />)}
 
         {frame("choix", "1. Après l'inscription : choisir sa formule", <PlanChoice companyName="Durand Maintenance" />)}
 
