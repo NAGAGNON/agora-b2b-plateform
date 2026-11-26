@@ -30,7 +30,7 @@ export default async function OfferPreviewPage() {
 
         {frame("bienvenue", "2. S'il choisit Gratuit", <FreeWelcome renewsAt={day(0)} />)}
 
-        {frame("essai", "3. S'il choisit Pro ou Business : l'essai de 3 jours", <div className="grid gap-5 lg:grid-cols-2"><TrialSummary plan="PRO" start={day(-30)} /><TrialSummary plan="BUSINESS" start={day(-30)} /></div>)}
+        {frame("essai", "3. S'il choisit Pro ou Business : l'essai de 7 jours", <div className="grid gap-5 lg:grid-cols-2"><TrialSummary plan="PRO" start={day(-30)} /><TrialSummary plan="BUSINESS" start={day(-30)} /></div>)}
 
         {frame(
           "solde",

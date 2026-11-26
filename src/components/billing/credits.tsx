@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowRight, CalendarClock, Check, Coins, Crown, Gift, History, Infinity as InfinityIcon, Lock, PartyPopper, Rocket, Search, Sparkles, X } from "lucide-react";
-import { FOUNDER_MONTHS, FOUNDER_PRO_HT, FREE_CREDITS, OFFER_PLANS, PRO_CREDITS, TRIAL_DAYS, euros, frDate, ttc, type OfferCode } from "@/lib/billing/offer";
+import { FOUNDER_DEADLINE_DAYS, FOUNDER_MONTHS, founderDeadline, FOUNDER_PRO_HT, FREE_CREDITS, OFFER_PLANS, PRO_CREDITS, TRIAL_DAYS, euros, frDate, ttc, type OfferCode } from "@/lib/billing/offer";
 import { cn } from "@/lib/cn";
 
 /**
@@ -203,7 +203,8 @@ export function OutOfCredits({ plan, renewsAt, trialEligible, founder }: { plan:
 }
 
 /** Anciens inscrits, le jour du lancement : bandeau du tableau de bord (et fenêtre une seule fois). */
-export function LegacyLaunchBanner({ until }: { until: string }) {
+export function LegacyLaunchBanner({ until, launchedAt }: { until: string; launchedAt?: string }) {
+  const founderEnd = founderDeadline(launchedAt ?? until);
   return (
     <section className="relative isolate overflow-hidden rounded-3xl bg-gradient-to-br from-navy to-navy-900 p-5 text-white shadow-xl sm:p-7" data-testid="legacy-launch">
       <div aria-hidden className="pointer-events-none absolute -top-16 -right-10 -z-10 size-64 animate-aurora rounded-full bg-teal/30 blur-3xl" />
@@ -231,6 +232,7 @@ export function LegacyLaunchBanner({ until }: { until: string }) {
               <span className="font-bold">
                 Pro à {euros(FOUNDER_PRO_HT)} HT les {FOUNDER_MONTHS} premiers mois
               </span>
+              <span className="block text-xs text-violet-100">Offre valable jusqu&apos;au {frDate(founderEnd)}</span>
             </p>
           </div>
           <div className="mt-5 flex flex-wrap gap-2">
@@ -405,7 +407,7 @@ export function CandidatureFreeLimits() {
         <div className="flex items-center justify-between gap-2">
           <p className="text-sm font-bold text-navy">Notes de cette étape</p>
           <span className="flex items-center gap-2 text-xs font-semibold text-slate-500">
-            2 / 3 <ProHint>Illimité avec Pro</ProHint>
+            2 notes
           </span>
         </div>
         <p className="mt-2 rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700 ring-1 ring-slate-200">Attestation demandée à l&apos;assureur</p>
@@ -428,13 +430,8 @@ export function CandidatureFreeLimits() {
         <div className="rounded-2xl bg-white ring-1 ring-slate-200">
           <Row a="Aujourd'hui · Question posée sur les quantités" b="Vous" />
           <Row a="Lundi · Candidature commencée" b="Vous" />
+          <Row a="12 nov. · Échange avec l'acheteur" b="Vous" />
         </div>
-        <ProLock title="Historique complet">
-          <div className="bg-white">
-            <Row a="12 nov. · Échange avec l'acheteur" b="Vous" />
-            <Row a="8 nov. · Pièces rassemblées" b="Vous" />
-          </div>
-        </ProLock>
       </div>
       <div className="space-y-2">
         <p className="text-sm font-bold text-navy">Mémoire technique</p>
@@ -457,13 +454,13 @@ export function CandidatureFreeLimits() {
 }
 
 /** « Pourquoi Pro » : la seule page qui explique tout ce que Pro apporte, avec les boutons pour souscrire. */
-export function ProUpgradePage({ founder }: { founder: boolean }) {
+export function ProUpgradePage({ founder, founderUntil }: { founder: boolean; founderUntil?: string }) {
   const pro = OFFER_PLANS.find((p) => p.code === "PRO")!;
   const gains: [string, string][] = [
     [`${PRO_CREDITS} candidatures par mois`, `au lieu de ${FREE_CREDITS} en Gratuit`],
     ["La fiche complète de chaque appel d'offres", "conditions, pièces à fournir, critères de notation, où et quand déposer"],
     ["La trame du mémoire déjà rédigée", "adaptée aux critères de l'acheteur, à compléter, en Word"],
-    ["Notes illimitées et tout l'historique", "plus 1 collègue sur vos dossiers"],
+    ["1 collègue sur vos dossiers", "pour préparer la candidature à deux"],
     ["Qui a gagné, dès la publication", "Pro surveille le résultat et vous prévient"],
     ["Les besoins des entreprises en avant-première", "48 h avant les autres, proposé en premier"],
     ["Les nouvelles offres chaque matin", "3 alertes, l'assistant sans limite, les modèles de courriers"],
@@ -473,7 +470,7 @@ export function ProUpgradePage({ founder }: { founder: boolean }) {
       <div className="relative isolate bg-gradient-to-br from-navy to-navy-900 p-6 text-white sm:p-10">
         <div aria-hidden className="pointer-events-none absolute -top-20 -right-16 -z-10 size-72 animate-aurora rounded-full bg-teal/30 blur-3xl" />
         <ProHint>Pro</ProHint>
-        <h1 className="mt-3 font-heading text-3xl font-extrabold sm:text-4xl">Préparez vos candidatures comme un pro</h1>
+        <h1 className="mt-3 font-heading text-3xl font-extrabold text-white sm:text-4xl">Préparez vos candidatures comme un pro</h1>
         <p className="mt-2 max-w-xl text-slate-300">Tout ce qui est flouté sur vos fiches, débloqué.</p>
       </div>
       <div className="grid gap-6 p-6 sm:p-10 lg:grid-cols-[1fr_20rem]">
@@ -497,6 +494,11 @@ export function ProUpgradePage({ founder }: { founder: boolean }) {
             <span className="text-sm text-slate-500">HT / mois</span>
           </p>
           <p className="text-xs text-slate-500">{founder ? `les ${FOUNDER_MONTHS} premiers mois, puis ${euros(pro.priceHT)} HT` : `soit ${euros(ttc(pro.priceHT))} TTC`}</p>
+          {founder && (
+            <p className="mt-2 rounded-lg bg-violet-50 px-2 py-1 text-center text-xs font-semibold text-violet-800 ring-1 ring-violet-200">
+              {founderUntil ? `Tarif fondateur jusqu'au ${frDate(founderUntil)}` : `Tarif fondateur pendant ${FOUNDER_DEADLINE_DAYS} jours après le lancement`}
+            </p>
+          )}
           <span className="btn-shine mt-5 inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-teal to-electric font-bold text-navy shadow-lg">
             Essayer Pro {TRIAL_DAYS} jours <ArrowRight className="size-4" aria-hidden />
           </span>
@@ -517,10 +519,10 @@ export function CreditsPricing() {
   const rows: [string, React.ReactNode, React.ReactNode, React.ReactNode][] = [
     ["Candidatures par mois", `${FREE_CREDITS}`, `${PRO_CREDITS}`, "Illimitées"],
     ["Recherche et lecture des offres", "Illimitées", "Illimitées", "Illimitées"],
-    ["Alertes incluses (au-delà : 1 crédit)", "1, le lundi", "3, chaque matin", "Illimitées"],
+    ["Alertes (les nouvelles offres chaque matin)", "1", "3", "Illimitées"],
     ["Fiche complète de l'appel d'offres", "Résumé", Y, Y],
     ["Trame du mémoire, modèles de courriers, PDF/Word", N, Y, Y],
-    ["Notes et historique du journal", "3 notes, 7 jours", "Illimités", "Illimités"],
+    ["Notes et journal de suivi", "Illimités", "Illimités", "Illimités"],
     ["Assistant de candidature", "3 questions / mois", "Illimité", "Illimité"],
     ["Qui a gagné, besoins en avant-première", N, Y, Y],
     ["Collègues sur les dossiers", N, "1", "Toute l'équipe"],
