@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BellRing, CalendarClock, CalendarDays, CheckCircle2, FileText, Landmark, LayoutList, Lock, MapPin, MessageSquare, Tag, Wallet } from "lucide-react";
+import { ArrowRight, BellRing, CalendarClock, CalendarDays, CheckCircle2, ClipboardList, ExternalLink, FileText, Gauge, Landmark, LayoutList, Lock, MapPin, MessageSquare, Tag, Wallet } from "lucide-react";
 import { buttonClasses } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/format";
@@ -11,6 +11,18 @@ import { GoogleButton } from "@/components/auth/google-button";
  * ou connexion (contrôle côté serveur). Venu d'un e-mail de prospection (`token`), son parcours est
  * suivi ; sinon il revient sur la fiche après l'inscription.
  */
+const flat = (t: string) =>
+  t
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+/** Le résumé ne fait que répéter l'intitulé (« X cherche une entreprise pour : <titre> ») : inutile de l'afficher. */
+export const summaryRepeatsTitle = (summary: string, title: string) => flat(summary).includes(flat(title).slice(0, 60));
+
+const daysLeft = (iso: string) => Math.ceil((new Date(iso).getTime() - Date.now()) / 86_400_000);
+
 export function OfferAccessGate({
   token,
   offer,
@@ -58,7 +70,7 @@ export function OfferAccessGate({
   const go = (a: "inscription" | "connexion") => (token ? `/api/outreach/acces/${token}?o=${offer.id}&a=${a}` : `/${a}?suite=${suite}`);
   return (
     <div className="bg-sky/40">
-      <div className="container-page py-10 sm:py-16">
+      <div className="container-page pt-10 pb-28 sm:py-16">
         {crumbs?.length ? (
           <nav aria-label="Fil d'Ariane" className="mx-auto mb-4 max-w-2xl text-sm text-slate-500">
             {crumbs.map((c, i) => (
@@ -93,74 +105,76 @@ export function OfferAccessGate({
           </div>
         )}
         <div className="mx-auto max-w-2xl rounded-2xl border border-slate-200 bg-white p-6 shadow-sm [overflow-wrap:anywhere] sm:p-10">
-          <span className="inline-flex size-12 items-center justify-center rounded-full bg-teal-50 text-teal-700">
-            {contact ? <MessageSquare className="size-6" aria-hidden /> : <Lock className="size-6" aria-hidden />}
-          </span>
-          <p className="mt-4 text-2xl leading-tight font-bold sm:text-3xl">
-            {contact ? "Une entreprise recherche un prestataire" : closed ? "Recevez les prochaines offres de ce type" : "Créez votre compte pour accéder à cette offre"}
-          </p>
-          <p className="mt-3 text-slate-700">
-            {contact
-              ? "Vous pouvez répondre à ce besoin ? Écrivez directement à l'entreprise qui l'a publié, sans créer de compte : elle reçoit votre message par e-mail et vous répond."
-              : closed
-              ? "Cette offre est terminée. Inscription gratuite en moins d'une minute : vous recevez les nouvelles offres de votre métier dès leur publication."
-              : token
-              ? "Cette offre vous a été recommandée personnellement. Créez votre compte gratuitement pour voir les détails et accéder à l'offre."
-              : "Inscription gratuite en moins d'une minute : vous accédez à l'offre complète et recevez les nouvelles offres de votre métier."}
-          </p>
-          {!contact && (
-            // Bouton visible dès le premier écran (sur téléphone, le formulaire complet est plus bas)
-            <a href={go("inscription")} data-testid="gate-top-signup" className={buttonClasses({ size: "lg", className: "mt-5 w-full sm:w-auto" })}>
-              {closed ? "Recevoir les prochaines offres, inscription gratuite" : <>Voir l&apos;offre complète, inscription gratuite</>}
-            </a>
+          {contact && (
+            <>
+              <span className="inline-flex size-12 items-center justify-center rounded-full bg-teal-50 text-teal-700">
+                <MessageSquare className="size-6" aria-hidden />
+              </span>
+              <p className="mt-4 text-2xl leading-tight font-bold sm:text-3xl">Une entreprise recherche un prestataire</p>
+              <p className="mt-3 text-slate-700">
+                Vous pouvez répondre à ce besoin ? Écrivez directement à l&apos;entreprise qui l&apos;a publié, sans créer de compte : elle reçoit votre message par e-mail et vous répond.
+              </p>
+            </>
           )}
 
-          <section aria-label="Offre recommandée" className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-5">
+          {/* L'offre d'abord : le visiteur venu de Google voit ce qu'il cherchait (titre, acheteur, lieu, date limite, besoin) */}
+          <section aria-label="L'offre" className={contact ? "mt-6 rounded-xl border border-slate-200 bg-slate-50 p-5" : ""} data-testid="gate-offer">
             {offer.sector && (
               <Badge tone="teal" icon={<Tag className="size-3" aria-hidden />}>
                 {offer.sector}
               </Badge>
             )}
-            <h1 className="mt-2 text-lg leading-snug font-bold text-navy">{offer.title}</h1>
+            <h1 className={contact ? "mt-2 text-lg leading-snug font-bold text-navy" : "mt-3 font-heading text-2xl leading-tight font-extrabold text-balance text-navy sm:text-3xl"}>{offer.title}</h1>
             {offer.buyer && (
-              <p className="mt-1 flex items-center gap-2 text-sm text-slate-600">
+              <p className="mt-2 flex items-center gap-2 text-slate-600">
                 <Landmark className="size-4 shrink-0 text-teal-700" aria-hidden />
                 {offer.buyerPath ? (
-                  <Link href={offer.buyerPath} className="underline-offset-2 hover:underline">
+                  <Link href={offer.buyerPath} className="font-semibold text-navy underline-offset-2 hover:underline">
                     {offer.buyer}
                   </Link>
                 ) : (
-                  offer.buyer
+                  <strong className="text-navy">{offer.buyer}</strong>
                 )}
               </p>
             )}
-            <ul className="mt-3 grid gap-2 text-sm text-slate-600 sm:grid-cols-2">
+            <ul className="mt-4 flex flex-wrap gap-2 text-sm">
+              {offer.deadline && (
+                <li
+                  className={`inline-flex items-center gap-1.5 rounded-2xl px-3 py-1.5 font-semibold ring-1 ${
+                    !closed && daysLeft(offer.deadline) <= 5 ? "bg-rose-50 text-rose-800 ring-rose-200" : "bg-white text-navy ring-slate-200"
+                  }`}
+                >
+                  <CalendarClock className="size-4 shrink-0" aria-hidden /> {closed ? "Clôturée le" : "Date limite :"} {formatDate(offer.deadline)}
+                  {!closed && daysLeft(offer.deadline) >= 0 && <span className="font-normal opacity-80">· encore {daysLeft(offer.deadline)} jour{daysLeft(offer.deadline) > 1 ? "s" : ""}</span>}
+                </li>
+              )}
               {offer.location && (
-                <li className="flex items-center gap-2">
+                <li className="inline-flex items-center gap-1.5 rounded-2xl bg-white px-3 py-1.5 text-slate-700 ring-1 ring-slate-200">
                   <MapPin className="size-4 shrink-0 text-teal-700" aria-hidden /> {offer.location}
                 </li>
               )}
-              {offer.deadline && (
-                <li className="flex items-center gap-2">
-                  <CalendarClock className="size-4 shrink-0 text-teal-700" aria-hidden /> {closed ? "Clôturée le" : "Date limite :"} {formatDate(offer.deadline)}
-                </li>
-              )}
-              {offer.publishedAt && (
-                <li className="flex items-center gap-2">
-                  <CalendarDays className="size-4 shrink-0 text-teal-700" aria-hidden /> Publiée le {formatDate(offer.publishedAt)}
-                </li>
-              )}
               {offer.budget && (
-                <li className="flex items-center gap-2">
+                <li className="inline-flex items-center gap-1.5 rounded-2xl bg-white px-3 py-1.5 text-slate-700 ring-1 ring-slate-200">
                   <Wallet className="size-4 shrink-0 text-teal-700" aria-hidden /> {offer.budget}
                 </li>
               )}
+              {offer.publishedAt && (
+                <li className="inline-flex items-center gap-1.5 rounded-2xl bg-white px-3 py-1.5 text-slate-500 ring-1 ring-slate-200">
+                  <CalendarDays className="size-4 shrink-0" aria-hidden /> Publiée le {formatDate(offer.publishedAt)}
+                </li>
+              )}
             </ul>
-            {offer.summary && (
-              <p className="mt-4 rounded-lg bg-white p-3 text-sm leading-relaxed text-slate-800 ring-1 ring-slate-200">
-                <strong className="font-semibold text-navy">En bref : </strong>
-                {offer.summary}
-              </p>
+            {offer.summary && !summaryRepeatsTitle(offer.summary, offer.title) && (
+              <div className="mt-5 rounded-2xl bg-gradient-to-br from-sky to-white p-4 ring-1 ring-slate-200" data-testid="gate-summary">
+                <p className="text-xs font-bold tracking-wide text-teal-700 uppercase">En bref : ce que cherche l&apos;acheteur</p>
+                <p className="mt-1.5 leading-relaxed text-navy">{offer.summary}</p>
+              </div>
+            )}
+            {offer.excerpt && (
+              <div className="relative mt-4 border-t border-slate-200 pt-4">
+                <p className="text-sm leading-relaxed text-slate-700">{offer.excerpt}</p>
+                <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-white to-transparent" />
+              </div>
             )}
             {(offer.reference || (offer.cpv?.length ?? 0) > 0) && (
               <p className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600">
@@ -172,18 +186,43 @@ export function OfferAccessGate({
                 {offer.cpv && offer.cpv.length > 0 && <span>Codes CPV : {offer.cpv.join(", ")}</span>}
               </p>
             )}
-            {offer.excerpt && (
-              <div className="relative mt-4 border-t border-slate-200 pt-4">
-                <p className="text-sm leading-relaxed text-slate-700">{offer.excerpt}</p>
-                <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-slate-50 to-transparent" />
-              </div>
-            )}
-            {!contact && (
-              <p className="mt-3 flex items-center gap-2 text-xs font-semibold text-slate-600">
-                <Lock className="size-3.5 text-teal-700" aria-hidden /> Descriptif complet, documents, lien officiel et fiche de l&apos;acheteur réservés aux membres
-              </p>
-            )}
           </section>
+
+          {!contact && (
+            <section aria-labelledby="gate-unlock" className="mt-7 rounded-2xl bg-navy p-5 text-white sm:p-6" data-testid="gate-unlock">
+              <p id="gate-unlock" className="flex items-center gap-2 text-lg font-bold sm:text-xl">
+                <Lock className="size-5 text-teal-300" aria-hidden />
+                {closed ? "Recevez les prochaines offres de ce type" : "Créez votre compte pour accéder à cette offre"}
+              </p>
+              <p className="mt-2 text-sm text-slate-300">
+                {closed
+                  ? "Cette offre est terminée. Inscription gratuite en moins d'une minute : vous recevez les nouvelles offres de votre métier dès leur publication."
+                  : token
+                    ? "Cette offre vous a été recommandée personnellement. Créez votre compte gratuitement pour voir les détails et accéder à l'offre."
+                    : "Gratuit, sans carte bancaire, en moins d'une minute. Vous revenez directement sur cette offre."}
+              </p>
+              {!closed && (
+                <ul className="mt-4 space-y-2.5 text-sm">
+                  {[
+                    { icon: <ExternalLink className="size-4" aria-hidden />, t: "L'annonce officielle et le dossier de consultation", d: "le lien vers le site de l'acheteur pour répondre" },
+                    { icon: <ClipboardList className="size-4" aria-hidden />, t: "La fiche complète, en français simple", d: "pièces à fournir, critères de notation, où et quand déposer" },
+                    { icon: <Gauge className="size-4" aria-hidden />, t: "Votre note de correspondance avec cette offre", d: "votre métier, votre zone et les conditions demandées, point par point" },
+                  ].map((x) => (
+                    <li key={x.t} className="flex gap-3 rounded-xl bg-white/5 p-3 ring-1 ring-white/10">
+                      <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-teal/20 text-teal-200">{x.icon}</span>
+                      <span>
+                        <span className="block font-semibold">{x.t}</span>
+                        <span className="block text-slate-300">{x.d}</span>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <a href={go("inscription")} className={buttonClasses({ size: "lg", className: "mt-5 hidden w-full whitespace-normal text-center sm:inline-flex" })} data-testid="gate-unlock-signup">
+                {closed ? "Recevoir les prochaines offres, inscription gratuite" : "Voir l'offre complète, inscription gratuite"} <ArrowRight className="size-4" aria-hidden />
+              </a>
+            </section>
+          )}
 
           {contact && (
             <section aria-labelledby="need-contact" className="mt-6" data-testid="need-contact">
@@ -199,15 +238,17 @@ export function OfferAccessGate({
 
           <section aria-labelledby="gains" className="mt-6">
             <h2 id="gains" className="text-base font-bold text-navy">
-              Ce que vous débloquez gratuitement
+              {contact ? "Ce que vous débloquez gratuitement" : "Et aussi, avec votre compte gratuit"}
             </h2>
             <ul className="mt-3 space-y-2.5 text-sm text-slate-700">
-              <li className="flex gap-2.5">
-                <FileText className="mt-0.5 size-4 shrink-0 text-teal-700" aria-hidden />
-                <span>
-                  <strong>Le lien officiel, le dossier de consultation et la fiche de l&apos;acheteur</strong> pour répondre, avec le descriptif complet et les conditions de participation
-                </span>
-              </li>
+              {contact && (
+                <li className="flex gap-2.5">
+                  <FileText className="mt-0.5 size-4 shrink-0 text-teal-700" aria-hidden />
+                  <span>
+                    <strong>Le lien officiel, le dossier de consultation et la fiche de l&apos;acheteur</strong> pour répondre, avec le descriptif complet et les conditions de participation
+                  </span>
+                </li>
+              )}
               {gains?.alertLabel && (
                 <li className="flex gap-2.5">
                   <BellRing className="mt-0.5 size-4 shrink-0 text-teal-700" aria-hidden />
@@ -297,6 +338,14 @@ export function OfferAccessGate({
         </div>
         {children ? <div className="mx-auto max-w-5xl">{children}</div> : null}
       </div>
+      {!contact && (
+        // Téléphone : le bouton d'inscription reste en bas de l'écran pendant la lecture de l'offre
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 p-3 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur sm:hidden">
+          <a href={go("inscription")} data-testid="gate-top-signup" className={buttonClasses({ size: "lg", className: "w-full whitespace-normal text-center" })}>
+            {closed ? "Recevoir les prochaines offres, inscription gratuite" : "Voir l'offre complète, inscription gratuite"}
+          </a>
+        </div>
+      )}
     </div>
   );
 }
