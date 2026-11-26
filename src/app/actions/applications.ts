@@ -78,8 +78,8 @@ export async function nextApplicationPrompt(): Promise<ApplicationPrompt | null>
 type Db = Awaited<ReturnType<typeof createClient>>;
 type JournalKind = "NOTE" | "START" | "STEP" | "SENT" | "WON" | "LOST";
 /** Entrée du journal de suivi (jamais bloquant). */
-async function logJournal(db: Db, companyId: string, opportunityId: string, userId: string, kind: JournalKind, body: string) {
-  await db.from("application_journal").insert({ company_id: companyId, opportunity_id: opportunityId, user_id: userId, kind, body: body.slice(0, 2000) }).then(
+async function logJournal(db: Db, companyId: string, opportunityId: string, userId: string, kind: JournalKind, body: string, step: number | null = null) {
+  await db.from("application_journal").insert({ company_id: companyId, opportunity_id: opportunityId, user_id: userId, kind, body: body.slice(0, 2000), step }).then(
     () => undefined,
     () => undefined,
   );
@@ -221,7 +221,7 @@ export async function toggleGuideStep(opportunityId: string, step: number, done:
         .eq("id", item.id)
     : await db.from("pipeline_items").insert({ company_id: companyId, opportunity_id: opportunityId, stage: "RESPONSE_PREPARING", guide_done: next, updated_by: session.userId });
   if (error) return { ok: false, error: "Enregistrement impossible. Réessayez." };
-  if (done && !(item?.guide_done ?? []).map(Number).includes(step)) await logJournal(db, companyId, opportunityId, session.userId, "STEP", `Étape faite : ${APPLICATION_GUIDE[step].title}.`);
+  if (done && !(item?.guide_done ?? []).map(Number).includes(step)) await logJournal(db, companyId, opportunityId, session.userId, "STEP", `Étape faite : ${APPLICATION_GUIDE[step].title}.`, step);
   if (done) await markWorkStarted(db, companyId, opportunityId);
   revalidatePath("/dashboard/candidatures");
   return { ok: true, done: next };
@@ -316,24 +316,48 @@ export async function saveDraft(opportunityId: string, draft: string): Promise<R
   return error ? { ok: false, error: "Enregistrement impossible. Réessayez." } : { ok: true };
 }
 
-export type JournalEntry = { id: string; kind: string; body: string; created_at: string; author: string | null; mine: boolean };
+export type JournalEntry = { id: string; kind: string; body: string; created_at: string; author: string | null; mine: boolean; step: number | null };
 
-/** Ajoute une note au journal de suivi de la candidature. */
-export async function addJournalNote(opportunityId: string, body: string): Promise<Result<{ entry: JournalEntry }>> {
+/** Ajoute une note au journal de suivi de la candidature (générale, ou rattachée à une étape du parcours). */
+export async function addJournalNote(opportunityId: string, body: string, step: number | null = null): Promise<Result<{ entry: JournalEntry }>> {
   const text = typeof body === "string" ? body.trim() : "";
   if (!z.uuid().safeParse(opportunityId).success || !text || text.length > 2000) return { ok: false, error: "Note vide ou trop longue." };
+  if (step !== null && !(Number.isInteger(step) && step >= 0 && step <= 6)) return { ok: false, error: "Étape inconnue." };
   const session = await getSession();
   if (!session?.activeCompany) return { ok: false, error: "Créez d'abord le profil de votre entreprise." };
   if (!(await rateLimit("application-journal", 120, 3600))) return { ok: false, error: "Trop de notes. Réessayez plus tard." };
   const db = await createClient();
   const { data, error } = await db
     .from("application_journal")
-    .insert({ company_id: session.activeCompany.company.id, opportunity_id: opportunityId, user_id: session.userId, kind: "NOTE", body: text })
-    .select("id, kind, body, created_at")
+    .insert({ company_id: session.activeCompany.company.id, opportunity_id: opportunityId, user_id: session.userId, kind: "NOTE", body: text, step })
+    .select("id, kind, body, created_at, step")
     .single();
   if (error || !data) return { ok: false, error: "Enregistrement impossible. Réessayez." };
   await markWorkStarted(db, session.activeCompany.company.id, opportunityId);
   return { ok: true, entry: { ...data, author: "Vous", mine: true } };
+}
+
+export type TeamMember = { id: string; name: string; you: boolean };
+
+/** Ajoute un membre de l'équipe au suivi de la candidature (il est prévenu dans ses notifications). */
+export async function addFollower(opportunityId: string, userId: string): Promise<Result> {
+  if (!z.uuid().safeParse(opportunityId).success || !z.uuid().safeParse(userId).success) return { ok: false, error: "Membre introuvable." };
+  const session = await getSession();
+  if (!session?.activeCompany) return { ok: false, error: "Créez d'abord le profil de votre entreprise." };
+  const db = await createClient();
+  const { error } = await db.rpc("add_application_follower", { p_company_id: session.activeCompany.company.id, p_opportunity_id: opportunityId, p_user_id: userId });
+  if (error) return { ok: false, error: /équipe/.test(error.message) ? error.message : "Ajout impossible. Réessayez." };
+  return { ok: true };
+}
+
+/** Retire un membre du suivi de la candidature. */
+export async function removeFollower(opportunityId: string, userId: string): Promise<Result> {
+  if (!z.uuid().safeParse(opportunityId).success || !z.uuid().safeParse(userId).success) return { ok: false, error: "Membre introuvable." };
+  const session = await getSession();
+  if (!session?.activeCompany) return { ok: false, error: "Créez d'abord le profil de votre entreprise." };
+  const db = await createClient();
+  const { error } = await db.rpc("remove_application_follower", { p_company_id: session.activeCompany.company.id, p_opportunity_id: opportunityId, p_user_id: userId });
+  return error ? { ok: false, error: "Retrait impossible. Réessayez." } : { ok: true };
 }
 
 /** Supprime une de ses notes du journal. */

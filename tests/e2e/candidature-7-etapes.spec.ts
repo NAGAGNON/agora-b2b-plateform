@@ -28,6 +28,7 @@ test.beforeAll(async () => {
 test.afterAll(async () => {
   if (!id) return;
   await db.from("application_journal").delete().eq("opportunity_id", id);
+  await db.from("application_followers").delete().eq("opportunity_id", id);
   await db.from("pipeline_items").delete().eq("opportunity_id", id);
   await db.from("opportunities").delete().eq("id", id);
 });
@@ -73,4 +74,49 @@ test("parcours en 7 étapes : capacités enregistrées, dépôt détaillé, suiv
   const { data } = await db.from("pipeline_items").select("stage, journey").eq("opportunity_id", id).single();
   expect(data?.stage).toBe("RESPONSE_SENT");
   expect(data?.journey).toMatchObject({ submission: { status: "submitted", platform: "PLACE", reference: "ACC-123" }, capacities: { team: { s: "yes" }, cash: { s: "no" } } });
+});
+
+test("une note dans chaque étape (retrouvée dans le journal) et l'équipe sur le dossier", async ({ browser }) => {
+  test.setTimeout(120_000);
+  const page = await newPage(browser, { width: 390, height: 844 });
+  await login(page, "acheteur@demo.linkprob2b.test");
+  await page.goto(`/dashboard/candidatures/${id}`);
+  // Ouvre une étape (une seule ouverte à la fois ; la prochaine à faire l'est déjà à l'arrivée)
+  const open = async (title: string) => {
+    const b = page.getByTestId("steps").getByRole("button", { name: new RegExp(title) });
+    if ((await b.getAttribute("aria-expanded")) !== "true") await b.click();
+  };
+
+  // Étape 1 : une note, gardée après rechargement
+  await open("Vérifier votre éligibilité");
+  const n1 = page.getByTestId("step-notes-1");
+  await n1.getByLabel("Note pour l'étape 1").fill(`Kbis demandé au comptable ${RUN}`);
+  await n1.getByRole("button", { name: "Ajouter la note" }).click();
+  await expect(n1).toContainText(`Kbis demandé au comptable ${RUN}`);
+
+  // Étape 2 : sa propre note, distincte de l'étape 1
+  await open("Comprendre le besoin de l'acheteur");
+  const n2 = page.getByTestId("step-notes-2");
+  await n2.getByLabel("Note pour l'étape 2").fill(`Question posée sur les quantités ${RUN}`);
+  await n2.getByRole("button", { name: "Ajouter la note" }).click();
+  await expect(n2).toContainText(`Question posée sur les quantités ${RUN}`);
+  await expect(n2).not.toContainText("Kbis");
+
+  await page.reload();
+  await open("Vérifier votre éligibilité");
+  await expect(page.getByTestId("step-notes-1")).toContainText(`Kbis demandé au comptable ${RUN}`);
+
+  // Le journal de suivi reprend les notes, avec leur étape
+  await page.getByRole("button", { name: /Journal de suivi/ }).click();
+  await expect(page.locator("#journal")).toContainText(`Étape 2 · Question posée sur les quantités ${RUN}`);
+
+  // Équipe sur ce dossier : ajout au suivi
+  const team = page.getByTestId("team-follow");
+  await expect(team).toContainText("Équipe sur ce dossier");
+  await team.getByLabel("Membre de l'équipe à ajouter").selectOption({ index: 1 });
+  await team.getByRole("button", { name: "Ajouter au suivi" }).click();
+  await expect(team).toContainText("Vous suivez ce dossier.");
+  await expect(team.getByRole("button", { name: /Retirer .* du suivi/ })).toBeVisible();
+  const { count } = await db.from("application_followers").select("user_id", { count: "exact", head: true }).eq("opportunity_id", id);
+  expect(count).toBe(1);
 });
