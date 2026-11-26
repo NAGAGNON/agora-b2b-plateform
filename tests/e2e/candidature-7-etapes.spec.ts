@@ -120,3 +120,19 @@ test("une note dans chaque étape (retrouvée dans le journal) et l'équipe sur 
   const { count } = await db.from("application_followers").select("user_id", { count: "exact", head: true }).eq("opportunity_id", id);
   expect(count).toBe(1);
 });
+
+test("téléphone : ouvrir une étape garde l'étape à l'écran (la page ne saute pas en bas)", async ({ browser }) => {
+  test.setTimeout(90_000);
+  const page = await newPage(browser, { width: 390, height: 844 });
+  await login(page, "acheteur@demo.linkprob2b.test");
+  await page.goto(`/dashboard/candidatures/${id}`);
+  const steps = page.getByTestId("steps");
+  for (const title of ["Vérifier votre éligibilité", "Rassembler les documents", "Comprendre le besoin de l'acheteur", "Préparer votre offre"]) {
+    const b = steps.getByRole("button", { name: new RegExp(title) });
+    await b.scrollIntoViewIfNeeded();
+    if ((await b.getAttribute("aria-expanded")) !== "true") await b.click();
+    await expect(b).toHaveAttribute("aria-expanded", "true");
+    await page.waitForTimeout(700);
+    await expect(b).toBeInViewport();
+  }
+});

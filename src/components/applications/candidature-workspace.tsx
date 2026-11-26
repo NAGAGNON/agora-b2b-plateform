@@ -876,8 +876,26 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
 
 /** Étape du guide, repliable : une seule ouverte à la fois, la prochaine à faire. */
 function Step({ n, title, subtitle, done, open, onOpen, onToggle, pending, notes, children }: { n: number; title: string; subtitle: string; done: boolean; open: boolean; onOpen: () => void; onToggle?: (v: boolean) => void; pending: boolean; notes?: React.ReactNode; children: React.ReactNode }) {
+  // Étape ouverte au clic : l'étape précédente se referme et la page « saute » ; on garde l'étape ouverte
+  // en haut de l'écran pour que la personne reste là où elle a cliqué (pas au chargement de la page)
+  const ref = useRef<HTMLElement>(null);
+  const mounted = useRef(false);
+  useEffect(() => {
+    if (!mounted.current) {
+      mounted.current = true;
+      return;
+    }
+    if (!open) return;
+    const id = requestAnimationFrame(() => {
+      const el = ref.current;
+      if (!el) return;
+      const top = el.getBoundingClientRect().top;
+      if (top < 64 || top > window.innerHeight * 0.5) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+    return () => cancelAnimationFrame(id);
+  }, [open]);
   return (
-    <section id={`etape-${n}`} className={cn("plan-in scroll-mt-24 overflow-hidden rounded-3xl bg-white shadow-sm ring-1 transition", open ? "shadow-md ring-teal/40" : "ring-slate-200")} style={{ animationDelay: `${n * 50}ms` }}>
+    <section ref={ref} id={`etape-${n}`} className={cn("plan-in scroll-mt-24 overflow-hidden rounded-3xl bg-white shadow-sm ring-1 transition", open ? "shadow-md ring-teal/40" : "ring-slate-200")} style={{ animationDelay: `${n * 50}ms` }}>
       <button type="button" onClick={onOpen} aria-expanded={open} className="flex w-full items-center gap-3 p-4 text-left transition hover:bg-slate-50/70 sm:gap-4 sm:p-5">
         <span className={cn("flex size-10 shrink-0 items-center justify-center rounded-2xl font-heading text-base font-extrabold transition-all duration-300", done ? "bg-gradient-to-br from-teal to-violet text-white" : open ? "bg-navy text-white" : "bg-slate-100 text-slate-500")}>
           {done ? <Check className="size-5" aria-hidden /> : n}
