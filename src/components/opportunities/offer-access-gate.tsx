@@ -18,6 +18,7 @@ export function OfferAccessGate({
   gains,
   children,
   contact,
+  closed = false,
 }: {
   token?: string | null;
   offer: {
@@ -49,6 +50,8 @@ export function OfferAccessGate({
    * sans compte (formulaire fourni ici) ; l'inscription reste proposée ensuite.
    */
   contact?: React.ReactNode;
+  /** Offre clôturée (date limite dépassée ou consultation fermée) : elle ne doit jamais paraître ouverte */
+  closed?: boolean;
 }) {
   const path = `/opportunites/${offer.id}`;
   const suite = encodeURIComponent(path);
@@ -68,16 +71,39 @@ export function OfferAccessGate({
             ))}
           </nav>
         ) : null}
+        {closed && (
+          <div role="status" data-testid="gate-closed" className="mx-auto mb-4 max-w-2xl rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900">
+            <p className="font-bold">Offre clôturée : la date limite de réponse est dépassée.</p>
+            <p className="mt-1">
+              Il n&apos;est plus possible d&apos;y répondre. Elle reste consultable pour information.{" "}
+              {offer.buyerPath && offer.buyer && (
+                <>
+                  <Link href={offer.buyerPath} className="font-semibold underline">
+                    Les appels d&apos;offres en cours de {offer.buyer}
+                  </Link>
+                  {gains?.sectorPath ? " · " : ""}
+                </>
+              )}
+              {gains?.sectorPath && (
+                <Link href={gains.sectorPath} className="font-semibold underline">
+                  Les offres ouvertes{gains.sector ? ` en ${gains.sector}` : ""}
+                </Link>
+              )}
+            </p>
+          </div>
+        )}
         <div className="mx-auto max-w-2xl rounded-2xl border border-slate-200 bg-white p-6 shadow-sm [overflow-wrap:anywhere] sm:p-10">
           <span className="inline-flex size-12 items-center justify-center rounded-full bg-teal-50 text-teal-700">
             {contact ? <MessageSquare className="size-6" aria-hidden /> : <Lock className="size-6" aria-hidden />}
           </span>
           <p className="mt-4 text-2xl leading-tight font-bold sm:text-3xl">
-            {contact ? "Une entreprise recherche un prestataire" : "Créez votre compte pour accéder à cette offre"}
+            {contact ? "Une entreprise recherche un prestataire" : closed ? "Recevez les prochaines offres de ce type" : "Créez votre compte pour accéder à cette offre"}
           </p>
           <p className="mt-3 text-slate-700">
             {contact
               ? "Vous pouvez répondre à ce besoin ? Écrivez directement à l'entreprise qui l'a publié, sans créer de compte : elle reçoit votre message par e-mail et vous répond."
+              : closed
+              ? "Cette offre est terminée. Inscription gratuite en moins d'une minute : vous recevez les nouvelles offres de votre métier dès leur publication."
               : token
               ? "Cette offre vous a été recommandée personnellement. Créez votre compte gratuitement pour voir les détails et accéder à l'offre."
               : "Inscription gratuite en moins d'une minute : vous accédez à l'offre complète et recevez les nouvelles offres de votre métier."}
@@ -85,7 +111,7 @@ export function OfferAccessGate({
           {!contact && (
             // Bouton visible dès le premier écran (sur téléphone, le formulaire complet est plus bas)
             <a href={go("inscription")} data-testid="gate-top-signup" className={buttonClasses({ size: "lg", className: "mt-5 w-full sm:w-auto" })}>
-              Voir l&apos;offre complète, inscription gratuite
+              {closed ? "Recevoir les prochaines offres, inscription gratuite" : <>Voir l&apos;offre complète, inscription gratuite</>}
             </a>
           )}
 
@@ -116,7 +142,7 @@ export function OfferAccessGate({
               )}
               {offer.deadline && (
                 <li className="flex items-center gap-2">
-                  <CalendarClock className="size-4 shrink-0 text-teal-700" aria-hidden /> Date limite : {formatDate(offer.deadline)}
+                  <CalendarClock className="size-4 shrink-0 text-teal-700" aria-hidden /> {closed ? "Clôturée le" : "Date limite :"} {formatDate(offer.deadline)}
                 </li>
               )}
               {offer.publishedAt && (

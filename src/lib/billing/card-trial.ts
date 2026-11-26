@@ -8,7 +8,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
  * (réglage platform_settings « billing.card_trial »).
  */
 export const CARD_TRIAL_KEY = "billing.card_trial";
-export const CARD_TRIAL_DAYS = 7;
+export const CARD_TRIAL_DAYS = 3;
 /** Rappel envoyé avant la fin de l'essai (événement Stripe « trial_will_end », 3 jours avant). */
 export const CARD_TRIAL_REMINDER_DAYS = 3;
 

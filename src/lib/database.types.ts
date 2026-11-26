@@ -1234,13 +1234,24 @@ isOneToOne: false
                   ]
                 },"application_journal": {
                   Row: {
-                    "body": string,"company_id": string,"created_at": string,"id": string,"kind": string,"opportunity_id": string,"user_id": string | null
+                    "body": string,"company_id": string,"created_at": string,"id": string,"kind": string,"opportunity_id": string,"step": number | null,"user_id": string | null
                   }
                   Insert: {
-                    "body": string,"company_id": string,"created_at"?: string,"id"?: string,"kind"?: string,"opportunity_id": string,"user_id"?: string | null
+                    "body": string,"company_id": string,"created_at"?: string,"id"?: string,"kind"?: string,"opportunity_id": string,"step"?: number | null,"user_id"?: string | null
                   }
                   Update: {
-                    "body"?: string,"company_id"?: string,"created_at"?: string,"id"?: string,"kind"?: string,"opportunity_id"?: string,"user_id"?: string | null
+                    "body"?: string,"company_id"?: string,"created_at"?: string,"id"?: string,"kind"?: string,"opportunity_id"?: string,"step"?: number | null,"user_id"?: string | null
+                  }
+                  Relationships: []
+                },"application_followers": {
+                  Row: {
+                    "added_by": string | null,"company_id": string,"created_at": string,"opportunity_id": string,"user_id": string
+                  }
+                  Insert: {
+                    "added_by"?: string | null,"company_id": string,"created_at"?: string,"opportunity_id": string,"user_id": string
+                  }
+                  Update: {
+                    "added_by"?: string | null,"company_id"?: string,"created_at"?: string,"opportunity_id"?: string,"user_id"?: string
                   }
                   Relationships: []
                 },"application_prompts": {
@@ -2109,6 +2120,15 @@ isOneToOne: false
                            },
 "convert_need_to_service_offer":
 { Args: { "p_opportunity_id": string,"p_note"?: string }; Returns: string
+                           },
+"public_week_companies":
+{ Args: { "p_limit"?: number }; Returns: Json
+                           },
+"add_application_follower":
+{ Args: { "p_company_id": string,"p_opportunity_id": string,"p_user_id": string }; Returns: boolean
+                           },
+"remove_application_follower":
+{ Args: { "p_company_id": string,"p_opportunity_id": string,"p_user_id": string }; Returns: undefined
                            },
 "contact_company":
 { Args: { "p_target_company_id": string,"p_company_id": string,"p_body": string }; Returns: string

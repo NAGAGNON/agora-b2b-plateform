@@ -27,7 +27,9 @@ import {
   Sparkles,
   ThumbsDown,
   Trophy,
+  UserPlus,
   Users,
+  NotebookPen,
   BookOpen,
   CalendarPlus,
   MessageSquareText,
@@ -50,7 +52,7 @@ import { certStatus } from "@/lib/certification-match";
 import { APPLICATION_GUIDE, LOST_ADVICE, followUpTemplate, questionTemplate, rejectionTemplate } from "@/lib/application-guide";
 import { applicationPlan } from "@/lib/application-plan";
 import { buildMemoirDraft, type DraftCompany } from "@/lib/memoir-draft";
-import { addJournalNote, answerApplicationResult, deleteJournalNote, keepForLater, markApplicationSent, saveDraft, setApplicationReminder, startApplicationGuide, toggleDocStep, toggleGuideStep, withdrawApplication, type JournalEntry } from "@/app/actions/applications";
+import { addFollower, addJournalNote, answerApplicationResult, deleteJournalNote, removeFollower, keepForLater, markApplicationSent, saveDraft, setApplicationReminder, startApplicationGuide, toggleDocStep, toggleGuideStep, withdrawApplication, type JournalEntry, type TeamMember } from "@/app/actions/applications";
 import { loadTenderBrief, toggleBriefStep } from "@/app/actions/tender-brief";
 import { goBackToSearch } from "@/components/applications/return-point";
 import { ApplicationAssistant } from "@/components/applications/application-assistant";
@@ -90,6 +92,10 @@ export type WorkspaceData = {
   startedAt: string | null;
   reference: string | null;
   journal: JournalEntry[];
+  /** Membres de l'entreprise (pour en ajouter au suivi du dossier) */
+  team: TeamMember[];
+  /** Membres qui suivent ce dossier */
+  followers: string[];
   questions: AssistantMessage[];
   /** Lignes cochées du « à faire » de l'annonce (fiche synthèse) */
   briefDone: number[];
@@ -107,6 +113,17 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
   const [done, setDone] = useState<number[]>(data.guideDone);
   const [docs, setDocs] = useState<number[]>(data.docsDone);
   const [stage, setStage] = useState(data.stage);
+  // Journal partagé entre les notes de chaque étape et le journal de suivi complet
+  const [journal, setJournal] = useState<JournalEntry[]>(data.journal);
+  const notesFor = (step: number) => (
+    <StepNotes
+      id={data.id}
+      step={step}
+      entries={journal.filter((e) => e.step === step && e.kind === "NOTE")}
+      onAdd={(e) => setJournal((j) => [e, ...j])}
+      onRemove={(rid) => setJournal((j) => j.filter((x) => x.id !== rid))}
+    />
+  );
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   // Une seule étape ouverte à la fois : la prochaine à faire (aucune une fois la réponse envoyée)
@@ -488,6 +505,11 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
         <p className="inline-flex animate-rise items-center gap-2 rounded-full bg-white/80 px-3 py-1 text-xs font-bold tracking-wide text-teal-700 uppercase shadow-sm ring-1 ring-teal/20">
           <Sparkles className="size-3.5" aria-hidden /> Ma candidature · {statusLabel}
         </p>
+        {!discovery && (
+          <p className="ml-2 inline-flex animate-rise items-center gap-1 text-xs font-semibold text-teal-800" data-testid="autosaved">
+            <Check className="size-3.5" aria-hidden /> Enregistrée automatiquement · vous reprenez là où vous en êtes
+          </p>
+        )}
         <h1 className="mt-4 animate-rise font-heading text-xl leading-tight font-extrabold text-balance text-navy [animation-delay:80ms] sm:text-4xl">{data.title}</h1>
         <p className="mt-2 animate-rise text-slate-600 [animation-delay:140ms]">
           {data.buyer ?? (data.external ? "Acheteur indiqué dans l'annonce officielle" : "Besoin publié sur LinkProB2B")}
@@ -616,7 +638,7 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
                 <StepsProgress done={done} sent={sent} />
               </div>
               <div className="space-y-3" data-testid="steps">
-                <Step n={1} title="Vérifier votre éligibilité" subtitle="Les conditions de l'acheteur, une par une." done={done.includes(0)} open={openStep === 0} onOpen={() => setOpenStep(openStep === 0 ? -1 : 0)} onToggle={(v) => toggleStep(0, v)} pending={pending}>
+                <Step n={1} notes={notesFor(0)} title="Vérifier votre éligibilité" subtitle="Les conditions de l'acheteur, une par une." done={done.includes(0)} open={openStep === 0} onOpen={() => setOpenStep(openStep === 0 ? -1 : 0)} onToggle={(v) => toggleStep(0, v)} pending={pending}>
                   <BriefZone state={briefState} brief={brief} allowed={data.briefAllowed} upgradeHref={data.upgradeHref}>
                     {(b) => <Conditions brief={b} mine={data.mine} id={data.id} />}
                   </BriefZone>
@@ -635,7 +657,7 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
                   <HowTo items={APPLICATION_GUIDE[0].how} />
                 </Step>
 
-                <Step n={2} title="Comprendre le besoin de l'acheteur" subtitle="Ce qu'il veut, le dossier, les questions et la visite." done={done.includes(1)} open={openStep === 1} onOpen={() => setOpenStep(openStep === 1 ? -1 : 1)} onToggle={(v) => toggleStep(1, v)} pending={pending}>
+                <Step n={2} notes={notesFor(1)} title="Comprendre le besoin de l'acheteur" subtitle="Ce qu'il veut, le dossier, les questions et la visite." done={done.includes(1)} open={openStep === 1} onOpen={() => setOpenStep(openStep === 1 ? -1 : 1)} onToggle={(v) => toggleStep(1, v)} pending={pending}>
                   {brief && (
                     <div className="grid gap-2 sm:grid-cols-3">
                       <p className="rounded-xl bg-sky px-3 py-2.5 text-sm text-navy ring-1 ring-slate-200 sm:col-span-3">
@@ -684,12 +706,12 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
                   <HowTo items={APPLICATION_GUIDE[1].how} />
                 </Step>
 
-                <Step n={3} title="Évaluer vos capacités" subtitle="Équipe, matériel, trésorerie, délais : avez-vous ce qu'il faut ?" done={done.includes(2)} open={openStep === 2} onOpen={() => setOpenStep(openStep === 2 ? -1 : 2)} onToggle={(v) => toggleStep(2, v)} pending={pending}>
+                <Step n={3} notes={notesFor(2)} title="Évaluer vos capacités" subtitle="Équipe, matériel, trésorerie, délais : avez-vous ce qu'il faut ?" done={done.includes(2)} open={openStep === 2} onOpen={() => setOpenStep(openStep === 2 ? -1 : 2)} onToggle={(v) => toggleStep(2, v)} pending={pending}>
                   <ChecksList opportunityId={data.id} section="capacities" items={CAPACITIES.map((c) => ({ key: c.key, label: c.label }))} initial={data.journey.capacities} />
                   <HowTo items={APPLICATION_GUIDE[2].how} />
                 </Step>
 
-                <Step n={4} title="Rassembler les documents" subtitle="Cochez chaque document dès qu'il est prêt." done={done.includes(3)} open={openStep === 3} onOpen={() => setOpenStep(openStep === 3 ? -1 : 3)} onToggle={(v) => toggleStep(3, v)} pending={pending}>
+                <Step n={4} notes={notesFor(3)} title="Rassembler les documents" subtitle="Cochez chaque document dès qu'il est prêt." done={done.includes(3)} open={openStep === 3} onOpen={() => setOpenStep(openStep === 3 ? -1 : 3)} onToggle={(v) => toggleStep(3, v)} pending={pending}>
                   <BriefZone state={briefState} brief={brief} allowed={data.briefAllowed} upgradeHref={data.upgradeHref}>
                     {(b) =>
                       b.documents.length ? (
@@ -727,13 +749,13 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
                   <HowTo items={APPLICATION_GUIDE[3].how} />
                 </Step>
 
-                <Step n={5} title="Préparer votre offre" subtitle="Ce qui rapporte des points, et une trame déjà préparée pour vous." done={done.includes(4)} open={openStep === 4} onOpen={() => setOpenStep(openStep === 4 ? -1 : 4)} onToggle={(v) => toggleStep(4, v)} pending={pending}>
+                <Step n={5} notes={notesFor(4)} title="Préparer votre offre" subtitle="Ce qui rapporte des points, et une trame déjà préparée pour vous." done={done.includes(4)} open={openStep === 4} onOpen={() => setOpenStep(openStep === 4 ? -1 : 4)} onToggle={(v) => toggleStep(4, v)} pending={pending}>
                   {brief && ((brief.criteria ?? []).length > 0 || (brief.tips ?? []).length > 0) && <Notation brief={brief} />}
                   <DraftEditor id={data.id} initial={data.draft} make={() => buildMemoirDraft({ title: data.title, buyer: data.buyer }, brief, data.company)} />
                   <HowTo items={APPLICATION_GUIDE[4].how} />
                 </Step>
 
-                <Step n={6} title="Organiser et déposer votre candidature" subtitle="Vérifiez tout, déposez sur le site de l'acheteur, notez la référence." done={sent || done.includes(5)} open={openStep === 5} onOpen={() => setOpenStep(openStep === 5 ? -1 : 5)} pending={pending}>
+                <Step n={6} notes={notesFor(5)} title="Organiser et déposer votre candidature" subtitle="Vérifiez tout, déposez sur le site de l'acheteur, notez la référence." done={sent || done.includes(5)} open={openStep === 5} onOpen={() => setOpenStep(openStep === 5 ? -1 : 5)} pending={pending}>
                   {brief?.submission && (
                     <InfoCard icon={Send} title="Où déposer" tone="teal">
                       <p>{brief.submission}</p>
@@ -749,7 +771,7 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
                   />
                 </Step>
 
-                <Step n={7} title="Suivre le résultat" subtitle="Notez chaque nouvelle de l'acheteur, jusqu'à la décision finale." done={stage === "WON" || stage === "LOST"} open={openStep === 6} onOpen={() => setOpenStep(openStep === 6 ? -1 : 6)} pending={pending}>
+                <Step n={7} notes={notesFor(6)} title="Suivre le résultat" subtitle="Notez chaque nouvelle de l'acheteur, jusqu'à la décision finale." done={stage === "WON" || stage === "LOST"} open={openStep === 6} onOpen={() => setOpenStep(openStep === 6 ? -1 : 6)} pending={pending}>
                   <ResultTracker opportunityId={data.id} initial={data.journey.results ?? []} enabled={sent} />
                 </Step>
               </div>
@@ -759,7 +781,9 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
 
           {!discovery && essentials}
 
-          {stage !== "DETECTED" && <Journal id={data.id} initial={data.journal} />}
+          {!discovery && <TeamFollow id={data.id} team={data.team} initial={data.followers} />}
+
+          {stage !== "DETECTED" && <Journal id={data.id} entries={journal} setEntries={setJournal} />}
 
           {/* Une question ? L'assistant répond à partir de l'avis */}
           <ApplicationAssistant id={data.id} initial={data.questions} suggestions={assistantSuggestions(brief, data.mine)} backTo={backTo} />
@@ -851,9 +875,27 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
 }
 
 /** Étape du guide, repliable : une seule ouverte à la fois, la prochaine à faire. */
-function Step({ n, title, subtitle, done, open, onOpen, onToggle, pending, children }: { n: number; title: string; subtitle: string; done: boolean; open: boolean; onOpen: () => void; onToggle?: (v: boolean) => void; pending: boolean; children: React.ReactNode }) {
+function Step({ n, title, subtitle, done, open, onOpen, onToggle, pending, notes, children }: { n: number; title: string; subtitle: string; done: boolean; open: boolean; onOpen: () => void; onToggle?: (v: boolean) => void; pending: boolean; notes?: React.ReactNode; children: React.ReactNode }) {
+  // Étape ouverte au clic : l'étape précédente se referme et la page « saute » ; on garde l'étape ouverte
+  // en haut de l'écran pour que la personne reste là où elle a cliqué (pas au chargement de la page)
+  const ref = useRef<HTMLElement>(null);
+  const mounted = useRef(false);
+  useEffect(() => {
+    if (!mounted.current) {
+      mounted.current = true;
+      return;
+    }
+    if (!open) return;
+    const id = requestAnimationFrame(() => {
+      const el = ref.current;
+      if (!el) return;
+      const top = el.getBoundingClientRect().top;
+      if (top < 64 || top > window.innerHeight * 0.5) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+    return () => cancelAnimationFrame(id);
+  }, [open]);
   return (
-    <section id={`etape-${n}`} className={cn("plan-in scroll-mt-24 overflow-hidden rounded-3xl bg-white shadow-sm ring-1 transition", open ? "shadow-md ring-teal/40" : "ring-slate-200")} style={{ animationDelay: `${n * 50}ms` }}>
+    <section ref={ref} id={`etape-${n}`} className={cn("plan-in scroll-mt-24 overflow-hidden rounded-3xl bg-white shadow-sm ring-1 transition", open ? "shadow-md ring-teal/40" : "ring-slate-200")} style={{ animationDelay: `${n * 50}ms` }}>
       <button type="button" onClick={onOpen} aria-expanded={open} className="flex w-full items-center gap-3 p-4 text-left transition hover:bg-slate-50/70 sm:gap-4 sm:p-5">
         <span className={cn("flex size-10 shrink-0 items-center justify-center rounded-2xl font-heading text-base font-extrabold transition-all duration-300", done ? "bg-gradient-to-br from-teal to-violet text-white" : open ? "bg-navy text-white" : "bg-slate-100 text-slate-500")}>
           {done ? <Check className="size-5" aria-hidden /> : n}
@@ -867,6 +909,7 @@ function Step({ n, title, subtitle, done, open, onOpen, onToggle, pending, child
       {open && (
         <div className="animate-rise space-y-5 border-t border-slate-100 p-4 sm:p-8">
           {children}
+          {notes}
           {onToggle &&
             (done ? (
               <button type="button" disabled={pending} onClick={() => onToggle(false)} className="text-sm font-semibold text-slate-500 underline-offset-2 hover:text-navy hover:underline disabled:opacity-50">
@@ -1120,12 +1163,27 @@ function DraftEditor({ id, initial, make }: { id: string; initial: string | null
     setText(value);
     setStatus("saving");
     if (timer.current) clearTimeout(timer.current);
+    pendingValue.current = value;
     timer.current = setTimeout(() => {
+      pendingValue.current = null;
       saveDraft(id, value)
         .then((r) => setStatus(r.ok ? "saved" : "error"))
         .catch(() => setStatus("error"));
     }, 1000);
   };
+  // La personne quitte la page (retour, autre onglet, fermeture) : le texte tapé à l'instant est enregistré tout de suite
+  const pendingValue = useRef<string | null>(null);
+  useEffect(() => {
+    const flush = () => {
+      if (document.visibilityState !== "hidden" || pendingValue.current === null) return;
+      if (timer.current) clearTimeout(timer.current);
+      const value = pendingValue.current;
+      pendingValue.current = null;
+      void saveDraft(id, value).catch(() => undefined);
+    };
+    document.addEventListener("visibilitychange", flush);
+    return () => document.removeEventListener("visibilitychange", flush);
+  }, [id]);
   const download = () => {
     const html = `<html><head><meta charset="utf-8"></head><body>${text
       .split("\n")
@@ -1519,10 +1577,165 @@ const KIND_STYLE: Record<string, string> = {
 };
 const KIND_LABEL: Record<string, string> = { NOTE: "Note", START: "Début", STEP: "Étape", SENT: "Dépôt", WON: "Gagné", LOST: "Résultat" };
 
+/** Notes d'une étape du parcours : chacun de l'équipe peut noter où il en est (elles apparaissent aussi dans le journal). */
+function StepNotes({ id, step, entries, onAdd, onRemove }: { id: string; step: number; entries: JournalEntry[]; onAdd: (e: JournalEntry) => void; onRemove: (id: string) => void }) {
+  const [text, setText] = useState("");
+  const [pending, start] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  const add = () =>
+    start(async () => {
+      setError(null);
+      const r = await addJournalNote(id, text, step).catch(() => ({ ok: false as const, error: "Connexion perdue. Réessayez." }));
+      if (r.ok) {
+        onAdd(r.entry);
+        setText("");
+      } else setError(r.error);
+    });
+  return (
+    <div className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200" data-testid={`step-notes-${step + 1}`}>
+      <p className="flex items-center gap-2 text-sm font-bold text-navy">
+        <NotebookPen className="size-4 text-teal-700" aria-hidden /> Notes de cette étape
+        <span className="text-xs font-normal text-slate-500">· visibles par votre équipe</span>
+      </p>
+      {entries.length > 0 && (
+        <ul className="mt-3 space-y-2">
+          {entries.map((e) => (
+            <li key={e.id} className="animate-rise flex items-start gap-2 rounded-xl bg-white px-3 py-2 text-sm ring-1 ring-slate-200">
+              <p className="min-w-0 flex-1 text-slate-700 [overflow-wrap:anywhere]">
+                {e.body}
+                <span className="mt-0.5 block text-xs text-slate-400">
+                  {new Date(e.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long" })} à {new Date(e.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                  {e.author ? ` · ${e.author}` : ""}
+                </span>
+              </p>
+              {e.mine && (
+                <button
+                  type="button"
+                  aria-label="Supprimer la note"
+                  disabled={pending}
+                  onClick={() =>
+                    start(async () => {
+                      const r = await deleteJournalNote(e.id);
+                      if (r.ok) onRemove(e.id);
+                    })
+                  }
+                  className="rounded-lg p-1 text-slate-300 transition hover:bg-rose-50 hover:text-rose-600"
+                >
+                  <Trash2 className="size-4" aria-hidden />
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+        <textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          rows={2}
+          maxLength={2000}
+          aria-label={`Note pour l'étape ${step + 1}`}
+          placeholder="Ex. : attestation demandée à l'assureur, réponse attendue jeudi…"
+          className="min-h-12 flex-1 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm focus:border-teal focus:ring-2 focus:ring-teal/30 focus:outline-none"
+        />
+        <button type="button" disabled={pending || !text.trim()} onClick={add} className="h-12 shrink-0 rounded-xl bg-navy px-4 text-sm font-semibold text-white transition hover:-translate-y-0.5 disabled:opacity-50 sm:self-end">
+          Ajouter la note
+        </button>
+      </div>
+      {error && <p className="mt-2 text-sm text-rose-700">{error}</p>}
+    </div>
+  );
+}
+
+/** Équipe sur ce dossier : ajouter un collègue au suivi de la candidature (il est prévenu). */
+function TeamFollow({ id, team, initial }: { id: string; team: TeamMember[]; initial: string[] }) {
+  const [followers, setFollowers] = useState<string[]>(initial);
+  const [choice, setChoice] = useState("");
+  const [pending, start] = useTransition();
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const byId = new Map(team.map((m) => [m.id, m]));
+  const following = followers.map((f) => byId.get(f)).filter((m): m is TeamMember => Boolean(m));
+  const others = team.filter((m) => !followers.includes(m.id));
+  const add = (uid: string) =>
+    start(async () => {
+      setMsg(null);
+      const r = await addFollower(id, uid).catch(() => ({ ok: false as const, error: "Connexion perdue. Réessayez." }));
+      if (r.ok) {
+        setFollowers((f) => [...f, uid]);
+        setChoice("");
+        const m = byId.get(uid);
+        setMsg({ ok: true, text: m?.you ? "Vous suivez ce dossier." : `${m?.name ?? "Votre collègue"} suit maintenant ce dossier : il est prévenu dans ses notifications.` });
+      } else setMsg({ ok: false, text: r.error });
+    });
+  const remove = (uid: string) =>
+    start(async () => {
+      setMsg(null);
+      const r = await removeFollower(id, uid).catch(() => ({ ok: false as const, error: "Connexion perdue. Réessayez." }));
+      if (r.ok) setFollowers((f) => f.filter((x) => x !== uid));
+      else setMsg({ ok: false, text: r.error });
+    });
+  return (
+    <section className="plan-in rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200 sm:p-6" data-testid="team-follow">
+      <div className="flex items-center gap-3">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-teal to-violet text-white">
+          <Users className="size-5" aria-hidden />
+        </span>
+        <span className="min-w-0">
+          <span className="block font-heading text-lg font-bold text-navy">Équipe sur ce dossier</span>
+          <span className="block text-sm text-slate-500">Ajoutez un collègue : il retrouve la candidature, ses étapes et ses notes.</span>
+        </span>
+      </div>
+      {following.length > 0 && (
+        <ul className="mt-4 flex flex-wrap gap-2">
+          {following.map((m) => (
+            <li key={m.id} className="animate-rise inline-flex items-center gap-2 rounded-full bg-teal-50 py-1 pr-1 pl-1 text-sm font-semibold text-teal-900 ring-1 ring-teal/30">
+              <span aria-hidden className="flex size-7 items-center justify-center rounded-full bg-gradient-to-br from-teal to-violet text-xs font-bold text-white">
+                {m.name.trim().charAt(0).toUpperCase()}
+              </span>
+              {m.you ? `${m.name} (vous)` : m.name}
+              <button type="button" disabled={pending} onClick={() => remove(m.id)} aria-label={`Retirer ${m.name} du suivi`} className="rounded-full p-1 text-teal-700 transition hover:bg-white hover:text-rose-600 disabled:opacity-50">
+                <XCircle className="size-4" aria-hidden />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {others.length > 0 && (
+        <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+          <select value={choice} onChange={(e) => setChoice(e.target.value)} aria-label="Membre de l'équipe à ajouter" className="h-12 flex-1 rounded-xl border border-slate-300 bg-white px-3 text-sm">
+            <option value="">Choisir un membre de l&apos;équipe…</option>
+            {others.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.you ? `${m.name} (vous)` : m.name}
+              </option>
+            ))}
+          </select>
+          <button type="button" disabled={pending || !choice} onClick={() => add(choice)} className="btn-shine inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-navy px-5 text-sm font-semibold text-white transition hover:-translate-y-0.5 disabled:opacity-50">
+            <UserPlus className="size-4" aria-hidden /> Ajouter au suivi
+          </button>
+        </div>
+      )}
+      {team.filter((m) => !m.you).length === 0 && (
+        <p className="mt-4 text-sm text-slate-600">
+          Vous êtes seul dans l&apos;équipe pour l&apos;instant.{" "}
+          <Link href="/dashboard/entreprise#equipe" className="font-semibold text-teal-700 underline-offset-2 hover:underline">
+            Inviter un collègue
+          </Link>{" "}
+          pour qu&apos;il puisse suivre ce dossier avec vous.
+        </p>
+      )}
+      {msg && (
+        <p className={cn("mt-3 text-sm font-semibold", msg.ok ? "text-teal-800" : "text-rose-700")} aria-live="polite">
+          {msg.text}
+        </p>
+      )}
+    </section>
+  );
+}
+
 /** Journal de suivi jour par jour : notes de l'équipe et étapes franchies. */
-function Journal({ id, initial }: { id: string; initial: JournalEntry[] }) {
+function Journal({ id, entries, setEntries }: { id: string; entries: JournalEntry[]; setEntries: (e: JournalEntry[]) => void }) {
   const [open, setOpen] = useState(false);
-  const [entries, setEntries] = useState(initial);
   const [text, setText] = useState("");
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -1584,6 +1797,7 @@ function Journal({ id, initial }: { id: string; initial: JournalEntry[] }) {
                     <span aria-hidden className="absolute top-2 -left-[1.4rem] size-2.5 rounded-full bg-teal ring-4 ring-white" />
                     <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold", KIND_STYLE[e.kind] ?? KIND_STYLE.NOTE)}>{KIND_LABEL[e.kind] ?? "Note"}</span>
                     <p className="min-w-0 flex-1 text-sm text-slate-700">
+                      {e.kind === "NOTE" && e.step !== null && <span className="mr-1.5 font-semibold text-teal-800">Étape {e.step + 1} ·</span>}{e.kind === "NOTE" && e.step !== null && " "}
                       {e.body}
                       <span className="ml-2 text-xs text-slate-400">
                         {new Date(e.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}

@@ -145,3 +145,12 @@ export const getOpenCounts = cache(async () => {
   for (const r of data) map.set(`${r.dimension}:${r.key ?? ""}`, Number(r.n));
   return (dimension: string, key: string) => map.get(`${dimension}:${key}`) ?? 0;
 });
+
+export type WeekCompanies = { total: number; logos: { name: string; slug: string; logo_path: string; city: string | null; at: string }[] };
+
+/** Entreprises inscrites ces 7 derniers jours (annuaire public) : le nombre total, et celles qui ont un logo. */
+export const getWeekCompanies = cache(async (): Promise<WeekCompanies | null> => {
+  const { data, error } = await visitorRpc("public_week_companies", { p_limit: 30 });
+  if (error || !data) return null;
+  return data as unknown as WeekCompanies;
+});

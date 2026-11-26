@@ -69,7 +69,7 @@ export async function createCompany(_prev: ActionResult | null, fd: FormData): P
   await requestStarterBoost(fd, companyId);
   (await cookies()).set(ACTIVE_COMPANY_COOKIE, companyId, { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/" });
   revalidatePath("/", "layout");
-  // Lancement payant ouvert : la création de l'entreprise mène à l'essai de 7 jours (sinon tableau de bord)
+  // Lancement payant ouvert : la création de l'entreprise mène au choix de l'offre (essai de 3 jours) (sinon tableau de bord)
   redirect(safeNext(fd.get("suite"), (await cardTrial()).enabled ? "/essai" : "/dashboard?bienvenue=1"));
 }
 

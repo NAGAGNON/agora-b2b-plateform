@@ -47,12 +47,15 @@ export default async function CandidaturePage(props: PageProps<"/dashboard/candi
   // Pas encore enregistrée : simple consultation (« DETECTED »), rien n'est écrit tant que la personne ne choisit pas
 
   const admin = createAdminClient();
-  const [{ data: sources }, { data: stored }, plan, { data: journal }, { data: questions }] = await Promise.all([
+  const [{ data: sources }, { data: stored }, plan, { data: journal }, { data: questions }, { data: members }, { data: followers }] = await Promise.all([
     admin.from("opportunity_sources").select("original_url, external_id, is_primary").eq("opportunity_id", id),
     admin.from("tender_briefs").select("content").eq("opportunity_id", id).maybeSingle(),
     db.rpc("user_plan").then((r) => r.data ?? "FREE"),
-    db.from("application_journal").select("id, kind, body, created_at, user_id").eq("company_id", company.id).eq("opportunity_id", id).order("created_at", { ascending: false }).limit(100),
+    db.from("application_journal").select("id, kind, body, created_at, user_id, step").eq("company_id", company.id).eq("opportunity_id", id).order("created_at", { ascending: false }).limit(100),
     db.from("application_questions").select("id, question, answer, created_at, user_id").eq("company_id", company.id).eq("opportunity_id", id).order("created_at", { ascending: true }).limit(50),
+    // Équipe de l'entreprise (pour ajouter un collègue au suivi) et membres qui suivent déjà ce dossier
+    admin.from("company_members").select("user_id, user:users(full_name)").eq("company_id", company.id).order("created_at").limit(50),
+    db.from("application_followers").select("user_id").eq("company_id", company.id).eq("opportunity_id", id),
   ]);
   const authorIds = [...new Set((journal ?? []).map((j) => j.user_id).filter((x): x is string => Boolean(x)))];
   const { data: authors } = authorIds.length ? await admin.from("users").select("id, full_name").in("id", authorIds) : { data: [] as { id: string; full_name: string }[] };
@@ -102,7 +105,13 @@ export default async function CandidaturePage(props: PageProps<"/dashboard/candi
           created_at: j.created_at,
           author: j.user_id === session.userId ? "Vous" : j.user_id ? (authorName.get(j.user_id) ?? null) : null,
           mine: j.user_id === session.userId,
+          step: j.step,
         })),
+        team: (members ?? []).map((m) => {
+          const u = (Array.isArray(m.user) ? m.user[0] : m.user) as { full_name: string | null } | null;
+          return { id: m.user_id, name: u?.full_name?.trim() || "Membre de l'équipe", you: m.user_id === session.userId };
+        }),
+        followers: (followers ?? []).map((f) => f.user_id),
         questions: (questions ?? []).map((q) => ({ id: q.id, question: q.question, answer: q.answer, created_at: q.created_at, mine: q.user_id === session.userId })),
         company: {
           name: co?.name ?? company.name,
