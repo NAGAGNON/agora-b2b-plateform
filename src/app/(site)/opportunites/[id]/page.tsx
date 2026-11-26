@@ -43,7 +43,9 @@ import { buttonClasses } from "@/components/ui/button";
 import { getOpportunityDetail } from "@/lib/queries/opportunities";
 import { visitorRpc } from "@/lib/queries/public-cache";
 import { buyerSlug } from "@/lib/buyer-slug";
-import { fitReasons, getFitProfile } from "@/lib/fit";
+import { fitReasons, getCompatCompany, getFitProfile } from "@/lib/fit";
+import { proLockedForMe } from "@/lib/billing/credits-switch";
+import { CompatibilityCard, CompatibilityTeaser } from "@/components/opportunities/compatibility-card";
 import { buyerRegistryUrl } from "@/components/buyers/buyer-official";
 import { CampaignCompanies } from "@/components/campaign-companies";
 import { ShareLinks } from "@/components/share-links";
@@ -358,6 +360,19 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
     const days = o.response_deadline ? Math.ceil((new Date(o.response_deadline).getTime() - new Date().getTime()) / 86_400_000) : null;
     const where = [(await getLocationLabel())(o.city, o.department_code), o.region].filter(Boolean).join(" · ") || null;
     const trade = o.sector_slug ? sectorLabel(o.sector_slug, await getSectorLabels()) : null;
+    // Compatibilité avec l'entreprise du membre (offre ouverte) : calcul simple, d'après sa fiche et la fiche « En bref »
+    const compatCompany = guided ? await getCompatCompany() : null;
+    const compatInput = compatCompany
+      ? {
+          offer: { title: o.title, summary: brief?.summary ?? o.summary ?? o.description, sector_slug: o.sector_slug, department_code: o.department_code, region: o.region, lat: o.lat, lng: o.lng },
+          company: compatCompany,
+          requirements: await storedBrief(o.id)
+            .then((full) => (full ? { certifications: full.certifications ?? [], capacity: full.capacity ?? [] } : null))
+            .catch(() => null),
+          tradeName: o.sector_slug ? sectorLabel(o.sector_slug, await getSectorLabels()) : null,
+        }
+      : null;
+    const compatLocked = compatInput ? await proLockedForMe() : false;
     const official = [
       o.description && { title: "Résumé", text: o.description },
       o.services && { title: "Prestations attendues", text: o.services },
@@ -483,6 +498,12 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
                   </li>
                 )}
               </ul>
+
+              {compatInput ? (
+                <CompatibilityCard {...compatInput} opportunityId={o.id} locked={compatLocked} canEdit={session?.activeCompany?.role === "COMPANY_ADMIN"} />
+              ) : (
+                guided && <CompatibilityTeaser signedIn={Boolean(session)} />
+              )}
 
               <div className="mt-6">
                 {guided ? (

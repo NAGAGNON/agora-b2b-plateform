@@ -41,6 +41,7 @@ export const OFFER_PLANS: OfferPlan[] = [
       `${FREE_CREDITS} candidatures par mois`,
       "Recherche et lecture des offres, lien vers l'annonce officielle",
       "Le résumé « En bref » de chaque appel d'offres",
+      "Votre note de compatibilité avec chaque offre (le détail est réservé à Pro)",
       "1 alerte : les nouvelles offres de votre métier chaque matin",
       "Notes et journal de suivi sans limite sur vos candidatures",
       "3 questions par mois à l'assistant de candidature",
@@ -58,6 +59,7 @@ export const OFFER_PLANS: OfferPlan[] = [
     includes: [
       `${PRO_CREDITS} candidatures par mois`,
       "La fiche complète de chaque appel d'offres : conditions, pièces, critères, dates (PDF, Word)",
+      "La note de compatibilité détaillée : ce qui colle, ce qui manque, et la note qui s'ajuste à vos réponses",
       "Les nouvelles offres de votre métier chaque matin, 3 alertes",
       "L'assistant de candidature sans limite, les modèles de mémoire et de courriers",
       "Les besoins des entreprises en avant-première",

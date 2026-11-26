@@ -37,3 +37,35 @@ export function fitReasons(
   if (skill) reasons.push(`« ${skill} »`);
   return reasons;
 }
+
+/** Fiche de l'entreprise active pour la note de compatibilité (une seule lecture par page), ou null. */
+export const getCompatCompany = cache(async (): Promise<import("@/lib/compatibility").CompatCompany | null> => {
+  const session = await getSession();
+  const id = session?.activeCompany?.company.id;
+  if (!id) return null;
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("companies")
+    .select("department_code, region, lat, lng, profile:company_profiles(sectors, skills, certifications, intervention_radius_km, intervention_zone)")
+    .eq("id", id)
+    .maybeSingle();
+  if (!data) return null;
+  const p = (Array.isArray(data.profile) ? data.profile[0] : data.profile) as {
+    sectors: string[] | null;
+    skills: string[] | null;
+    certifications: string[] | null;
+    intervention_radius_km: number | null;
+    intervention_zone: string | null;
+  } | null;
+  return {
+    sectors: p?.sectors ?? [],
+    skills: p?.skills ?? [],
+    certifications: p?.certifications ?? [],
+    department: data.department_code,
+    region: data.region,
+    lat: data.lat,
+    lng: data.lng,
+    radiusKm: p?.intervention_radius_km ?? null,
+    zone: p?.intervention_zone ?? null,
+  };
+});

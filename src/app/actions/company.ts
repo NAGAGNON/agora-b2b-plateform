@@ -362,3 +362,26 @@ function fetchLogoAfterResponse(companyId: string) {
     }
   });
 }
+
+/**
+ * Note de compatibilité : le membre confirme qu'il a une certification demandée par un avis et l'ajoute
+ * à la fiche de son entreprise (administrateur seulement), pour des notes plus précises la prochaine fois.
+ */
+export async function addProfileCertification(certification: string): Promise<ActionResult> {
+  const value = certification.replace(/\s+/g, " ").trim().slice(0, 120);
+  if (value.length < 2) return { ok: false, error: "Certification vide." };
+  const session = await getSession();
+  const company = session?.activeCompany;
+  if (!company) return { ok: false, error: "Aucune entreprise active." };
+  if (company.role !== "COMPANY_ADMIN") return { ok: false, error: "Seul un administrateur de l'entreprise peut modifier la fiche." };
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("company_profiles").select("certifications").eq("company_id", company.company.id).maybeSingle();
+  if (error) return actionError(error);
+  const current = data?.certifications ?? [];
+  if (current.some((c) => c.toLowerCase() === value.toLowerCase())) return { ok: true };
+  if (current.length >= 30) return { ok: false, error: "Votre fiche compte déjà 30 certifications : modifiez-la depuis votre espace." };
+  const { error: e2 } = await supabase.from("company_profiles").update({ certifications: [...current, value] }).eq("company_id", company.company.id);
+  if (e2) return actionError(e2);
+  revalidatePath("/dashboard/entreprise");
+  return { ok: true };
+}
