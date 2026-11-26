@@ -470,7 +470,7 @@ export function ProUpgradePage({ founder, founderUntil }: { founder: boolean; fo
       <div className="relative isolate bg-gradient-to-br from-navy to-navy-900 p-6 text-white sm:p-10">
         <div aria-hidden className="pointer-events-none absolute -top-20 -right-16 -z-10 size-72 animate-aurora rounded-full bg-teal/30 blur-3xl" />
         <ProHint>Pro</ProHint>
-        <h1 className="mt-3 font-heading text-3xl font-extrabold sm:text-4xl">Préparez vos candidatures comme un pro</h1>
+        <h1 className="mt-3 font-heading text-3xl font-extrabold text-white sm:text-4xl">Préparez vos candidatures comme un pro</h1>
         <p className="mt-2 max-w-xl text-slate-300">Tout ce qui est flouté sur vos fiches, débloqué.</p>
       </div>
       <div className="grid gap-6 p-6 sm:p-10 lg:grid-cols-[1fr_20rem]">
