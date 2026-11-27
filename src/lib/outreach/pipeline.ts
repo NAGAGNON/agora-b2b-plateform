@@ -666,13 +666,15 @@ async function sendQueue(db: Db, deadline: number, sleep: (ms: number) => Promis
     const boost = c.kind === "BOOST";
     const capped = c.kind === "AUTO";
     // Besoins : quota quotidien propre à chaque besoin (chaque besoin publié reçoit sa part, chaque jour)
-    if (need && !simulate) {
+    if (need && !boost && !simulate) {
       const { count } = await db.from("outreach_recipients").select("id", { count: "exact", head: true }).eq("campaign_id", c.id).eq("status", "SENT").gte("sent_at", startOfDay);
       needRemaining = Math.max(0, settings.need_daily_send_cap - (count ?? 0));
     }
     await db.from("outreach_campaigns").update({ status: "SENDING" }).eq("id", c.id);
     while (Date.now() < deadline) {
-      const room = simulate ? 25 : Math.min(25, need ? needRemaining : totalRemaining, need ? needHourRemaining : hourRemaining, capped ? autoRemaining : 25);
+      // Présentations « Visibilité » : service promis à une entreprise, déjà limité à son nombre quotidien
+      // au moment de la mise en file. Une pause de la prospection (quotas à 0) ne doit jamais les bloquer.
+      const room = simulate || boost ? 25 : Math.min(25, need ? needRemaining : totalRemaining, need ? needHourRemaining : hourRemaining, capped ? autoRemaining : 25);
       if (room <= 0) {
         if (!simulate && (need ? needHourRemaining : hourRemaining) <= 0) {
           result.stopped = "limite horaire";
