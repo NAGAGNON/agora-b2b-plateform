@@ -42,10 +42,10 @@ export function FilterSection({
 }
 
 /** Option en pastille (case à cocher ou bouton radio masqué, accessible au clavier). */
-export function Chip({ type = "radio", name, value, checked, children }: { type?: "radio" | "checkbox"; name: string; value: string; checked: boolean; children: ReactNode }) {
+export function Chip({ type = "radio", name, value, checked, disabled, children }: { type?: "radio" | "checkbox"; name: string; value: string; checked: boolean; disabled?: boolean; children: ReactNode }) {
   return (
-    <label className="relative cursor-pointer">
-      <input type={type} name={name} value={value} defaultChecked={checked} className="peer sr-only" />
+    <label className={disabled ? "relative cursor-not-allowed opacity-45" : "relative cursor-pointer"} title={disabled ? "Aucune offre pour ces critères" : undefined}>
+      <input type={type} name={name} value={value} defaultChecked={checked} disabled={disabled} className="peer sr-only" />
       <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition select-none hover:border-teal/50 hover:text-navy peer-checked:border-navy peer-checked:bg-navy peer-checked:text-white peer-checked:shadow-md peer-focus-visible:ring-4 peer-focus-visible:ring-teal/30">
         {children}
       </span>
