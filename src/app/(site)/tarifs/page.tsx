@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, ChevronDown, Lock, Radar, ShieldCheck, Zap } from "lucide-react";
+import { ArrowRight, BadgeCheck, ChevronDown, Lock, Radar, ShieldCheck, Zap } from "lucide-react";
 import { freeLaunch } from "@/lib/billing/entitlements";
 import { cardTrial } from "@/lib/billing/card-trial";
 import { FOUNDER_PRICE_HT, founderOffer, founderOpen, founderSeatsTaken, seatsLeft } from "@/lib/billing/founder";
@@ -116,6 +116,9 @@ export default async function PricingPage(props: PageProps<"/tarifs">) {
         <ul className="mt-10 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-sm text-slate-600">
           <li className="inline-flex items-center gap-2">
             <ShieldCheck className="size-4 text-teal-700" aria-hidden /> Sans engagement en mensuel
+          </li>
+          <li className="inline-flex items-center gap-2" data-testid="pricing-no-quote">
+            <BadgeCheck className="size-4 text-teal-700" aria-hidden /> Pas de devis, pas d&apos;engagement d&apos;un an : le prix est affiché
           </li>
           <li className="inline-flex items-center gap-2">
             <Lock className="size-4 text-teal-700" aria-hidden /> Paiement sécurisé par Stripe

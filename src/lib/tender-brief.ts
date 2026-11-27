@@ -236,10 +236,27 @@ async function generateBrief(opportunityId: string, existing: TenderBrief | null
 export async function ensureBrief(opportunityId: string, { db = createAdminClient(), client }: { db?: ReturnType<typeof createAdminClient>; client?: Pick<Anthropic, "beta"> } = {}): Promise<TenderBrief | null> {
   const existing = await storedBrief(opportunityId, db);
   if (isCurrentBrief(existing)) return existing;
-  // Fiche absente ou d'un style plus ancien : rédigée maintenant, à l'ouverture (l'ancienne reste en secours)
-  const r = await generateBrief(opportunityId, existing, db, client);
-  return "brief" in r ? r.brief : existing;
+  // Fiche absente ou d'un style plus ancien : rédigée maintenant, à l'ouverture (l'ancienne reste en secours).
+  // Une seule rédaction à la fois : si elle est déjà lancée (ouverture de l'offre), on attend son résultat.
+  const { data: claimed, error } = await db.rpc("claim_brief_generation", { p_opportunity_id: opportunityId });
+  if (error || claimed) {
+    try {
+      const r = await generateBrief(opportunityId, existing, db, client);
+      return "brief" in r ? r.brief : existing;
+    } finally {
+      if (!error) await db.from("brief_generations").delete().eq("opportunity_id", opportunityId);
+    }
+  }
+  for (const end = Date.now() + BRIEF_WAIT_MS; Date.now() < end; ) {
+    await new Promise((ok) => setTimeout(ok, 1500));
+    const { count } = await db.from("brief_generations").select("opportunity_id", { count: "exact", head: true }).eq("opportunity_id", opportunityId);
+    if (!count) break;
+  }
+  return (await storedBrief(opportunityId, db)) ?? existing;
 }
+
+/** Temps d'attente maximal d'une rédaction déjà lancée par une autre demande. */
+const BRIEF_WAIT_MS = 90_000;
 
 /**
  * Réécriture progressive en langage simple (style BRIEF_STYLE) des fiches des offres encore ouvertes :

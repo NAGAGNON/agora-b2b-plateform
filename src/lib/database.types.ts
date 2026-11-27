@@ -300,6 +300,11 @@ isOneToOne: true
                   Insert: { "conversation_id": string; "created_at"?: string; "user_id": string }
                   Update: { "conversation_id"?: string; "created_at"?: string; "user_id"?: string }
                   Relationships: []
+                },"brief_generations": {
+                  Row: { "opportunity_id": string; "started_at": string }
+                  Insert: { "opportunity_id": string; "started_at"?: string }
+                  Update: { "opportunity_id"?: string; "started_at"?: string }
+                  Relationships: []
                 },"pro_grants": {
                   Row: { "created_at": string; "reason": string; "until": string; "user_id": string }
                   Insert: { "created_at"?: string; "reason": string; "until": string; "user_id": string }
@@ -1714,6 +1719,9 @@ isOneToOne: false
             }
           }
           Functions: {
+            "claim_brief_generation":
+{ Args: { "p_opportunity_id": string }; Returns: boolean
+                           },
             "company_followers_count":
 { Args: { "p_company_id": string }; Returns: number
                            },
