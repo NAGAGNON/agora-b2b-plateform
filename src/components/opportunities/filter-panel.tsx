@@ -47,7 +47,8 @@ export async function FilterFields({ f, departments, places, idPrefix, originCou
             ["INTERNAL", "Besoins d'entreprises"],
             ["EXTERNAL", "Marchés publics"],
           ].map(([v, l]) => (
-            <Chip key={v} name="origine" value={v} checked={(f.origin ?? "") === v}>
+            // Choix vide pour les critères en cours (souvent « Besoins d'entreprises », encore rares) : grisé, pour ne pas mener à 0 résultat
+            <Chip key={v} name="origine" value={v} checked={(f.origin ?? "") === v} disabled={Boolean(originCounts && (v === "INTERNAL" || v === "EXTERNAL") && originCounts[v as "INTERNAL" | "EXTERNAL"] === 0 && f.origin !== v)}>
               {l}
               {/* Nombre d'offres pour les autres critères choisis : on voit avant de cliquer qu'un choix est vide */}
               {originCounts && (v === "INTERNAL" || v === "EXTERNAL") && <span className="ml-1 tabular-nums font-normal">({originCounts[v as "INTERNAL" | "EXTERNAL"]})</span>}
