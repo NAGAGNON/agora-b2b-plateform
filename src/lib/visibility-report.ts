@@ -164,6 +164,15 @@ export async function sendVisibilityRecaps(db: Db = createAdminClient(), now = n
       const to = (members ?? [])
         .map((m) => (Array.isArray(m.users) ? m.users[0] : m.users) as { email: string; notify_email: boolean; notify_prefs: Record<string, unknown> | null; status: string; is_internal: boolean } | null)
         .filter((u): u is NonNullable<typeof u> => Boolean(u && u.email && u.notify_email && u.status === "ACTIVE" && (u.notify_prefs ?? {})["visibilite"] !== false));
+      // Rien d'envoyé alors que des présentations attendent d'être envoyées : le retard vient de chez nous,
+      // pas du ciblage. Pas de bilan « 0 » trompeur : il partira une fois les présentations envoyées.
+      if (!report.presented.length) {
+        const { data: camp } = await db.from("outreach_campaigns").select("id").eq("kind", "BOOST").eq("boost_id", b.id).maybeSingle();
+        const { count: waiting } = camp
+          ? await db.from("outreach_recipients").select("id", { count: "exact", head: true }).eq("campaign_id", camp.id).in("status", ["PENDING", "QUEUED", "SENDING"])
+          : { count: 0 };
+        if (waiting) continue;
+      }
       // Enregistré avant l'envoi : jamais deux bilans le même jour pour une campagne
       await db.from("audit_logs").insert({ action: "visibility.recap_sent", entity_type: "visibility_boost", entity_id: b.id, metadata: { recipients: to.length, presented: report.presented.length, read: report.read, messages: report.messages } });
       if (!to.length) continue;
