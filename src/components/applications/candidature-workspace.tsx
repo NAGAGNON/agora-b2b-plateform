@@ -151,7 +151,16 @@ export function CandidatureWorkspace({ data }: { data: WorkspaceData }) {
   const sent = ["RESPONSE_SENT", "DISCUSSION", "NEGOTIATION", "WON", "LOST"].includes(stage);
   // Offre « à l'étude » : la personne découvre avant de décider de répondre
   const discovery = ["DETECTED", "QUALIFIED", "INTERESTED"].includes(stage);
-  const prepare = () => act(() => startApplicationGuide(data.id), "RESPONSE_PREPARING");
+  // « Oui, je prépare » : la personne est emmenée à l'étape 1, ouverte, pour savoir tout de suite quoi faire
+  const prepare = () =>
+    start(async () => {
+      setError(null);
+      const r = await startApplicationGuide(data.id);
+      if (!r.ok) return setError(r.error ?? "Réessayez.");
+      setStage("RESPONSE_PREPARING");
+      setOpenStep(0);
+      setTimeout(() => document.getElementById("etape-1")?.scrollIntoView({ behavior: "smooth", block: "start" }), 120);
+    });
   const later = stage === "INTERESTED";
   // Cocher « je la garde pour plus tard » : enregistré, la personne reste sur la page et continue de lire
   const keep = () => {

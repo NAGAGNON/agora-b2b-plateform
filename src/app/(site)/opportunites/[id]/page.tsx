@@ -52,7 +52,7 @@ import { ShareLinks } from "@/components/share-links";
 import { cookies, headers } from "next/headers";
 import { OfferAccessGate } from "@/components/opportunities/offer-access-gate";
 import { OfferChoices } from "@/components/opportunities/offer-choices";
-import { boampId, ensureBrief, storedBrief, tedId } from "@/lib/tender-brief";
+import { boampId, ensureBrief, isCurrentBrief, storedBrief, tedId } from "@/lib/tender-brief";
 import { offerWhat } from "@/lib/offer-what";
 import { after } from "next/server";
 import { NeedContactForm } from "@/components/opportunities/need-contact-form";
@@ -177,8 +177,9 @@ async function membersOnlyGate(id: string) {
 }
 
 /** Ce que veut l'acheteur, en une phrase simple, tiré de la fiche synthèse de l'avis (null si elle n'est pas encore prête). */
-async function briefSummary(id: string): Promise<string | null> {
-  return ((await storedBrief(id, createAdminClient()).catch(() => null))?.summary ?? null) || null;
+async function briefSummary(id: string): Promise<{ summary: string | null; current: boolean }> {
+  const b = await storedBrief(id, createAdminClient()).catch(() => null);
+  return { summary: b?.summary || null, current: isCurrentBrief(b) };
 }
 
 /**
@@ -325,7 +326,7 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
 
   const external = o.origin === "EXTERNAL";
   // Ce que veut l'acheteur, en mots simples (fiche synthèse de l'avis officiel) ; le détail est sur la fiche de candidature
-  const brief = external ? { summary: await briefSummary(o.id) } : null;
+  const brief = external ? await briefSummary(o.id) : null;
   const sources = (Array.isArray(o.source) ? o.source : o.source ? [o.source] : []).sort((a, b) => Number(b.is_primary) - Number(a.is_primary));
   const source = sources[0];
   const otherSources = sources.slice(1);
@@ -356,7 +357,9 @@ export default async function OpportunityPage(props: PageProps<"/opportunites/[i
     // (le résumé de collecte « Acheteur — Marché de services » ne disait rien du besoin), et la fiche est
     // préparée en arrière-plan pour les membres connectés, pour les visites suivantes.
     const what = brief?.summary ?? offerWhat(o) ?? (o.description ? clip(o.description.replace(/\s+/g, " ").trim(), 260) : null);
-    if (!brief?.summary && guided && session) after(() => ensureBrief(o.id).catch(() => null));
+    // Le membre ouvre l'offre : la fiche complète de « En savoir plus » se prépare aussitôt, en arrière-plan,
+    // pour être prête quand il clique (y compris une fiche d'un ancien style, réécrite)
+    if (brief && !brief.current && guided && session) after(() => ensureBrief(o.id).catch(() => null));
     const days = o.response_deadline ? Math.ceil((new Date(o.response_deadline).getTime() - new Date().getTime()) / 86_400_000) : null;
     const where = [(await getLocationLabel())(o.city, o.department_code), o.region].filter(Boolean).join(" · ") || null;
     const trade = o.sector_slug ? sectorLabel(o.sector_slug, await getSectorLabels()) : null;

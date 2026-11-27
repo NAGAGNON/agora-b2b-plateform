@@ -136,3 +136,19 @@ test("téléphone : ouvrir une étape garde l'étape à l'écran (la page ne sau
     await expect(b).toBeInViewport();
   }
 });
+
+test("« Oui, je prépare ma candidature » : la page remonte à l'étape 1, ouverte", async ({ browser }) => {
+  test.setTimeout(90_000);
+  await db.from("pipeline_items").update({ stage: "DETECTED", guide_done: [] }).eq("opportunity_id", id);
+  const page = await newPage(browser, { width: 390, height: 844 });
+  await login(page, "acheteur@demo.linkprob2b.test");
+  await page.goto(`/dashboard/candidatures/${id}`);
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  const yes = page.getByRole("button", { name: /Oui, je prépare ma candidature/ });
+  await yes.scrollIntoViewIfNeeded();
+  await yes.click();
+  const step1 = page.getByTestId("steps").getByRole("button", { name: /Vérifier votre éligibilité/ });
+  await expect(step1).toHaveAttribute("aria-expanded", "true");
+  await page.waitForTimeout(900);
+  await expect(step1).toBeInViewport();
+});
