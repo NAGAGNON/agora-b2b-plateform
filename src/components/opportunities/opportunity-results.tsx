@@ -59,6 +59,10 @@ export async function OpportunityResults({ filters, rawParams, basePath, trackSe
     const regionSlug = filters.region ?? (deptRow?.region ? REGIONS.find((x) => x.name === deptRow.region)?.slug : undefined);
     const regionName = regionSlug ? REGIONS.find((x) => x.slug === regionSlug)?.name : null;
     const where = sectorName ? `${sectorName}, ` : "";
+    // Mots cherchés + métier + zone choisis : les offres du métier dans SA zone passent avant les mêmes mots ailleurs
+    // en France (un nettoyeur de Chamonix veut les offres de Haute-Savoie, pas « ménage » à Lille)
+    if (filters.q && filters.sector && hasPlace)
+      tries.push({ f: { ...filters, q: undefined, page: 1 }, label: `aucune offre ne contient « ${filters.q} » : toutes les offres ${sectorName ? `de ${sectorName.toLowerCase()} ` : ""}${deptRow ? `en ${deptRow.name} (${deptRow.code})` : regionName ? `en ${regionName}` : "dans votre zone"}` });
     // Sans mot-clé : on retire d'abord les filtres secondaires, puis on élargit la zone
     if (!filters.q) {
       const extra = Boolean(filters.city || filters.place || filters.size || filters.types.length || filters.publishedWithin || filters.deadlineBefore || filters.skills.length || filters.status !== "OPEN");
@@ -90,7 +94,7 @@ export async function OpportunityResults({ filters, rawParams, basePath, trackSe
     for (const t of tries) {
       const r = await searchOpportunities(t.f).catch(() => null);
       if (r && !r.error && r.total > 0) {
-        nearby = { rows: r.rows.slice(0, 6), label: t.label };
+        nearby = { rows: r.rows.slice(0, 12), label: t.label };
         break;
       }
     }
